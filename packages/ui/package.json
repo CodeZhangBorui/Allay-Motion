@@ -7,7 +7,9 @@
     "./styles.css": "./src/styles/globals.css",
     "./brand": "./src/brand/index.ts",
     "./lib/*": "./src/lib/*.ts",
-    "./components/*": "./src/components/ui/*.tsx"
+    "./components/*": "./src/components/ui/*.tsx",
+    "./editor": "./src/editor/index.ts",
+    "./editor/*": "./src/editor/*.tsx"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -28,7 +30,8 @@
     "react-colorful": "^5.8.1",
     "react-dom": "^19.3.1",
     "react-resizable-panels": "^4.21.0",
-    "sonner": "^2.0.8"
+    "sonner": "^2.0.8",
+    "@allay/template-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
