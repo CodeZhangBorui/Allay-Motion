@@ -535,7 +535,8 @@
         "concrete": "Concrete",
         "terracotta": "Terracotta",
         "items": "Items"
-      }
+      },
+      "loading": "Fetching thumbnails…"
     },
     "blockList": {
       "replace": "Replace “{{name}}”",
@@ -586,5 +587,8 @@
     "sound": "Sound",
     "cut": "Cut point",
     "toEnd": "Go to end"
+  },
+  "splash": {
+    "starting": "Starting…"
   }
 }

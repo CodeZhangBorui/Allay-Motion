@@ -11,7 +11,7 @@ import { createIpcRegistrar } from './ipc';
 import { createLogger } from './logger';
 import { createVanillaDownloader, MOJANG_HOSTS } from './resources/download';
 import { ResourceService } from './resources/service';
-import { APP_ENTRY_URL, assertLocalDevOrigin } from './security-policy';
+import { APP_ENTRY_URL, APP_ORIGIN, assertLocalDevOrigin } from './security-policy';
 import { hardenSession, installGlobalHardening } from './security';
 import { SettingsStore } from './settings-store';
 import { readTestSwitches } from './test-switches';
@@ -21,6 +21,7 @@ import { TemplateService } from './templates/service';
 import { TemplateDevService } from './templates/dev-service';
 import { TemplateWatcher } from './templates/dev-watcher';
 import { TEMPLATE_API_DTS } from './templates/template-api-dts';
+import { Splash } from './splash';
 import { createMainWindow } from './window';
 
 // ---- 必须在 ready 之前完成的事 ----
@@ -62,6 +63,9 @@ if (!app.requestSingleInstanceLock()) {
   const userData = app.getPath('userData');
   // 仓库根目录下的 resources/（开发）或安装目录的 resources/（打包后）
   const bundledResources = app.isPackaged ? process.resourcesPath : join(app.getAppPath(), '../../resources');
+  // 悦灵的烘焙产物（docs/decisions.md M5a、M5b）：打包后在安装目录的 resources/mascot，开发时在 packages/mascot/generated；
+  // 测试可以换成自己生成的假图集或空目录。缺了界面就用占位实现
+  const mascotDir = app.isPackaged ? join(process.resourcesPath, 'mascot') : (testSwitches.mascotDir ?? join(app.getAppPath(), '../../packages/mascot/generated'));
   const resources = new ResourceService({
     userDataDir: userData,
     builtinDir: join(bundledResources, 'builtin-pack'),
@@ -124,9 +128,15 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(async () => {
     log.info('app', 'starting', { version: app.getVersion(), packaged: app.isPackaged, dev: devOrigin !== null });
     hardenSession(session.defaultSession, devOrigin, log);
-    handleAppProtocol(join(__dirname, '../renderer'), log);
+    handleAppProtocol(join(__dirname, '../renderer'), log, mascotDir);
 
     await settings.load();
+
+    // 启动画面（7.6 C）：设置读完就显示（要按主题和语言挑页面），主窗口就绪后淡出。后台测试默认不建，设了开关才建（不显示）
+    let splash: Splash | null =
+      !hiddenForTests || testSwitches.splash
+        ? new Splash({ origin: devOrigin ?? APP_ORIGIN, ui: settings.ui, mascotDir, log, hiddenForTests })
+        : null;
 
     const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
     // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
@@ -158,11 +168,27 @@ if (!app.requestSingleInstanceLock()) {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.settings.changed, ui);
     });
 
-    mainWindow = createMainWindow({ settings, theme: settings.ui.theme, log, hiddenForTests });
+    mainWindow = createMainWindow({
+      settings,
+      theme: settings.ui.theme,
+      log,
+      hiddenForTests,
+      beforeShow: () => splash?.ready() ?? Promise.resolve(),
+      onShown: () => {
+        splash?.close();
+        splash = null;
+      },
+    });
+    // 后台测试的窗口不显示，没有 onShown：页面加载完就关掉启动画面（仍然等满最短时长）
+    if (hiddenForTests && splash) {
+      const s = splash;
+      mainWindow.once('ready-to-show', () => void s.ready().then(() => s.close()));
+    }
     // 文件夹形式的资源包：窗口重新获得焦点时重扫（3.5）
     mainWindow.on('focus', () => void resources.rescanFolders());
     mainWindow.on('closed', () => {
       mainWindow = null;
+      splash?.close();
     });
     await mainWindow.loadURL(devOrigin ?? APP_ENTRY_URL);
   });

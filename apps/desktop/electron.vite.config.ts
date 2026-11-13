@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'electron-vite';
+import { splashPages } from './src/splash/vite-plugin';
 
 // 主进程和 preload 把依赖全部打进包里（externalizeDeps: false），
 // 安装包里因此不需要 node_modules；sandbox 下的 preload 也必须是单文件 CJS。
@@ -24,7 +25,8 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(import.meta.dirname, 'src/renderer'),
-    plugins: [tailwindcss()],
+    // 启动画面的静态页面（docs/07-allay-mascot.md 7.6 C）随渲染进程一起构建
+    plugins: [tailwindcss(), splashPages(resolve(import.meta.dirname, '../..'))],
     // 引擎 Worker 是 module worker（02-engine.md 2.2），three 体积大，需要 ES 格式才能分块
     worker: { format: 'es' },
     // 不用 @vitejs/plugin-react：它的 Fast Refresh 需要内联脚本，而 1.6 第 2 条的 CSP 不允许。

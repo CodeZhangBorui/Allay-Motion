@@ -17,10 +17,14 @@ export interface TestSwitches {
   mojangOrigin: string | null;
   /** 工程的打开、保存对话框不弹出，直接用这个路径（对话框路径由服务层单元测试覆盖，e2e 用它走通界面） */
   projectPath: string | null;
+  /** 悦灵烘焙产物的目录（代替 packages/mascot/generated）：测试用测试时生成的假图集，或指向空目录走占位实现（decisions.md M5b） */
+  mascotDir: string | null;
+  /** 后台测试时也创建（不显示的）启动画面，供 T-ALY 的启动画面测试检查 */
+  splash: boolean;
 }
 
 export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<string, string | undefined>>): TestSwitches {
-  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null, projectPath: null };
+  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false };
   const origin = env.ALLAY_E2E_MOJANG_ORIGIN;
   return {
     userDataDir: env.ALLAY_USER_DATA_DIR ? env.ALLAY_USER_DATA_DIR : null,
@@ -32,5 +36,7 @@ export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<strin
     // 只接受本机回环地址，避免测试开关被拿来把下载指到别处
     mojangOrigin: origin && /^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(origin) ? origin : null,
     projectPath: env.ALLAY_E2E_PROJECT_PATH ? env.ALLAY_E2E_PROJECT_PATH : null,
+    mascotDir: env.ALLAY_E2E_MASCOT_DIR ? env.ALLAY_E2E_MASCOT_DIR : null,
+    splash: env.ALLAY_E2E_SPLASH === '1',
   };
 }

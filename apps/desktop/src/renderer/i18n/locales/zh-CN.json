@@ -535,7 +535,8 @@
         "concrete": "混凝土",
         "terracotta": "陶瓦",
         "items": "物品"
-      }
+      },
+      "loading": "正在取缩略图…"
     },
     "blockList": {
       "replace": "更换“{{name}}”",
@@ -586,5 +587,8 @@
     "sound": "音效",
     "cut": "剪辑点",
     "toEnd": "跳到结尾"
+  },
+  "splash": {
+    "starting": "正在启动…"
   }
 }
