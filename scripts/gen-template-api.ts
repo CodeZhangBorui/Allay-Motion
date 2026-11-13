@@ -14,6 +14,7 @@ import ts from 'typescript';
 import { DIAGNOSTIC_KINDS } from '../packages/template-sdk/src/protocol';
 import { templateJsconfigText } from '../apps/desktop/src/shared/template-dev';
 import { MEMBER_DOCS } from './template-api/member-docs';
+import type { SdkApiDoc, SdkApiMember } from '../packages/host-api/src/index';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const RUNTIME = join(ROOT, 'packages/template-sdk/src/runtime.ts');
@@ -99,29 +100,9 @@ export function generateDts(): string {
 
 // ---- 接口 JSON ----
 
-export interface ApiMember {
-  name: string;
-  kind: 'property' | 'method';
-  optional: boolean;
-  /** 成员声明的原文（不含注释），如 `texture(id: string): Promise<THREE.Texture>;` */
-  signature: string;
-  /** JSDoc 说明 */
-  doc: string;
-  /** 类型是对象字面量时（如 ctx.resources）的成员 */
-  members?: ApiMember[];
-}
-
-export interface TemplateApiJson {
-  formatVersion: 1;
-  source: string;
-  /** SetupContext 的成员 */
-  ctx: ApiMember[];
-  /** 其他接口（Rng、BlockHandle 等）的成员 */
-  types: Record<string, { doc: string; members: ApiMember[] }>;
-  /** 类型别名的原文（EasingName 等） */
-  aliases: Record<string, { doc: string; text: string }>;
-  easings: string[];
-}
+/** 接口 JSON 的形状由宿主接口（@allay/host-api）定义：将来的内嵌编辑器从 EditorHost.domain.sdkApi() 拿到的就是它 */
+export type ApiMember = SdkApiMember;
+export type TemplateApiJson = SdkApiDoc;
 
 function docOf(node: ts.Node): string {
   const docs = (node as { jsDoc?: ts.JSDoc[] }).jsDoc ?? [];

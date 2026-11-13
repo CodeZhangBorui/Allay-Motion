@@ -1,0 +1,19 @@
+{
+  "name": "@allay/host-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "主程序给可选模块（内嵌编辑器、MCP）的宿主接口：只有类型",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@allay/template-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3"
+  }
+}

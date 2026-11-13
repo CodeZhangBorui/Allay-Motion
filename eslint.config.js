@@ -16,6 +16,18 @@ const NODE = { regex: nodeBuiltins, message: '这个包不能依赖 Node（1.4 �
 const ELECTRON = { regex: '^electron(/|$)', message: '这个包不能依赖 Electron（1.4 依赖方向）。' };
 const REACT = { regex: '^(react|react-dom)(/|$)', message: '这个包不能依赖 React（1.4 依赖方向）。' };
 
+/**
+ * 主程序不认识可选模块（docs/code-editing-and-mcp-plan.md 3.1）：除 packages/optional/** 自己以外，
+ * 任何文件都不得引用它们，包名（@allay/optional-*）和相对路径都不行。
+ * 例外是 MD-b 的惰性发现（import.meta.glob 的字符串参数），它不是导入语句，这条规则管不到也不该管。
+ */
+const NO_OPTIONAL_MESSAGE = '主程序不认识可选模块：不得引用 packages/optional（docs/code-editing-and-mcp-plan.md 3.1）。';
+const NO_OPTIONAL = [
+  { regex: '^@allay/optional(-|/|$)', message: NO_OPTIONAL_MESSAGE },
+  { regex: '(^|/)packages/optional(/|$)', message: NO_OPTIONAL_MESSAGE },
+  { regex: String.raw`^(\.\./)+optional(/|$)`, message: NO_OPTIONAL_MESSAGE },
+];
+
 /** 除了列出的模块和相对路径，其他一律禁止 */
 function onlyAllow(allowed, message) {
   const alternatives = allowed.map((m) => `${ESC(m)}(/|$)`).join('|');
@@ -27,8 +39,8 @@ function typeOnly(moduleName, message) {
   return { regex: `^${ESC(moduleName)}(/|$)`, allowTypeImports: true, message };
 }
 
-/** 依赖方向，导出给 T-ARC-1 的测试核对 */
-export const dependencyRules = [
+/** 依赖方向，导出给 T-ARC-1、T-DEV-4 的测试核对 */
+const coreRules = [
   {
     name: 'deps/template-sdk',
     files: ['packages/template-sdk/src/**/*.{ts,tsx}'],
@@ -110,6 +122,36 @@ export const dependencyRules = [
       { regex: '(^|/)(renderer|main)(/|$)', message: '共享代码与 preload 不能导入主进程或渲染进程代码。' },
     ],
   },
+  {
+    name: 'deps/host-api',
+    files: ['packages/host-api/src/**/*.{ts,tsx}'],
+    patterns: [
+      onlyAllow(['@allay/template-sdk'], 'host-api 只有类型，只能依赖 template-sdk 的类型（docs/code-editing-and-mcp-plan.md 3.2）。'),
+      typeOnly('@allay/template-sdk', 'host-api 只能导入 template-sdk 的类型。'),
+    ],
+  },
+];
+
+const OPTIONAL_MESSAGE = '可选模块只能引用 @allay/host-api，不能引用主程序的其他包（docs/code-editing-and-mcp-plan.md 3.1）。';
+
+export const dependencyRules = [
+  // 兜底：上面没有列出的文件（脚本、测试、配置等）也不得引用可选模块。放在最前面，后面更具体的规则各自带上同样的条目
+  {
+    name: 'deps/no-optional',
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    ignores: ['packages/optional/**'],
+    patterns: NO_OPTIONAL,
+  },
+  ...coreRules.map((rule) => ({ ...rule, patterns: [...rule.patterns, ...NO_OPTIONAL] })),
+  {
+    name: 'deps/optional',
+    files: ['packages/optional/**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    patterns: [
+      { regex: '^@allay/(?!host-api(/|$))', message: OPTIONAL_MESSAGE },
+      // 相对路径够到主程序的目录（把模块自己的子目录起名叫这些名字也会被拦，换个名字即可）
+      { regex: String.raw`^(\.\./)+(apps|desktop|engine|template-sdk|assets|ui|mascot|templates|host-api)(/|$)`, message: OPTIONAL_MESSAGE },
+    ],
+  },
 ];
 
 export default tseslint.config(
@@ -156,6 +198,7 @@ export default tseslint.config(
   ...dependencyRules.map((rule) => ({
     name: rule.name,
     files: rule.files,
+    ...(rule.ignores ? { ignores: rule.ignores } : {}),
     rules: {
       [RULE]: ['error', { patterns: rule.patterns }],
       ...(rule.globals

@@ -356,6 +356,16 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/host-api:
+    dependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../template-sdk
+    devDependencies:
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/mascot:
     dependencies:
       '@allay/template-sdk':
