@@ -84,6 +84,7 @@ export class ResourceService {
   private download: DownloadState = { status: 'idle' };
   private downloadAbort: AbortController | null = null;
   private lastProgress = 0;
+  private progressTimer: ReturnType<typeof setTimeout> | null = null;
   private fallbackFont: Promise<BitmapFontTables | null> | null = null;
   /** 改栈的操作串行执行，避免交错 */
   private queue: Promise<unknown> = Promise.resolve();
@@ -249,11 +250,19 @@ export class ResourceService {
       const cached = await this.opts.downloader.downloadLatest({
         signal: abort.signal,
         onProgress: (p) => {
+          const phaseChanged = this.download.status !== 'running' || this.download.phase !== p.phase;
           this.download = { status: 'running', phase: p.phase, received: p.received, total: p.total };
           const now = Date.now();
-          if (now - this.lastProgress >= PROGRESS_INTERVAL_MS) {
+          if (phaseChanged || now - this.lastProgress >= PROGRESS_INTERVAL_MS) {
             this.lastProgress = now;
             this.emit();
+          } else {
+            // 节流掉的这一次在间隔结束时补发，免得下载停住时界面停在旧的进度上
+            this.progressTimer ??= setTimeout(() => {
+              this.progressTimer = null;
+              this.lastProgress = Date.now();
+              if (this.download.status === 'running') this.emit();
+            }, PROGRESS_INTERVAL_MS);
           }
         },
       });
@@ -280,6 +289,8 @@ export class ResourceService {
       return { ok: false, error: kind };
     } finally {
       this.downloadAbort = null;
+      if (this.progressTimer) clearTimeout(this.progressTimer);
+      this.progressTimer = null;
     }
   }
 
