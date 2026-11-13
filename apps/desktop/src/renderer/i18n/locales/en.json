@@ -1,0 +1,38 @@
+{
+  "topbar": {
+    "project": "Untitled project",
+    "resources": "Assets: Built-in",
+    "undo": "Undo",
+    "redo": "Redo",
+    "export": "Export"
+  },
+  "gallery": {
+    "title": "Templates",
+    "search": "Search templates",
+    "categories": {
+      "all": "All",
+      "transition": "Transitions",
+      "overlay": "Overlays",
+      "mine": "Mine"
+    },
+    "placeholder": "Your template library will appear here.",
+    "import": "Import template…"
+  },
+  "preview": {
+    "region": "Preview",
+    "placeholder": "Preview viewport"
+  },
+  "transport": {
+    "region": "Transport",
+    "toStart": "Go to start",
+    "play": "Play",
+    "loop": "Loop"
+  },
+  "params": {
+    "title": "Properties",
+    "placeholder": "Select a template to adjust its parameters here."
+  },
+  "layout": {
+    "resizeHandle": "Drag to resize"
+  }
+}

@@ -1,0 +1,20 @@
+@import "@allay/ui/styles.css";
+
+/* 让 Tailwind 扫描界面包和本应用的源码 */
+@source "../../../../packages/ui/src";
+@source "../../../../packages/mascot/src";
+@source "./";
+
+/* 窗口拖动区（6.4 顶栏：空白处可拖动，所有可交互元素标 no-drag） */
+.app-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+#root {
+  height: 100%;
+}
