@@ -1,10 +1,11 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from 'cn';
-import { ImageOff, Search } from 'lucide-react';
+import { ImageBroken, MagnifyingGlass } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../components/ui/button';
 import { Input, Skeleton } from '../components/ui/misc';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { ICON } from '../lib/icons';
 import { useEditor, type CatalogEntry } from './context';
 
 // BlockPicker / ItemPicker（6.5）：弹层网格，可搜索（ID、中文名、英文名），分组，最近使用，虚拟滚动；
@@ -29,11 +30,11 @@ export function ResourceThumb({ kind, id, size = 32, className }: { kind: Kind; 
     };
     // resourceStamp 变了要重新取
   }, [kind, id, editor, editor.hasAssets, editor.resourceStamp]);
-  if (url === undefined) return <Skeleton className={cn('shrink-0', className)} style={{ width: size, height: size }} />;
+  if (url === undefined) return <Skeleton className={cn('shrink-0 rounded-[4px]', className)} style={{ width: size, height: size }} />;
   if (url === null)
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center bg-skeleton text-fg-muted', className)} style={{ width: size, height: size }} aria-hidden="true">
-        <ImageOff className="size-(--icon-sm)" />
+      <span className={cn('inline-flex shrink-0 items-center justify-center rounded-[4px] bg-skeleton text-fg-subtle', className)} style={{ width: size, height: size }} aria-hidden="true">
+        <ImageBroken size={ICON.sm} />
       </span>
     );
   return <img src={url} alt="" width={size} height={size} draggable={false} className={cn('pixelated shrink-0', className)} />;
@@ -90,11 +91,11 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
   return (
     <div className="flex flex-col gap-2">
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-2 size-(--icon-sm) -translate-y-1/2 text-fg-muted" aria-hidden="true" />
+        <MagnifyingGlass size={ICON.sm} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
         <Input autoFocus value={q} onChange={(e) => setQ(e.currentTarget.value)} placeholder={editor.t('picker.search')} aria-label={editor.t('picker.search')} className="pl-8" />
       </div>
       {!editor.hasAssets && (
-        <div className="flex items-center justify-between gap-2 bg-well px-2 py-1.5 text-xs text-fg-muted" data-testid="picker-no-assets">
+        <div className="flex items-center justify-between gap-2 rounded-md bg-control px-2.5 py-1.5 text-xs text-fg-muted" data-testid="picker-no-assets">
           <span>{editor.t('picker.noAssets')}</span>
           {editor.openResources && (
             <Button size="xs" variant="secondary" onClick={editor.openResources}>
@@ -111,7 +112,7 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
             return (
               <div key={vi.key} className="absolute inset-x-0" style={{ transform: `translateY(${vi.start}px)`, height: vi.size }}>
                 {row.kind === 'header' ? (
-                  <div className="flex h-6 items-end px-0.5 pb-1 font-px12 text-fg-muted">{row.label}</div>
+                  <div className="flex h-6 items-end px-0.5 pb-1 text-xs text-fg-subtle">{row.label}</div>
                 ) : (
                   <div className="flex gap-0.5">
                     {row.entries.map((e) => {
@@ -125,7 +126,7 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
                           aria-label={name}
                           title={`${name}\n${e.id}`}
                           data-testid={`pick-${e.id}`}
-                          className={cn('flex size-10 items-center justify-center blk-sunken hover:bg-surface-2', value === e.id && 'outline-2 -outline-offset-2 outline-(--ring)')}
+                          className={cn('flex size-10 items-center justify-center rounded-md hover:bg-control', value === e.id && 'bg-primary-soft shadow-[inset_0_0_0_1.5px_var(--primary)]')}
                           onClick={() => {
                             editor.addRecent(kind, e.id);
                             onPick(e.id);
@@ -182,7 +183,7 @@ function SinglePicker({ kind, value, onChange, label, testId }: { kind: Kind; va
         <PopoverTrigger
           data-testid={testId}
           aria-label={label}
-          className="inline-flex h-7 w-full min-w-0 items-center gap-2 blk blk-sunken px-1 text-sm hover:[--blk-c:var(--fg-muted)]"
+          className="inline-flex h-control w-full min-w-0 items-center gap-2 rounded-md bg-control px-1 text-sm hover:bg-control-hi"
         >
           <ResourceThumb kind={kind} id={value} size={20} />
           <span className="truncate">{entryName(entry, value, editor.locale)}</span>

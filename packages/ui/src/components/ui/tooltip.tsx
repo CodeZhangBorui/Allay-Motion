@@ -1,7 +1,7 @@
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import { cn } from "cn"
 
-// 工具提示：同一套缺角描边加硬投影的浮层，正文用 Inter；不带箭头，--dur-2 的分级淡入。
+// 工具提示：浮起的小面板（次级面、圆角、弹层阴影、无描边），不带箭头，--dur-2 淡入。
 
 function TooltipProvider({
   delay = 0,
@@ -27,7 +27,7 @@ function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
 function TooltipContent({
   className,
   side = "top",
-  sideOffset = 8,
+  sideOffset = 6,
   align = "center",
   alignOffset = 0,
   children,
@@ -49,7 +49,7 @@ function TooltipContent({
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            "z-50 inline-flex w-fit max-w-xs items-center gap-1.5 blk-float px-2.5 py-1.5 text-xs text-foreground transition-opacity duration-(--dur-2) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0",
+            "z-50 inline-flex w-fit max-w-xs items-center gap-1.5 rounded-md bg-surface-2 px-2.5 py-1.5 text-xs text-foreground shadow-float transition-opacity duration-(--dur-2) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0",
             className
           )}
           {...props}

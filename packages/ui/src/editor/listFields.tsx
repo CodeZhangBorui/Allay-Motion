@@ -1,9 +1,10 @@
 import { cn } from 'cn';
-import { ImagePlus, Plus, X } from 'lucide-react';
+import { ImageSquare, Plus, X } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/misc';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { ICON } from '../lib/icons';
 import { useEditor } from './context';
 import { entryName, ResourcePickerPopover, ResourceThumb } from './ResourcePicker';
 import { ScrubNumberField } from './ScrubNumberField';
@@ -21,19 +22,19 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
   const byId = useMemo(() => new Map(editor.blocks.map((b) => [b.id, b])), [editor.blocks]);
   const update = (i: number, patch: Partial<BlockListEntry>) => onChange(value.map((e, j) => (j === i ? { ...e, ...patch } : e)));
   return (
-    <div className="flex min-w-0 flex-col gap-2 py-0.5" role="group" aria-label={label} data-testid={testId}>
+    <div className="flex min-w-0 flex-col gap-1" role="group" aria-label={label} data-testid={testId}>
       {value.map((entry, i) => {
         const name = entryName(byId.get(entry.id), entry.id, editor.locale);
         return (
-          <div key={`${entry.id}-${i}`} className="flex h-8 min-w-0 items-center gap-1 blk blk-raised pr-0.5 pl-1">
+          <div key={`${entry.id}-${i}`} className="flex h-8 min-w-0 items-center gap-2 rounded-lg bg-control pr-1 pl-[5px]">
             <ResourcePickerPopover
               kind="block"
               value={entry.id}
               label={editor.t('blockList.replace', { name })}
               onPick={(id) => update(i, { id })}
               trigger={
-                <PopoverTrigger aria-label={editor.t('blockList.replace', { name })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs hover:text-foreground">
-                  <ResourceThumb kind="block" id={entry.id} size={20} />
+                <PopoverTrigger aria-label={editor.t('blockList.replace', { name })} className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left text-foreground">
+                  <ResourceThumb kind="block" id={entry.id} size={22} className="rounded-[4px]" />
                   <span className="truncate" title={entry.id}>
                     {name}
                   </span>
@@ -48,17 +49,19 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
               step={0.1}
               decimals={1}
               label={editor.t('blockList.weight', { name })}
-              scrubLabel={<span className="font-px12">×</span>}
-              className="h-6 w-14 shrink-0"
+              lead={<span className="num">×</span>}
+              bare
+              className="w-16 shrink-0"
             />
             <Button
               variant="ghost"
               size="icon-xs"
+              className="text-fg-subtle"
               aria-label={editor.t('blockList.remove', { name })}
               disabled={value.length <= 1}
               onClick={() => onChange(value.filter((_, j) => j !== i))}
             >
-              <X />
+              <X size={ICON.xs} />
             </Button>
           </div>
         );
@@ -70,8 +73,8 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
           label={editor.t('blockList.add')}
           onPick={(id) => onChange([...value, { id, weight: 1 }])}
           trigger={
-            <PopoverTrigger className="inline-flex h-6 items-center gap-1 self-start px-1.5 font-px12 text-fg-muted hover:blk hover:blk-raised hover:text-foreground active:blk-down" data-testid={testId ? `${testId}-add` : undefined}>
-              <Plus className="size-(--icon-sm)" />
+            <PopoverTrigger className="inline-flex h-[30px] items-center gap-2 rounded-lg px-2.5 text-fg-muted shadow-[inset_0_0_0_1px_var(--control-hi)] hover:bg-control hover:text-foreground" data-testid={testId ? `${testId}-add` : undefined}>
+              <Plus size={ICON.xs + 1} />
               {editor.t('blockList.add')}
             </PopoverTrigger>
           }
@@ -93,9 +96,9 @@ function TexturePreview({ value, size = 20 }: { value: string; size?: number }) 
     };
   }, [value, editor, editor.resourceStamp]);
   return url ? (
-    <img src={url} alt="" width={size} height={size} className="pixelated shrink-0 object-contain" />
+    <img src={url} alt="" width={size} height={size} className="pixelated shrink-0 rounded-[3px] object-contain" />
   ) : (
-    <span className="shrink-0 bg-skeleton" style={{ width: size, height: size }} aria-hidden="true" />
+    <span className="shrink-0 rounded-[3px] bg-skeleton" style={{ width: size, height: size }} aria-hidden="true" />
   );
 }
 
@@ -131,9 +134,9 @@ export function TextureField({
   return (
     <div className="flex min-w-0 items-center gap-1" data-testid={testId}>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger aria-label={label} className="inline-flex h-7 min-w-0 flex-1 items-center gap-2 blk blk-sunken px-1 text-sm hover:[--blk-c:var(--fg-muted)]">
+        <PopoverTrigger aria-label={label} className="inline-flex h-control min-w-0 flex-1 items-center gap-2 rounded-md bg-control px-1 text-sm hover:bg-control-hi">
           <TexturePreview value={value} />
-          <span className="truncate font-px12">{textureLabel(value, fileNames, editor.t('texture.none'))}</span>
+          <span className="truncate num text-xs">{textureLabel(value, fileNames, editor.t('texture.none'))}</span>
         </PopoverTrigger>
         <PopoverContent side="left" align="start" className="w-[304px]" aria-label={label}>
           <div className="flex flex-col gap-2">
@@ -147,7 +150,7 @@ export function TextureField({
                   aria-selected={value === id}
                   title={id}
                   aria-label={id}
-                  className={cn('flex size-10 items-center justify-center blk-sunken hover:bg-surface-2', value === id && 'outline-2 -outline-offset-2 outline-(--ring)')}
+                  className={cn('flex size-10 items-center justify-center rounded-md hover:bg-control', value === id && 'bg-primary-soft shadow-[inset_0_0_0_1.5px_var(--primary)]')}
                   onClick={() => {
                     onChange(id);
                     setOpen(false);
@@ -163,7 +166,7 @@ export function TextureField({
       {allowFile && (
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label={editor.t('texture.import')}
           title={editor.t('texture.import')}
           onClick={() =>
@@ -172,7 +175,7 @@ export function TextureField({
             })
           }
         >
-          <ImagePlus />
+          <ImageSquare size={ICON.md} />
         </Button>
       )}
     </div>

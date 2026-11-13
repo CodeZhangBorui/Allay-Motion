@@ -2,10 +2,11 @@ import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from 'cn';
-import { GripVertical, Package, Trash2, TriangleAlert } from 'lucide-react';
+import { DotsSixVertical, Package, Trash, Warning } from '@phosphor-icons/react';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/misc';
 import { Switch } from '../components/ui/switch';
+import { ICON } from '../lib/icons';
 
 // ResourceStackList（6.4 资源栈弹层）：自上而下列出各层，与解析顺序一致。每行：拖动手柄、32 px 的包图标（像素化显示）、
 // 名称、一行描述、类型徽标、开关、删除。只有资源包能拖（原版层固定在资源包之下，内置层不能拖、不能关）。
@@ -44,7 +45,7 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
       data-layer-id={row.id}
       data-enabled={row.enabled}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn('relative flex items-center gap-2 py-1.5 pr-1 pl-0.5 hover:bg-surface-2', isDragging && 'z-10 blk-float')}
+      className={cn('relative flex items-center gap-2 rounded-lg py-1.5 pr-1 pl-0.5 hover:bg-control', isDragging && 'z-10 bg-surface-2 shadow-float')}
     >
       {row.sortable ? (
         <button
@@ -56,13 +57,13 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-(--icon-sm)" />
+          <DotsSixVertical size={ICON.md} />
         </button>
       ) : (
         <span className="w-5 shrink-0" aria-hidden="true" />
       )}
-      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden blk-sunken">
-        {row.iconUrl ? <img src={row.iconUrl} alt="" className="pixelated size-8" /> : <Package className="size-(--icon-sm) text-fg-muted" aria-hidden="true" />}
+      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-well">
+        {row.iconUrl ? <img src={row.iconUrl} alt="" className="pixelated size-8" /> : <Package size={ICON.md} className="text-fg-subtle" aria-hidden="true" />}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -72,13 +73,13 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
           <Badge className="shrink-0">{row.kindLabel}</Badge>
         </div>
         {row.description && (
-          <p className="truncate text-xs text-fg-muted" title={row.description}>
+          <p className="truncate text-xs text-fg-subtle" title={row.description}>
             {row.description}
           </p>
         )}
         {row.warning && (
           <p className="flex items-center gap-1 text-xs text-warning" data-testid="layer-warning">
-            <TriangleAlert className="size-(--icon-sm) shrink-0" aria-hidden="true" />
+            <Warning size={ICON.sm} className="shrink-0" aria-hidden="true" />
             <span className="truncate" title={row.warning}>
               {row.warning}
             </span>
@@ -89,7 +90,7 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
         <>
           <Switch checked={row.enabled} disabled={row.toggleDisabled} onCheckedChange={(v) => onToggle(row.id, v)} aria-label={labels.toggle(row.name)} data-testid="layer-toggle" className="mx-1" />
           <Button variant="ghost" size="icon-sm" aria-label={labels.remove(row.name)} data-testid="layer-remove" onClick={() => onRemove(row.id)}>
-            <Trash2 />
+            <Trash size={ICON.md} />
           </Button>
         </>
       )}

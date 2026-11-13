@@ -21,7 +21,9 @@ export const layout = { toggleLeft: () => undefined as void };
 export function focusTemplateSearch(): void {
   const panel = document.querySelector<HTMLElement>('[data-testid="panel-left"]');
   if (panel && panel.getBoundingClientRect().width < 1) layout.toggleLeft();
-  requestAnimationFrame(() => document.getElementById('gallery-search')?.focus());
+  // 搜索框平时收起：切到“模板”页并展开它
+  useUiStore.setState({ leftTab: 'templates', searchOpen: true });
+  requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById('gallery-search')?.focus()));
 }
 
 const ready = () => usePreviewStore.getState().status.kind === 'ready';
@@ -58,7 +60,7 @@ export const COMMANDS: Command[] = [
   { id: 'openProject', shortcut: 'Ctrl+O', run: () => void openProject() },
   { id: 'saveProject', shortcut: 'Ctrl+S', run: () => void saveProject() },
   { id: 'saveProjectAs', shortcut: 'Ctrl+Shift+S', run: () => void saveProject(true) },
-  { id: 'export', shortcut: 'Ctrl+E', run: () => useUiStore.getState().openDialog('export'), enabled: ready },
+  { id: 'export', shortcut: 'Ctrl+E', run: () => useUiStore.getState().openExport(), enabled: ready },
   { id: 'palette', shortcut: 'Ctrl+K', run: () => useUiStore.getState().openDialog('palette') },
   { id: 'searchTemplates', shortcut: 'Ctrl+F', run: focusTemplateSearch },
   { id: 'toggleLeft', shortcut: 'Ctrl+B', run: () => layout.toggleLeft() },

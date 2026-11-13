@@ -128,7 +128,7 @@ function Flyer({ exiting, reduced, label }: { exiting: boolean; reduced: boolean
         <span className="-translate-x-1/4">
           <Allay clip="hover" size={S} />
         </span>
-        <span className="font-px12 text-fg-muted">{label}</span>
+        <span className="text-xs text-fg-subtle">{label}</span>
       </div>
     );
   }

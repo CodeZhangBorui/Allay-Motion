@@ -2,11 +2,13 @@ import { AllayProgress } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@allay/ui/components/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
-import { Clapperboard } from 'lucide-react';
+import { ICON } from '@allay/ui/lib/icons';
+import { FilmSlate } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExportErrorCode, ExportPreset, FfmpegInfo } from '../../../shared/export';
 import { useProjectStore } from '../../stores/projectStore';
+import { useUiStore } from '../../stores/uiStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { localized } from '../../templates/catalog';
 import { ExportRun, QUALITY_SUBFRAMES, type ExportOutcome, type ExportProgress, type QualityLevel } from './exportRunner';
@@ -34,7 +36,8 @@ export const EXPORT_ERROR_KEYS: Record<ExportErrorCode, string> = {
 export function ExportDialog({ onClose }: { onClose(): void }) {
   const { t, i18n } = useTranslation();
   const saved = useProjectStore((s) => s.exportSettings);
-  const [preset, setPresetState] = useState<ExportPreset>(saved.preset === 'png-sequence' ? 'png-sequence' : 'prores4444');
+  // 从“导出”分体按钮的下拉里选了格式时，预先选中它（并记进工程）
+  const [preset, setPresetState] = useState<ExportPreset>(() => useUiStore.getState().exportPreset ?? (saved.preset === 'png-sequence' ? 'png-sequence' : 'prores4444'));
   const [quality, setQualityState] = useState<QualityLevel>(saved.quality);
   const [phase, setPhase] = useState<Phase>({ kind: 'settings' });
   const [info, setInfo] = useState<FfmpegInfo | null>(null);
@@ -49,6 +52,16 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
     setQualityState(q);
     useProjectStore.getState().setExportSettings({ quality: q });
   };
+
+  useEffect(() => {
+    const chosen = useUiStore.getState().exportPreset;
+    if (chosen) useProjectStore.getState().setExportSettings({ preset: chosen });
+    useUiStore.setState({ exportPreset: null });
+  }, []);
+  useEffect(() => {
+    useUiStore.getState().setExporting(phase.kind === 'running');
+    return () => useUiStore.getState().setExporting(false);
+  }, [phase.kind]);
 
   useEffect(() => {
     // 导出是模态的：预览停下来
@@ -97,19 +110,19 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
               </p>
             )}
             <fieldset className="flex flex-col gap-2.5">
-              <legend className="mb-2 font-px12 text-fg-muted">{t('export.format')}</legend>
+              <legend className="mb-2 text-xs text-fg-subtle">{t('export.format')}</legend>
               {PRESETS.map((p) => (
                 <label
                   key={p}
-                  className="flex h-9 cursor-pointer items-center gap-2.5 blk blk-raised px-3 text-sm hover:bg-surface-3 has-checked:blk-sunken has-checked:blk-edge-ring has-disabled:cursor-default has-disabled:opacity-50"
+                  className="flex h-9 cursor-pointer items-center gap-2.5 rounded-lg bg-control px-3 text-sm hover:bg-control-hi has-checked:bg-primary-soft has-checked:shadow-[inset_0_0_0_1.5px_var(--primary)] has-disabled:cursor-default has-disabled:opacity-45"
                 >
-                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="size-4 shrink-0 blk-radio" />
+                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="size-3.5 shrink-0 accent-(--primary)" />
                   {t(`export.presets.${p === 'prores4444' ? 'prores' : 'png'}`)}
                 </label>
               ))}
             </fieldset>
             <div className="flex flex-col gap-1.5">
-              <span className="font-px12 text-fg-muted" id="export-quality-label">
+              <span className="text-xs text-fg-subtle" id="export-quality-label">
                 {t('export.quality')}
               </span>
               <ToggleGroup value={[quality]} onValueChange={(v) => v[0] && setQuality(v[0] as QualityLevel)} aria-labelledby="export-quality-label" className="w-full" data-testid="export-quality">
@@ -139,9 +152,9 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
                 value={phase.progress.total > 0 ? phase.progress.written / phase.progress.total : 0}
                 phase="rendering"
                 label={t('export.progressLabel')}
-                carry={<Clapperboard className="size-(--icon-sm) text-foreground" />}
+                carry={<FilmSlate size={ICON.md} className="text-foreground" />}
               />
-              <span data-testid="export-progress" className="font-px12 text-fg-muted">
+              <span data-testid="export-progress" className="num text-xs text-fg-subtle">
                 {t('export.progress', { written: phase.progress.written, total: phase.progress.total })}
               </span>
             </div>
@@ -187,7 +200,7 @@ function ExportResult({ outcome }: { outcome: ExportOutcome }) {
   }
   return (
     <div data-testid="export-result" data-kind="done" className="flex flex-col gap-1 text-sm">
-      <p className="font-px24">{t('export.doneTitle')}</p>
+      <p className="text-lg font-semibold">{t('export.doneTitle')}</p>
       <p>{t('export.done', { frames: outcome.frames, seconds: outcome.seconds.toFixed(1) })}</p>
       <p data-testid="export-path" className="text-xs break-all text-fg-muted select-text">
         {outcome.path}

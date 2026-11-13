@@ -1,9 +1,10 @@
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
+import { X } from '@phosphor-icons/react';
 import { cn } from 'cn';
-import { X } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
+import { ICON } from '../../lib/icons';
 
-// shadcn 的 Dialog（Base UI）：缺角 2 px 描边加 4 px 硬投影的浮层（6.2）；出现用 --dur-3 的分级淡入，不缩放。
+// shadcn 的 Dialog（Base UI）：浮起的面板，圆角 10、对话框阴影、无描边（6.2）；出现用 --dur-2 的淡入。
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -18,12 +19,12 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & { showClose?: boolean; closeLabel?: string; children?: ReactNode }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-scrim transition-opacity duration-(--dur-3) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-scrim transition-opacity duration-(--dur-2) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100vh-48px)] w-[440px] max-w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 blk-float p-5 text-sm outline-none',
-          'transition-opacity duration-(--dur-3) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
+          'fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100vh-48px)] w-[440px] max-w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-xl bg-surface-2 p-5 text-sm shadow-dialog outline-none',
+          'transition-opacity duration-(--dur-2) ease-(--ease-out) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
           className,
         )}
         {...props}
@@ -32,9 +33,9 @@ function DialogContent({
         {showClose && (
           <DialogPrimitive.Close
             aria-label={closeLabel}
-            className="absolute top-3 right-3 inline-flex size-7 items-center justify-center text-fg-muted hover:blk hover:blk-raised hover:text-foreground active:blk-down"
+            className="absolute top-3.5 right-3.5 inline-flex size-7 items-center justify-center rounded-md text-fg-subtle hover:bg-control hover:text-foreground"
           >
-            <X className="size-(--icon-sm)" />
+            <X size={ICON.sm} />
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>
@@ -43,7 +44,7 @@ function DialogContent({
 }
 
 function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
-  return <DialogPrimitive.Title className={cn('pr-8 font-px24 text-foreground', className)} {...props} />;
+  return <DialogPrimitive.Title className={cn('pr-8 text-lg leading-tight font-semibold', className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {

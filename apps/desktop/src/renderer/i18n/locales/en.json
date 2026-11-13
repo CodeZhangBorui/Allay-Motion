@@ -3,7 +3,9 @@
     "undo": "Undo",
     "redo": "Redo",
     "export": "Export",
-    "settings": "Settings"
+    "settings": "Settings",
+    "exportFormat": "Choose export format",
+    "exportAs": "Export as"
   },
   "gallery": {
     "title": "Templates",
@@ -34,7 +36,10 @@
     "mineEmpty": "Drop a template package here, or use “Save as template” on any template.",
     "exportPackage": "Export template package…",
     "exported": "Template package exported.",
-    "remove": "Delete template"
+    "remove": "Delete template",
+    "tabsLabel": "Library",
+    "searchToggle": "Search templates",
+    "presetsEmpty": "This template has no presets yet. Save one from “Presets” in the properties panel."
   },
   "templates": {
     "installed": "Template installed.",
@@ -94,7 +99,10 @@
     "resetParams": "Reset parameters",
     "copyDiagnostics": "Copy diagnostics",
     "diagnosticsCopied": "Diagnostics copied.",
-    "diagnosticsFailed": "Couldn’t copy the diagnostics."
+    "diagnosticsFailed": "Couldn’t copy the diagnostics.",
+    "title": "Preview",
+    "toolbar": "Preview tools",
+    "hqShort": "HQ"
   },
   "transport": {
     "region": "Transport",
@@ -141,7 +149,13 @@
       "failed": "Couldn’t save as a template: {{reason}}",
       "imageUnreadable": "a chosen image can no longer be read",
       "saved": "Saved as template “{{name}}”."
-    }
+    },
+    "tabs": {
+      "props": "Properties",
+      "output": "Output"
+    },
+    "meta": "{{category}} · {{duration}} s",
+    "resetAllShort": "Reset all"
   },
   "layout": {
     "resizeHandle": "Drag to resize"
@@ -297,7 +311,8 @@
       "templateMissing": "Can’t open: the template {{id}} ({{version}}) is not installed.",
       "not-writable": "Can’t write to this location. Choose another folder.",
       "unknown-handle": "The original project file is gone. Use “Save as”."
-    }
+    },
+    "modified": "Modified"
   },
   "output": {
     "title": "Output settings",
@@ -352,7 +367,9 @@
     "licenses": {
       "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process; the full license ships with the installer.",
       "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
-      "inter": "Inter typeface: SIL Open Font License 1.1.",
+      "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
+      "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
+      "phosphor": "Phosphor Icons: MIT.",
       "npm": "Other open-source components use MIT, BSD, ISC, Apache-2.0 and similar licenses."
     }
   },
@@ -471,7 +488,8 @@
       }
     },
     "duration": {
-      "frames": "{{n}} f"
+      "frames": "{{n}} f",
+      "total": "{{n}} frames total"
     },
     "seed": {
       "roll": "New random seed",
@@ -537,5 +555,36 @@
       "copy": "Copy value",
       "paste": "Paste value"
     }
+  },
+  "menu": {
+    "file": "File",
+    "edit": "Edit",
+    "view": "View",
+    "help": "Help",
+    "commandPalette": "Command palette…",
+    "language": "Language",
+    "theme": "Theme",
+    "background": "Preview background",
+    "collapseLeft": "Collapse left panel"
+  },
+  "status": {
+    "region": "Status bar",
+    "starting": "Starting",
+    "loading": "Loading",
+    "ready": "Ready",
+    "error": "Template error",
+    "exporting": "Exporting",
+    "assets": "Vanilla assets {{version}} · {{count}} resource packs",
+    "assetsNoVanilla": "Built-in assets · {{count}} resource packs",
+    "changed": "{{count}} parameters changed",
+    "previewFps": "Preview {{fps}} fps",
+    "version": "v{{version}}"
+  },
+  "timeline": {
+    "region": "Timeline",
+    "stages": "Stages",
+    "sound": "Sound",
+    "cut": "Cut point",
+    "toEnd": "Go to end"
   }
 }

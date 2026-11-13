@@ -3,8 +3,12 @@ import { Button } from '@allay/ui/components/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@allay/ui/components/popover';
 import { Skeleton, ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@allay/ui/components/tooltip';
-import { PreviewViewport, type PreviewBackground } from '@allay/ui/editor';
-import { Grid2x2, Image, Maximize, PaintBucket, Scan, SquareDashed } from 'lucide-react';
+import { PREVIEW_INSET, PreviewViewport, type PreviewBackground } from '@allay/ui/editor';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@allay/ui/components/dropdown-menu';
+import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
+import { localize } from '@allay/template-sdk';
+import { CaretDown, Checkerboard, FrameCorners, Image as ImageIcon, Sparkle, Square } from '@phosphor-icons/react';
+import { cn } from '@allay/ui/lib/utils';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import { useTranslation } from 'react-i18next';
@@ -18,11 +22,9 @@ import { ResourceOnboarding, useShowOnboarding } from '../resources/ResourceOnbo
 import { previewEngine } from './previewEngine';
 import { useDebugLoading } from './debugLoading';
 
-// 中间：预览视口（6.4）。四周是中性灰 --viewport；画布按输出比例等比缩放、居中，四周留 24 px。
-// 右上角：背景模式（棋盘格、示例素材、纯色）、安全框参考线、缩放（适应、100%）。
+// 中间：预览面板（6.4）。左上“预览”和模板名，右上规格读数（等宽）；画布按输出比例等比缩放、居中，
+// 上面让出标题行、下面让出悬浮工具条（PREVIEW_INSET）。工具条悬浮在画面下方居中：缩放、背景、参考线、高质量预览。
 // 引擎装载超过 180 ms 时出现悦灵的加载编排；模板出错时显示错误卡片（一句说明、“重置参数”、“复制诊断信息”）。
-
-const PADDING = 24;
 
 /** 按输出比例在可用区域里取最大的矩形；设备像素不超过输出分辨率（2.7） */
 function fit(availW: number, availH: number, outW: number, outH: number, dpr: number) {
@@ -47,12 +49,28 @@ function copyText(text: string): boolean {
   return ok;
 }
 
-function Toolbar() {
+/** 悬浮在画面下方居中的预览工具条：缩放、三种背景、参考线、高质量预览 */
+function Toolbar({ zoomPct }: { zoomPct: number | null }) {
   const { t } = useTranslation();
   const editor = useUiStore((s) => s.settings.editor);
   const set = useUiStore.getState().setEditor;
+  const item = (on: boolean) =>
+    cn('inline-flex h-7 min-w-7 items-center justify-center gap-1.5 rounded-lg px-[7px] text-fg-muted transition-colors duration-(--dur-1) hover:text-foreground', on && 'bg-control-hi text-foreground');
   return (
-    <div className="flex items-center gap-1.5" data-testid="preview-toolbar">
+    <div role="toolbar" aria-label={t('preview.toolbar')} className="flex h-9 items-center gap-0.5 rounded-xl bg-surface-2 px-1 shadow-float" data-testid="preview-toolbar">
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<button type="button" className={cn(item(false), 'num text-foreground')} aria-label={t('preview.zoom')} data-testid="preview-zoom" />}>
+          {editor.zoom === '100' ? '100%' : zoomPct !== null ? `${zoomPct}%` : t('preview.zoomFit')}
+          <CaretDown size={ICON.xs - 1} className="text-fg-subtle" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" className="w-44">
+          <DropdownMenuRadioGroup value={editor.zoom} onValueChange={(v) => set({ zoom: v as 'fit' | '100' })}>
+            <DropdownMenuRadioItem value="fit">{t('preview.zoomFit')}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="100">{t('preview.zoom100')}</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <span className="mx-1 h-4 w-px bg-control-hi" aria-hidden="true" />
       <ToggleGroup
         value={[editor.background]}
         onValueChange={(v) => {
@@ -60,55 +78,60 @@ function Toolbar() {
           if (next && next !== 'sample') set({ background: next });
         }}
         aria-label={t('preview.background')}
+        className="h-auto gap-0.5 bg-transparent p-0"
       >
-        <ToggleGroupItem value="checker" aria-label={t('preview.backgrounds.checker')} title={t('preview.backgrounds.checker')} data-testid="bg-checker">
-          <Grid2x2 />
+        <ToggleGroupItem value="checker" aria-label={t('preview.backgrounds.checker')} title={t('preview.backgrounds.checker')} data-testid="bg-checker" className={item(editor.background === 'checker')}>
+          <Checkerboard size={ICON.md} weight={editor.background === 'checker' ? ICON_WEIGHT.active : ICON_WEIGHT.normal} />
+        </ToggleGroupItem>
+        <ToggleGroupItem value="solid" aria-label={t('preview.backgrounds.solid')} title={t('preview.backgrounds.solid')} data-testid="bg-solid" className={item(editor.background === 'solid')}>
+          <Square size={ICON.md} weight={editor.background === 'solid' ? ICON_WEIGHT.active : ICON_WEIGHT.normal} />
         </ToggleGroupItem>
         <Tooltip>
           <TooltipTrigger render={<span className="inline-flex" />}>
             {/* 示例素材的两张原创示意图原属 M6，范围变更后不自己画（decisions.md M4），先禁用 */}
-            <ToggleGroupItem value="sample" disabled aria-label={t('preview.backgrounds.sample')} data-testid="bg-sample">
-              <Image />
+            <ToggleGroupItem value="sample" disabled aria-label={t('preview.backgrounds.sample')} data-testid="bg-sample" className={cn(item(false), 'disabled:opacity-45')}>
+              <ImageIcon size={ICON.md} />
             </ToggleGroupItem>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-56">
+          <TooltipContent side="top" className="max-w-56">
             {t('preview.sampleUnavailable')}
           </TooltipContent>
         </Tooltip>
-        <ToggleGroupItem value="solid" aria-label={t('preview.backgrounds.solid')} title={t('preview.backgrounds.solid')} data-testid="bg-solid">
-          <PaintBucket />
-        </ToggleGroupItem>
       </ToggleGroup>
       {editor.background === 'solid' && (
         <Popover>
-          <PopoverTrigger aria-label={t('preview.solidColor')} className="inline-flex size-6 items-center justify-center blk blk-raised hover:bg-surface-3 active:blk-down">
-            <span className="size-3.5 border-2 border-input-border" style={{ background: editor.solidColor }} />
+          <PopoverTrigger aria-label={t('preview.solidColor')} className={item(false)}>
+            <span className="size-3.5 rounded-[4px]" style={{ background: editor.solidColor }} />
           </PopoverTrigger>
-          <PopoverContent side="bottom" align="end" className="allay-colorful w-[200px]">
+          <PopoverContent side="top" align="center" className="allay-colorful w-[200px]">
             <HexColorPicker color={editor.solidColor} onChange={(c) => set({ solidColor: c.toUpperCase() })} />
           </PopoverContent>
         </Popover>
       )}
-            <Button
-        variant="secondary"
-        size="icon-sm"
+      <span className="mx-1 h-4 w-px bg-control-hi" aria-hidden="true" />
+      <button
+        type="button"
         aria-label={t('preview.guides')}
         title={t('preview.guides')}
         aria-pressed={editor.guides}
-        className={editor.guides ? 'blk-sunken text-primary-text' : 'text-fg-muted'}
+        className={item(editor.guides)}
         data-testid="preview-guides-toggle"
         onClick={() => set({ guides: !editor.guides })}
       >
-        <SquareDashed />
-      </Button>
-      <ToggleGroup value={[editor.zoom]} onValueChange={(v) => v[0] && set({ zoom: v[0] as 'fit' | '100' })} aria-label={t('preview.zoom')}>
-        <ToggleGroupItem value="fit" aria-label={t('preview.zoomFit')} title={t('preview.zoomFit')}>
-          <Maximize />
-        </ToggleGroupItem>
-        <ToggleGroupItem value="100" aria-label={t('preview.zoom100')} title={t('preview.zoom100')}>
-          <Scan />
-        </ToggleGroupItem>
-      </ToggleGroup>
+        <FrameCorners size={ICON.md} />
+      </button>
+      <button
+        type="button"
+        aria-label={t('transport.hq')}
+        title={t('transport.hqHint')}
+        aria-pressed={editor.hqPreview}
+        className={item(editor.hqPreview)}
+        data-testid="transport-hq"
+        onClick={() => set({ hqPreview: !editor.hqPreview })}
+      >
+        <Sparkle size={ICON.md} weight={editor.hqPreview ? ICON_WEIGHT.active : ICON_WEIGHT.normal} />
+        {t('preview.hqShort')}
+      </button>
     </div>
   );
 }
@@ -143,12 +166,12 @@ function ErrorCard() {
       role="alert"
       data-testid="preview-error"
       data-kind={status.kind}
-      className="absolute inset-x-6 top-1/2 z-20 mx-auto flex max-w-md -translate-y-1/2 items-start gap-3 blk-float p-4 text-sm"
+      className="absolute inset-x-6 top-1/2 z-20 mx-auto flex max-w-md -translate-y-1/2 items-start gap-3 rounded-xl bg-surface-2 p-4 text-sm shadow-float"
     >
       <Allay clip="sad" size={48} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <p className="font-px24 text-danger">{title}</p>
-        <p className="line-clamp-4 text-xs break-words text-fg-muted">{detail}</p>
+        <p className="text-base font-semibold text-danger">{title}</p>
+        <p className="line-clamp-4 num text-xs break-words text-fg-muted">{detail}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           {status.kind === 'error' ? (
             <Button variant="secondary" onClick={resetParams} data-testid="preview-reset-params">
@@ -169,7 +192,7 @@ function ErrorCard() {
 }
 
 export function PreviewArea() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const areaRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const output = useProjectStore((s) => s.output);
@@ -179,6 +202,10 @@ export function PreviewArea() {
   const onboarding = useShowOnboarding();
   const debugLoading = useDebugLoading();
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const template = useProjectStore((s) => s.template);
+  const templateName = template ? localize(template.manifest.name, i18n.language) : null;
+  // 适应窗口时的实际缩放比例（画布 CSS 宽度 × 设备像素比 / 输出宽度）
+  const zoomPct = size.width > 0 ? Math.round(((size.width * (window.devicePixelRatio || 1)) / output.width) * 100) : null;
 
   // 画布由 previewEngine 创建并放进这个容器
   useLayoutEffect(() => {
@@ -198,8 +225,8 @@ export function PreviewArea() {
         previewEngine.setViewport(vp);
         return;
       }
-      const w = area.clientWidth - PADDING * 2;
-      const h = area.clientHeight - PADDING * 2;
+      const w = area.clientWidth - PREVIEW_INSET.left - PREVIEW_INSET.right;
+      const h = area.clientHeight - PREVIEW_INSET.top - PREVIEW_INSET.bottom;
       if (w <= 0 || h <= 0) return;
       const vp = fit(w, h, output.width, output.height, dpr);
       setSize({ width: vp.cssWidth, height: vp.cssHeight });
@@ -253,7 +280,18 @@ export function PreviewArea() {
       width={size.width}
       height={size.height}
       scrollable={editor.zoom === '100'}
-      toolbar={<Toolbar />}
+      title={
+        <>
+          <b className="text-base font-semibold">{t('preview.title')}</b>
+          {templateName && <span className="truncate text-fg-subtle">{templateName}</span>}
+        </>
+      }
+      info={
+        <span className="num" data-testid="preview-info">
+          {output.width} × {output.height} · {output.fps} fps
+        </span>
+      }
+      toolbar={<Toolbar zoomPct={zoomPct} />}
     >
       {/* 加载编排：视口中央的骨架块 + 飞舞，下方一行状态字（7.5 第 3 项）。整层不接收指针（T-ALY-5） */}
       <div className="pointer-events-none absolute inset-0 z-10" data-testid="preview-loading-layer">
@@ -261,7 +299,7 @@ export function PreviewArea() {
           {loading && !failed ? (
             <div className="flex size-full flex-col items-center justify-center gap-3">
               <Skeleton style={{ width: size.width * 0.6, height: size.height * 0.6 }} />
-              <span className="font-px12 text-fg-muted">{t('preview.loading')}</span>
+              <span className="text-xs text-fg-subtle">{t('preview.loading')}</span>
             </div>
           ) : null}
         </AllayLoader>

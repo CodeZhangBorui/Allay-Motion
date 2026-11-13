@@ -11,6 +11,7 @@ import {
   type UiSettings,
   type UiSettingsPatch,
 } from '../../shared/settings';
+import type { ExportPreset } from '../../shared/export';
 
 // uiStore（1.7）：面板宽度、折叠状态、主题、语言，以及编辑器偏好（预览背景、参考线、分组折叠、最近使用）。
 // 真正的持久化在主进程的 settings.json（1.6 第 10 条：不用 localStorage）。
@@ -18,6 +19,9 @@ import {
 
 export type Side = 'left' | 'right';
 export type DialogName = 'export' | 'settings' | 'palette' | 'saveTemplate' | 'savePreset' | null;
+/** 左右面板的标签页；以后再加一个（比如模板代码）只要在这里加一个值 */
+export type LeftTab = 'templates' | 'presets';
+export type RightTab = 'props' | 'output';
 
 interface UiState {
   settings: UiSettings;
@@ -25,6 +29,14 @@ interface UiState {
   resourcesOpen: boolean;
   /** 设置对话框打开时的页 */
   settingsPage: 'general' | 'assets' | 'export' | 'shortcuts' | 'about';
+  leftTab: LeftTab;
+  rightTab: RightTab;
+  /** 模板库的搜索框是否展开（Ctrl+F 或搜索图标） */
+  searchOpen: boolean;
+  /** 从“导出”分体按钮的下拉里选的格式：打开导出对话框时预先选中 */
+  exportPreset: ExportPreset | null;
+  /** 导出正在进行（状态栏显示“导出中”） */
+  exporting: boolean;
   /** 主进程推来的完整设置（启动、或其他地方改了设置） */
   replace(settings: UiSettings): void;
   setTheme(theme: Theme): void;
@@ -35,6 +47,11 @@ interface UiState {
   addRecent(kind: RecentKind, value: string): void;
   openDialog(dialog: DialogName, page?: UiState['settingsPage']): void;
   setResourcesOpen(open: boolean): void;
+  setLeftTab(tab: LeftTab): void;
+  setRightTab(tab: RightTab): void;
+  setSearchOpen(open: boolean): void;
+  openExport(preset?: ExportPreset): void;
+  setExporting(exporting: boolean): void;
 }
 
 const SAVE_DELAY = 150;
@@ -65,6 +82,11 @@ export const useUiStore = create<UiState>((set, get) => ({
   dialog: null,
   resourcesOpen: false,
   settingsPage: 'general',
+  leftTab: 'templates',
+  rightTab: 'props',
+  searchOpen: false,
+  exportPreset: null,
+  exporting: false,
   replace: (settings) => set({ settings: { ...settings, editor: settings.editor ?? defaultEditorPrefs() } }),
   setTheme: (theme) => {
     set({ settings: { ...get().settings, theme } });
@@ -112,4 +134,9 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
   openDialog: (dialog, page) => set((s) => ({ dialog, settingsPage: page ?? s.settingsPage })),
   setResourcesOpen: (resourcesOpen) => set({ resourcesOpen }),
+  setLeftTab: (leftTab) => set({ leftTab }),
+  setRightTab: (rightTab) => set({ rightTab }),
+  setSearchOpen: (searchOpen) => set({ searchOpen }),
+  openExport: (preset) => set({ dialog: 'export', exportPreset: preset ?? null }),
+  setExporting: (exporting) => set({ exporting }),
 }));

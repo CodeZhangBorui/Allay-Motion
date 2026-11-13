@@ -4,7 +4,7 @@ import { beginGesture, useEditor } from './context';
 import { EASING_FUNCTIONS, easingFn, easingPath, type EasingValue } from './easing';
 
 // EasingField（6.5）：下拉里每个预设配一条小曲线；“自定义”展开一个 SVG 贝塞尔编辑器（两个可拖控制点）
-// 和一个按曲线运动的小方块。小方块只动 transform；减少动效时不动。控制点是方的凸块。
+// 和一个按曲线运动的小圆点。小圆点只动 transform；减少动效时不动。
 
 export interface EasingFieldProps {
   value: EasingValue;
@@ -18,8 +18,8 @@ const CUSTOM = '__custom';
 
 function MiniCurve({ value }: { value: EasingValue }) {
   return (
-    <svg width="28" height="16" viewBox="0 0 28 16" aria-hidden="true" className="shrink-0 text-primary-text">
-      <path d={easingPath(value, 28, 16)} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" />
+    <svg width="28" height="16" viewBox="0 0 28 16" aria-hidden="true" className="shrink-0 text-primary">
+      <path d={easingPath(value, 28, 16)} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -33,7 +33,7 @@ const toY = (y: number) => BOX - ((y + PAD) / SPAN) * BOX;
 function BezierEditor({ value, onChange, label }: { value: readonly [number, number, number, number]; onChange(v: [number, number, number, number]): void; label: string }) {
   const editor = useEditor();
   const svgRef = useRef<SVGSVGElement>(null);
-  const dotRef = useRef<SVGRectElement>(null);
+  const dotRef = useRef<SVGCircleElement>(null);
   const dragging = useRef<0 | 1 | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -76,14 +76,13 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
     const ay = which === 0 ? toY(0) : toY(1);
     return (
       <g key={which}>
-        <line x1={ax} y1={ay} x2={cx} y2={cy} stroke="var(--fg-muted)" strokeWidth="2" />
-        <rect
-          x={cx - 6}
-          y={cy - 6}
-          width="12"
-          height="12"
+        <line x1={ax} y1={ay} x2={cx} y2={cy} stroke="var(--fg-subtle)" strokeWidth="1" />
+        <circle
+          cx={cx}
+          cy={cy}
+          r="6"
           fill="var(--surface-2)"
-          stroke="var(--primary-text)"
+          stroke="var(--primary)"
           strokeWidth="2"
           className="cursor-grab"
           role="slider"
@@ -114,14 +113,14 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
   };
   return (
     <div className="flex flex-col gap-1">
-      <svg ref={svgRef} width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} className="touch-none self-center overflow-visible blk blk-sunken" onPointerMove={onMove} role="group" aria-label={label}>
-        <rect x="0" y={toY(1)} width={BOX} height={toY(0) - toY(1)} fill="none" stroke="var(--input-border)" strokeWidth="2" strokeDasharray="4 4" />
-        <path d={easingPath(value, BOX, BOX, PAD, 64)} fill="none" stroke="var(--primary-text)" strokeWidth="2" strokeLinejoin="miter" />
+      <svg ref={svgRef} width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} className="touch-none self-center overflow-visible rounded-lg bg-well" onPointerMove={onMove} role="group" aria-label={label}>
+        <rect x="0" y={toY(1)} width={BOX} height={toY(0) - toY(1)} fill="none" stroke="var(--control-hi)" strokeDasharray="3 3" />
+        <path d={easingPath(value, BOX, BOX, PAD, 64)} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         {handle(0)}
         {handle(1)}
-        <rect ref={dotRef} x="-4" y="-4" width="8" height="8" fill="var(--allay)" />
+        <circle ref={dotRef} r="4" fill="var(--primary)" />
       </svg>
-      <span className="text-center font-px12 text-fg-muted">[{value.map((n) => n.toFixed(2)).join(', ')}]</span>
+      <span className="text-center num text-xs text-fg-subtle">[{value.map((n) => n.toFixed(2)).join(', ')}]</span>
     </div>
   );
 }

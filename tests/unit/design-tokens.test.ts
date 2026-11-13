@@ -25,76 +25,78 @@ describe('6.2 设计变量', () => {
   const cssLight = block(css, "[data-theme='light'] {");
 
   it('规格里的变量完整解析出来了', () => {
-    expect(Object.keys(specDark).length).toBe(33);
-    expect(Object.keys(specLight).length).toBe(33);
+    expect(Object.keys(specDark).length).toBeGreaterThanOrEqual(35);
     expect(Object.keys(specLight).sort()).toEqual(Object.keys(specDark).sort());
   });
   it('深色主题与规格逐项一致', () => {
     for (const [k, v] of Object.entries(specDark)) expect(cssDark[k], k).toBe(v);
+    expect(Object.keys(cssDark).sort()).toEqual(Object.keys(specDark).sort());
   });
   it('浅色主题与规格逐项一致', () => {
     for (const [k, v] of Object.entries(specLight)) expect(cssLight[k], k).toBe(v);
+    expect(Object.keys(cssLight).sort()).toEqual(Object.keys(specLight).sort());
+  });
+  it('深色主题的数值取自定稿稿（docs/design/ui-direction-v4.html）', () => {
+    // 定稿稿里的变量名 → 我们的变量名；只有第三级文字为了对比度换成了 fg-subtle（fg-faint 保留原值）
+    const v4: Record<string, string> = {
+      '--background': '#0D0D0E', '--surface-1': '#1A1A1B', '--surface-2': '#202021', '--well': '#131314', '--control': '#28282A',
+      '--control-hi': '#333336', '--divider': '#262628', '--viewer': '#121213', '--foreground': '#F0F0F1', '--fg-muted': '#A2A2A6',
+      '--fg-faint': '#6D6D72', '--primary': '#3CB7F4', '--primary-foreground': '#04212F', '--mark': '#F2A93B',
+      '--stage-enter': '#2B6C9B', '--stage-hold': '#47474B', '--stage-exit': '#6652A6', '--cue': '#49B382',
+    };
+    for (const [k, v] of Object.entries(v4)) expect(cssDark[k], k).toBe(v);
   });
   it('动效变量', () => {
-    for (const v of [
-      '--dur-1: 60ms',
-      '--dur-2: 120ms',
-      '--dur-3: 120ms',
-      '--dur-4: 400ms',
-      '--ease-step: steps(3, end)',
-      '--ease-out: cubic-bezier(.2, .8, .2, 1)',
-      '--ease-in-out: cubic-bezier(.45, .05, .2, 1)',
-    ]) {
+    for (const v of ['--dur-1: 80ms', '--dur-2: 120ms', '--dur-4: 400ms', '--ease-out: cubic-bezier(.2, .8, .2, 1)', '--ease-in-out: cubic-bezier(.45, .05, .2, 1)']) {
       expect(css).toContain(v);
+      expect(spec).toContain(v);
     }
   });
   it('shadcn 变量的映射', () => {
     for (const v of [
       '--card: var(--surface-1)',
-      '--popover: var(--surface-1)',
-      '--muted: var(--surface-2)',
+      '--popover: var(--surface-2)',
+      '--muted: var(--control)',
       '--muted-foreground: var(--fg-muted)',
-      '--secondary: var(--surface-2)',
-      '--accent: var(--surface-3)',
+      '--secondary: var(--control)',
+      '--accent: var(--control-hi)',
       '--destructive: var(--danger)',
-      '--input: var(--input-border)',
+      '--border: var(--divider)',
+      '--input: var(--control)',
     ]) {
       expect(css).toContain(v);
     }
   });
-  it('主进程的窗口颜色与设计变量一致', () => {
+  it('字号、圆角、尺寸（6.2）', () => {
+    for (const v of [
+      '--fs-body: 12px', '--fs-small: 11.5px', '--fs-label: 12.5px', '--fs-title: 15px', '--fs-timecode: 19px',
+      '--r-panel: 10px', '--r-control: 6px', '--r-tile: 7px',
+      '--gap: 6px', '--h-topbar: 44px', '--h-statusbar: 24px', '--h-panel-head: 40px', '--h-timeline: 236px',
+    ]) expect(css).toContain(v);
+  });
+  it('主进程的窗口颜色与设计变量一致（顶栏坐在底色上）', () => {
     expect(THEME_CHROME_COLORS.dark).toEqual({
       background: specDark['--background'],
-      titleBar: specDark['--surface-1'],
+      titleBar: specDark['--background'],
       titleBarSymbol: specDark['--foreground'],
     });
     expect(THEME_CHROME_COLORS.light).toEqual({
       background: specLight['--background'],
-      titleBar: specLight['--surface-1'],
+      titleBar: specLight['--background'],
       titleBarSymbol: specLight['--foreground'],
     });
   });
-  it('“方块工作台”：圆角全为 0，没有模糊、渐变和柔光', () => {
-    for (const m of css.matchAll(/--radius-[\w-]+:\s*([^;]+);/g)) expect(m[1]!.trim()).toBe('0px');
-    expect(css).toContain('border-radius: 0 !important');
-    expect(css).toContain('backdrop-filter: none !important');
-    // 所有 box-shadow 都是零模糊的硬边：形如 x y 0 0 颜色
-    for (const m of css.matchAll(/(?:^|[;{\s])box-shadow:([^;]+);/g)) {
-      for (const part of m[1]!.split(/,(?![^(]*\))/)) {
-        const t = part.trim().replace(/^inset\s+/, '');
-        if (t.startsWith('var(')) continue;
-        // 第三个长度（模糊半径）必须是 0；扩展半径可以有
-        const len = String.raw`(?:-?\d+(?:px)?|var\(--[\w-]+\))`;
-        expect(t, part).toMatch(new RegExp(`^${len} ${len} 0( ${len})? `));
-      }
-    }
+  it('禁止的手法：渐变、模糊、背景模糊、发丝描边；阴影只在浮起的东西上', () => {
     expect(css).not.toMatch(/(linear|radial)-gradient/);
     expect(css).not.toMatch(/blur\(/);
+    expect(css).not.toMatch(/backdrop-filter:\s*(?!none)/);
+    // box-shadow 只出现在“浮起”的工具类里（通过变量），不在别处写死
+    const shadows = [...css.matchAll(/(?:^|[;{\s])box-shadow:\s*([^;]+);/g)].map((m) => m[1]!.trim());
+    expect(shadows).toEqual(['var(--shadow-float)']);
   });
-  it('像素字只用 12、24 两个名义字号，字体文件随包', () => {
-    expect(css).toContain('--px-12: 12px');
-    expect(css).toContain('--px-24: 24px');
-    expect(css).toContain('ark-pixel-12px-proportional-zh_hans.otf.woff2');
+  it('字体走 @fontsource 的包（font-src self），不内联 data:', () => {
+    for (const f of ['@fontsource/ibm-plex-sans', '@fontsource/ibm-plex-mono', '@fontsource/noto-sans-sc']) expect(css).toContain(f);
     expect(css).not.toMatch(/url\(["']?data:/);
+    expect(css).not.toMatch(/inter/i);
   });
 });

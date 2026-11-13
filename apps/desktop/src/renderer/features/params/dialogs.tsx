@@ -43,7 +43,7 @@ export function SavePresetDialog({ onSaved }: { onSaved(): void }) {
           <DialogTitle>{t('params.presets.saveTitle')}</DialogTitle>
           <DialogDescription>{t('params.presets.saveBody')}</DialogDescription>
           <label className="flex flex-col gap-1">
-            <span className="font-px12 text-fg-muted">{t('common.name')}</span>
+            <span className="text-xs text-fg-subtle">{t('common.name')}</span>
             <Input autoFocus value={name} maxLength={100} onChange={(e) => setName(e.currentTarget.value)} data-testid="preset-name" />
           </label>
           <DialogFooter>
@@ -111,16 +111,16 @@ export function SaveTemplateDialog() {
           <DialogTitle>{t('params.saveTemplate.title')}</DialogTitle>
           <DialogDescription>{t('params.saveTemplate.body')}</DialogDescription>
           <label className="flex flex-col gap-1">
-            <span className="font-px12 text-fg-muted">{t('common.name')}</span>
+            <span className="text-xs text-fg-subtle">{t('common.name')}</span>
             <Input autoFocus value={name} maxLength={60} onChange={(e) => setName(e.currentTarget.value)} data-testid="template-name" />
           </label>
           <fieldset className="flex min-h-0 flex-col gap-1">
-            <legend className="mb-2 font-px12 text-fg-muted">{t('params.saveTemplate.keep')}</legend>
-            <div className="max-h-[260px] overflow-y-auto blk blk-sunken p-0.5">
+            <legend className="mb-2 text-xs text-fg-subtle">{t('params.saveTemplate.keep')}</legend>
+            <div className="max-h-[260px] overflow-y-auto rounded-lg bg-well p-1">
               {visible.map((p) => {
                 const label = localize(p.label, locale);
                 return (
-                  <label key={p.key} className="flex h-8 items-center justify-between gap-2 border-b-2 px-2 last:border-b-0">
+                  <label key={p.key} className="flex h-8 items-center justify-between gap-2 rounded-md px-2 hover:bg-control">
                     <span className="truncate text-sm">{label}</span>
                     <Switch checked={keep[p.key] ?? true} onCheckedChange={(v) => setKeep((k) => ({ ...k, [p.key]: v }))} aria-label={t('params.saveTemplate.keepOne', { name: label })} />
                   </label>

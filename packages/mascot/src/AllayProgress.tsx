@@ -33,10 +33,10 @@ export function AllayProgress({ value, phase, carry, label }: AllayProgressProps
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(v * 100)}
-        className="h-4 w-full overflow-hidden blk blk-sunken p-0.5"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-control-hi"
       >
         <div
-          className={`h-full ${phase === 'error' ? 'bg-danger' : 'bg-primary'}`}
+          className={`h-full rounded-full ${phase === 'error' ? 'bg-danger' : 'bg-primary'}`}
           style={{ width: `${v * 100}%` }}
         />
       </div>

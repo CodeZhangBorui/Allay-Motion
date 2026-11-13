@@ -2,32 +2,30 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
-// 按钮（6.2 形状与厚度）：缺角 2 px 描边的凸块，文字用像素字；按下时斜面对调、下移 1 px。
-// default 是主操作：青色实心块配深色墨字。ghost 平时是平的，悬停时浮出凸块，按下（aria-pressed）时是凹槽。
+// 按钮（6.2）：平的圆角块，无描边无阴影，悬停只变亮度。default 是唯一的实心强调色按钮（导出），其他都是控件色或透明。
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center font-px12 whitespace-nowrap transition-[background-color,color,translate] duration-(--dur-1) ease-(--ease-step) select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-md text-sm font-medium whitespace-nowrap transition-colors duration-(--dur-1) select-none disabled:pointer-events-none disabled:opacity-45 [&_svg]:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "blk blk-primary hover:bg-primary-hover active:blk-down active:bg-primary-active",
-        outline: "blk blk-raised text-foreground hover:bg-surface-3 active:blk-down aria-expanded:blk-down",
-        secondary: "blk blk-raised text-foreground hover:bg-surface-3 active:blk-down aria-expanded:blk-down",
-        ghost:
-          "hover:blk hover:blk-raised hover:text-foreground active:blk-down aria-expanded:blk aria-expanded:blk-sunken aria-expanded:text-foreground aria-pressed:blk aria-pressed:blk-sunken",
-        destructive: "blk blk-raised text-danger hover:bg-surface-3 active:blk-down",
-        link: "text-primary-text underline underline-offset-4 decoration-2",
+        default: "bg-primary text-primary-foreground font-semibold hover:bg-primary-hover active:bg-primary-press",
+        outline: "bg-control text-foreground hover:bg-control-hi aria-expanded:bg-control-hi",
+        secondary: "bg-control text-foreground hover:bg-control-hi aria-expanded:bg-control-hi",
+        ghost: "text-fg-muted hover:bg-control hover:text-foreground aria-expanded:bg-control aria-expanded:text-foreground aria-pressed:bg-control-hi aria-pressed:text-foreground",
+        destructive: "bg-control text-danger hover:bg-control-hi",
+        link: "text-primary-text underline-offset-4 hover:underline",
       },
       size: {
-        // 控件高度：28 默认、24 紧凑、32 对话框底部按钮（6.2 尺寸）
-        default: "h-7 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
-        xs: "h-6 gap-1 px-2 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
-        sm: "h-6 gap-1 px-2 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
-        lg: "h-8 gap-1.5 px-3.5",
-        icon: "size-7",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
-        "icon-sm": "size-6",
-        "icon-lg": "size-8",
+        // 控件高度 26（6.2 尺寸）；lg 30 用在顶栏和对话框底部
+        default: "h-control gap-1.5 px-2.5",
+        xs: "h-6 gap-1 rounded-sm px-2 text-xs",
+        sm: "h-6 gap-1 px-2 text-xs",
+        lg: "h-[30px] gap-1.5 rounded-lg px-3",
+        icon: "size-[30px] rounded-lg",
+        "icon-xs": "size-5 rounded-sm",
+        "icon-sm": "size-control",
+        "icon-lg": "size-8 rounded-lg",
       },
     },
     defaultVariants: {
