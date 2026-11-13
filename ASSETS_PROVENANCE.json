@@ -27,5 +27,12 @@
     "generator": "pnpm test:e2e:baselines",
     "license": "项目自有",
     "note": "T-UI-5 的界面截图基线（深色、浅色）：资源栈里只有测试脚本生成的纯色假原版层，引擎画出来的部分（预览画布、封面、缩略图）和悦灵头像在截图里被蒙住，不含任何原版贴图；只给测试用，不进安装包（docs/decisions.md M4）"
+  },
+  {
+    "path": "docs/design/*.png",
+    "origin": "original",
+    "author": "Allay Motion 项目（界面设计稿，由同目录下的 HTML 设计稿渲染）",
+    "license": "项目自有",
+    "note": "界面方向的设计稿截图；画面里的方块与缩略图是 CSS 色块示意，不含任何原版贴图；不进安装包"
   }
 ]

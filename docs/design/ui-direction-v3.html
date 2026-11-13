@@ -1,0 +1,188 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>Allay Motion UI mock v3</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<style>
+:root{--edge:#151515;--base:#1d1d1d;--body:#292929;--head:#323232;--well:#1c1c1c;--ctl:#3d3d3d;--ctl-hi:#4a4a4a;--t1:#d6d6d6;--t2:#9d9d9d;--t3:#727272;
+--acc:#4fb4e8;--acc-fill:#2f5f7a;--acc-ink:#07202c;--mark:#e9a23b;--c-in:#3f7fa8;--c-hold:#6a6a6a;--c-out:#8566ad;--cue:#5aa870}
+body.b{--edge:#101010;--base:#181818;--body:#232323;--head:#2b2b2b;--well:#171717;--ctl:#363636;--ctl-hi:#444;--acc:#ef8f2f;--acc-fill:#6b4420;--acc-ink:#241203;--mark:#58b7e6;--c-in:#b9772e;--c-hold:#666;--c-out:#4d86a8;--cue:#6aa86a}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;background:var(--edge);color:var(--t1);font:12px/1.3 "Segoe UI","Microsoft YaHei UI",sans-serif}
+.mono{font-family:"Consolas","Cascadia Mono",monospace;font-variant-numeric:tabular-nums}
+i[class^="ph"]{font-size:14px;line-height:1}
+.app{display:grid;grid-template-columns:286px 1fr 344px;grid-template-rows:28px 34px 1fr 38px 168px 22px;gap:1px;height:900px;background:var(--edge)}
+.menubar{grid-column:1/4;background:var(--head);display:flex;align-items:center;padding-left:8px;gap:2px}
+.menubar .logo{width:16px;height:16px;background:var(--acc);margin-right:8px;position:relative}
+.menubar .logo:before,.menubar .logo:after{content:"";position:absolute;top:6px;width:2px;height:5px;background:var(--acc-ink)}.menubar .logo:before{left:4px}.menubar .logo:after{right:4px}
+.menubar span{padding:0 9px;height:28px;display:flex;align-items:center;color:var(--t1)}
+.menubar .ttl{flex:1;justify-content:center;color:var(--t2)}
+.menubar .wc{width:46px;justify-content:center;color:var(--t2);padding:0}
+.toolbar{grid-column:1/4;background:var(--body);display:flex;align-items:center;padding:0 8px;gap:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.tb{height:24px;min-width:26px;padding:0 6px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:3px;color:var(--t1)}
+.tb.dis{color:var(--t3)}
+.btn{height:24px;padding:0 10px;display:flex;align-items:center;gap:6px;border-radius:3px;background:var(--ctl);border:1px solid #1a1a1a;box-shadow:inset 0 1px 0 rgba(255,255,255,.07);color:var(--t1)}
+.btn.pri{background:var(--acc);border-color:rgba(0,0,0,.45);color:var(--acc-ink);font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+.sep{width:1px;height:18px;background:#1a1a1a;box-shadow:1px 0 0 rgba(255,255,255,.05);margin:0 6px}
+.sp{flex:1}
+.pane{background:var(--body);display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
+.tabs{height:26px;background:var(--base);display:flex;align-items:stretch;flex:none;border-bottom:1px solid var(--edge)}
+.tabs span{padding:0 12px;display:flex;align-items:center;color:var(--t2);border-right:1px solid var(--edge)}
+.tabs .on{background:var(--body);color:var(--t1);box-shadow:inset 0 2px 0 var(--acc);margin-bottom:-1px}
+.tabs .mn{margin-left:auto;border:0;color:var(--t3);padding:0 8px}
+.sub{height:28px;display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--edge);background:var(--body);flex:none}
+.inp{height:22px;background:var(--well);border:1px solid #121212;border-radius:3px;display:flex;align-items:center;gap:6px;padding:0 7px;color:var(--t3);box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+.cat{display:flex;height:22px;border:1px solid #1a1a1a;border-radius:3px;overflow:hidden}.cat span{padding:0 8px;display:flex;align-items:center;background:var(--ctl);color:var(--t2);border-right:1px solid #1a1a1a;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}.cat span:last-child{border:0}.cat .on{background:#222;color:var(--t1);box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+.gal{display:grid;grid-template-columns:1fr 1fr;gap:8px 8px;padding:8px;align-content:start;flex:1;background:#242424}
+body.b .gal{background:#1e1e1e}
+.tile{padding:3px 3px 0;border:1px solid transparent}
+.tile.on{background:var(--acc-fill);border-color:var(--acc)}
+.tile .th{aspect-ratio:16/9;position:relative;overflow:hidden;border:1px solid #111}
+.tile .nm{height:22px;display:flex;align-items:center;justify-content:space-between;color:var(--t1);font-size:11.5px;padding:0 1px}.tile .nm s{text-decoration:none;color:var(--t2)}
+.ck{background-color:#262626;background-image:linear-gradient(45deg,#313131 25%,transparent 25%,transparent 75%,#313131 75%),linear-gradient(45deg,#313131 25%,transparent 25%,transparent 75%,#313131 75%);background-size:12px 12px;background-position:0 0,6px 6px}
+.viewer{background:#1a1a1a}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;padding:20px 28px;min-height:0;position:relative}
+.frame{width:100%;max-width:760px;aspect-ratio:16/9;position:relative;outline:1px solid #000}
+.blocks{position:absolute;inset:0;display:grid;grid-template-columns:repeat(16,1fr);grid-template-rows:repeat(9,1fr)}
+.blocks i{display:block}.blocks i.k{box-shadow:inset 0 0 0 1px rgba(0,0,0,.3),inset 3px 3px 0 rgba(255,255,255,.13),inset -3px -3px 0 rgba(0,0,0,.2)}
+.safe{position:absolute;inset:5%;border:1px solid rgba(255,255,255,.28)}.safe2{position:absolute;inset:10%;border:1px solid rgba(255,255,255,.16)}
+.ovl{position:absolute;left:10px;bottom:6px;color:var(--t3);font-size:11px}
+.ovr{position:absolute;right:10px;bottom:6px;color:var(--t3);font-size:11px}
+.transport{grid-column:2/3;background:var(--body);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.read{display:inline-flex;align-items:center;height:26px;padding:0 9px;background:#141414;border:1px solid #0c0c0c;border-radius:3px;font-size:17px;letter-spacing:.5px;color:#e6e6e6;box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
+.tp{display:flex;gap:2px}.tp span{width:30px;height:26px;display:grid;place-items:center;border-radius:3px;color:var(--t1)}.tp i{font-size:15px}.tp .big{background:var(--ctl);border:1px solid #1a1a1a;box-shadow:inset 0 1px 0 rgba(255,255,255,.07);width:38px}.tp .tog{color:var(--acc)}
+.lfill{grid-column:1/2;grid-row:4/5;background:var(--body)}.rfill{grid-column:3/4;grid-row:4/5;background:var(--body)}
+.tlp{grid-column:1/4;background:var(--body);display:grid;grid-template-columns:150px 1fr;grid-template-rows:26px 24px 34px 26px 1fr;min-height:0}
+.tlh{grid-column:1/3;background:var(--base);display:flex;align-items:center;border-bottom:1px solid var(--edge)}
+.tlh .t{padding:0 12px;height:100%;display:flex;align-items:center;background:var(--body);box-shadow:inset 0 2px 0 var(--acc);border-right:1px solid var(--edge)}
+.th2{white-space:nowrap;background:var(--head);border-right:1px solid var(--edge);border-bottom:1px solid var(--edge);display:flex;align-items:center;padding:0 8px;gap:7px;color:var(--t2);font-size:11.5px}
+.lane{position:relative;border-bottom:1px solid var(--edge);background:#222}
+body.b .lane{background:#1c1c1c}
+.lane.rul{background:var(--head);color:var(--t2);font-size:10.5px}
+.rul u{position:absolute;top:4px;text-decoration:none;padding-left:4px}.rul b{position:absolute;bottom:0;width:1px;background:#6d6d6d}
+.clip{position:absolute;top:3px;bottom:3px;border:1px solid rgba(0,0,0,.6);border-radius:2px;display:flex;align-items:center;padding:0 7px;gap:8px;color:#f2f2f2;font-size:11.5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.22);overflow:hidden}
+.clip s{text-decoration:none;opacity:.75}
+.cue{position:absolute;top:5px;bottom:5px;width:3px;background:var(--cue)}
+.grip{position:absolute;top:2px;bottom:2px;width:5px;background:#e8e8e8;border:1px solid #000;border-radius:1px;transform:translateX(-50%)}
+.cutm{position:absolute;top:8px;width:10px;height:10px;background:var(--mark);border:1px solid #000;transform:translateX(-50%) rotate(45deg)}
+.cutl{position:absolute;top:0;bottom:0;width:1px;background:var(--mark);opacity:.55}
+.ph1{position:absolute;top:0;bottom:0;width:1px;background:#ff5a4d;z-index:3}
+.ph1:before{content:"";position:absolute;top:0;left:-6px;border:6px solid transparent;border-top:9px solid #ff5a4d;border-bottom:0}
+.sec{height:23px;background:var(--head);display:flex;align-items:center;gap:6px;padding:0 8px;font-weight:600;font-size:11.5px;border-top:1px solid #3a3a3a;border-bottom:1px solid var(--edge);color:var(--t1)}
+body.b .sec{border-top-color:#343434}
+.sec i{font-size:10px;color:var(--t2)}.sec .rs{margin-left:auto;font-size:12px;color:var(--t3)}
+.rows{padding:5px 0 7px}
+.r{display:grid;grid-template-columns:92px 1fr 30px;align-items:center;gap:8px;min-height:25px;padding:0 4px 0 6px}
+.r label{color:var(--t2);text-align:right;white-space:nowrap}
+.r .tr{display:flex;gap:4px;color:var(--t3);justify-content:flex-end}.r .tr i{font-size:12px}.r .tr .chg{color:var(--mark)}
+.nf{height:20px;background:var(--ctl);border:1px solid #1a1a1a;border-radius:3px;position:relative;display:flex;align-items:center;justify-content:space-between;padding:0 4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden}
+.nf>b{position:absolute;left:0;top:0;bottom:0;background:var(--acc-fill)}
+.nf>*{position:relative}.nf i{font-size:9px;color:var(--t2)}.nf em{font-style:normal;color:var(--t2);margin-left:3px}
+.dd{height:20px;background:#232323;border:1px solid #151515;border-radius:3px;display:flex;align-items:center;justify-content:space-between;padding:0 6px 0 8px;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}.dd i{font-size:10px;color:var(--t2)}
+body.b .dd{background:#1d1d1d}
+.sg{display:flex;height:20px;border:1px solid #1a1a1a;border-radius:3px;overflow:hidden}.sg span{flex:1;display:grid;place-items:center;background:var(--ctl);color:var(--t2);border-right:1px solid #1a1a1a;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}.sg span:last-child{border:0}.sg .on{background:var(--acc-fill);color:#fff;box-shadow:inset 0 1px 2px rgba(0,0,0,.4)}
+.pat{display:grid;grid-template-columns:repeat(6,1fr);gap:3px}.pat div{aspect-ratio:1;background:var(--well);border:1px solid #111;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;padding:3px}.pat div.on{border-color:var(--acc);background:#16242c}.pat i{background:#b9b9b9}
+body.b .pat div.on{background:#2a1c10}
+.bl{border:1px solid #151515;background:var(--well);border-radius:3px}.bl div{display:grid;grid-template-columns:18px 1fr 54px 16px;align-items:center;gap:6px;height:22px;padding:0 4px;border-bottom:1px solid #151515}.bl div:last-child{border:0;color:var(--t2)}
+.cube{width:14px;height:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35),inset 2px 2px 0 rgba(255,255,255,.2),inset -2px -2px 0 rgba(0,0,0,.2)}
+.status{grid-column:1/4;background:var(--head);display:flex;align-items:center;gap:16px;padding:0 10px;color:var(--t2);font-size:11px}
+.status i{font-size:12px;vertical-align:-2px;margin-right:4px}.dot{display:inline-block;width:7px;height:7px;background:#58b368;margin-right:6px}
+</style></head><body><div class="app">
+<div class="menubar"><div class="logo"></div><span>文件</span><span>编辑</span><span>视图</span><span>模板</span><span>素材</span><span>帮助</span><span class="ttl">未命名工程 * — Allay Motion</span><span class="wc"><i class="ph ph-minus"></i></span><span class="wc"><i class="ph ph-square" style="font-size:12px"></i></span><span class="wc"><i class="ph ph-x"></i></span></div>
+<div class="toolbar">
+  <div class="tb"><i class="ph-fill ph-file-plus"></i></div><div class="tb"><i class="ph-fill ph-folder-open"></i></div><div class="tb"><i class="ph-fill ph-floppy-disk"></i></div><div class="sep"></div>
+  <div class="tb"><i class="ph-bold ph-arrow-u-up-left"></i></div><div class="tb dis"><i class="ph-bold ph-arrow-u-up-right"></i></div><div class="sep"></div>
+  <div class="btn"><i class="ph-fill ph-stack"></i>素材：Minecraft 1.21.1<i class="ph-fill ph-caret-down" style="font-size:9px;color:var(--t2)"></i></div>
+  <div class="sp"></div>
+  <span style="color:var(--t2)">输出</span><div class="dd mono" style="width:164px;height:24px"><span>1920 × 1080　60 fps</span><i class="ph-fill ph-caret-down"></i></div>
+  <div class="dd" style="width:150px;height:24px"><span>ProRes 4444 透明</span><i class="ph-fill ph-caret-down"></i></div>
+  <div class="btn pri"><i class="ph-fill ph-export"></i>导出…</div>
+</div>
+
+<div class="pane" style="grid-row:3/4">
+  <div class="tabs"><span class="on">模板</span><span>预设</span><span class="mn"><i class="ph-bold ph-list"></i></span></div>
+  <div class="sub"><div class="cat"><span class="on">全部</span><span>转场</span><span>叠加</span><span>我的</span></div><div class="sp"></div><div class="inp" style="width:94px"><i class="ph-bold ph-magnifying-glass" style="font-size:11px"></i>搜索</div></div>
+  <div class="gal" id="gal"></div>
+</div>
+
+<div class="pane viewer" style="grid-row:3/4">
+  <div class="tabs"><span class="on">预览</span><span class="mn"><i class="ph-bold ph-list"></i></span></div>
+  <div class="sub"><div class="dd" style="width:86px"><span>适应 62%</span><i class="ph-fill ph-caret-down"></i></div><div class="sep"></div>
+    <div class="cat"><span class="on"><i class="ph-fill ph-checkerboard"></i></span><span><i class="ph-fill ph-square"></i></span><span><i class="ph-fill ph-drop-half"></i></span></div>
+    <div class="tb" style="color:var(--acc)"><i class="ph-bold ph-frame-corners"></i></div><div class="tb"><i class="ph-bold ph-grid-four"></i></div>
+    <div class="sp"></div><div class="tb"><i class="ph-fill ph-sparkle"></i>高质量预览</div></div>
+  <div class="stage"><div class="frame ck"><div class="blocks" id="blk"></div><div class="safe2"></div><div class="safe"></div></div>
+    <div class="ovl mono">方块擦除 · 1920×1080 · RGBA</div><div class="ovr mono">29.8 ms · N=1</div></div>
+</div>
+
+<div class="pane" style="grid-row:3/5">
+  <div class="tabs"><span class="on">属性</span><span>输出</span><span class="mn"><i class="ph-bold ph-list"></i></span></div>
+  <div class="sub"><b style="font-weight:600;padding-left:4px">方块擦除</b><span style="color:var(--t3)">转场 · 1.0.0</span><div class="sp"></div><div class="dd" style="width:112px"><span>默认预设</span><i class="ph-fill ph-caret-down"></i></div><div class="tb"><i class="ph-fill ph-floppy-disk"></i></div></div>
+  <div class="sec"><i class="ph-fill ph-caret-down"></i>方块<i class="ph-bold ph-arrow-counter-clockwise rs"></i></div>
+  <div class="rows">
+    <div class="r" style="align-items:start"><label style="line-height:22px">方块</label><div class="bl"><div><span class="cube" style="background:#2fb7a6"></span><span>钻石块</span><span class="nf mono" style="height:18px"><i class="ph-fill ph-caret-left"></i><span>1</span><i class="ph-fill ph-caret-right"></i></span><i class="ph-bold ph-x" style="font-size:10px;color:var(--t3)"></i></div><div><span class="cube" style="background:#7d8087"></span><span>石头</span><span class="nf mono" style="height:18px"><i class="ph-fill ph-caret-left"></i><span>2</span><i class="ph-fill ph-caret-right"></i></span><i class="ph-bold ph-x" style="font-size:10px;color:var(--t3)"></i></div><div><i class="ph-bold ph-plus" style="font-size:11px;justify-self:center"></i><span>添加方块…</span><span></span><span></span></div></div><div class="tr"></div></div>
+    <div class="r"><label>列数</label><div class="nf mono"><b style="width:34%"></b><i class="ph-fill ph-caret-left"></i><span>16</span><i class="ph-fill ph-caret-right"></i></div><div class="tr"><i class="ph-fill ph-circle chg" style="font-size:7px"></i><i class="ph-bold ph-arrow-counter-clockwise"></i></div></div>
+    <div class="r"><label>样式</label><div class="sg"><span>平面</span><span class="on">立体</span></div><div class="tr"></div></div>
+  </div>
+  <div class="sec"><i class="ph-fill ph-caret-down"></i>动画<i class="ph-bold ph-arrow-counter-clockwise rs"></i></div>
+  <div class="rows">
+    <div class="r" style="align-items:start"><label style="line-height:30px">进入顺序</label><div><div class="pat" id="pat"></div></div><div class="tr"></div></div>
+    <div class="r"><label></label><div class="dd"><span>中心扩散</span><i class="ph-fill ph-caret-down"></i></div><div class="tr"></div></div>
+    <div class="r"><label>退出顺序</label><div class="dd"><span>与进入相反</span><i class="ph-fill ph-caret-down"></i></div><div class="tr"></div></div>
+    <div class="r"><label>重叠</label><div class="nf mono"><b style="width:45%"></b><i class="ph-fill ph-caret-left"></i><span>0.450</span><i class="ph-fill ph-caret-right"></i></div><div class="tr"></div></div>
+    <div class="r"><label>缓动</label><div class="dd"><span style="display:flex;align-items:center;gap:8px"><svg width="30" height="14" viewBox="0 0 30 14"><path d="M1 13 C 8 13, 9 -3, 18 1 S 26 2, 29 2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>回弹 · 缓出</span><i class="ph-fill ph-caret-down"></i></div><div class="tr"></div></div>
+    <div class="r"><label>翻转</label><div class="sg"><span>无</span><span>横轴</span><span class="on">竖轴</span><span>旋入</span></div><div class="tr"></div></div>
+    <div class="r"><label>随机错落</label><div class="nf mono"><b style="width:22%"></b><i class="ph-fill ph-caret-left"></i><span>0.220</span><i class="ph-fill ph-caret-right"></i></div><div class="tr"><i class="ph-fill ph-circle chg" style="font-size:7px"></i><i class="ph-bold ph-arrow-counter-clockwise"></i></div></div>
+    <div class="r"><label>随机种子</label><div style="display:grid;grid-template-columns:1fr 24px;gap:3px"><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>1</span><i class="ph-fill ph-caret-right"></i></div><div class="nf" style="justify-content:center"><i class="ph-fill ph-dice-five" style="font-size:12px;color:var(--t1)"></i></div></div><div class="tr"></div></div>
+  </div>
+  <div class="sec"><i class="ph-fill ph-caret-down"></i>时间<i class="ph-bold ph-arrow-counter-clockwise rs"></i></div>
+  <div class="rows">
+    <div class="r"><label>进入</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px"><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>0.500<em>s</em></span><i class="ph-fill ph-caret-right"></i></div><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>30<em>帧</em></span><i class="ph-fill ph-caret-right"></i></div></div><div class="tr"></div></div>
+    <div class="r"><label>停留</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px"><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>0.100<em>s</em></span><i class="ph-fill ph-caret-right"></i></div><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>6<em>帧</em></span><i class="ph-fill ph-caret-right"></i></div></div><div class="tr"></div></div>
+    <div class="r"><label>退出</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:3px"><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>0.500<em>s</em></span><i class="ph-fill ph-caret-right"></i></div><div class="nf mono"><i class="ph-fill ph-caret-left"></i><span>30<em>帧</em></span><i class="ph-fill ph-caret-right"></i></div></div><div class="tr"></div></div>
+  </div>
+  <div class="sec"><i class="ph-fill ph-caret-right"></i>音效<span style="margin-left:auto;font-weight:400;color:var(--t2)">放置 · 破坏 · 80%</span></div>
+</div>
+
+<div class="lfill"></div>
+<div class="transport">
+  <div><span class="read mono">00:00:00:20</span><span class="mono" style="color:var(--t2);margin-left:10px">帧 20</span></div>
+  <div class="tp"><span><i class="ph-fill ph-skip-back"></i></span><span><i class="ph-fill ph-caret-left"></i></span><span class="big"><i class="ph-fill ph-play"></i></span><span><i class="ph-fill ph-caret-right"></i></span><span><i class="ph-fill ph-skip-forward"></i></span><span class="tog"><i class="ph-bold ph-repeat"></i></span><span><i class="ph-fill ph-speaker-high"></i></span></div>
+  <div style="text-align:right" class="mono"><span style="color:var(--t2)">时长</span>　00:00:01:06<span style="color:var(--t2);margin-left:10px">66 帧</span></div>
+</div>
+<div class="rfill" style="display:none"></div>
+
+<div class="tlp">
+  <div class="tlh"><span class="t">时间轴</span><div class="sp"></div><span style="color:var(--t2);padding-right:8px;display:flex;align-items:center;gap:8px"><i class="ph-bold ph-magnifying-glass-minus"></i><span style="display:inline-block;width:90px;height:3px;background:#111;position:relative"><span style="position:absolute;left:55%;top:-4px;width:8px;height:11px;background:#cfcfcf;border:1px solid #000"></span></span><i class="ph-bold ph-magnifying-glass-plus"></i></span></div>
+  <div class="th2" style="justify-content:flex-end"><span class="mono">00:00:00:20</span></div><div class="lane rul mono" id="rul"></div>
+  <div class="th2"><i class="ph-fill ph-film-strip"></i>阶段<span class="sp"></span><i class="ph-fill ph-lock-simple-open" style="font-size:12px;color:var(--t3)"></i></div>
+  <div class="lane" id="l1"><div class="clip" style="left:0;width:45.45%;background:var(--c-in)">进入<s class="mono">0.500 s</s></div><div class="clip" style="left:45.45%;width:9.1%;background:var(--c-hold);justify-content:center;padding:0">停留</div><div class="clip" style="left:54.55%;width:45.45%;background:var(--c-out)">退出<s class="mono">0.500 s</s></div><div class="grip" style="left:45.45%"></div><div class="grip" style="left:54.55%"></div></div>
+  <div class="th2"><i class="ph-fill ph-speaker-simple-high"></i>音效<span class="sp"></span><span class="mono" style="color:var(--t3)">24</span></div>
+  <div class="lane" id="l2"></div>
+  <div class="th2" style="border-bottom:0"><i class="ph-fill ph-scissors"></i>剪辑点<span class="sp"></span><span class="mono" style="color:var(--mark)">00:00:00:33</span></div>
+  <div class="lane" style="border-bottom:0" id="l3"><div class="cutm" style="left:50%"></div></div>
+</div>
+<div class="status"><span><span class="dot"></span>就绪</span><span><i class="ph-fill ph-stack"></i>原版素材 1.21.1 · 1 个资源包</span><span><i class="ph-fill ph-cpu"></i>预览 60 fps</span><span class="sp"></span><span>已修改 2 项参数</span><span class="mono">FFmpeg n9.0.2</span><span class="mono">v0.1.0</span></div>
+</div>
+<script>
+const g=document.getElementById('gal');
+const T=[['方块擦除','1.1 s','wipe',1],['方块坠落','1.4 s','fall'],['物品飞掠','0.9 s','sting'],['加载界面','2.0 s','load'],['像素溶解','1.0 s','diss'],['进度提示','3.0 s','toast']];
+function thumb(k){const c=document.createElement('div');c.className='th ck';const W=12,H=7;let h='<div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat('+W+',1fr);grid-template-rows:repeat('+H+',1fr)">';
+for(let y=0;y<H;y++)for(let x=0;x<W;x++){let on=false,col='#2fb7a6';const dx=x-5.5,dy=y-3;
+if(k=='wipe'){on=Math.hypot(dx,dy*1.5)<4.2;col=(x*5+y*3)%3?'#7d8087':'#2fb7a6'}if(k=='fall'){on=y>=H-[2,4,3,5,2,6,4,3,5,2,4,3][x];col=['#8a5a3c','#7d8087','#5c9e4a'][(x+y)%3]}
+if(k=='sting'){on=(x-y*0.6)<4;col='#d9a441'}if(k=='load'){on=true;col=(x+y)%2?'#5b4030':'#4f372a'}if(k=='diss'){on=((x*7+y*13)%10)<5;col='#8a6fd1'}
+h+='<i style="display:block;'+(on?'background:'+col+';box-shadow:inset 0 0 0 .5px rgba(0,0,0,.35),inset 1px 1px 0 rgba(255,255,255,.16)':'')+'"></i>'}
+h+='</div>';if(k=='load')h+='<div style="position:absolute;left:25%;right:25%;top:58%;height:4px;background:#111;border:1px solid #ddd"><div style="width:60%;height:100%;background:#6fd36f"></div></div><div style="position:absolute;left:0;right:0;top:34%;text-align:center;font-size:9px;color:#eee">加载中…</div>';
+if(k=='toast')h='<div style="position:absolute;right:6px;top:6px;width:54%;height:34%;background:#2b2b2f;border:2px solid #777;display:flex;align-items:center;gap:5px;padding:0 5px"><div style="width:11px;height:11px;background:#d9a441"></div><div><div style="width:36px;height:2px;background:#ffe45c;margin-bottom:3px"></div><div style="width:46px;height:2px;background:#ddd"></div></div></div>';
+c.innerHTML=h;return c}
+T.forEach(t=>{const d=document.createElement('div');d.className='tile'+(t[3]?' on':'');d.appendChild(thumb(t[2]));const n=document.createElement('div');n.className='nm';n.innerHTML=t[0]+'<s class="mono">'+t[1]+'</s>';d.appendChild(n);g.appendChild(d)});
+const b=document.getElementById('blk');for(let y=0;y<9;y++)for(let x=0;x<16;x++){const d=Math.hypot(x-7.5,(y-4)*1.25),p=Math.max(0,Math.min(1,(5.6-d)/1.6));const e=document.createElement('i');const c=['#2fb7a6','#7d8087','#7d8087'][(x*5+y*3)%3];
+if(p>0){e.className='k';e.style.background=c;e.style.transform='scale('+(p>=1?1:(0.25+p*0.85))+') rotateY('+((1-p)*70)+'deg)';e.style.opacity=p<1?0.55+p*0.45:1}b.appendChild(e)}
+const pt=document.getElementById('pat');const fn=[(x,y)=>Math.hypot(x-1.5,y-1.5)/2.2,(x,y)=>x/3,(x,y)=>(x+y)/6,(x,y)=>((x*7+y*5)%8)/8,(x,y)=>1-Math.hypot(x-1.5,y-1.5)/2.2,(x,y)=>(3-y)/3];
+fn.forEach((f,i)=>{const d=document.createElement('div');if(i==0)d.className='on';for(let y=0;y<4;y++)for(let x=0;x<4;x++){const e=document.createElement('i');e.style.opacity=(1-f(x,y)*0.85).toFixed(2);d.appendChild(e)}pt.appendChild(d)});
+const r=document.getElementById('rul');for(let f=0;f<=66;f++){const x=(f/66*100)+'%';const maj=f%6==0;if(maj)r.innerHTML+='<u style="left:'+x+'">00:'+String(Math.floor(f/60)).padStart(2,'0')+':'+String(f%60).padStart(2,'0')+'</u>';if(f%2==0)r.innerHTML+='<b style="left:'+x+';height:'+(maj?10:4)+'px'+(maj?'':';opacity:.6')+'"></b>'}
+const l2=document.getElementById('l2');[2,4,5,7,9,10,12,14,15,17,19,21,38,40,42,43,45,47,49,51,52,54,56,58].forEach((f,i)=>{l2.innerHTML+='<div class="cue" style="left:'+(f/66*100)+'%;'+(i>11?'opacity:.6':'')+'"></div>'});
+['rul','l1','l2','l3'].forEach(id=>{const el=document.getElementById(id);el.innerHTML+='<div class="cutl" style="left:50%"></div><div class="ph1" style="left:30.3%'+(id=='rul'?'':';')+'"></div>'});
+document.querySelectorAll('#l1 .ph1,#l2 .ph1,#l3 .ph1').forEach(e=>e.classList.add('np'));
+const st=document.createElement('style');st.textContent='.ph1.np:before{display:none}';document.head.appendChild(st);
+if(location.search.includes('b'))document.body.classList.add('b');
+</script></body></html>
