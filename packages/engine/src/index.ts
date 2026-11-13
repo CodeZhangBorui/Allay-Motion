@@ -1,2 +1,8 @@
-// M0：空包，只占位以确立仓库结构与依赖方向。实际内容见 docs/08-milestones.md 对应里程碑。
-export {};
+// 渲染引擎（docs/02-engine.md）。Worker 入口在渲染进程的 engine-host 里，用 Comlink 暴露 Engine。
+export { Engine, TemplateError, type EngineApi, type HostCallbacks, type InitOptions } from './engine';
+export { frameCount, frameTime, lastFrameIndex, subframeTimes } from './frames';
+export { DeterminismGuard, REMOVED_GLOBALS, removeNetworkGlobals } from './harden';
+export { computeStage, STAGE_SHORT_SIDE } from './stage';
+export { createRng, cyrb128, sfc32 } from './random';
+export { createNoise2D } from './noise';
+export { bezier, ease, EASINGS, math, segment } from './ease';
