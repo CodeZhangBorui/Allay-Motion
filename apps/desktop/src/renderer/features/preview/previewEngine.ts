@@ -62,6 +62,8 @@ export class PreviewEngine {
     this.holdLoad = false;
     this.loadedRevision = -1;
     this.loadingRevision = -1;
+    // 正在建 Worker 时不再建第二个：建好后它会装载当前工程
+    if (this.creating) return;
     if (!this.host) void this.recreate();
     else void this.loadCurrent();
   }
