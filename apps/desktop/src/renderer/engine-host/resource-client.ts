@@ -125,6 +125,14 @@ export function createResolver(getAssets: () => AssetSource | null): (kind: Reso
   return (kind, id) => resolveWith(kind, id, getAssets());
 }
 
+/** 模板文件夹里的图片被改过（模板开发模式的热重载，H9）：丢掉这个模板的 asset: 解码缓存 */
+export function forgetTemplateAssets(assets: AssetSource | null): void {
+  const key = assetKey(assets);
+  if (!key) return;
+  const prefix = `texture:${key}:`;
+  for (const k of [...cache.keys()]) if (k.startsWith(prefix)) cache.delete(k);
+}
+
 /** 交给引擎 load 的分代键：资源栈的 stamp 加上模板（asset: 引用随模板变，引擎据此清空贴图缓存） */
 export function loadStamp(assets: AssetSource | null): string {
   const key = assetKey(assets);

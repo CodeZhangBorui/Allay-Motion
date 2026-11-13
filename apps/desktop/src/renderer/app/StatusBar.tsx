@@ -3,6 +3,7 @@ import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { CheckCircle, CircleNotch, Export, WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DevWatchStatus } from '../features/preview/DevWatchStatus';
 import { usePreviewStore } from '../stores/previewStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useResourceStore } from '../stores/resourceStore';
@@ -53,6 +54,7 @@ export function StatusBar() {
         {status.text}
       </span>
       {assets && <span className="truncate">{assets}</span>}
+      <DevWatchStatus />
       <span className="flex-1" />
       {changed > 0 && <span data-testid="status-changed">{t('status.changed', { count: changed })}</span>}
       {fps !== null && (
