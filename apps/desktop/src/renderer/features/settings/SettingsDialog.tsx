@@ -175,7 +175,7 @@ function About() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <Allay clip="hover" size={56} />
+        <Allay clip="hover" size={56} priority="dialog" />
         <div className="flex flex-col">
           <span className="text-lg font-semibold">{t('brand.name')}</span>
           <span className="num text-xs text-fg-subtle" data-testid="about-version">

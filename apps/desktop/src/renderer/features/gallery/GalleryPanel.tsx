@@ -127,7 +127,7 @@ function TemplatesPage({ query, setQuery }: { query: string; setQuery(q: string)
         </TabsList>
       </Tabs>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <AllayLoader loading={loading} label={loaderLabel} className="min-h-full" testId="gallery-loader">
+        <AllayLoader loading={loading} label={loaderLabel} priority="gallery" className="min-h-full" testId="gallery-loader">
           {loading ? (
             <GridSkeleton />
           ) : shown.length === 0 ? (

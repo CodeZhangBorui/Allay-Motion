@@ -22,7 +22,7 @@ export function DiscoveryDialog() {
     <Dialog open onOpenChange={(open) => !open && answer(false)}>
       <DialogContent showClose={false} className="w-[460px]" data-testid="vanilla-discovery">
         <div className="flex justify-center">
-          <Allay clip="hover" size={72} carry={<ResourceThumb kind="block" id="minecraft:grass_block" size={20} />} />
+          <Allay clip="hover" size={72} priority="dialog" carry={<ResourceThumb kind="block" id="minecraft:grass_block" size={20} />} />
         </div>
         <DialogTitle>{t('resources.discovery.title')}</DialogTitle>
         <DialogDescription className="text-foreground">{t('resources.discovery.body', { version: local.versionId })}</DialogDescription>

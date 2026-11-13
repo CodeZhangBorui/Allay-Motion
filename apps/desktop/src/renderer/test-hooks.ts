@@ -1,6 +1,7 @@
 // 只给自动化测试用的钩子（docs/decisions.md M1“测试钩子”）。只有主进程在未打包、且设置了 ALLAY_E2E_HOOKS 时
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
+import { mascotFrameStats, resetMascotFrameStats, type MascotFrameStats } from '@allay/mascot';
 import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
 import type { CopyBuiltinRequest, PresetEntry, TemplateDevChange, TemplateDevResult, TemplateEntry } from '../shared/templates';
 import { applyPresetEntry, saveCurrentPreset } from './features/templates/presets';
@@ -76,6 +77,9 @@ export interface AllayTestHooks {
   writeTemplateDevFiles(id: string, version: string): Promise<TemplateDevResult>;
   /** 装上钩子以来收到的 templates.onChanged 事件（最多 100 条），clear 为真时读完清空 */
   templateChanges(clear?: boolean): TemplateDevChange[];
+  // ---- 悦灵（M5b）----
+  /** 悦灵帧循环每帧耗时的统计（T-ALY-6）；reset 为真时读完清零 */
+  mascotStats(reset?: boolean): MascotFrameStats;
 }
 
 declare global {
@@ -215,6 +219,11 @@ export function installTestHooks(): void {
       const out = [...templateChanges];
       if (clear) templateChanges.length = 0;
       return out;
+    },
+    mascotStats(reset = false) {
+      const s = mascotFrameStats();
+      if (reset) resetMascotFrameStats();
+      return s;
     },
   };
   Object.defineProperty(window, '__allayTest', { value: Object.freeze(hooks), configurable: false, writable: false });

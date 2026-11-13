@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 
 // 编辑器控件需要应用提供的东西：翻译、方块与物品目录、缩略图、图片选择、最近使用、连续操作的起止（撤销合并）。
 // ui 包不依赖引擎和 Electron（1.4），这些都由渲染进程经这个 context 交进来。
@@ -49,6 +49,8 @@ export interface EditorServices {
   gesture(phase: 'start' | 'end'): void;
   /** 引导用户添加素材（缩略图占位旁的按钮） */
   openResources?(): void;
+  /** 选择器网格的缩略图还没好时，盖在网格上的加载编排（docs/07-allay-mascot.md 7.5 第 4 项）；不提供时只有每格的骨架 */
+  pickerLoader?(loading: boolean): ReactNode;
 }
 
 const EditorContext = createContext<EditorServices | null>(null);

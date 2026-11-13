@@ -1,9 +1,11 @@
-import { AllayProgress } from '@allay/mascot';
+import { AllayProgress, type AllayProgressPhase } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
 import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@allay/ui/components/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
+import { ResourceThumb } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
-import { FilmSlate } from '@phosphor-icons/react';
+import { FilmSlate, FileVideo } from '@phosphor-icons/react';
+import type { ParamDef, ParamValues } from '@allay/template-sdk';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExportErrorCode, ExportPreset, FfmpegInfo } from '../../../shared/export';
@@ -33,6 +35,26 @@ export const EXPORT_ERROR_KEYS: Record<ExportErrorCode, string> = {
   'template-unresponsive': 'export.errors.templateUnresponsive',
 };
 
+/** 导出时悦灵捧着的方块（7.6 B）：模板的第一个方块参数，方块列表取第一项；模板没有方块参数时为 null（捧胶片图标） */
+export function primaryBlockId(defs: readonly ParamDef[], params: ParamValues): string | null {
+  for (const p of defs) {
+    const v: unknown = params[p.key];
+    if (p.type === 'block' && typeof v === 'string') return v;
+    if (p.type === 'blockList' && Array.isArray(v)) {
+      const first: unknown = v[0];
+      if (first && typeof first === 'object' && 'id' in first && typeof first.id === 'string') return first.id;
+    }
+  }
+  return null;
+}
+
+/** 对话框的阶段 → AllayProgress 的阶段（7.6 B）：写完全部帧、等 FFmpeg 收尾时算“封装” */
+function progressPhase(phase: Phase): AllayProgressPhase {
+  if (phase.kind === 'running') return phase.progress.total > 0 && phase.progress.written >= phase.progress.total ? 'muxing' : 'rendering';
+  if (phase.kind === 'finished') return phase.outcome.kind === 'done' ? 'done' : phase.outcome.kind === 'failed' ? 'error' : 'canceled';
+  return 'rendering';
+}
+
 export function ExportDialog({ onClose }: { onClose(): void }) {
   const { t, i18n } = useTranslation();
   const saved = useProjectStore((s) => s.exportSettings);
@@ -42,6 +64,20 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'settings' });
   const [info, setInfo] = useState<FfmpegInfo | null>(null);
   const runRef = useRef<ExportRun | null>(null);
+  // 结果页上悦灵停在最后的进度处（失败、取消时）
+  const lastValue = useRef(0);
+  if (phase.kind === 'running' && phase.progress.total > 0) lastValue.current = phase.progress.written / phase.progress.total;
+  const carryBlock = useProjectStore((s) => (s.template ? primaryBlockId(s.template.params, s.params) : null));
+  const carry = carryBlock ? <ResourceThumb kind="block" id={carryBlock} size={16} /> : <FilmSlate size={ICON.md} className="text-foreground" />;
+  const progress = (
+    <AllayProgress
+      value={phase.kind === 'finished' && phase.outcome.kind === 'done' ? 1 : lastValue.current}
+      phase={progressPhase(phase)}
+      label={t('export.progressLabel')}
+      carry={carry}
+      target={<FileVideo size={ICON.md} />}
+    />
+  );
 
   // 选择记进工程（1.9 的 export 字段）
   const setPreset = (p: ExportPreset) => {
@@ -145,19 +181,20 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
           </>
         )}
 
-        {phase.kind === 'running' && (
-          <>
-            <div className="flex flex-col gap-2">
-              <AllayProgress
-                value={phase.progress.total > 0 ? phase.progress.written / phase.progress.total : 0}
-                phase="rendering"
-                label={t('export.progressLabel')}
-                carry={<FilmSlate size={ICON.md} className="text-foreground" />}
-              />
+        {/* 进度和结果页共用同一个 AllayProgress（不重新挂载），完成、失败、取消的编排接着进度的状态演（7.6 B） */}
+        {phase.kind !== 'settings' && (
+          <div className="flex flex-col gap-2">
+            {progress}
+            {phase.kind === 'running' && (
               <span data-testid="export-progress" className="num text-xs text-fg-subtle">
                 {t('export.progress', { written: phase.progress.written, total: phase.progress.total })}
               </span>
-            </div>
+            )}
+          </div>
+        )}
+
+        {phase.kind === 'running' && (
+          <>
             <DialogFooter>
               <Button variant="secondary" size="lg" data-testid="export-cancel" onClick={cancel}>
                 {t('export.cancel')}

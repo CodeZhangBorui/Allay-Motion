@@ -1,5 +1,6 @@
 // 交给编辑器控件（@allay/ui/editor）的服务：翻译、方块与物品目录、缩略图、贴图预览、图片选择、最近使用、连续操作的起止。
 import { BLOCKS, ITEMS, NAMES, SOUND_EVENTS } from '@allay/assets';
+import { AllayLoader } from '@allay/mascot';
 import { EditorProvider, type CatalogEntry, type CatalogGroup, type EditorServices } from '@allay/ui/editor';
 import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -113,6 +114,14 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       addRecent: (kind, v) => useUiStore.getState().addRecent(kind, v),
       gesture: (phase) => (phase === 'start' ? beginGesture() : endGesture()),
       openResources: () => useUiStore.getState().setResourcesOpen(true),
+      // 缩略图未就绪：网格上一层骨架之上的飞舞（7.5 第 4 项）。整层不接收指针，点击落到下面的格子上
+      pickerLoader: (loading) => (
+        <div className="pointer-events-none absolute inset-0" data-testid="picker-loading-layer">
+          <AllayLoader loading={loading} label={t('editor.picker.loading')} priority="picker" className="size-full" testId="picker-loader">
+            {null}
+          </AllayLoader>
+        </div>
+      ),
     };
   }, [t, i18n.language, fps, hasAssets, stamp, recent]);
   return <EditorProvider value={value}>{children}</EditorProvider>;
