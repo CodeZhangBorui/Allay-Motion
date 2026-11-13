@@ -58,6 +58,24 @@ async function upToDate(page: Page): Promise<void> {
 
 const params = (page: Page) => page.evaluate(() => window.__allayTest!.project().params);
 
+test('DBGX', async () => {
+  const ctx = await start();
+  const { page } = ctx;
+  try {
+    await upToDate(page);
+    const tr = await page.evaluate(() => window.__allayTest!.transport());
+    const out: unknown[] = [tr, await page.evaluate(() => window.__allayTest!.previewStats(0))];
+    for (const cols of [12, 15]) {
+      await page.evaluate((c) => window.__allayTest!.setParams({ cols: c }), cols);
+      await upToDate(page);
+      for (const t of [0.3, tr.cutTime ?? 0.55, 0.9]) out.push([cols, t, await page.evaluate((x) => window.__allayTest!.previewHash(x), t), await page.evaluate((x) => window.__allayTest!.previewPixel(x, 0.5, 0.5), t)]);
+    }
+    console.log('DBGX', JSON.stringify(out));
+  } finally {
+    await stop(ctx);
+  }
+});
+
 test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非空，改参数后画面变化', async () => {
   const ctx = await start();
   const { page } = ctx;
@@ -72,7 +90,11 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
       const t = tr.cutTime ?? tr.duration / 2;
       const stats = await page.evaluate((x) => window.__allayTest!.previewStats(x), t);
       expect(stats.maxAlpha, `${e.id} 的预览画布非空`).toBeGreaterThan(0);
-      const before = await page.evaluate((x) => window.__allayTest!.previewHash(x), t);
+      // 剪辑点上转场通常正好盖满整个画面，换参数后那一帧可能逐像素相同（取决于画布尺寸的取整），
+      // 所以同时比剪辑点之前一半处的那一帧：任何一帧变了就算画面变化（docs/decisions.md 界面重设计）
+      const times = [t, t / 2];
+      const hashes = () => Promise.all(times.map((x) => page.evaluate((y) => window.__allayTest!.previewHash(y), x)));
+      const before = (await hashes()).join();
       // 经属性面板改一个数字参数（上方向键步进）：从第一个数字框起，找到能改变画面的那一个
       const inputs = page.locator('[data-testid="param-panel"] input[inputmode]');
       const count = await inputs.count();
@@ -85,8 +107,9 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
         for (let k = 0; k < 3; k++) await page.keyboard.press('ArrowUp');
         await expect.poll(() => page.evaluate(() => window.__allayTest!.project().revision)).toBeGreaterThan(rev);
         await upToDate(page);
-        const after = await page.evaluate((x) => window.__allayTest!.previewHash(x), t);
+        const after = (await hashes()).join();
         changed = after !== before;
+        console.log('DBG', i, await input.getAttribute('aria-label'), await input.inputValue(), changed, JSON.stringify(await page.evaluate(() => window.__allayTest!.project().params)));
       }
       expect(changed, `${e.id} 改参数后画面变化`).toBe(true);
     }

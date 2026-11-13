@@ -52,19 +52,19 @@ test('T-UI-8 切换主题时窗口按钮区域的颜色随之更新', async () =
   });
   expect(state).toEqual({ visible: false, focused: false });
 
-  // 浅色：按钮区底色是 --surface-1（#FFFFFF），符号色是 --foreground（#141B24）
+  // 浅色：按钮区底色是 --surface-1（#F4EFE6），符号色是 --foreground（#27231F）
   await page.evaluate(() => window.allay.settings.set({ theme: 'light' }));
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await expect.poll(() => lastOverlayColors(launched)).toEqual({ color: '#FFFFFF', symbolColor: '#141B24' });
+  await expect.poll(() => lastOverlayColors(launched)).toEqual({ color: '#F4EFE6', symbolColor: '#27231F' });
 
-  // 深色：#14171D / #F2F4F6
+  // 深色：#242328 / #ECE7DF
   await page.evaluate(() => window.allay.settings.set({ theme: 'dark' }));
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect.poll(() => lastOverlayColors(launched)).toEqual({ color: '#14171D', symbolColor: '#F2F4F6' });
+  await expect.poll(() => lastOverlayColors(launched)).toEqual({ color: '#242328', symbolColor: '#ECE7DF' });
 
   // 颜色和顶栏实际渲染出来的底色一致（顶栏与按钮区连成一条）
   const topbar = await page.getByTestId('topbar').evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(topbar).toBe('rgb(20, 23, 29)');
+  expect(topbar).toBe('rgb(36, 35, 40)');
 });
 
 const HT = { CLIENT: 1, CAPTION: 2, CLOSE: 20 } as const;
