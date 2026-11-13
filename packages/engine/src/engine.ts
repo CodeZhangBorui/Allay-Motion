@@ -204,6 +204,8 @@ export class Engine implements EngineApi {
   private active: Active | null = null;
   private resources: EngineResources | null = null;
   private readonly times: number[] = [];
+  /** setup 期间预编译着色器时，编译失败记到这次装载的警告里 */
+  private shaderWarn: ((message: string) => void) | null = null;
 
   async init(opts: InitOptions, host: HostCallbacks): Promise<void> {
     if (this.renderer) throw new Error('engine already initialised');
@@ -238,6 +240,15 @@ export class Engine implements EngineApi {
     renderer.toneMapping = THREE.NoToneMapping;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setClearColor(0x000000, 0);
+    // 着色器编译、链接失败：Three 默认只打到控制台，画面就是空的。改成记一条模板警告（装载时预编译能抓到的进
+    // LoadResult.warnings，之后渲染时才出现的经 host.log 报出），见 docs/decisions.md M6b
+    renderer.debug.onShaderError = (glc, _program, vertexShader, fragmentShader) => {
+      const log = (s: WebGLShader) => (glc.getShaderParameter(s, glc.COMPILE_STATUS) ? '' : (glc.getShaderInfoLog(s) ?? '').trim());
+      const detail = [log(fragmentShader) && `fragment: ${log(fragmentShader)}`, log(vertexShader) && `vertex: ${log(vertexShader)}`].filter(Boolean).join(' | ');
+      const message = `shader failed to compile${detail ? `: ${detail}` : ' or link'}`.replace(/\s+/g, ' ').slice(0, 480);
+      if (this.shaderWarn) this.shaderWarn(message);
+      else this.host?.log('warn', `template ${message}`);
+    };
     const gl = renderer.getContext();
     if (!(gl instanceof WebGL2RenderingContext)) throw new Error('WebGL2 is required');
     if (!gl.getExtension('EXT_color_buffer_float') && !gl.getExtension('EXT_color_buffer_half_float')) {
@@ -508,6 +519,15 @@ export class Engine implements EngineApi {
     }
     const cutTime = instance.cutTime ?? null;
     this.active = { instance, scene, owned, camera: () => camera, duration: instance.duration, cutTime };
+    // 预编译着色器：编译失败在这次装载的警告里出现，而不是只在控制台
+    this.shaderWarn = warn;
+    try {
+      this.pipeline!.compileScene(scene, camera);
+    } catch (error) {
+      this.host?.log('warn', `shader precompile failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.shaderWarn = null;
+    }
     return { duration: instance.duration, cutTime, audioCues: cues, warnings };
   }
 }

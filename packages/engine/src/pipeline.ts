@@ -23,6 +23,7 @@ import {
   Vector3,
   WebGLRenderTarget,
   type Camera,
+  type Object3D,
   type Texture,
   type WebGLRenderer,
 } from 'three';
@@ -210,6 +211,22 @@ export class FramePipeline {
     this.sceneRT.setSize(width * this.scale, height * this.scale);
     this.accumRT.setSize(width, height);
     this.outRT?.setSize(width, height);
+  }
+
+  /**
+   * 按场景渲染时的目标（sceneRT）预先编译场景里的着色器，并逐个检查链接结果。
+   * 着色器编译失败时 Three 调用 renderer.debug.onShaderError（引擎在 init 里设好，记成模板警告）。
+   */
+  compileScene(scene: Object3D, camera: Camera): void {
+    const { renderer } = this;
+    renderer.setRenderTarget(this.sceneRT);
+    try {
+      renderer.compile(scene, camera);
+      // 链接结果在程序第一次被使用时才检查（WebGLProgram 的 onFirstUse），这里主动触发一次
+      for (const program of renderer.info.programs ?? []) program.getUniforms();
+    } finally {
+      renderer.setRenderTarget(null);
+    }
   }
 
   /** 渲染所有子帧，返回存着线性、预乘 alpha 结果的纹理 */
