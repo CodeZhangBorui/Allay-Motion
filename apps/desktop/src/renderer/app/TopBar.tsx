@@ -2,12 +2,14 @@ import { BrandMark } from '@allay/ui/brand';
 import { Button } from '@allay/ui/components/button';
 import { ChevronDown, Layers, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { usePreviewStore } from '../stores/previewStore';
 
 // 顶栏（6.4）：40 px；空白处是窗口拖动区，可交互元素标 no-drag；右侧给系统窗口按钮留位置。
-// M0 只有外形，按钮在后续里程碑接上功能。
+// M0 只有外形；M1 接上“导出”，其余按钮在后续里程碑接上功能。
 
-export function TopBar() {
+export function TopBar({ onExport }: { onExport(): void }) {
   const { t } = useTranslation();
+  const ready = usePreviewStore((s) => s.status.kind === 'ready');
   return (
     <header
       data-testid="topbar"
@@ -41,7 +43,7 @@ export function TopBar() {
       <Button variant="ghost" size="icon" className="app-no-drag" aria-label={t('topbar.redo')} disabled>
         <Redo2 />
       </Button>
-      <Button className="app-no-drag ml-1 px-3" disabled>
+      <Button className="app-no-drag ml-1 px-3" data-testid="topbar-export" disabled={!ready} onClick={onExport}>
         {t('topbar.export')}
       </Button>
     </header>

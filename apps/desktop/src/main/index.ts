@@ -4,6 +4,7 @@ import { IPC } from '../shared/ipc-channels';
 import { handleAppProtocol, registerAppScheme } from './app-protocol';
 import { FileGrants } from './file-grants';
 import { registerHandlers } from './handlers';
+import { ExportService } from './export/export-service';
 import { createIpcRegistrar } from './ipc';
 import { createLogger } from './logger';
 import { APP_ENTRY_URL, assertLocalDevOrigin } from './security-policy';
@@ -37,6 +38,12 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   let mainWindow: BrowserWindow | null = null;
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'), log);
+  const exports = new ExportService({
+    log,
+    getMainWindow: () => mainWindow,
+    ffmpegOverride: testSwitches.ffmpeg,
+    testTarget: testSwitches.exportTarget,
+  });
 
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -46,12 +53,12 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('window-all-closed', () => app.quit());
 
-  // 退出前等设置写完
+  // 退出前等设置写完、取消进行中的导出（不留临时文件）
   let flushed = false;
   app.on('before-quit', (event) => {
     if (flushed) return;
     event.preventDefault();
-    void settings.flush().finally(() => {
+    void Promise.allSettled([settings.flush(), exports.cancelAll()]).finally(() => {
       flushed = true;
       app.quit();
     });
@@ -65,7 +72,9 @@ if (!app.requestSingleInstanceLock()) {
     await settings.load();
 
     const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
-    registerHandlers({ registrar, settings, grants: new FileGrants(), getMainWindow: () => mainWindow });
+    registerHandlers({ registrar, settings, grants: new FileGrants(), exports, testHooks: testSwitches.testHooks, getMainWindow: () => mainWindow });
+    // 启动时跑一次 ffmpeg -version 并记进日志（5.6），不阻塞窗口
+    void exports.ffmpegInfo();
     settings.onUiChanged((ui) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.settings.changed, ui);
     });

@@ -20,13 +20,20 @@
   },
   "preview": {
     "region": "Preview",
-    "placeholder": "Preview viewport"
+    "canvas": "Preview canvas",
+    "unresponsive": "The template is not responding",
+    "unresponsiveHint": "It took too long to draw a frame, so it was stopped. The preview has been restarted without it.",
+    "templateError": "The template ran into an error",
+    "crashed": "The preview stopped working",
+    "retry": "Try again"
   },
   "transport": {
     "region": "Transport",
     "toStart": "Go to start",
     "play": "Play",
-    "loop": "Loop"
+    "loop": "Loop",
+    "pause": "Pause",
+    "scrub": "Timeline"
   },
   "params": {
     "title": "Properties",
@@ -34,5 +41,38 @@
   },
   "layout": {
     "resizeHandle": "Drag to resize"
+  },
+  "export": {
+    "title": "Export",
+    "format": "Format",
+    "presets": {
+      "prores": "Transparent MOV (ProRes 4444)",
+      "png": "PNG sequence"
+    },
+    "quality": "Quality",
+    "qualities": {
+      "draft": "Draft (no motion blur)",
+      "standard": "Standard (8 subframes)",
+      "high": "High (16 subframes)",
+      "ultra": "Ultra (32 subframes)"
+    },
+    "start": "Export…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "progress": "Frame {{written}} of {{total}}",
+    "canceled": "Export canceled. No files were left behind.",
+    "done": "Exported {{frames}} frames in {{seconds}} s.",
+    "cutFrame": "Cut point: frame {{frame}}. Line this frame up with the seam between your two clips.",
+    "failedAtFrame": "Stopped at frame {{frame}}.",
+    "errors": {
+      "ffmpegMissing": "The video encoder (FFmpeg) is missing or could not be started.",
+      "outputNotWritable": "Can't write to that location. Pick another folder.",
+      "diskFull": "The disk is full. Free up some space and try again.",
+      "encoderUnavailable": "This format's encoder isn't available in the bundled FFmpeg.",
+      "ffmpegFailed": "The video encoder stopped with an error.",
+      "frameMismatch": "The frames didn't match the export settings.",
+      "templateFailed": "The template ran into an error while exporting.",
+      "templateUnresponsive": "The template stopped responding while exporting."
+    }
   }
 }

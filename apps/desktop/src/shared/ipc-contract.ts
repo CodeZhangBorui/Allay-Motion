@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ExportJobIdSchema, ExportStartSchema, FramePixelsSchema } from './export';
 import { IPC, type InvokeChannel } from './ipc-channels';
 import { UiSettingsPatchSchema } from './settings';
 
@@ -23,6 +24,11 @@ export const IPC_ARGS = {
   [IPC.window.setTitleBarColors]: z.tuple([TitleBarColorsSchema]),
   [IPC.files.pickImage]: z.tuple([]),
   [IPC.files.read]: z.tuple([FileRefSchema]),
+  [IPC.export.start]: z.tuple([ExportStartSchema]),
+  [IPC.export.writeFrame]: z.tuple([ExportJobIdSchema, FramePixelsSchema]),
+  [IPC.export.finish]: z.tuple([ExportJobIdSchema]),
+  [IPC.export.cancel]: z.tuple([ExportJobIdSchema]),
+  [IPC.export.ffmpegInfo]: z.tuple([]),
 } as const satisfies Record<InvokeChannel, z.ZodTuple>;
 
 export type IpcArgs<C extends InvokeChannel> = z.infer<(typeof IPC_ARGS)[C]>;
@@ -31,6 +37,8 @@ export interface AppInfo {
   version: string;
   platform: string;
   userDataDir: string;
+  /** 只在未打包且设置了 ALLAY_E2E_HOOKS 时为真：渲染进程据此装上测试钩子（docs/decisions.md M1） */
+  testHooks: boolean;
   /** 系统首选语言（BCP 47），用于“跟随系统” */
   systemLocale: string;
 }

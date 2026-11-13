@@ -37,6 +37,13 @@ const api = {
     pickImage: invoke(IPC.files.pickImage),
     read: invoke(IPC.files.read),
   },
+  export: {
+    start: invoke(IPC.export.start),
+    writeFrame: invoke(IPC.export.writeFrame),
+    finish: invoke(IPC.export.finish),
+    cancel: invoke(IPC.export.cancel),
+    ffmpegInfo: invoke(IPC.export.ffmpegInfo),
+  },
 } as unknown as AllayApi;
 
 contextBridge.exposeInMainWorld('allay', api);

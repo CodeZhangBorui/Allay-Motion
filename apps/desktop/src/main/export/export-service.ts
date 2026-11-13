@@ -72,7 +72,7 @@ export class ExportService {
     const jobId = randomUUID();
     const blocker = powerSaveBlocker.start('prevent-app-suspension');
     this.jobs.set(jobId, { job, blocker });
-    this.opts.log.info('export', 'job started', { jobId, preset: req.preset, width: req.width, height: req.height, fps: req.fps, frames: req.totalFrames });
+    this.opts.log.info('export', 'job started', { jobId, pid: job.pid, preset: req.preset, width: req.width, height: req.height, fps: req.fps, frames: req.totalFrames });
     return { ok: true, job: { jobId, target } };
   }
 

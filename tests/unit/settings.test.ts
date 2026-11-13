@@ -132,14 +132,16 @@ describe('窗口位置和大小的恢复', () => {
 });
 
 describe('只给测试用的开关', () => {
+  const ALL = { ALLAY_E2E_HIDDEN: '1', ALLAY_USER_DATA_DIR: 'C:/x', ALLAY_E2E_HOOKS: '1', ALLAY_E2E_EXPORT_TARGET: 'C:/out', ALLAY_FFMPEG: 'C:/ff.exe' };
+  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null };
   it('打包后的应用忽略它们', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
-    expect(readTestSwitches(true, { ALLAY_E2E_HIDDEN: '1', ALLAY_USER_DATA_DIR: 'C:/x' })).toEqual({ userDataDir: null, hiddenWindow: false });
+    expect(readTestSwitches(true, ALL)).toEqual(OFF);
   });
   it('未打包时生效', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
-    expect(readTestSwitches(false, { ALLAY_E2E_HIDDEN: '1', ALLAY_USER_DATA_DIR: 'C:/x' })).toEqual({ userDataDir: 'C:/x', hiddenWindow: true });
-    expect(readTestSwitches(false, { ALLAY_E2E_HIDDEN: 'yes' }).hiddenWindow).toBe(false);
-    expect(readTestSwitches(false, {})).toEqual({ userDataDir: null, hiddenWindow: false });
+    expect(readTestSwitches(false, ALL)).toEqual({ userDataDir: 'C:/x', hiddenWindow: true, testHooks: true, exportTarget: 'C:/out', ffmpeg: 'C:/ff.exe' });
+    expect(readTestSwitches(false, { ALLAY_E2E_HIDDEN: 'yes', ALLAY_E2E_HOOKS: 'yes' })).toEqual(OFF);
+    expect(readTestSwitches(false, {})).toEqual(OFF);
   });
 });
