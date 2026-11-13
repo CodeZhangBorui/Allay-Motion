@@ -1,10 +1,10 @@
 // 宿主接口（docs/code-editing-and-mcp-plan.md 3.3）：主程序给可选模块（packages/optional/*：内嵌编辑器、MCP）的唯一入口。
 // 只有类型，没有运行时代码；可选模块只能引用这个包（eslint.config.js 的依赖方向规则，T-DEV-4）。
 //
-// 这是草案，按 MD-a 时现有代码能支撑的程度落地。每个成员的注释里写了现状：
-// - 「已有」：主程序里已经有对应的实现，接线时直接包一层；
-// - 「MD-b」：要等界面接线（热重载管线、命令层、注册表）做完才有实现。
-// 现在没有任何可选模块，也没有任何代码实现 EditorHost。
+// 这是草案，按现有代码能支撑的程度落地。实现在渲染进程的 app/editorHost.ts（MD-b），每个成员的注释里写了现状：
+// - 「已实现」：可选模块调用时可用；
+// - 「未实现」：主程序还没有对应的能力，调用时以 HostUnsupportedError 拒绝（不假装成功）。
+// 现在没有任何可选模块；接入点（按目录的惰性发现、开关表）见 app/optionalModules.ts。
 import type { TemplateDiagnostic } from '@allay/template-sdk';
 
 export type { TemplateDiagnostic };
@@ -89,44 +89,43 @@ export interface CommandContribution {
 
 export interface EditorHost {
   templates: {
-    /** 读用户模板的源码和内容版本。MD-b（主进程已能按 id 和版本定位用户模板的文件夹） */
+    /** 读用户模板的源码和内容版本。未实现：主进程没有带内容版本的读取（主程序自己不读写模板代码） */
     read(id: TemplateId): Promise<{ source: string; version: string }>;
-    /** 写源码；baseVersion 不是当前版本时返回 conflict。MD-b */
+    /** 写源码；baseVersion 不是当前版本时返回 conflict。未实现：界面不反写模板代码，主进程没有写源码的接口 */
     write(id: TemplateId, source: string, baseVersion: string): Promise<WriteResult>;
     /**
      * 文件在应用之外被改动时回调，参数是新的内容版本。
-     * 已有：主进程的监视服务和 templates:changed 事件（window.allay.templates.onChanged，hash 就是这里的 version）。
+     * 已实现：主进程的监视服务和 templates:changed 事件（hash 就是这里的 version；removed 不回调）。
      */
     onExternalChange(id: TemplateId, cb: (version: string) => void): Disposable;
   };
   engine: {
     /**
-     * 模板装载、渲染的诊断。诊断的数据（TemplateDiagnostic）已有：引擎和宿主的错误都带它，装载结果带规则提示；
-     * 推送给订阅者的通路随热重载管线在 MD-b 做。
+     * 模板热重载的诊断。已实现：每次热重载完成时推送（成功时是空数组，失败时是原因）。
      */
     onDiagnostics(id: TemplateId, cb: (d: TemplateDiagnostic[]) => void): Disposable;
-    /** 不落盘的试载（H9）。MD-b */
+    /** 不落盘的试载（H9）：只能是当前模板；通过就把预览切到这份代码。已实现 */
     requestReload(id: TemplateId, source: string): Promise<ReloadResult>;
   };
   playhead: {
-    /** 当前时刻（秒）。MD-b（transportStore 已有，没有对外的读口） */
+    /** 当前时刻（秒）。已实现 */
     get(): number;
     subscribe(cb: (t: number) => void): Disposable;
   };
   domain: {
-    /** 方块目录里的全部方块 ID。MD-b（@allay/assets 的目录已有） */
+    /** 方块目录里的全部方块 ID。已实现 */
     blockIds(): readonly string[];
-    /** 缓动的预设名。已有：SdkApiDoc.easings */
+    /** 缓动的预设名。已实现（SdkApiDoc.easings） */
     easings(): readonly string[];
-    /** 模板接口的说明。已有：pnpm templates:api 生成的 template-api.json */
+    /** 模板接口的说明。已实现（pnpm templates:api 生成的 template-api.json） */
     sdkApi(): SdkApiDoc;
   };
   ui: {
-    /** MD-b（界面注册表 H1） */
+    /** 已实现（界面注册表 H1）。id、titleKey 必须以“<模块 id>.”开头；bottom 放在主区可停靠的位置 */
     registerPanel(p: PanelContribution): Disposable;
-    /** MD-b（命令层 H2） */
+    /** 已实现（命令层 H2，经同一个 dispatch）。id、titleKey 必须以“<模块 id>.”开头 */
     registerCommand(c: CommandContribution): Disposable;
-    /** 注册模块自己的文案；两种语言都要给 */
+    /** 注册模块自己的文案；两种语言都要给。键必须以“<模块 id>.”开头。已实现 */
     registerMessages(locale: HostLocale, m: Record<string, string>): Disposable;
   };
 }

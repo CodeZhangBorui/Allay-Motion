@@ -235,6 +235,9 @@ importers:
       '@allay/engine':
         specifier: workspace:*
         version: link:../../packages/engine
+      '@allay/host-api':
+        specifier: workspace:*
+        version: link:../../packages/host-api
       '@allay/mascot':
         specifier: workspace:*
         version: link:../../packages/mascot

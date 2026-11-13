@@ -11,11 +11,17 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RecentProject } from '../../shared/project';
 import { CORE_COMMANDS } from '../features/commands/commands';
+import { PROJECT_COMMANDS } from '../features/commands/projectCommands';
+import { hotReloader } from '../features/preview/hotReload';
+import { DEV_COMMANDS } from '../features/templates/devCommands';
 import { PresetsTab, TemplatesActions, TemplatesTab } from '../features/gallery/GalleryPanel';
 import { OutputTab, PropsActions, PropsTab } from '../features/params/ParamsPanel';
 import { openRecent } from '../features/project/actions';
 import { installViaDialog } from '../features/templates/actions';
 import { useUiStore } from '../stores/uiStore';
+import { createEditorHost } from './editorHost';
+import { installHostCommands } from './mainCommands';
+import { discoveredModules, OptionalModuleManager } from './optionalModules';
 import { registerCommand, registerMenuItem, registerPanel, type MenuItemDef } from './registry';
 
 // 核心功能经注册表接入（和可选模块走同一组接口）：命令、左右面板的标签页、顶栏菜单。
@@ -107,6 +113,9 @@ const MENU_ITEMS: MenuItemDef[] = [
   { id: 'file.save', menu: 'file', group: 1, order: 0, command: 'saveProject', titleKey: 'project.save', testId: 'project-save' },
   { id: 'file.saveAs', menu: 'file', group: 1, order: 1, command: 'saveProjectAs', titleKey: 'project.saveAs', testId: 'project-save-as' },
   { id: 'file.importTemplate', menu: 'file', group: 2, order: 0, component: ImportTemplateItem },
+  // 模板开发模式（MD）：复制内置模板来改、打开用户模板的文件夹
+  { id: 'file.copyBuiltinTemplate', menu: 'file', group: 2, order: 1, command: 'copyBuiltinTemplate', testId: 'menu-copy-builtin' },
+  { id: 'file.openTemplateFolder', menu: 'file', group: 2, order: 2, command: 'openTemplateFolder', testId: 'menu-open-template-folder' },
   // 编辑
   { id: 'edit.undo', menu: 'edit', group: 0, order: 0, command: 'undo', titleKey: 'topbar.undo' },
   { id: 'edit.redo', menu: 'edit', group: 0, order: 1, command: 'redo', titleKey: 'topbar.redo' },
@@ -126,14 +135,27 @@ const MENU_ITEMS: MenuItemDef[] = [
 
 let registered = false;
 
+/** 可选模块（docs/code-editing-and-mcp-plan.md 3.2）：按设置里的开关表启停；没有模块时什么都不做 */
+export const optionalModules = new OptionalModuleManager(discoveredModules(), createEditorHost);
+
 /** 启动时调用一次（main.tsx） */
 export function registerCore(): void {
   if (registered) return;
   registered = true;
-  for (const c of CORE_COMMANDS) registerCommand(c);
+  for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS]) registerCommand(c);
   registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
   registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });
   registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions });
   registerPanel({ id: 'output', titleKey: 'params.tabs.output', region: 'right', order: 10, component: OutputTab });
   for (const m of MENU_ITEMS) registerMenuItem(m);
+  // 模板开发模式的热重载（H9）与主进程到界面的命令通道（H11）
+  hotReloader.start();
+  installHostCommands();
+  // 可选模块：开关表变了就启停（默认全关，关着的模块不加载代码块）
+  if (optionalModules.available.length > 0) {
+    void optionalModules.sync(useUiStore.getState().settings.optionalModules);
+    useUiStore.subscribe((s, prev) => {
+      if (s.settings.optionalModules !== prev.settings.optionalModules) void optionalModules.sync(s.settings.optionalModules);
+    });
+  }
 }

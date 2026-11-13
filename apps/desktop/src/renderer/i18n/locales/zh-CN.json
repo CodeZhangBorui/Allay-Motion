@@ -408,7 +408,11 @@
       "settings": "设置",
       "resources": "素材与资源栈",
       "toggleTheme": "切换深色 / 浅色主题",
-      "guides": "安全框参考线"
+      "guides": "安全框参考线",
+      "openTemplateFolder": "打开模板文件夹",
+      "copyBuiltinTemplate": "复制当前内置模板来修改",
+      "projectGet": "读取工程状态",
+      "projectSetParams": "修改参数（带修订号）"
     }
   },
   "editor": {
@@ -586,5 +590,69 @@
     "sound": "音效",
     "cut": "剪辑点",
     "toEnd": "跳到结尾"
+  },
+  "dev": {
+    "overlay": {
+      "title": "模板改动没有生效",
+      "kept": "预览保持上一个能运行的版本。修好并保存后会自动重新载入。",
+      "region": "模板诊断"
+    },
+    "kinds": {
+      "compile": "语法",
+      "load": "装载",
+      "setup": "setup",
+      "update": "update",
+      "watchdog": "无响应",
+      "determinism": "确定性",
+      "rule": "规则"
+    },
+    "codes": {
+      "syntax-error": "语法错误",
+      "has-import": "模板里不能用 import",
+      "too-large": "template.js 超过 1 MB",
+      "evaluate-failed": "模块执行时出错",
+      "bad-export": "默认导出的形状不对",
+      "setup-threw": "setup() 抛出了错误",
+      "bad-instance": "setup() 的返回值不对",
+      "update-threw": "update(t) 抛出了错误",
+      "audio-cue-outside-setup": "音效只能在 setup() 里声明",
+      "unresponsive": "没有在时限内返回（可能是死循环）",
+      "forbidden-api": "调用了会让画面不确定的接口",
+      "render-mismatch": "同一时刻渲染两次结果不同",
+      "math-random": "用了 Math.random()，请改用 ctx.random(key)",
+      "date-now": "用了 Date.now()，画面只能取决于 t",
+      "new-date": "用了不带参数的 Date，画面只能取决于 t",
+      "performance-now": "用了 performance.now()，画面只能取决于 t",
+      "import": "模板里不能用 import",
+      "engine-crashed": "预览引擎意外退出",
+      "load-failed": "装载失败",
+      "template-unreadable": "manifest.json 不合规或缺少 template.js"
+    },
+    "position": "第 {{line}} 行，第 {{column}} 列",
+    "positionLine": "第 {{line}} 行",
+    "atTime": "t = {{t}} 秒",
+    "status": {
+      "watching": "正在监视模板文件夹",
+      "reloading": "正在重新载入…",
+      "lastOk": "{{time}} 已重新载入",
+      "lastFailed": "{{time}} 重新载入失败",
+      "hint": "用外部编辑器修改这个模板的文件，保存后预览自动更新"
+    },
+    "copyName": "{{name}}（副本）",
+    "copied": "已复制为可修改的模板。文件夹里带有类型定义，用外部编辑器打开即可补全。",
+    "errors": {
+      "not-found": "找不到这个模板",
+      "not-builtin": "只能复制内置模板",
+      "not-script": "这个模板没有自己的代码，不能复制",
+      "bad-id": "模板 ID 不合规",
+      "not-user": "只有用户模板有文件夹",
+      "outside": "模板文件夹不在应用的数据目录里",
+      "open-failed": "没能打开文件夹"
+    },
+    "failed": "操作没有完成：{{reason}}"
+  },
+  "history": {
+    "params": "修改参数",
+    "template": "更换模板"
   }
 }

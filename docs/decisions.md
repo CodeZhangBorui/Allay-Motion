@@ -802,3 +802,60 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - T-DEV-4：`tests/unit/T-DEV-4.optional-modules.test.ts`。
 - 监视和开发模式方法：`tests/unit/template-dev.test.ts`，用真实的文件系统事件（临时目录、测试时生成的模板），含“自己写入不触发”“原子保存只触发一次”“目录外的路径被拒绝”（目录联接），以及复制出的六个内置模板按 jsconfig 做 checkJs。
 - T-DEV-1 和 T-DEV-2 的界面部分（错误浮层显示位置、保留上一帧、修好后恢复）属于 MD-b，没有做。
+
+## MD-b 模板开发模式的界面接线与主程序侧其余准备
+
+范围：H3、H4、H6、H9、H11、错误浮层、入口命令、监视提示、可选模块的惰性发现、“可拆除”检查（`docs/code-editing-and-mcp-plan.md`；`docs/08-milestones.md` MD）。H7（导出任务化）属于 M7，没做。没有写任何可选模块，也没有内嵌编辑器或 MCP 的界面、文案、占位。
+
+### 热重载管线（H9）
+
+- `features/preview/hotReload.ts`：收到 `templates.onChanged` 且是当前模板 → 渲染进程再合并 100 ms（主进程已按模板防抖 150 ms）→ `templates.read` 重新取 → `analyzeTemplateCode`（语法、import、确定性规则）→ `previewEngine.trySwap` 在**新画布上的备用预览 Worker** 里 resize、load、render 当前时刻（每步受看门狗约束）→ 成功才把画布和 Worker 换上去并销毁旧的。失败时备用 Worker 销毁，旧 Worker、旧画面、播放都不动；预览状态保持“就绪”，原因只进错误浮层。连续保存只重载最后一次（进行中再来改动就做完再来一次）。
+- **确定性规则命中不切换**：安装时规则命中只是警告，开发模式更严（硬性规则 2：写模板时就拦下）。生产构建的预览不开运行时拦截，所以不确定代码在开发模式里靠静态规则（`rule`，带位置）发现。
+- 参数：`remapParams` 按键名和类型对上（同名同类型保留后再经 sanitize 钳制，类型变了、新加的回默认值，没了的丢掉）。提交那一刻再按最新参数对一次（试载期间用户可能又改了）。播放位置不动，时长可能变（时间轴按新时长）。
+- 工程：`hotSwapTemplate` 换模板**不进撤销历史**；历史里引用旧模板的状态也换成新模板（参数同样重新对上），否则撤销会把磁盘上已经没有的旧代码带回来。manifest 变了属性面板随工程里的模板重建。
+- `previewEngine` 里看门狗的回调改成按 Worker 实例判断（原来按 generation），备用 Worker 死掉不会触发主 Worker 的重建；装载中途被换掉的 Worker 的失败被忽略。新增 `hasLoaded`：热重载换上去后若参数在试载期间变了，结构已对上，参数走 `setParams`。
+- 模板自带图片：热重载前清掉这个模板的 `asset:` 解码缓存（`forgetTemplateAssets`），改了 `assets/` 下的图也能更新。
+- 只处理当前模板本身；当前模板是某个用户模板的派生、基模板被改时不自动重载（重新选一次即可）。
+- 文件夹被删、manifest 坏了：诊断 `load / template-unreadable`，不带位置。
+
+### 错误浮层与监视提示
+
+- `DevOverlay`：贴在预览上沿（不挡画面中央），列出诊断的种类、错误码对应的文案、“第 N 行，第 M 列”、出错时刻和原文，最多 5 条；修好后自动消失。文案在 `dev.*`，两种语言。没有文案的错误码原样显示。
+- 死循环（`watchdog`）**没有行列**：Worker 已被终止，拿不到卡在哪（同 MD-a）。浮层显示种类和错误码，测试断言 `operation` 为 `render`。这是 T-DEV-2“带位置”唯一做不到的一项。
+- 状态栏 `DevWatchStatus`：当前模板是用户模板时显示“正在监视模板文件夹 · hh:mm:ss 已重新载入 / 重新载入失败”，重载中转圈；不是用户模板时不显示。
+- 预览原有的错误卡片（悦灵）不动：装载时就失败（选中一个已经坏掉的用户模板）仍走原来的错误卡片，修好保存后热重载换上去，卡片随“就绪”消失。
+
+### 入口
+
+- 命令 `copyBuiltinTemplate`（当前是内置脚本模板时可用；新名字“原名（副本）”按界面语言取一次，参数沿用当前取值，复制后主进程已写好 `template-api.d.ts` 和 `jsconfig.json`，然后选中新模板）、`openTemplateFolder`（当前是用户模板时可用；只开文件夹）。经注册表注册，文件菜单第三组和命令面板里都有。失败按枚举错误提示。
+- e2e 不点“打开模板文件夹”（会弹出资源管理器），只核对可用状态。
+
+### 主程序侧其余准备
+
+- **H3 修订号**：就是 `projectStore.revision`（模板、参数、输出每变一次加一）。新增 `ifRevision`、`RevisionConflictError` 和两个不在命令面板列出的命令 `project.get`（返回修订号、模板、参数）、`project.setParams`（可带 `baseRevision`，对不上就拒绝、不改任何东西）。
+- **H4 静帧接口**：`engine-host/still.ts` 的 `openStill(host, req)`（装载一次、逐帧取 RGBA）和 `renderStillPng`。最长边上限 1920（超过等比缩小，两边至少 16），一个会话最多 240 帧。封面和悬停预览改用它；评审截图里“某一时刻的一帧”（`review:md-b` 的 `md-b-still.png`）和测试钩子 `renderStill` 用它。之前的评审脚本截的是整个窗口（界面截图），不是“渲染某一时刻”，没有改。安装试运行的确定性自检改用 `EngineHost.checkDeterminism`（probe 帧两次、中间穿插首末帧），渲染次数从 4 次变成 7 次，判定相同。
+- **H6 撤销来源**：工程状态多一个 `origin { labelKey, source }`，跟着模板和参数一起进 zundo 的历史（只比较模板和参数，origin 单独变不产生记录）。`undoInfo()` 给出撤销、重做各对应哪次改动。`dispatch` 执行 write 命令时，同步产生的改动标为命令的 `undoLabelKey`（或标题）和来源（缺省 `command`，命令通道是 `main`，模块可用 `module:<id>`）；界面上直接改参数是 `ui`。异步命令在 `await` 之后的改动按界面修改记（`withOrigin` 只覆盖同步部分）。界面上还没有显示这个标签（顶栏不在本任务范围），数据和测试钩子有。
+- **H11 命令通道**：`host:command`（主进程 → 界面的事件，带 requestId、命令 id、JSON 参数）和 `host:commandResult`（界面交回结果的 invoke 通道）。界面一侧按 schema 校验请求后经 `dispatch` 执行（参数再按命令自己的 schema 校验）；主进程一侧 IPC 层先查来源、按 `IPC_ARGS` 校验，再只认自己发出去的 requestId。超时 15 秒、窗口不在、窗口关闭都给明确的失败。结果 JSON 不超过 1 MB。现在主进程没有调用方（文件关联、第二实例参数在 M8 接）；测试开关打开时（只在未打包时）挂在主进程的 `globalThis.__allayHostCommands`，e2e 从主进程调用。T-ARC-6 的畸形参数表补了 `host.commandResult` 和 `optionalModules`。
+
+### 可选模块的惰性发现
+
+- `app/optionalModules.ts`：`import.meta.glob('../../../../../packages/optional/*/src/index.ts')`，按目录名整理成表；`OptionalModuleManager.sync(开关表)` 启停。设置 `ui.optionalModules`：目录名 → 布尔，最多 32 项，默认空表；关着的模块不加载代码块。模块入口导出 `activate(host)`（或默认导出 `{ id, activate }`）。activate 失败、没有导出时撤掉已注册的东西、记下原因，不连累主程序。
+- 宿主：`app/editorHost.ts` + `app/hostUi.tsx`。已实现 `templates.onExternalChange`、`engine.onDiagnostics`、`engine.requestReload`（只能是当前模板，走同一条热重载管线）、`playhead`、`domain`（方块 ID、缓动、接口说明；接口说明 JSON 是单独的惰性块）、`ui.*`。**没实现** `templates.read`、`templates.write`（主进程没有带内容版本的读写，界面也不反写代码），调用时以 `HostUnsupportedError` 拒绝。模块注册的面板、命令、文案键必须以“<目录名>.”开头；`bottom` 位置的面板放进注册表的 `dock` 区域。模块命令的参数只要求是 JSON（契约里的命令没有自己的 schema）。设置里没有开关的界面：现在没有模块，也就没有可开的东西。
+- `apps/desktop` 加了 `@allay/host-api` 的 workspace 依赖（只有类型）。
+- **验证**：单元测试用只在测试夹具里的假模块（`tests/fixtures/fake-module`）验证开着加载、能注册面板与命令与文案、关着不加载、关掉全部注销。另外手工验证了 MD-a 没验证的那一项：把同一个假模块临时放进 `packages/optional/fake/`，`electron-vite build` 把它打成单独的块（`assets/src-*.js`），主包里没有它；在真实应用里开关打开时模块被激活、它的命令能经 `dispatch` 执行，关着时命令不存在。验证完已删除，没有提交。
+
+### “可拆除”检查
+
+- `pnpm check:removable`（`scripts/check-removable.ts`）：把 `packages/optional` 移到临时目录（`--mode=empty` 时换成空目录），跑完整的 `pnpm check`，结束（含失败、Ctrl+C）时把目录和 lockfile 原样放回。目录里有模块时先 `pnpm install --offline` 刷新、放回后按原 lockfile 再装一次（现在是空操作）。CI 在 `pnpm check` 之后跑它，超时从 45 分钟调到 75 分钟。
+
+### 测试
+
+- e2e `tests/e2e/dev.spec.ts`：T-DEV-1（菜单入口、类型定义、监视提示、改代码后 5 秒内换上新代码且播放位置和参数不变、换了 Worker、不进撤销历史、manifest 改类型和加参数后属性面板重建）、T-DEV-2 的界面部分（语法错误 6:25、setup 抛错 5:11、update 抛错 9:29、死循环、`Math.random` 8:24；每次核对浮层的种类、错误码、位置，Worker 没换、状态仍就绪、画面哈希不变；修好后浮层消失、画面更新），以及 H11、H3、H6、H4 的端到端。测试进程直接改模板文件夹里的文件（写临时文件再改名，真实的文件系统事件），判定全部用状态轮询（重载完成的次数与结果）。
+- 单元：`MD-b.project-state`（参数对上、热重载不进历史、撤销来源、修订号冲突）、`MD-b.host-commands`（两端校验）、`T-DEV-4.optional-loader`。
+- `T-ALY.mascot-bake` 在全量单元测试并行时偶尔报 “Process failed to launch”（同时启动 Electron），单独跑通过；与本次改动无关。
+
+### 没验证的
+
+- 真实 VS Code 里打开复制出的模板文件夹的补全体验（仍只有 MD-a 的编译器检查）。
+- “打开模板文件夹”真的弹出资源管理器（测试里不点）。
+- 中文输入法、真实剪辑软件与本任务无关，未涉及。

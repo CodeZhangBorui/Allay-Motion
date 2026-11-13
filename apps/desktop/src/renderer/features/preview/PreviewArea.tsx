@@ -21,6 +21,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { ResourceOnboarding, useShowOnboarding } from '../resources/ResourceOnboarding';
 import { previewEngine } from './previewEngine';
 import { useDebugLoading } from './debugLoading';
+import { DevOverlay } from './DevOverlay';
 
 // 中间：预览面板（6.4）。左上“预览”和模板名，右上规格读数（等宽）；画布按输出比例等比缩放、居中，
 // 上面让出标题行、下面让出悬浮工具条（PREVIEW_INSET）。工具条悬浮在画面下方居中：缩放、背景、参考线、高质量预览。
@@ -306,6 +307,7 @@ export function PreviewArea() {
       </div>
       {onboarding && !failed && <ResourceOnboarding />}
       <ErrorCard />
+      <DevOverlay />
     </PreviewViewport>
   );
 }

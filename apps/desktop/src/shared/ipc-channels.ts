@@ -4,7 +4,8 @@
 // M2 加上 resources 和 cache（规格之外多出的几个方法见 docs/decisions.md M2b）；
 // M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）；
 // M4 加上 project（没有 create：新建工程只是渲染进程里的状态，见 docs/decisions.md M4）；
-// MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）。
+// MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
+// MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）。
 
 export const IPC = {
   app: {
@@ -82,6 +83,11 @@ export const IPC = {
     saveAs: 'project:saveAs',
     recents: 'project:recents',
   },
+  host: {
+    /** 主进程 → 渲染进程的事件：请界面执行一个命令 */
+    command: 'host:command',
+    commandResult: 'host:commandResult',
+  },
   cache: {
     getThumb: 'cache:getThumb',
     putThumb: 'cache:putThumb',
@@ -148,6 +154,7 @@ export const INVOKE_CHANNELS = [
   IPC.project.save,
   IPC.project.saveAs,
   IPC.project.recents,
+  IPC.host.commandResult,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

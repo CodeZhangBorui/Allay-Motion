@@ -1,7 +1,7 @@
 // 只给自动化测试用的钩子（docs/decisions.md M1“测试钩子”）。只有主进程在未打包、且设置了 ALLAY_E2E_HOOKS 时
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
-import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
+import { TemplateManifestSchema, type ParamValues, type TemplateDiagnostic } from '@allay/template-sdk';
 import type { CopyBuiltinRequest, PresetEntry, TemplateDevChange, TemplateDevResult, TemplateEntry } from '../shared/templates';
 import { applyPresetEntry, saveCurrentPreset } from './features/templates/presets';
 import { installDroppedTemplate, removeTemplate, selectTemplate } from './features/templates/actions';
@@ -19,6 +19,11 @@ import { useProjectStore } from './stores/projectStore';
 import { useTransportStore } from './stores/transportStore';
 import { useTemplateStore } from './stores/templateStore';
 import { DEFAULT_TEMPLATE_ID } from './templates/catalog';
+import { dispatch } from './app/registry';
+import { optionalModules } from './app/core';
+import { renderStillPng } from './engine-host/still';
+import { useDevStore, type ReloadPhase, type ReloadRecord, type TemplateRef } from './stores/devStore';
+import { undoInfo, type UndoOrigin } from './stores/projectStore';
 
 export interface AllayTestHooks {
   /** 换成一段测试模板（不含 import 的 ESM 源码） */
@@ -76,6 +81,17 @@ export interface AllayTestHooks {
   writeTemplateDevFiles(id: string, version: string): Promise<TemplateDevResult>;
   /** 装上钩子以来收到的 templates.onChanged 事件（最多 100 条），clear 为真时读完清空 */
   templateChanges(clear?: boolean): TemplateDevChange[];
+  // ---- MD-b ----
+  /** 热重载的状态：在监视谁、做到哪一步、完成了几次、上一次的结果与诊断 */
+  devState(): { watching: TemplateRef | null; phase: ReloadPhase; last: ReloadRecord | null; reloads: number; diagnostics: TemplateDiagnostic[] };
+  /** 经界面的命令层执行命令（和菜单、快捷键同一条路）；失败时返回错误名和信息 */
+  dispatch(id: string, input?: unknown): Promise<{ ok: true; output: unknown } | { ok: false; name: string; code: string | null; message: string }>;
+  /** 撤销、重做各自对应的那次改动（H6） */
+  undoInfo(): { undo: UndoOrigin | null; redo: UndoOrigin | null };
+  /** 经统一的静帧接口（H4）把当前模板、当前参数在 t 时刻渲染成 PNG（base64） */
+  renderStill(t: number, maxEdge?: number): Promise<{ width: number; height: number; pngBase64: string }>;
+  /** 可选模块：这次构建发现的、启用中的 */
+  optionalModules(): { available: string[]; active: string[]; failures: Record<string, string> };
 }
 
 declare global {
@@ -211,6 +227,28 @@ export function installTestHooks(): void {
     missingKeys: () => [...missingKeys],
     copyBuiltinTemplate: (req) => window.allay.templates.copyBuiltin(req),
     writeTemplateDevFiles: (id, version) => window.allay.templates.writeDevFiles(id, version),
+    devState() {
+      const s = useDevStore.getState();
+      return { watching: s.watching, phase: s.phase, last: s.last, reloads: s.reloads, diagnostics: [...s.diagnostics] };
+    },
+    async dispatch(id, input) {
+      try {
+        return { ok: true, output: await dispatch(id, input) };
+      } catch (e) {
+        const err = e instanceof Error ? e : new Error(String(e));
+        return { ok: false, name: err.name, code: 'code' in err && typeof err.code === 'string' ? err.code : null, message: err.message };
+      }
+    },
+    undoInfo: () => undoInfo(),
+    async renderStill(t, maxEdge) {
+      const { template, params, output } = useProjectStore.getState();
+      if (!template) throw new Error('no template');
+      const r = await renderStillPng({ source: template, params, width: output.width, height: output.height, fps: output.fps, maxEdge, locale: i18next.language, t });
+      let bin = '';
+      for (let i = 0; i < r.png.length; i += 0x8000) bin += String.fromCharCode(...r.png.subarray(i, i + 0x8000));
+      return { width: r.width, height: r.height, pngBase64: btoa(bin) };
+    },
+    optionalModules: () => ({ available: optionalModules.available, active: optionalModules.activeIds, failures: Object.fromEntries(optionalModules.failures) }),
     templateChanges(clear = false) {
       const out = [...templateChanges];
       if (clear) templateChanges.length = 0;

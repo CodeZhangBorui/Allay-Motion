@@ -13,6 +13,7 @@ import {
   ThumbPngSchema,
   VanillaPatchSchema,
 } from './resources';
+import { HostCommandResultSchema } from './host-commands';
 import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
 import {
@@ -99,6 +100,7 @@ export const IPC_ARGS = {
   [IPC.project.save]: z.tuple([ProjectHandleSchema.nullable(), ProjectDataSchema]),
   [IPC.project.saveAs]: z.tuple([ProjectDataSchema]),
   [IPC.project.recents]: z.tuple([]),
+  [IPC.host.commandResult]: z.tuple([HostCommandResultSchema]),
   [IPC.cache.getThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema]),
   [IPC.cache.putThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema, ThumbPngSchema]),
   [IPC.cache.clear]: z.tuple([]),

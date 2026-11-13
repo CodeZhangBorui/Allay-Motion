@@ -26,6 +26,7 @@
   "dependencies": {
     "@allay/assets": "workspace:*",
     "@allay/engine": "workspace:*",
+    "@allay/host-api": "workspace:*",
     "@allay/mascot": "workspace:*",
     "@allay/template-sdk": "workspace:*",
     "@allay/ui": "workspace:*",
