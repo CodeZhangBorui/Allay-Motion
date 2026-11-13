@@ -69,6 +69,16 @@ const MALFORMED: Record<string, unknown[][]> = {
     // 格式合法但不存在的任务
     ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', new Uint8Array(16)],
   ],
+  'export.writeAudio': [
+    [],
+    ['not-a-uuid', new Uint8Array(100)],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'C:\\mix.wav'],
+    // 太小（连 WAV 头都放不下）；超过上限的在单元测试里查（这里序列化几 MB 太慢）
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', new Uint8Array(10)],
+    // 格式合法但不存在的任务
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', new Uint8Array(100)],
+  ],
   'export.finish': [[], [42], ['C:\\out.mov'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301']],
   'export.cancel': [[], [null], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
   'export.ffmpegInfo': [[1], ['C:\\ffmpeg.exe'], [{ path: 'x' }]],
@@ -88,6 +98,7 @@ const MALFORMED: Record<string, unknown[][]> = {
     ['assets/minecraft/textures/block/stone.png', 'extra'],
   ],
   'resources.readTexture': [[], [42], [null], ['x'.repeat(600)]],
+  'resources.soundVariants': [[], [42], [null], ['../x'], ['C:\\x'], ['no-namespace'], ['Minecraft:Block.Stone'], ['x'.repeat(300)]],
   'resources.list': [[42], ['../'], ['C:\\'], [null]],
   'resources.fontProviders': [[], [42], ['x'.repeat(600)]],
   'resources.fallbackFont': [[1]],

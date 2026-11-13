@@ -4,6 +4,7 @@
 // M2 加上 resources 和 cache（规格之外多出的几个方法见 docs/decisions.md M2b）；
 // M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）；
 // M4 加上 project（没有 create：新建工程只是渲染进程里的状态，见 docs/decisions.md M4）；
+// M6b 加上 export.writeAudio 和 resources.soundVariants（音效事件的变体，docs/decisions.md M6b）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）。
 
 export const IPC = {
@@ -26,6 +27,7 @@ export const IPC = {
   export: {
     start: 'export:start',
     writeFrame: 'export:writeFrame',
+    writeAudio: 'export:writeAudio',
     finish: 'export:finish',
     cancel: 'export:cancel',
     ffmpegInfo: 'export:ffmpegInfo',
@@ -35,6 +37,7 @@ export const IPC = {
     stamp: 'resources:stamp',
     read: 'resources:read',
     readTexture: 'resources:readTexture',
+    soundVariants: 'resources:soundVariants',
     list: 'resources:list',
     fontProviders: 'resources:fontProviders',
     fallbackFont: 'resources:fallbackFont',
@@ -105,6 +108,7 @@ export const INVOKE_CHANNELS = [
   IPC.files.read,
   IPC.export.start,
   IPC.export.writeFrame,
+  IPC.export.writeAudio,
   IPC.export.finish,
   IPC.export.cancel,
   IPC.export.ffmpegInfo,
@@ -112,6 +116,7 @@ export const INVOKE_CHANNELS = [
   IPC.resources.stamp,
   IPC.resources.read,
   IPC.resources.readTexture,
+  IPC.resources.soundVariants,
   IPC.resources.list,
   IPC.resources.fontProviders,
   IPC.resources.fallbackFont,

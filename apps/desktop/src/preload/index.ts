@@ -42,6 +42,7 @@ const api = {
   export: {
     start: invoke(IPC.export.start),
     writeFrame: invoke(IPC.export.writeFrame),
+    writeAudio: invoke(IPC.export.writeAudio),
     finish: invoke(IPC.export.finish),
     cancel: invoke(IPC.export.cancel),
     ffmpegInfo: invoke(IPC.export.ffmpegInfo),
@@ -51,6 +52,7 @@ const api = {
     stamp: invoke(IPC.resources.stamp),
     read: invoke(IPC.resources.read),
     readTexture: invoke(IPC.resources.readTexture),
+    soundVariants: invoke(IPC.resources.soundVariants),
     list: invoke(IPC.resources.list),
     fontProviders: invoke(IPC.resources.fontProviders),
     fallbackFont: invoke(IPC.resources.fallbackFont),

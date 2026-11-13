@@ -246,6 +246,64 @@ describe('T-AST-DL 运行时下载客户端 jar', () => {
     expect(() => createVanillaDownloader({ cacheDir: cacheDir(), packaged: true })).not.toThrow();
   });
 
+  it('T-AST-DL-10 音效对象（M6b）：下载时按事件表取回 sounds.json 和全部变体的文件，其余对象不取；之后打开原版层不联网也能读到', async () => {
+    const stone1 = Buffer.from('OggS-stone1');
+    const stone2 = Buffer.from('OggS-stone2');
+    const unrelated = Buffer.from('OggS-unrelated');
+    const soundsJson = Buffer.from(
+      JSON.stringify({
+        'block.stone.place': { sounds: ['dig/stone1', { name: 'dig/stone2', volume: 0.8 }] },
+        'block.other': { sounds: ['other/x'] },
+        'ui.alias': { sounds: [{ name: 'block.stone.place', type: 'event' }] },
+      }),
+    );
+    serveFakeRelease((f) => {
+      f.index = Buffer.from(
+        JSON.stringify({
+          objects: {
+            'minecraft/sounds.json': { hash: sha1(soundsJson), size: soundsJson.length },
+            'minecraft/sounds/dig/stone1.ogg': { hash: sha1(stone1), size: stone1.length },
+            'minecraft/sounds/dig/stone2.ogg': { hash: sha1(stone2), size: stone2.length },
+            'minecraft/sounds/other/x.ogg': { hash: sha1(unrelated), size: unrelated.length },
+          },
+        }),
+      );
+      (f.version.assetIndex as { sha1: string; size: number }).sha1 = sha1(f.index);
+      (f.version.assetIndex as { sha1: string; size: number }).size = f.index.length;
+    });
+    for (const b of [soundsJson, stone1, stone2, unrelated]) routes.set(`/${sha1(b).slice(0, 2)}/${sha1(b)}`, b);
+
+    const dl = createVanillaDownloader({ cacheDir: cacheDir(), packaged: false, testOrigins: testOrigins() });
+    const got = await dl.downloadLatest();
+    log.length = 0;
+    const phases: string[] = [];
+    const r = await dl.fetchSoundObjects(got, ['minecraft:block.stone.place', 'minecraft:ui.alias', 'minecraft:not.there', 'allay:whoosh'], { onProgress: (p) => phases.push(p.phase) });
+    expect(r.missing).toEqual(['minecraft:not.there', 'allay:whoosh']);
+    // sounds.json + 两个变体；ui.alias 指向同一个事件，不重复取；other/x 不取
+    expect(log.sort()).toEqual([soundsJson, stone1, stone2].map((b) => `/${sha1(b).slice(0, 2)}/${sha1(b)}`).sort());
+    expect(new Set(phases)).toEqual(new Set(['object']));
+    // 不传 fetchObject 打开（应用里下载缓存的原版层就是这样）：取回的能读到，没取回的读不到，全程不联网
+    log.length = 0;
+    const layer = await openVanillaLayer(got);
+    try {
+      expect(Buffer.from((await layer.read('assets/minecraft/sounds/dig/stone2.ogg')) ?? []).toString()).toBe('OggS-stone2');
+      expect(Buffer.from((await layer.read('assets/minecraft/sounds.json')) ?? []).equals(soundsJson)).toBe(true);
+      expect(await layer.read('assets/minecraft/sounds/other/x.ogg')).toBeNull();
+    } finally {
+      layer.close();
+    }
+    expect(log).toEqual([]);
+    // 再取一次：都已在缓存里且校验通过，不联网
+    await dl.fetchSoundObjects(got, ['minecraft:block.stone.place']);
+    expect(log).toEqual([]);
+
+    // 对象被篡改：sha1 不符，拒绝且不留半成品
+    rmSync(join(cacheDir(), 'objects'), { recursive: true, force: true });
+    routes.set(`/${sha1(stone1).slice(0, 2)}/${sha1(stone1)}`, Buffer.from('OggS-evil!!'));
+    await expect(dl.fetchSoundObjects(got, ['minecraft:block.stone.place'])).rejects.toMatchObject({ code: 'hash' });
+    expect(files(join(cacheDir(), 'objects')).filter((p) => p.endsWith('.part'))).toEqual([]);
+  });
+
   it('T-AST-DL-9 原版层来源：默认取较新的，可以指定偏好', () => {
     const local: VanillaInstall = { gameDir: 'g', versionId: '1.21.1', releaseTime: '2024-08-08T00:00:00Z', jarPath: 'a', assetIndexPath: null, objectsDir: 'o' };
     const cached: CachedVanilla = { ...local, source: 'downloaded', versionId: '26.3', releaseTime: '2026-10-01T00:00:00Z' };

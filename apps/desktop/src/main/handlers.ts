@@ -106,6 +106,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.read, (_event, path) => resources.read(path));
   handle(IPC.resources.readTexture, (_event, id) => resources.readTexture(id));
   handle(IPC.resources.list, (_event, prefix) => resources.list(prefix));
+  handle(IPC.resources.soundVariants, (_event, id) => resources.soundVariants(id));
   handle(IPC.resources.fontProviders, (_event, id) => resources.fontProviders(id));
   handle(IPC.resources.fallbackFont, () => resources.fallbackFontTables());
   handle(IPC.resources.detectMinecraft, () => resources.detectMinecraft());
@@ -237,6 +238,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.export.ffmpegInfo, () => exports.ffmpegInfo());
   handle(IPC.export.start, (_event, req) => exports.start(req));
   handle(IPC.export.writeFrame, (_event, jobId, pixels) => knownJob(() => exports.writeFrame(jobId, pixels)));
+  handle(IPC.export.writeAudio, (_event, jobId, wav) => knownJob(() => exports.writeAudio(jobId, wav)));
   handle(IPC.export.finish, (_event, jobId) => knownJob(() => exports.finish(jobId)));
   // 取消一个已经结束或不存在的任务不算错
   handle(IPC.export.cancel, (_event, jobId) => exports.cancel(jobId));

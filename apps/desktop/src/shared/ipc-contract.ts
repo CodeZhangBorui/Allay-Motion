@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ExportJobIdSchema, ExportStartSchema, FramePixelsSchema } from './export';
+import { AudioWavSchema, ExportJobIdSchema, ExportStartSchema, FramePixelsSchema } from './export';
 import { IPC, type InvokeChannel } from './ipc-channels';
 import {
   AddPackKindSchema,
@@ -9,6 +9,7 @@ import {
   ResourcePathSchema,
   ResourcePrefixSchema,
   ResourceStampSchema,
+  SoundEventIdSchema,
   ThumbKeySchema,
   ThumbPngSchema,
   VanillaPatchSchema,
@@ -56,6 +57,7 @@ export const IPC_ARGS = {
   [IPC.files.read]: z.tuple([FileRefSchema]),
   [IPC.export.start]: z.tuple([ExportStartSchema]),
   [IPC.export.writeFrame]: z.tuple([ExportJobIdSchema, FramePixelsSchema]),
+  [IPC.export.writeAudio]: z.tuple([ExportJobIdSchema, AudioWavSchema]),
   [IPC.export.finish]: z.tuple([ExportJobIdSchema]),
   [IPC.export.cancel]: z.tuple([ExportJobIdSchema]),
   [IPC.export.ffmpegInfo]: z.tuple([]),
@@ -64,6 +66,7 @@ export const IPC_ARGS = {
   [IPC.resources.read]: z.tuple([ResourcePathSchema]),
   [IPC.resources.readTexture]: z.tuple([ResourceIdSchema]),
   [IPC.resources.list]: z.tuple([ResourcePrefixSchema]),
+  [IPC.resources.soundVariants]: z.tuple([SoundEventIdSchema]),
   [IPC.resources.fontProviders]: z.tuple([ResourceIdSchema]),
   [IPC.resources.fallbackFont]: z.tuple([]),
   [IPC.resources.detectMinecraft]: z.tuple([]),

@@ -6,17 +6,24 @@ import { basename, extname } from 'node:path';
 import {
   buildStack,
   computeResourceStamp,
+  expandSoundEvent,
   layersWith,
   listMerged,
+  mergeSoundDefinitions,
   parseBdf,
   parseFontJson,
+  parseResourceId,
+  parseSoundsJson,
   readResource,
   resolveFontProviders,
+  SOUND_EVENTS,
+  soundsJsonPath,
   textureIdToPath,
   textureMetaPath,
   type BitmapFontTables,
   type ResourceLayer,
   type ResourceStackSettings,
+  type SoundDefinitions,
 } from '@allay/assets';
 import type {
   AddPackResult,
@@ -28,11 +35,12 @@ import type {
   FontProvidersResult,
   LayerInfo,
   ResourceState,
+  SoundVariantInfo,
   VanillaState,
 } from '../../shared/resources';
 import type { Logger } from '../logger';
 import type { SettingsStore } from '../settings-store';
-import { chooseVanillaSource, DownloadError, type CachedVanilla, type VanillaDownloader } from './download';
+import { chooseVanillaSource, DownloadError, type CachedVanilla, type DownloadProgress, type VanillaDownloader } from './download';
 import { BUILTIN_LAYER_ID, openBuiltinLayer, openFolderPack, openZipPack, type ClosableLayer } from './layers';
 import { importZipPack, packZipPath } from './pack-import';
 import { detectMinecraft, findLatestRelease, openVanillaLayer, VANILLA_LAYER_ID, type CandidateEnv, type VanillaInstall } from './vanilla';
@@ -247,26 +255,26 @@ export class ResourceService {
     this.download = { status: 'running', phase: 'manifest', received: 0, total: null };
     this.emit();
     try {
-      const cached = await this.opts.downloader.downloadLatest({
-        signal: abort.signal,
-        onProgress: (p) => {
-          const phaseChanged = this.download.status !== 'running' || this.download.phase !== p.phase;
-          this.download = { status: 'running', phase: p.phase, received: p.received, total: p.total };
-          const now = Date.now();
-          if (phaseChanged || now - this.lastProgress >= PROGRESS_INTERVAL_MS) {
-            this.lastProgress = now;
-            this.emit();
-          } else {
-            // 节流掉的这一次在间隔结束时补发，免得下载停住时界面停在旧的进度上
-            this.progressTimer ??= setTimeout(() => {
-              this.progressTimer = null;
-              this.lastProgress = Date.now();
-              if (this.download.status === 'running') this.emit();
-            }, PROGRESS_INTERVAL_MS);
-          }
-        },
-      });
-      this.opts.log.info('resources', 'vanilla downloaded', { version: cached.versionId });
+      const onProgress = (p: DownloadProgress) => {
+        const phaseChanged = this.download.status !== 'running' || this.download.phase !== p.phase;
+        this.download = { status: 'running', phase: p.phase, received: p.received, total: p.total };
+        const now = Date.now();
+        if (phaseChanged || now - this.lastProgress >= PROGRESS_INTERVAL_MS) {
+          this.lastProgress = now;
+          this.emit();
+        } else {
+          // 节流掉的这一次在间隔结束时补发，免得下载停住时界面停在旧的进度上
+          this.progressTimer ??= setTimeout(() => {
+            this.progressTimer = null;
+            this.lastProgress = Date.now();
+            if (this.download.status === 'running') this.emit();
+          }, PROGRESS_INTERVAL_MS);
+        }
+      };
+      const cached = await this.opts.downloader.downloadLatest({ signal: abort.signal, onProgress });
+      // 同一次下载里取回音效事件用到的对象（decisions.md M6b）：之后不再按需联网
+      const sounds = await this.opts.downloader.fetchSoundObjects(cached, SOUND_EVENTS, { signal: abort.signal, onProgress });
+      this.opts.log.info('resources', 'vanilla downloaded', { version: cached.versionId, soundObjects: sounds.fetched, soundsMissing: sounds.missing.slice(0, 20) });
       this.download = { status: 'idle' };
       await this.serial(async () => {
         this.cached = cached;
@@ -492,6 +500,45 @@ export class ResourceService {
       providers: providers.map((p) => (p.type === 'bitmap' ? { type: 'bitmap', file: p.file, ascent: p.ascent, height: p.height, rows: p.rows } : { type: 'space', advances: [...p.advances.entries()] })),
       skipped,
     };
+  }
+
+  /** 合并后的 sounds.json，按 (stamp, 命名空间) 缓存 */
+  private soundDefs: { stamp: string; byNamespace: Map<string, Promise<SoundDefinitions>> } = { stamp: '', byNamespace: new Map() };
+
+  private soundDefinitions(namespace: string): Promise<SoundDefinitions> {
+    if (this.soundDefs.stamp !== this.stamp) this.soundDefs = { stamp: this.stamp, byNamespace: new Map() };
+    let p = this.soundDefs.byNamespace.get(namespace);
+    if (!p) {
+      const stack = this.stack;
+      p = (async () => {
+        const path = soundsJsonPath(namespace);
+        // layersWith 从上到下；合并要从下往上（3.8、decisions.md M2a）
+        const sources = [];
+        for (const layer of layersWith(stack, path).reverse()) {
+          const bytes = await layer.read(path).catch(() => null);
+          if (bytes && bytes.byteLength <= 4 * 1024 * 1024) sources.push({ kind: layer.kind, parsed: parseSoundsJson(new TextDecoder().decode(bytes), namespace) });
+        }
+        return mergeSoundDefinitions(sources);
+      })();
+      this.soundDefs.byNamespace.set(namespace, p);
+    }
+    return p;
+  }
+
+  /**
+   * 音效事件的全部变体（02-engine.md 2.10、03-assets.md 3.8）：资源栈各层的 sounds.json 合并后展开 event 引用。
+   * 资源栈里没有这个事件时为 null。不联网：下载缓存的原版层只读已经取回的对象（decisions.md M6b）。
+   */
+  async soundVariants(eventId: string): Promise<SoundVariantInfo[] | null> {
+    const parsed = parseResourceId(eventId);
+    if (!parsed) return null;
+    const id = `${parsed.namespace}:${parsed.path}`;
+    const defs = await this.soundDefinitions(parsed.namespace);
+    if (!defs.has(id)) return null;
+    const clamp = (v: number) => Math.min(16, Math.max(0, v));
+    return expandSoundEvent(defs, id)
+      .slice(0, 1024)
+      .map((v) => ({ file: v.file, volume: clamp(v.volume), pitch: clamp(v.pitch), weight: Math.min(1_000_000, v.weight) }));
   }
 
   /** 兜底像素字体（不随资源栈变），第一次用到时解析 */

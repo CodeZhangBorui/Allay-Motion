@@ -7,7 +7,7 @@ import type {
 } from '../shared/export';
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
-import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState } from '../shared/resources';
+import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundVariantInfo } from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type {
@@ -51,6 +51,8 @@ export interface AllayApi {
     start(req: ExportStartRequest): Promise<ExportStartResult>;
     /** 写一帧直通 alpha 的 RGBA8；数据进了 FFmpeg（必要时等到 drain）才返回 */
     writeFrame(jobId: string, pixels: Uint8Array): Promise<ExportStepResult>;
+    /** 有音轨的任务（start 时 audio 为真）：交来混好的 48 kHz 立体声 16 位 WAV，主进程随后启动 FFmpeg。在第一帧之前调用 */
+    writeAudio(jobId: string, wav: Uint8Array): Promise<ExportStepResult>;
     finish(jobId: string): Promise<ExportFinishResult>;
     cancel(jobId: string): Promise<void>;
     ffmpegInfo(): Promise<FfmpegInfo>;
@@ -63,6 +65,8 @@ export interface AllayApi {
     read(path: string): Promise<Uint8Array | null>;
     /** 贴图 PNG 和同一层的 .mcmeta */
     readTexture(id: string): Promise<{ png: Uint8Array; mcmeta: string | null } | null>;
+    /** 音效事件的全部变体（资源栈里合并后的 sounds.json）；没有这个事件时为 null */
+    soundVariants(eventId: string): Promise<SoundVariantInfo[] | null>;
     list(prefix: string): Promise<string[]>;
     fontProviders(fontId: string): Promise<FontProvidersResult | null>;
     /** 兜底像素字体 */

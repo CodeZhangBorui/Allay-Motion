@@ -83,6 +83,14 @@ export interface FontProvidersResult {
   skipped: string[];
 }
 
+/** 音效事件的一个变体（resources.soundVariants）：file 是带命名空间的音效名 */
+export interface SoundVariantInfo {
+  file: string;
+  volume: number;
+  pitch: number;
+  weight: number;
+}
+
 export interface CacheUsage {
   files: number;
   bytes: number;
@@ -92,6 +100,8 @@ export interface CacheUsage {
 
 export const ResourcePathSchema = z.string().min(1).max(1024).refine(isSafeRelativePath, { message: 'unsafe resource path' });
 export const ResourceIdSchema = z.string().min(1).max(512);
+/** 音效事件 ID：命名空间:路径（路径里可以有点），例如 minecraft:block.stone.place */
+export const SoundEventIdSchema = z.string().min(3).max(256).regex(/^[a-z0-9_.-]+:[a-z0-9_./-]+$/);
 export const ResourcePrefixSchema = z.string().max(1024).refine((p) => p === '' || isSafeRelativePath(p.replace(/\/$/, '')), { message: 'unsafe prefix' });
 export const LayerIdSchema = z.string().min(1).max(128);
 export const VanillaPatchSchema = z.strictObject({ consent: z.boolean().optional(), enabled: z.boolean().optional() });

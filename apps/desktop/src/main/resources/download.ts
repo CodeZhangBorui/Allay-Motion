@@ -13,6 +13,7 @@ import http, { type IncomingMessage } from 'node:http';
 import https from 'node:https';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { expandSoundEvent, mergeSoundDefinitions, parseSoundsJson, soundNameToPaths } from '@allay/assets';
 import type { VanillaInstall } from './vanilla';
 
 export const MOJANG_HOSTS = ['piston-meta.mojang.com', 'piston-data.mojang.com', 'resources.download.minecraft.net'] as const;
@@ -68,6 +69,9 @@ export interface CachedVanilla extends VanillaInstall {
 }
 
 const Sha1 = z.string().regex(/^[0-9a-f]{40}$/);
+
+/** 资源索引（只用到 objects） */
+const AssetIndexSchema = z.looseObject({ objects: z.record(z.string(), z.looseObject({ hash: Sha1, size: z.number().int().nonnegative() })) });
 const SafeId = z.string().regex(/^[\w.-]+$/).refine((s) => s !== '.' && s !== '..');
 
 const ManifestSchema = z.looseObject({
@@ -261,6 +265,18 @@ export function createVanillaDownloader(options: DownloaderOptions) {
     return true;
   }
 
+  /**
+   * 联网（按需）：从 resources.download.minecraft.net 取一个资源对象到 objects/<前两位>/<哈希>，校验 sha1 和大小。
+   * 已存在且校验通过时不联网。返回文件路径。
+   */
+  async function fetchObject(hash: string, size: number, signal?: AbortSignal): Promise<string> {
+    if (!Sha1.safeParse(hash).success) throw new DownloadError(`哈希格式不对：${hash}`, 'bad-data');
+    const dest = join(objectsDir, hash.slice(0, 2), hash);
+    if (await fileMatches(dest, size, hash)) return dest;
+    await fetchToFile(`${RESOURCES_BASE}/${hash.slice(0, 2)}/${hash}`, dest, { size, sha1: hash, maxBytes: limits.objectBytes, phase: 'object' }, signal, undefined);
+    return dest;
+  }
+
   return {
     cacheDir,
 
@@ -315,16 +331,54 @@ export function createVanillaDownloader(options: DownloaderOptions) {
     },
 
     /**
+     * 联网：取回给定音效事件用到的资源对象（minecraft/sounds.json，以及这些事件全部变体的 .ogg），
+     * 每个对象都经 fetchObject（同一白名单、同样校验 sha1 和大小）。已在缓存里且校验通过的不重复下载。
+     * 只在用户点了“下载原版资源”时、紧接着 downloadLatest() 调用（decisions.md M6b：不做后台按需联网）。
+     * 返回资源索引里找不到的事件或文件（例如 allay: 命名空间的事件），调用方只记日志。
+     */
+    async fetchSoundObjects(
+      install: CachedVanilla,
+      eventIds: readonly string[],
+      opts: { signal?: AbortSignal; onProgress?: (p: DownloadProgress) => void } = {},
+    ): Promise<{ fetched: number; missing: string[] }> {
+      const missing: string[] = [];
+      if (!install.assetIndexPath) return { fetched: 0, missing: [...eventIds] };
+      const index = AssetIndexSchema.safeParse(JSON.parse(await readFile(install.assetIndexPath, 'utf8')));
+      if (!index.success) throw new DownloadError('资源索引格式不对', 'bad-data');
+      const objects = index.data.objects;
+      const soundsJson = objects['minecraft/sounds.json'];
+      if (!soundsJson) return { fetched: 0, missing: [...eventIds] };
+      opts.onProgress?.({ phase: 'object', received: 0, total: null });
+      const soundsFile = await fetchObject(soundsJson.hash, soundsJson.size, opts.signal);
+      const wanted = new Map<string, { hash: string; size: number }>();
+      const defs = mergeSoundDefinitions([{ kind: 'vanilla', parsed: parseSoundsJson(await readFile(soundsFile, 'utf8'), 'minecraft') }]);
+      for (const eventId of eventIds) {
+        const variants = expandSoundEvent(defs, eventId);
+        if (variants.length === 0) missing.push(eventId);
+        for (const v of variants) {
+          // 资源索引的键是 assets/ 之后的部分（minecraft/sounds/dig/stone1.ogg）
+          const key = soundNameToPaths(v.file)
+            .map((p) => p.slice('assets/'.length))
+            .find((k) => objects[k] !== undefined);
+          if (!key) missing.push(v.file);
+          else wanted.set(key, objects[key]!);
+        }
+      }
+      const total = [...wanted.values()].reduce((s, o) => s + o.size, 0);
+      let received = 0;
+      for (const obj of wanted.values()) {
+        await fetchObject(obj.hash, obj.size, opts.signal);
+        received += obj.size;
+        opts.onProgress?.({ phase: 'object', received, total });
+      }
+      return { fetched: wanted.size + 1, missing };
+    },
+
+    /**
      * 联网（按需）：从 resources.download.minecraft.net 取一个资源对象到 objects/<前两位>/<哈希>，校验 sha1 和大小。
      * 已存在且校验通过时不联网。返回文件路径。
      */
-    async fetchObject(hash: string, size: number, signal?: AbortSignal): Promise<string> {
-      if (!Sha1.safeParse(hash).success) throw new DownloadError(`哈希格式不对：${hash}`, 'bad-data');
-      const dest = join(objectsDir, hash.slice(0, 2), hash);
-      if (await fileMatches(dest, size, hash)) return dest;
-      await fetchToFile(`${RESOURCES_BASE}/${hash.slice(0, 2)}/${hash}`, dest, { size, sha1: hash, maxBytes: limits.objectBytes, phase: 'object' }, signal, undefined);
-      return dest;
-    },
+    fetchObject,
   };
 }
 

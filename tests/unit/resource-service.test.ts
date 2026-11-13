@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger } from '../../apps/desktop/src/main/logger';
+import { SOUND_EVENTS } from '../../packages/assets/src/index';
 import { DownloadError, type CachedVanilla, type VanillaDownloader } from '../../apps/desktop/src/main/resources/download';
 import { ResourceService } from '../../apps/desktop/src/main/resources/service';
 import { SettingsStore } from '../../apps/desktop/src/main/settings-store';
@@ -31,6 +32,7 @@ function fakeDownloader(impl: Partial<VanillaDownloader> = {}): VanillaDownloade
     fetchObject: async () => {
       throw new Error('no network in tests');
     },
+    fetchSoundObjects: async (_install, ids) => ({ fetched: 0, missing: [...ids] }),
     ...impl,
   } as VanillaDownloader;
 }
@@ -211,6 +213,7 @@ describe('ResourceService', () => {
     let release: () => void = () => undefined;
     let mode: 'ok' | 'fail' | 'hang' = 'fail';
     let have = false;
+    const soundFetches: { version: string; ids: string[] }[] = [];
     const downloader = fakeDownloader({
       findCached: async () => (have ? cached : null),
       downloadLatest: async ({ signal, onProgress } = {}) => {
@@ -223,6 +226,11 @@ describe('ResourceService', () => {
           });
         have = true;
         return cached;
+      },
+      // M6b：音效对象在同一次下载里紧接着取回，事件表就是选择器里的那些
+      fetchSoundObjects: async (install, ids) => {
+        soundFetches.push({ version: install.versionId, ids: [...ids] });
+        return { fetched: 0, missing: [] };
       },
     });
     const { svc } = await makeService({ downloader });
@@ -242,8 +250,32 @@ describe('ResourceService', () => {
     expect(await svc.downloadVanilla()).toEqual({ ok: true });
     const s = svc.state();
     expect(s.vanilla).toMatchObject({ consent: true, active: 'cached', cached: { versionId: '26.3' } });
+    expect(soundFetches).toEqual([{ version: '26.3', ids: [...SOUND_EVENTS] }]);
     expect(s.layers.find((l) => l.kind === 'vanilla')?.source).toBe('downloaded');
     expect(Buffer.from((await svc.readTexture(STONE))!.png).equals(Buffer.from(solidPng('#ffff00')))).toBe(true);
+    svc.close();
+  });
+
+  it('M6b 音效事件的变体：各层 sounds.json 按游戏的规则合并（上层追加，replace 替换），资源栈变了重新合并', async () => {
+    const { svc } = await makeService();
+    expect(await svc.soundVariants('minecraft:block.stone.place')).toBeNull();
+    const a = join(dir, 'pack-a');
+    const b = join(dir, 'pack-b');
+    writeFiles(a, { 'pack.mcmeta': packMcmeta('a'), 'assets/minecraft/sounds.json': JSON.stringify({ 'block.stone.place': { sounds: ['test/a1', { name: 'test/a2', volume: 0.5, pitch: 2, weight: 3 }] } }) });
+    writeFiles(b, {
+      'pack.mcmeta': packMcmeta('b'),
+      'assets/minecraft/sounds.json': JSON.stringify({ 'block.stone.place': { sounds: ['test/b1'] }, 'ui.toast.in': { replace: true, sounds: ['test/toast'] } }),
+    });
+    expect(await svc.addPackFromPath(a)).toMatchObject({ ok: true });
+    expect(await svc.soundVariants('minecraft:block.stone.place')).toEqual([
+      { file: 'minecraft:test/a1', volume: 1, pitch: 1, weight: 1 },
+      { file: 'minecraft:test/a2', volume: 0.5, pitch: 2, weight: 3 },
+    ]);
+    expect(await svc.addPackFromPath(b)).toMatchObject({ ok: true });
+    // b 在上层：追加
+    expect((await svc.soundVariants('minecraft:block.stone.place'))?.map((v) => v.file)).toEqual(['minecraft:test/a1', 'minecraft:test/a2', 'minecraft:test/b1']);
+    expect((await svc.soundVariants('minecraft:ui.toast.in'))?.map((v) => v.file)).toEqual(['minecraft:test/toast']);
+    expect(await svc.soundVariants('allay:whoosh')).toBeNull();
     svc.close();
   });
 
