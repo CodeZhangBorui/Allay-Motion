@@ -9,6 +9,7 @@ import { createLogger } from './logger';
 import { APP_ENTRY_URL, assertLocalDevOrigin } from './security-policy';
 import { hardenSession, installGlobalHardening } from './security';
 import { SettingsStore } from './settings-store';
+import { readTestSwitches } from './test-switches';
 import { createMainWindow } from './window';
 
 // ---- 必须在 ready 之前完成的事 ----
@@ -16,10 +17,11 @@ import { createMainWindow } from './window';
 // 应用数据目录（1.9）：固定的内部目录名，不随包名或产品名变（换品牌时用户数据不丢）
 app.setPath('userData', join(app.getPath('appData'), 'AllayMotion'));
 
-// 仅限未打包的构建：测试用独立的数据目录，避免碰到开发者自己的设置
-if (!app.isPackaged && process.env.ALLAY_USER_DATA_DIR) {
-  app.setPath('userData', process.env.ALLAY_USER_DATA_DIR);
-}
+// 仅限未打包的构建：测试用独立的数据目录，以及后台运行（窗口不显示、不抢焦点）。
+// 只影响数据放哪、窗口显不显示；1.6 的安全设置在两种情况下完全相同。
+const testSwitches = readTestSwitches(app.isPackaged, process.env);
+if (testSwitches.userDataDir) app.setPath('userData', testSwitches.userDataDir);
+const hiddenForTests = testSwitches.hiddenWindow;
 
 registerAppScheme();
 app.enableSandbox();
@@ -68,7 +70,7 @@ if (!app.requestSingleInstanceLock()) {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.settings.changed, ui);
     });
 
-    mainWindow = createMainWindow({ settings, theme: settings.ui.theme, log });
+    mainWindow = createMainWindow({ settings, theme: settings.ui.theme, log, hiddenForTests });
     mainWindow.on('closed', () => {
       mainWindow = null;
     });

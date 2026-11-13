@@ -6,7 +6,18 @@ import type { Logger } from './logger';
 import type { SettingsStore } from './settings-store';
 import { MIN_WINDOW, restoreBounds } from './window-state';
 
-export function createMainWindow(opts: { settings: SettingsStore; theme: Theme; log: Logger }): BrowserWindow {
+export interface MainWindowOptions {
+  settings: SettingsStore;
+  theme: Theme;
+  log: Logger;
+  /**
+   * 仅供自动化测试：窗口创建后不显示、不进任务栏、不抢焦点。页面照常加载和渲染。
+   * 只影响“显不显示”，不碰任何安全设置；打包后的应用永远是 false（见 index.ts）。
+   */
+  hiddenForTests: boolean;
+}
+
+export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
   const { settings, log } = opts;
   const colors = THEME_CHROME_COLORS[opts.theme];
   const saved = settings.window;
@@ -20,6 +31,7 @@ export function createMainWindow(opts: { settings: SettingsStore; theme: Theme; 
     minWidth: MIN_WINDOW.width,
     minHeight: MIN_WINDOW.height,
     show: false,
+    skipTaskbar: opts.hiddenForTests,
     backgroundColor: colors.background,
     // 无边框窗口加系统窗口按钮（6.3）
     titleBarStyle: 'hidden',
@@ -44,8 +56,13 @@ export function createMainWindow(opts: { settings: SettingsStore; theme: Theme; 
   // 记的是内容区尺寸：无边框加 overlay 的窗口外框在高 DPI 下有 1 px 的取整误差，用外框尺寸会越存越大；
   // 构造参数 useContentSize 在这种窗口上也不准（实测差 1–3 px），创建后再设内容区尺寸是准的（见 docs/decisions.md）
   if (saved && bounds.x !== undefined) win.setContentSize(bounds.width, bounds.height);
-  if (saved?.maximized) win.maximize();
-  win.once('ready-to-show', () => win.show());
+  if (opts.hiddenForTests) {
+    // 不调用 show / maximize（maximize 在 Windows 上会顺带显示窗口）
+    log.info('window', 'hidden window for automated tests');
+  } else {
+    if (saved?.maximized) win.maximize();
+    win.once('ready-to-show', () => win.show());
+  }
 
   // 位置和大小的记忆：位置用外框，大小用内容区；最大化时只记“最大化”，保留之前的普通尺寸
   let timer: NodeJS.Timeout | undefined;

@@ -3,9 +3,13 @@ import { expect, test } from '@playwright/test';
 import { launchApp, makeUserDataDir, removeUserDataDir, type Launched } from './helpers';
 
 // T-UI-8：切换主题 → 窗口按钮区域的颜色随之更新；拖动区可拖动窗口。
-// 两项都在真实的 Windows 窗口上验证：颜色从系统的窗口截图里取，拖动用系统级的鼠标输入。
+// 测试在后台运行（窗口不显示、不抢焦点、不碰真实鼠标），所以：
+// - 颜色：核对主进程实际交给系统按钮区（title bar overlay）的颜色，而不是截屏取色；
+// - 拖动：向窗口发 WM_NCHITTEST，确认拖动区被系统当作标题栏（HTCAPTION）——这正是 Windows 拖动窗口的依据；
+//   按钮是普通客户区，系统按钮区是最小化/最大化/关闭。
+// 取舍见 docs/decisions.md“测试在后台运行”。
 
-test.skip(process.platform !== 'win32', 'title bar overlay 与系统鼠标输入只在 Windows 上验证（v1 只做 Windows）');
+test.skip(process.platform !== 'win32', 'title bar overlay 与 WM_NCHITTEST 只在 Windows 上验证（v1 只做 Windows）');
 
 let dir: string;
 let launched: Launched;
@@ -13,13 +17,17 @@ let launched: Launched;
 test.beforeAll(async () => {
   dir = makeUserDataDir();
   launched = await launchApp(dir);
+  // 记录主进程对 setTitleBarOverlay 的每一次调用（只包一层，原样转发）
   await launched.app.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows()[0]!;
-    win.setBounds({ x: 80, y: 80, width: 1280, height: 800 });
-    win.setAlwaysOnTop(true);
-    win.focus();
+    const calls: { color?: string; symbolColor?: string }[] = [];
+    const original = win.setTitleBarOverlay.bind(win);
+    win.setTitleBarOverlay = (options) => {
+      calls.push({ color: options.color, symbolColor: options.symbolColor });
+      original(options);
+    };
+    (globalThis as unknown as { __overlayCalls: typeof calls }).__overlayCalls = calls;
   });
-  await launched.page.waitForTimeout(500);
 });
 
 test.afterAll(async () => {
@@ -27,140 +35,111 @@ test.afterAll(async () => {
   removeUserDataDir(dir);
 });
 
-/** 截取窗口本身（含系统窗口按钮区），返回窗口按钮区内一个不落在图标上的像素的颜色 */
-async function overlayPixel(l: Launched): Promise<string> {
-  return l.app.evaluate(async ({ BrowserWindow, desktopCapturer, screen }) => {
-    const win = BrowserWindow.getAllWindows()[0]!;
-    const id = win.getMediaSourceId();
-    const [w, h] = win.getSize() as [number, number];
-    const sf = screen.getDisplayMatching(win.getBounds()).scaleFactor;
-    const sources = await desktopCapturer.getSources({
-      types: ['window'],
-      thumbnailSize: { width: Math.round(w * sf), height: Math.round(h * sf) },
-    });
-    const img = sources.find((s) => s.id === id)?.thumbnail;
-    if (!img || img.isEmpty()) return 'no capture';
-    const size = img.getSize();
-    const bmp = img.toBitmap(); // BGRA
-    // 最右边“关闭”按钮的右上角附近：在按钮区内，避开图标
-    const x = size.width - Math.round(4 * (size.width / w));
-    const y = Math.round(4 * (size.height / h));
-    const i = (y * size.width + x) * 4;
-    const hex = (n: number | undefined) => (n ?? 0).toString(16).padStart(2, '0');
-    return `#${hex(bmp[i + 2])}${hex(bmp[i + 1])}${hex(bmp[i])}`.toUpperCase();
+async function lastOverlayColors(l: Launched): Promise<{ color?: string; symbolColor?: string } | null> {
+  return l.app.evaluate(() => {
+    const calls = (globalThis as unknown as { __overlayCalls: { color?: string; symbolColor?: string }[] }).__overlayCalls;
+    return calls.at(-1) ?? null;
   });
 }
 
 test('T-UI-8 切换主题时窗口按钮区域的颜色随之更新', async () => {
-  const { app, page } = launched;
-  // 鼠标移开，避免悬停高亮
-  await page.mouse.move(400, 400);
+  const { page } = launched;
 
-  // 先确认截图里确实包含窗口按钮区：手动设一个醒目的颜色，应该能读到
-  await app.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0]!.setTitleBarOverlay({ color: '#FF00FF', symbolColor: '#000000', height: 40 }),
-  );
-  await expect.poll(() => overlayPixel(launched), { timeout: 5000 }).toBe('#FF00FF');
+  // 窗口确实是在后台：没显示、没拿焦点
+  const state = await launched.app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0]!;
+    return { visible: w.isVisible(), focused: w.isFocused() };
+  });
+  expect(state).toEqual({ visible: false, focused: false });
 
-  // 切到浅色：页面通过 window.allay.window.setTitleBarColors 把按钮区改成 --surface-1（#FFFFFF）
+  // 浅色：按钮区底色是 --surface-1（#FFFFFF），符号色是 --foreground（#141B24）
   await page.evaluate(() => window.allay.settings.set({ theme: 'light' }));
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await expect.poll(() => overlayPixel(launched), { timeout: 5000 }).toBe('#FFFFFF');
+  await expect.poll(() => lastOverlayColors(launched)).toEqual({ color: '#FFFFFF', symbolColor: '#141B24' });
 
-  // 切回深色：#14171D
+  // 深色：#14171D / #F2F4F6
   await page.evaluate(() => window.allay.settings.set({ theme: 'dark' }));
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect.poll(() => overlayPixel(launched), { timeout: 5000 }).toBe('#14171D');
+  await expect.poll(() => lastOverlayColors(launched)).toEqual({ color: '#14171D', symbolColor: '#F2F4F6' });
+
+  // 颜色和顶栏实际渲染出来的底色一致（顶栏与按钮区连成一条）
+  const topbar = await page.getByTestId('topbar').evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(topbar).toBe('rgb(20, 23, 29)');
 });
 
-/**
- * 用系统级的鼠标输入（user32）按住拖动区并移动；坐标是物理像素。
- * 返回按下之前光标所在位置的顶层窗口句柄，用来确认点到的确实是被测窗口（而不是盖在上面的别的置顶窗口）。
- */
-function nativeDrag(from: { x: number; y: number }, to: { x: number; y: number }): bigint {
+const HT = { CLIENT: 1, CAPTION: 2, CLOSE: 20 } as const;
+
+/** 向窗口发 WM_NCHITTEST，返回系统对每个点（物理像素屏幕坐标）的命中结果。不移动鼠标、不改变焦点。 */
+function hitTest(hwnd: string, points: readonly { x: number; y: number }[]): number[] {
   const script = `
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
-using System.Threading;
-public static class AllayNativeDrag {
+public static class AllayHitTest {
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
-  [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
-  [DllImport("user32.dll")] static extern void mouse_event(uint f, uint dx, uint dy, uint d, UIntPtr e);
-  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; }
-  [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
-  [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr h, uint flags);
-  public static long Drag(int x1, int y1, int x2, int y2) {
+  [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  public static long Hit(long hwnd, int x, int y) {
     SetProcessDPIAware();
-    SetCursorPos(x1, y1); Thread.Sleep(150);
-    POINT p; p.X = x1; p.Y = y1;
-    long hit = GetAncestor(WindowFromPoint(p), 2).ToInt64();
-    // 先单击一次把窗口激活（后台启动的窗口拿不到前台，第一次按下只会激活它）；间隔超过双击时间，免得触发最大化
-    mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero); Thread.Sleep(50);
-    mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero); Thread.Sleep(800);
-    mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero); Thread.Sleep(150);
-    for (int i = 1; i <= 20; i++) { SetCursorPos(x1 + (x2 - x1) * i / 20, y1 + (y2 - y1) * i / 20); Thread.Sleep(25); }
-    Thread.Sleep(150);
-    mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero); Thread.Sleep(150);
-    return hit;
+    return SendMessage(new IntPtr(hwnd), 0x0084, IntPtr.Zero, new IntPtr(((y & 0xFFFF) << 16) | (x & 0xFFFF))).ToInt64();
   }
 }
 "@
-[AllayNativeDrag]::Drag(${Math.round(from.x)}, ${Math.round(from.y)}, ${Math.round(to.x)}, ${Math.round(to.y)})
+${points.map((p) => `[AllayHitTest]::Hit(${hwnd}, ${Math.round(p.x)}, ${Math.round(p.y)})`).join('\n')}
 `;
-  const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 30_000 });
-  return BigInt(out.trim().split(/s+/).pop() ?? '0');
+  const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script], {
+    encoding: 'utf8',
+    timeout: 30_000,
+    windowsHide: true,
+  });
+  return out.trim().split(/\s+/).map(Number);
 }
 
-test('T-UI-8 拖动区可以拖动窗口，可交互元素不是拖动区', async () => {
+test('T-UI-8 拖动区被系统当作标题栏，可交互元素不是拖动区', async () => {
   const { app, page } = launched;
 
-  // 结构：拖动区是 drag，上面的按钮是 no-drag
-  const regions = await page.evaluate(() => {
-    const region = (el: Element | null) => (el ? getComputedStyle(el).getPropertyValue('-webkit-app-region') || getComputedStyle(el).getPropertyValue('app-region') : null);
-    const drag = document.querySelector('[data-testid="drag-region"]');
-    const rect = drag!.getBoundingClientRect();
-    const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  // 页面结构：顶栏是 drag，上面的按钮是 no-drag
+  const layout = await page.evaluate(() => {
+    const region = (el: Element) => getComputedStyle(el).getPropertyValue('-webkit-app-region') || getComputedStyle(el).getPropertyValue('app-region');
+    const center = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    };
+    const drag = document.querySelector('[data-testid="drag-region"]')!;
+    const buttons = [...document.querySelectorAll('[data-testid="topbar"] button')];
     return {
-      topbar: region(document.querySelector('[data-testid="topbar"]')),
-      hitIsDragRegion: hit === drag,
-      buttons: [...document.querySelectorAll('[data-testid="topbar"] button')].map((b) => region(b)),
-      center: { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
+      topbar: region(document.querySelector('[data-testid="topbar"]')!),
+      buttonRegions: buttons.map(region),
+      dragPoint: center(drag),
+      buttonPoints: buttons.map(center),
+      contentPoint: center(document.querySelector('[data-testid="panel-right"]')!),
+      width: window.innerWidth,
     };
   });
-  expect(regions.topbar).toBe('drag');
-  expect(regions.hitIsDragRegion).toBe(true);
-  expect(regions.buttons.length).toBeGreaterThan(0);
-  for (const b of regions.buttons) expect(b).toBe('no-drag');
+  expect(layout.topbar).toBe('drag');
+  expect(layout.buttonRegions.length).toBeGreaterThan(0);
+  for (const r of layout.buttonRegions) expect(r).toBe('no-drag');
 
-  // 真实拖动：在拖动区中点按下，往右下拖 120×60（DIP）
-  const before = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBounds());
-  const points = await app.evaluate(
-    ({ BrowserWindow, screen }, c) => {
+  // 把页面坐标换成物理像素的屏幕坐标
+  const target = await app.evaluate(
+    ({ BrowserWindow, screen }, l) => {
       const win = BrowserWindow.getAllWindows()[0]!;
-      win.moveTop();
-      win.focus();
-      const content = win.getContentBounds();
-      const from = { x: Math.round(content.x + c.x), y: Math.round(content.y + c.y) };
-      const to = { x: from.x + 120, y: from.y + 60 };
+      const c = win.getContentBounds();
+      const toScreen = (p: { x: number; y: number }) => screen.dipToScreenPoint({ x: Math.round(c.x + p.x), y: Math.round(c.y + p.y) });
       return {
-        from: screen.dipToScreenPoint(from),
-        to: screen.dipToScreenPoint(to),
         hwnd: win.getNativeWindowHandle().readBigUInt64LE(0).toString(),
+        drag: toScreen(l.dragPoint),
+        buttons: l.buttonPoints.map(toScreen),
+        content: toScreen(l.contentPoint),
+        // 系统按钮区最右边是关闭按钮
+        close: toScreen({ x: l.width - 20, y: 20 }),
       };
     },
-    regions.center,
+    layout,
   );
-  const hit = nativeDrag(points.from, points.to);
-  expect(hit.toString(), '按下的位置上应该是被测窗口本身；不是的话说明有别的置顶窗口盖住了它').toBe(points.hwnd);
 
-  // 系统的拖动阈值会吃掉开头几个像素，所以位移允许 ±15 DIP 的误差；窗口大小不变
-  await expect(async () => {
-    const after = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getBounds());
-    const dx = after.x - before.x;
-    const dy = after.y - before.y;
-    expect(Math.abs(dx - 120), `水平位移 ${dx}`).toBeLessThanOrEqual(15);
-    expect(Math.abs(dy - 60), `垂直位移 ${dy}`).toBeLessThanOrEqual(15);
-    expect([after.width, after.height]).toEqual([before.width, before.height]);
-  }).toPass({ timeout: 5000 });
+  const [drag, content, close, ...buttons] = hitTest(target.hwnd, [target.drag, target.content, target.close, ...target.buttons]);
+  expect(drag, '拖动区应该命中标题栏（HTCAPTION），按住它系统就会拖动窗口').toBe(HT.CAPTION);
+  expect(content, '页面内容是客户区').toBe(HT.CLIENT);
+  expect(close, '最右边是系统的关闭按钮').toBe(HT.CLOSE);
+  for (const b of buttons) expect(b, '顶栏上的按钮不是拖动区').toBe(HT.CLIENT);
 });

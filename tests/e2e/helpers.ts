@@ -36,6 +36,8 @@ export async function launchApp(userDataDir: string): Promise<Launched> {
     if (v !== undefined && k !== 'ELECTRON_RENDERER_URL' && k !== 'ELECTRON_RUN_AS_NODE') env[k] = v;
   }
   env.ALLAY_USER_DATA_DIR = userDataDir;
+  // 窗口不显示、不抢焦点：测试不能影响用户的前台操作
+  env.ALLAY_E2E_HIDDEN = '1';
   const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR], env, cwd: DESKTOP_DIR });
   const page = await app.firstWindow();
   await page.waitForSelector('[data-testid="topbar"]');

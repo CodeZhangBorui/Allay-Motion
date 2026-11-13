@@ -130,3 +130,16 @@ describe('窗口位置和大小的恢复', () => {
     expect(restoreBounds({ x: 3000, y: 100, width: 1300, height: 800, maximized: false }, screen)).toEqual({ width: 1300, height: 800 });
   });
 });
+
+describe('只给测试用的开关', () => {
+  it('打包后的应用忽略它们', async () => {
+    const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
+    expect(readTestSwitches(true, { ALLAY_E2E_HIDDEN: '1', ALLAY_USER_DATA_DIR: 'C:/x' })).toEqual({ userDataDir: null, hiddenWindow: false });
+  });
+  it('未打包时生效', async () => {
+    const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
+    expect(readTestSwitches(false, { ALLAY_E2E_HIDDEN: '1', ALLAY_USER_DATA_DIR: 'C:/x' })).toEqual({ userDataDir: 'C:/x', hiddenWindow: true });
+    expect(readTestSwitches(false, { ALLAY_E2E_HIDDEN: 'yes' }).hiddenWindow).toBe(false);
+    expect(readTestSwitches(false, {})).toEqual({ userDataDir: null, hiddenWindow: false });
+  });
+});
