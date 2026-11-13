@@ -1,0 +1,192 @@
+# 05 导出
+
+导出的产物是一个带透明通道的短视频（或图片序列），用户把它放到剪辑软件里两段素材的上方轨道，对齐剪辑点。
+
+本文的命令行已在 FFmpeg 8.1.2（Windows x64）上用合成画面实测过，结论记在 5.9 节。实现时把这些实测脚本改写成自动化测试。脚本在 `docs/reference/ffmpeg-checks/`，需要 Node 和 PATH 里的 FFmpeg。它们把临时文件写到自身目录下的 `out*` 文件夹，其中第二个脚本会写出约 1 GB，跑完记得删。
+
+## 5.1 流程
+
+```
+空闲 → 准备 → 渲染帧 → 封装 → 完成
+              ↘ 取消 / 失败（任何阶段）
+```
+
+1. **准备**（主进程）：校验输出路径可写；确认 FFmpeg 可用；需要时探测 H.264 编码器；渲染进程用 `OfflineAudioContext` 混好音频，主进程写成临时 WAV。
+2. **渲染帧**：渲染进程新建导出 Worker 并 `load`。然后对 `i = 0 … 总帧数 − 1` 逐帧握手：
+   `pixels = await engine.renderFrame(i, quality, opaque)`，再 `await window.allay.export.writeFrame(jobId, pixels)`。只有绿幕预设传 `opaque`。
+   `writeFrame` 在数据写进 FFmpeg 的 stdin 并且（如果缓冲满了）等到 `drain` 之后才返回。这样内存里最多只有一两帧。
+3. **封装**：关闭 stdin，等 FFmpeg 以退出码 0 结束。输出先写到 `<目标>.partial`，成功后改名。
+4. **完成**：界面显示文件位置和剪辑点。
+
+- 总帧数和每一帧的时间按 `02-engine.md` 2.6 的定义：首帧在 `t = 0`，末帧在 `t = duration`，两端都渲染。所以导出的片段比 `duration` 长一帧，首尾两帧是全透明的。
+- 导出期间用 `powerSaveBlocker` 阻止系统休眠。
+- 导出是模态的：对话框盖住主界面，预览 Worker 暂停。
+
+## 5.2 输出设置
+
+| 项 | 选项 | 默认 |
+|---|---|---|
+| 分辨率 | 1920×1080、2560×1440、3840×2160、1080×1920、1080×1080、自定义 | 1920×1080 |
+| 帧率 | 24、25、30、50、60 | 60 |
+| 画质 | 草稿 `draft`、标准 `standard`、高 `high`、极致 `ultra`（子帧数见 `02-engine.md` 2.7） | 标准 |
+| 快门角 | 0–360 | 180 |
+| 格式 | 见 5.3 | 透明 MOV |
+
+- 自定义分辨率的宽高各限制在 64–4096，并取偶数。
+- 文件名：`{工程名}_{模板名}_{宽}x{高}_{帧率}fps.{扩展名}`，去掉文件系统不允许的字符；重名时加 ` (2)`。
+- 对话框里显示估算的文件大小和帧数。
+
+## 5.3 格式预设
+
+所有预设共用的输入部分：
+
+```
+ffmpeg -hide_banner -loglevel error -y
+  -f rawvideo -pixel_format rgba -video_size {W}x{H} -framerate {FPS} -i pipe:0
+  [-i {mix.wav}]
+```
+
+四个预设的 ID 依次是 `prores4444`、`png-sequence`、`webm-vp9`、`greenscreen-mp4`，工程文件和设置里用这些 ID。
+
+色彩滤镜链记作 `{CS:<像素格式>}`，展开为：
+
+```
+scale=out_color_matrix=bt709:out_range=limited,format=<像素格式>,setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709
+```
+
+**① 透明 MOV，ProRes 4444（默认）**。Premiere、DaVinci Resolve、Final Cut、After Effects 都能直接导入。
+
+```
+  -vf "{CS:yuva444p10le}"
+  -c:v prores_ks -profile:v 4444 -alpha_bits 16 -vendor apl0
+  [-c:a pcm_s16le]
+  {out}.mov
+```
+
+不要设 `-qscale:v`。默认质量下像素边缘的误差最大 3/255；调低质量会在像素画的硬边上出现明显振铃（见 5.9）。
+
+**② PNG 序列**。无损，兼容性最广，体积最小。
+
+```
+  -c:v png -start_number 0 {目录}/{name}_%05d.png
+```
+
+有音频时另存 `{name}.wav` 到同一目录。
+
+**③ 透明 WebM，VP9**。体积很小，适合 OBS 和网页；多数剪辑软件不认它的透明通道，界面上要写明。
+
+```
+  -vf "{CS:yuva420p}"
+  -c:v libvpx-vp9 -b:v 0 -crf 24 -row-mt 1 -auto-alt-ref 0
+  [-c:a libopus -b:a 160k]
+  {out}.webm
+```
+
+**④ 绿幕 MP4，H.264**。给不方便处理透明通道的剪辑软件。引擎用不透明模式渲染，底色默认 `#00FF00`，可选 `#0000FF`、`#000000` 或自定义。
+
+```
+  -vf "{CS:yuv420p}"
+  -c:v {encoder} {encoderArgs}
+  -bsf:v h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0
+  -movflags +faststart
+  [-c:a aac -b:a 192k]
+  {out}.mp4
+```
+
+| 探测顺序 | `encoder` | `encoderArgs` |
+|---|---|---|
+| 1 | `h264_nvenc` | `-rc vbr -cq 18 -b:v 0` |
+| 2 | `h264_qsv` | `-global_quality 18` |
+| 3 | `h264_amf` | `-rc cqp -qp_i 18 -qp_p 18`（未实测，测试机没有 AMD 显卡） |
+| 4 | `h264_mf` | `-b:v {码率}`，1080p60 取 20M，按像素数 × 帧率等比缩放 |
+| 5 | `libx264`（仅当所用构建里有） | `-crf 16 -preset medium` |
+| 6 | `libopenh264`（仅当所用构建里有） | `-b:v {码率}` |
+
+**编码器探测**：`ffmpeg -encoders` 里列出来不代表能用（取决于显卡和驱动）。首次需要时，按顺序对每个候选做一次真实的试编码（256×144、8 帧、输出到空设备），第一个成功的胜出。结果连同 FFmpeg 版本缓存在设置里，设置页提供“重新检测”。全部失败时禁用这个预设并说明原因。
+
+## 5.4 色彩与透明通道的硬性要求
+
+1. 引擎交出来的是 **sRGB 编码、直通 alpha** 的 RGBA8（见 `02-engine.md` 2.6）。不要把预乘数据直接喂给 FFmpeg，否则半透明边缘在剪辑软件里会发黑。
+2. **必须显式指定 BT.709 矩阵。** FFmpeg 把 RGB 转成 YUV 时默认用 BT.601，高清素材在剪辑软件里会按 709 解读，颜色就偏了。
+3. **色彩标记用 `setparams` 滤镜写。** 在 8.1.2 上，把 `-color_primaries`、`-color_trc` 写成输出选项时，ProRes 流里这两项仍是 unknown；用滤镜写则三项都正确。
+4. H.264 一律加 `h264_metadata` 比特流滤镜，保证无论哪个编码器都带上色彩标记。
+5. 不做任何伽马转换。标记写 bt709，像素保持 sRGB 编码，这是图形素材的通行做法。
+6. `yuv420p` 要求宽高为偶数。
+
+## 5.5 音频
+
+- 混音在渲染进程做：`new OfflineAudioContext(2, ceil(duration × 48000), 48000)`。
+- 对每个 cue：`AudioBufferSourceNode`（`playbackRate = rate`）→ `GainNode` → `StereoPannerNode` → 输出，在 `at` 秒开始。
+- 调度 cue 的函数只写一份，预览时传实时的 `AudioContext`，导出时传离线的。
+- 结尾做 10 ms 淡出，音频长度与视频严格相等。
+- 混音峰值超过 0 dBFS 时整体压到 −1 dBFS，并记一条提示。
+- 输出 16 位 PCM 的 WAV，经 IPC 交给主进程写临时文件。
+- 没有 cue（或全部静音）时不加音轨。
+
+预览时：播放从 `t` 开始就调度所有 `at ≥ t` 的 cue；拖动时间轴时不出声。
+
+## 5.6 FFmpeg 二进制
+
+- FFmpeg 作为**独立进程**调用，不链接进应用。
+- `scripts/fetch-ffmpeg.ts` 在构建时下载一个**固定版本**的构建并校验 SHA-256，放到 `resources/ffmpeg/<平台>/`。二进制不进仓库。用 electron-builder 的 `extraResources` 打进安装包。
+- 默认用 **LGPL 构建**，这样项目无论开源还是闭源都能分发。LGPL 构建里没有 `libx264`，所以 H.264 走上面的探测顺序。具体选哪个发行渠道和变体见 `09-compliance.md`。
+- 5.9 的实测用的是本机已有的另一个构建（8.1.2 的 GPL 完整版）。**固定下来的那个 LGPL 构建必须把 5.10 的测试重新跑通**，尤其要用 `ffmpeg -encoders` 确认 `h264_mf` 在不在。
+- 开发环境可以用系统里已有的 FFmpeg：按 `ALLAY_FFMPEG` 环境变量、`resources/ffmpeg/`、`PATH` 的顺序查找。
+- 启动时跑一次 `ffmpeg -version` 并记进日志。应用依赖的编码器是 `prores_ks`、`png`、`libvpx-vp9`、`aac`、`libopus`、`pcm_s16le`，缺任何一个就禁用对应预设。
+
+## 5.7 进度、取消、错误
+
+- 进度 = 已写入帧数 / 总帧数。剩余时间用最近 20 帧的平均耗时估算。
+- 取消：终止导出 Worker，杀掉 FFmpeg 进程，删除 `.partial` 和临时 WAV。
+- FFmpeg 非零退出：取 stderr 最后 20 行，界面给出一句人话（磁盘满、路径不可写、编码器不可用各有对应文案），并提供“复制诊断信息”。
+- 模板在导出中抛错或超时：同样走失败流程，说明是哪一帧。
+- 任何结局都不留下临时文件。
+
+## 5.8 剪辑点
+
+- 完成页显示：“剪辑点：第 {n} 帧（{时间码}）。把片段放在上方轨道，让这一帧对齐两段素材的接缝。”其中 `n = round(cutTime × fps)`。
+- 导出前自动做一次**遮盖检查**：按输出分辨率渲染 `cutTime` 这一帧，最小 alpha 不到 255 就在对话框里警告“这一刻画面没有完全遮住，接缝会露出来”，但不阻止导出。
+- 文件里用 `-metadata comment="cut_frame={n}"` 记一份。
+
+## 5.9 实测记录
+
+测试环境：FFmpeg 8.1.2，Windows 11。输入是合成画面。
+
+| 结论 | 数据 |
+|---|---|
+| 不指定矩阵时用的是 BT.601 | 纯红 `(255,0,0)` 存成 10 位 Y/Cb/Cr = 326/361/960；指定后为 250/409/960，与 BT.709 有限范围的理论值一致 |
+| ① 的往返精度 | 八个色块的最大通道误差 1；50% alpha 存为 514/1023，读回 129 |
+| `setparams` 才能写全色彩标记 | 输出选项写法：`color_transfer` 和 `color_primaries` 为 unknown；滤镜写法：三项均为 bt709，范围 tv |
+| ② 完全无损 | 往返误差 0 |
+| ③ 透明通道有效 | 流上有 `alpha_mode=1`。**回读验证必须在输入前加 `-c:v libvpx-vp9`**，FFmpeg 自带的 vp9 解码器会丢掉 alpha |
+| `h264_mf` 不写色彩标记 | 不加比特流滤镜时纯绿读回 `(19,255,8)`；加上后为 `(0,254,0)` |
+| 编码器存在不等于可用 | 测试机上 `h264_amf` 在列表里但编码失败；`nvenc`、`qsv`、`mf` 成功 |
+| 管道写入正常 | 1080p 写 120 帧，每帧都触发了背压（`drain`），输出恰为 120 帧、2.000 秒 |
+
+体积和速度（1920×1080，方块风格的合成画面，折算成 2 秒 60 fps）：
+
+| 编码 | 体积 | 编码速度 | 像素最大误差 |
+|---|---|---|---|
+| ProRes 4444，默认质量 | 约 107 MB | 约 56 帧/秒 | 3/255 |
+| ProRes 4444，`-qscale:v 9` | 约 46 MB | 约 121 帧/秒 | 26/255 |
+| QuickTime Animation（`qtrle`，无损） | 约 26 MB | 约 72 帧/秒 | 0 |
+| PNG 序列 | 约 5 MB | 约 171 帧/秒 | 0 |
+| VP9 带 alpha，`-crf 24` | 约 2 MB | 约 17 帧/秒 | 87/255（4:2:0 色度） |
+
+- ProRes 4444 体积大是这种编码的常态，导出对话框要把估算大小写出来。
+- `qtrle` 对没有运动模糊的像素画很划算，但各剪辑软件的支持情况没有验证，v1 不做成预设。
+- 3840×2160 的 ProRes 4444 管道编码约 7 帧/秒。
+
+## 5.10 验收测试
+
+| 编号 | 内容 | 判定 |
+|---|---|---|
+| T-EXP-1 | 每个预设用八色块测试画面编码再解码 | ①：颜色误差 ≤ 4、alpha 误差 ≤ 1；②：0；③：alpha 误差 ≤ 16、平坦区域颜色误差 ≤ 6；④：平坦区域颜色误差 ≤ 4 |
+| T-EXP-2 | ① 的输出解成原始 `yuva444p10le` | 纯红色块的 Y 为 250 ± 2 |
+| T-EXP-3 | 对 ①③④ 跑 ffprobe | 色彩标记为 bt709 / bt709 / bt709，范围 tv；帧数等于 `frameCount(duration, fps)`；帧率精确 |
+| T-EXP-4 | 有 cue 和没有 cue 各导出一次 | 有：存在 48 kHz 立体声音轨，时长与视频相差不到 1 帧；没有：没有音轨 |
+| T-EXP-5 | 导出到一半取消 | `.partial` 和临时文件都不存在；没有残留的 FFmpeg 进程 |
+| T-EXP-6 | 让 FFmpeg 失败（不可写路径、伪造的坏二进制） | 界面出现对应文案；没有残留文件 |
+| T-EXP-7 | 端到端：T1 默认参数，1080p60，标准画质，① | 总耗时在预算内；解码后第 `n` 帧的最小 alpha 为 255；首末帧最大 alpha 为 0 |
+| T-EXP-8 | 自定义分辨率 1001×563 | 被修正为偶数，④ 导出成功 |
+| T-EXP-9 | 编码器探测，候选里混入一个必然失败的 | 跳过它，选中下一个可用的 |
