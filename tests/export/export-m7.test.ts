@@ -1,5 +1,6 @@
 // M7 的导出验收测试（docs/05-export.md 5.10）：透明 WebM（③）和绿幕 MP4（④）的 T-EXP-1、T-EXP-3、T-EXP-5、T-EXP-6，
-// T-EXP-8（自定义分辨率修正为偶数后 ④ 导出成功）、T-EXP-9（编码器探测跳过必然失败的候选），以及重名不覆盖。
+// T-EXP-8（自定义分辨率修正为偶数后 ④ 导出成功）、T-EXP-9（编码器探测跳过必然失败的候选），以及重名不覆盖；
+// 合并 M6b 后加上 T-EXP-4 ③④（带音轨的封装、重名、取消与失败的清理）。
 // 直接驱动主进程的导出任务和编码器探测，用 pnpm ffmpeg:fetch 取回的固定 LGPL 构建。
 // ①② 的同名测试在 export.test.ts；T-EXP-7（端到端）和六个内置模板的导出在 tests/e2e/export.spec.ts。
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
@@ -11,6 +12,7 @@ import { ExportJob, ExportJobError, uniquePath, type ExportJobOptions } from '..
 import { probeCaps, probeFfmpeg } from '../../apps/desktop/src/main/export/ffmpeg-locate';
 import { H264_ENCODERS, evenDimension, type ExportErrorCode, type H264Probe } from '../../apps/desktop/src/shared/export';
 import { frameCount } from '../../packages/engine/src/frames';
+import { encodeWav } from '../../apps/desktop/src/renderer/audio/wav';
 import { BARS, FFMPEG, FFPROBE, H, W, barsFrame, decodeFrame, processAlive, removeDir, tempDir } from './ffmpeg';
 
 let dir: string;
@@ -289,5 +291,120 @@ describe('文件命名（5.2）', () => {
     await j.writeFrame(barsFrame());
     expect(await j.finish()).toBe(join(dir, 'taken (2).webm'));
     expect(readdirSync(dir).sort()).toEqual(['taken (2).webm', 'taken.webm']);
+  });
+});
+
+// ---- T-EXP-4 ③④ 音轨（M6b × M7，5.5）。WAV 是脚本生成的正弦波（测试数据），用和渲染进程同一个编码函数 ----
+
+/** 与渲染进程 mixFrames 同一规则：样本数 = 帧数 / 帧率 × 48000 */
+function sineWav(frames: number, fps: number): Uint8Array {
+  const n = Math.round((frames / fps) * 48_000);
+  const l = new Float32Array(n);
+  const r = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    l[i] = 0.25 * Math.sin((2 * Math.PI * 440 * i) / 48_000);
+    r[i] = 0.25 * Math.sin((2 * Math.PI * 660 * i) / 48_000);
+  }
+  return encodeWav([l, r], 48_000);
+}
+
+/** 所有流的类型、编码、采样率、声道、时长（容器里没有流时长时用格式时长） */
+function audioStreams(path: string): { video: Record<string, string | number>; audio: Record<string, string | number>[]; format: number } {
+  const r = spawnSync(FFPROBE, ['-v', 'error', '-show_entries', 'stream=codec_type,codec_name,sample_rate,channels,duration:format=duration', '-of', 'json', path], { encoding: 'utf8', windowsHide: true });
+  if (r.status !== 0) throw new Error(`ffprobe failed: ${r.stderr}`);
+  const j = JSON.parse(r.stdout) as { streams: Record<string, string | number>[]; format: { duration: string } };
+  return { video: j.streams.find((s) => s.codec_type === 'video')!, audio: j.streams.filter((s) => s.codec_type === 'audio'), format: Number(j.format.duration) };
+}
+
+/** 一条流的时长：WebM 的流上没有 duration，用 -count_packets 也拿不到，退回逐包累加 */
+function streamSeconds(path: string, select: 'v:0' | 'a:0'): number {
+  const r = spawnSync(FFPROBE, ['-v', 'error', '-select_streams', select, '-show_entries', 'packet=pts_time,duration_time', '-of', 'csv=p=0', path], { encoding: 'utf8', windowsHide: true });
+  if (r.status !== 0) throw new Error(`ffprobe failed: ${r.stderr}`);
+  let end = 0;
+  for (const line of r.stdout.split(/\r?\n/)) {
+    const [pts, dur] = line.split(',').map(Number);
+    if (Number.isFinite(pts) && Number.isFinite(dur)) end = Math.max(end, pts! + dur!);
+  }
+  return end;
+}
+
+describe('T-EXP-4 音轨（③ WebM、④ 绿幕 MP4）', () => {
+  const FPS = 30;
+  const FRAMES = 45;
+  const cases = [
+    { preset: 'webm-vp9', ext: 'webm', codec: 'opus' },
+    { preset: 'greenscreen-mp4', ext: 'mp4', codec: 'aac' },
+  ] as const;
+
+  for (const c of cases) {
+    it(`T-EXP-4 ${c.preset} 有 cue：存在 48 kHz 立体声 ${c.codec} 音轨，时长与视频相差不到 1 帧；没有 cue：没有音轨；临时 WAV 不留下`, async () => {
+      const temp = join(dir, 'tmp');
+      mkdirSync(temp);
+      const j = job({ preset: c.preset, fps: FPS, totalFrames: FRAMES, audio: true, tempDir: temp, target: join(dir, `with.${c.ext}`) });
+      await j.start();
+      expect(j.pid).toBeUndefined();
+      await j.writeAudio(sineWav(FRAMES, FPS));
+      for (let i = 0; i < FRAMES; i++) await j.writeFrame(barsFrame());
+      const out = await j.finish();
+      const s = audioStreams(out);
+      expect(s.audio).toHaveLength(1);
+      expect(s.audio[0]).toMatchObject({ codec_name: c.codec, sample_rate: '48000', channels: 2 });
+      const video = streamSeconds(out, 'v:0');
+      const audio = streamSeconds(out, 'a:0');
+      expect(video).toBeCloseTo(FRAMES / FPS, 2);
+      expect(Math.abs(audio - video), `audio ${audio} vs video ${video}`).toBeLessThan(1 / FPS);
+      expect(readdirSync(temp)).toEqual([]);
+
+      const plain = await encode({ preset: c.preset, fps: FPS, totalFrames: FRAMES, target: join(dir, `without.${c.ext}`) }, barsFrame());
+      expect(audioStreams(plain).audio).toEqual([]);
+    });
+  }
+
+  it('T-EXP-4 带音轨时重名同样加 “ (2)”：视频文件和 PNG 序列目录（目录里的 WAV 跟着走）', async () => {
+    const temp = join(dir, 'tmp');
+    mkdirSync(temp);
+    writeFileSync(join(dir, 'clip.webm'), 'taken');
+    const target = await uniquePath(join(dir, 'clip.webm'));
+    const j = job({ fps: FPS, totalFrames: 5, audio: true, tempDir: temp, target });
+    await j.start();
+    await j.writeAudio(sineWav(5, FPS));
+    for (let i = 0; i < 5; i++) await j.writeFrame(barsFrame());
+    expect(await j.finish()).toBe(join(dir, 'clip (2).webm'));
+    expect(readdirSync(temp)).toEqual([]);
+
+    mkdirSync(join(dir, 'seq'));
+    const seqTarget = await uniquePath(join(dir, 'seq'));
+    const p = job({ preset: 'png-sequence', fps: FPS, totalFrames: 5, audio: true, target: seqTarget });
+    await p.start();
+    await p.writeAudio(sineWav(5, FPS));
+    for (let i = 0; i < 5; i++) await p.writeFrame(barsFrame());
+    const final = await p.finish();
+    expect(final).toBe(join(dir, 'seq (2)'));
+    expect(readdirSync(final)).toContain('seq (2).wav');
+    expect(readdirSync(join(dir, 'seq'))).toEqual([]);
+  });
+
+  it('T-EXP-4 带音轨时取消、失败：.partial 和临时 WAV 都不留下，没有残留的 FFmpeg 进程', async () => {
+    const temp = join(dir, 'tmp');
+    mkdirSync(temp);
+    const j = job({ preset: 'greenscreen-mp4', fps: FPS, totalFrames: 60, audio: true, tempDir: temp, target: join(dir, 'half.mp4') });
+    await j.start();
+    await j.writeAudio(sineWav(60, FPS));
+    const pid = j.pid!;
+    expect(readdirSync(temp)).toHaveLength(1);
+    for (let i = 0; i < 10; i++) await j.writeFrame(barsFrame());
+    await j.cancel();
+    expect(processAlive(pid)).toBe(false);
+    expect(readdirSync(temp)).toEqual([]);
+    expect(readdirSync(dir)).toEqual(['tmp']);
+
+    // 帧数不足就封装：frame-mismatch，同样不留
+    const k = job({ fps: FPS, totalFrames: 10, audio: true, tempDir: temp, target: join(dir, 'short.webm') });
+    await k.start();
+    await k.writeAudio(sineWav(10, FPS));
+    await k.writeFrame(barsFrame());
+    await expectFailure(k.finish(), 'frame-mismatch');
+    expect(readdirSync(temp)).toEqual([]);
+    expect(readdirSync(dir)).toEqual(['tmp']);
   });
 });
