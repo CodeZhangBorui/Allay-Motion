@@ -107,32 +107,28 @@ test.describe('预览', () => {
     const { page } = launched;
     const msg = await messages(page);
     const generation = await page.evaluate(() => window.__allayTest!.workerGeneration());
-    // 主线程卡顿：长任务观察器 + 10 ms 心跳的最大间隔
+    // 主线程卡顿，两种量法：
+    // - 页面里的长任务观察器（主线程上任何超过 50 ms 的任务都会记下）；
+    // - 测试这边每 20 ms 经 CDP 往页面主线程发一次 evaluate，量往返时间。不用页面里的 setInterval 心跳：
+    //   窗口不显示时 Chromium 会把隐藏页面的计时器压到约每秒一次，心跳的间隔量出来的是节流，不是卡顿。
     await page.evaluate(() => {
-      const w = window as unknown as { __jank: { longTasks: number[]; maxGap: number; stop: () => void } };
       const longTasks: number[] = [];
       const obs = new PerformanceObserver((list) => {
         for (const e of list.getEntries()) longTasks.push(e.duration);
       });
       obs.observe({ type: 'longtask' });
-      let last = performance.now();
-      let maxGap = 0;
-      const timer = setInterval(() => {
-        const now = performance.now();
-        maxGap = Math.max(maxGap, now - last);
-        last = now;
-      }, 10);
-      w.__jank = {
-        longTasks,
-        get maxGap() {
-          return maxGap;
-        },
-        stop: () => {
-          clearInterval(timer);
-          obs.disconnect();
-        },
-      } as never;
+      (window as unknown as { __jank: unknown }).__jank = { longTasks, stop: () => obs.disconnect() };
     });
+    let probing = true;
+    let maxRoundTrip = 0;
+    const probe = (async () => {
+      while (probing) {
+        const t0 = performance.now();
+        await page.evaluate(() => 0);
+        maxRoundTrip = Math.max(maxRoundTrip, performance.now() - t0);
+        await new Promise((r) => setTimeout(r, 20));
+      }
+    })();
     const started = Date.now();
     await page.evaluate((code) => window.__allayTest!.loadTemplate(code), readFixture('hang-update.js'));
     await waitStatus(page, 'unresponsive', 10_000);
@@ -144,13 +140,16 @@ test.describe('预览', () => {
     await expect.poll(() => page.evaluate(() => window.__allayTest!.workerGeneration())).toBe(generation + 1);
     await expect.poll(() => page.workers().filter((w) => /engine\.worker/.test(w.url())).length).toBe(1);
     await page.waitForTimeout(300);
-    const jank = await page.evaluate(() => {
-      const j = (window as unknown as { __jank: { longTasks: number[]; maxGap: number; stop: () => void } }).__jank;
+    probing = false;
+    await probe;
+    const longTasks = await page.evaluate(() => {
+      const j = (window as unknown as { __jank: { longTasks: number[]; stop: () => void } }).__jank;
       j.stop();
-      return { longTasks: j.longTasks, maxGap: j.maxGap };
+      return j.longTasks;
     });
-    expect(jank.longTasks.filter((d) => d > 100)).toEqual([]);
-    expect(jank.maxGap).toBeLessThan(100);
+    expect(longTasks.filter((d) => d > 100)).toEqual([]);
+    expect(maxRoundTrip).toBeLessThan(100);
+    test.info().annotations.push({ type: 'T-ARC-5 主线程', description: `longtasks=${JSON.stringify(longTasks)} maxRoundTrip=${maxRoundTrip.toFixed(1)}ms` });
 
     // 点“重试”换回正常模板
     await page.evaluate(() => window.__allayTest!.loadBuiltin());
