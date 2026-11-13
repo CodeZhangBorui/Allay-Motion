@@ -1,3 +1,4 @@
+import { installPixelScale } from '@allay/ui/lib/pixel-scale';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
@@ -18,6 +19,7 @@ async function bootstrap(): Promise<void> {
   window.allay.resources.onChanged((next) => useResourceStore.getState().replace(next));
   if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
+  installPixelScale();
 
   setSystemLocale(info.systemLocale);
   const language = resolveLanguage(settings.language, info.systemLocale);

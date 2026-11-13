@@ -22,6 +22,14 @@
     "note": "方舟像素字体 12px 比例宽度 zh_hans 的 BDF，取自发布包 ark-pixel-font-12px-proportional-bdf-v2026.11.10.zip（sha256 f8f2880a…db7dfd），未做任何修改；许可全文 resources/fonts/ark-pixel/OFL.txt 同包附带。没有原版层时文字的兜底字形（docs/decisions.md M2b）"
   },
   {
+    "path": "packages/ui/assets/fonts/ark-pixel-12px-proportional-zh_hans.otf.woff2",
+    "origin": "third-party",
+    "source": "https://github.com/TakWolf/ark-pixel-font/releases/tag/2026.11.10",
+    "author": "TakWolf",
+    "license": "OFL-1.1",
+    "note": "方舟像素字体 12px 比例宽度 zh_hans 的网页字体（OTF 版 WOFF2），取自发布包 ark-pixel-font-12px-proportional-otf.woff2-v2026.11.10.zip（sha256 7929b4d2…fe894e2b，与 GitHub 发布页登记的摘要一致），未做任何修改；包里的 OFL.txt 与 resources/fonts/ark-pixel/OFL.txt 逐字节相同，后者随安装包分发。界面像素字（docs/06-ui-design.md 6.2、docs/decisions.md 界面重设计）"
+  },
+  {
     "path": "tests/fixtures/ui-baselines/*.png",
     "origin": "rendered",
     "generator": "pnpm test:e2e:baselines",
