@@ -124,8 +124,10 @@ export default tseslint.config(
       'playwright-report/**',
       // 其他会话放在仓库目录里的 git worktree（.git/info/exclude 已排除），不属于这份代码
       '.claude/**',
-      // 故意违规的夹具，只由 T-ARC-1 的测试以虚拟路径检查
+      // 故意违规的夹具，只由 T-ARC-1、T-DEV-4 的测试以虚拟路径检查
       'tests/fixtures/lint/**',
+      // T-DEV-2 故意写错语法的模板夹具
+      'tests/fixtures/templates/dev/syntax-error.js',
     ],
   },
   js.configs.recommended,
