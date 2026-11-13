@@ -7,6 +7,7 @@ import { ParamsPanel } from '../features/params/ParamsPanel';
 import { PreviewArea } from '../features/preview/PreviewArea';
 import { TransportBar } from '../features/transport/TransportBar';
 import { useUiStore, type Side } from '../stores/uiStore';
+import { layout } from '../features/commands/commands';
 
 // 三栏加播放条（6.3）：左 280（240–360）、中间自适应、右 320（280–420）。
 // 两侧可拖、可折叠；宽度和折叠状态经主进程写进 settings.json。
@@ -52,8 +53,14 @@ export function Workspace() {
     record('right', rightRef.current);
   }, [record, leftRef, rightRef]);
 
-  // Ctrl+B 折叠或展开左栏（6.4、6.7）
+  // Ctrl+B 折叠或展开左栏（6.4、6.7）；命令面板也用它
   useEffect(() => {
+    layout.toggleLeft = () => {
+      const panel = leftRef.current;
+      if (!panel) return;
+      if (panel.isCollapsed()) panel.expand();
+      else panel.collapse();
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.code === 'KeyB') {
         e.preventDefault();

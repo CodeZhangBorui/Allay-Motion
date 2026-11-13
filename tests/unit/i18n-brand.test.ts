@@ -36,6 +36,14 @@ describe('i18n（6.9）', () => {
     const known = new Set([...keys(en), ...Object.keys(brandMessages.en).map((k) => `brand.${k}`)]);
     expect([...used].filter((k) => !known.has(k))).toEqual([]);
   });
+  it('编辑器控件（packages/ui/src/editor）用到的文案键都在 editor. 下面', () => {
+    const files = walk(join(ROOT, 'packages/ui/src/editor')).filter((f) => /\.tsx?$/.test(f));
+    const used = new Set<string>();
+    for (const f of files) for (const m of readFileSync(f, 'utf8').matchAll(/\beditor\.t\(\s*['"`]([\w.]+)['"`]/g)) used.add(`editor.${m[1]!}`);
+    expect(used.size).toBeGreaterThan(10);
+    const known = new Set(keys(en));
+    expect([...used].filter((k) => !known.has(k))).toEqual([]);
+  });
   it('非官方声明符合 9.5', () => {
     const official = 'NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.';
     expect(brandMessages.en.disclaimer).toBe(official);

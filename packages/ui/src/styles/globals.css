@@ -219,3 +219,66 @@
     image-rendering: pixelated;
   }
 }
+
+/* ---------- 骨架、悦灵占位、内容入场（docs/07-allay-mascot.md 7.6 A） ---------- */
+@keyframes allay-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .9; }
+}
+@keyframes allay-ph-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6%); }
+}
+@keyframes allay-ph-wing {
+  0%, 100% { transform: scaleY(1) rotate(-8deg); }
+  50% { transform: scaleY(.55) rotate(8deg); }
+}
+@keyframes allay-item-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@layer components {
+  .allay-breathe {
+    animation: allay-breathe 1.6s var(--ease-in-out) infinite;
+  }
+  .allay-placeholder[data-clip='hover'] .allay-ph-bob,
+  .allay-placeholder[data-clip='sad'] .allay-ph-bob {
+    animation: allay-ph-bob 1.5s var(--ease-in-out) infinite;
+  }
+  .allay-placeholder .allay-ph-wing {
+    transform-origin: 90% 50%;
+    animation: allay-ph-wing .25s linear infinite;
+  }
+  .allay-placeholder[data-clip='fly'] .allay-ph-wing {
+    animation-duration: .133s;
+  }
+  .allay-placeholder[data-clip='sad'] .allay-ph-wing {
+    animation-duration: .9s;
+  }
+  .allay-item-in {
+    animation: allay-item-in var(--dur-3) var(--ease-out) both;
+  }
+  /* 小尺寸的棋盘格（模板封面、色块的透明部分） */
+  .preview-checker-sm {
+    background-color: #2a2a2a;
+    background-image: conic-gradient(#3a3a3a 25%, transparent 0 50%, #3a3a3a 0 75%, transparent 0);
+    background-size: 8px 8px;
+  }
+  /* react-colorful 的尺寸与圆角 */
+  .allay-colorful .react-colorful {
+    width: 100%;
+    height: 160px;
+  }
+  .allay-colorful .react-colorful__saturation {
+    border-radius: 6px 6px 0 0;
+  }
+  .allay-colorful .react-colorful__last-control {
+    border-radius: 0 0 6px 6px;
+  }
+}
+/* 减少动效：悦灵、骨架、入场都不动（T-ALY-4） */
+[data-reduced-motion='true'] .allay-breathe,
+[data-reduced-motion='true'] .allay-placeholder *,
+[data-reduced-motion='true'] .allay-item-in {
+  animation: none !important;
+}

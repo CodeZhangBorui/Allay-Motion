@@ -35,6 +35,14 @@ export class PreviewEngine {
   /** 已装载、正在装载时用的 resourceStamp：资源栈变了要重新装载（引擎据此清空贴图缓存） */
   private loadedStamp = '';
   private loadingStamp = '';
+  /** 已装载的模板与输出的版本（projectStore.structureRevision）：没变时改参数走 setParams，不重新装载代码 */
+  private loadedStructure = -1;
+  /** 装载进行中又来了新的工程版本：做完这一次再来一次（同一时刻最多一个在途的装载） */
+  private busy = false;
+  private again = false;
+  private scheduled = false;
+  /** 高质量预览（6.4 播放条右侧的开关）：预览也做子帧累积 */
+  quality: { subframes: number; shutterAngle: number } | undefined = undefined;
   private rendering = false;
   private pendingTime: number | null = null;
   /** 看门狗之后不自动重新装载同一个模板，等用户点“重试” */
@@ -58,10 +66,20 @@ export class PreviewEngine {
     void this.applyViewport();
   }
 
-  /** 当前工程（模板、参数、输出）变了：重新装载 */
+  /** 当前工程（模板、参数、输出）变了：重新装载或改参数。每个动画帧最多一次（1.7） */
   reload(): void {
-    if (this.holdLoad) return;
-    void this.loadCurrent();
+    if (this.holdLoad || this.scheduled) return;
+    this.scheduled = true;
+    requestAnimationFrame(() => {
+      this.scheduled = false;
+      void this.loadCurrent();
+    });
+  }
+
+  /** 高质量预览开关 */
+  setQuality(quality: { subframes: number; shutterAngle: number } | undefined): void {
+    this.quality = quality;
+    this.requestRender(useTransportStore.getState().time);
   }
 
   /** 错误卡片上的“重试” */
@@ -110,7 +128,7 @@ export class PreviewEngine {
         const host = this.host;
         if (!host || this.loadedRevision < 0) break;
         try {
-          await host.render(t);
+          await host.render(t, this.quality);
         } catch (error) {
           this.handleError(error);
           break;
@@ -128,6 +146,7 @@ export class PreviewEngine {
       this.host = null;
       this.loadedRevision = -1;
       this.loadingRevision = -1;
+      this.loadedStructure = -1;
       this.appliedSize = '';
       const generation = ++this.generation;
       usePreviewStore.getState().setGeneration(generation);
@@ -205,30 +224,53 @@ export class PreviewEngine {
   }
 
   private async loadCurrent(): Promise<void> {
+    if (this.busy) {
+      this.again = true;
+      return;
+    }
+    this.busy = true;
+    try {
+      await this.loadOnce();
+    } finally {
+      this.busy = false;
+      if (this.again) {
+        this.again = false;
+        void this.loadCurrent();
+      }
+    }
+  }
+
+  private async loadOnce(): Promise<void> {
     const host = this.host;
     if (!host) return;
-    const { template, params, output, revision } = useProjectStore.getState();
+    const { template, params, output, revision, structureRevision } = useProjectStore.getState();
     // 模板列表还没取到：等 projectStore 里有了模板再装
     if (!template) return;
     const stamp = loadStamp(template.assets);
     if ((revision === this.loadingRevision && stamp === this.loadingStamp) || (revision === this.loadedRevision && stamp === this.loadedStamp)) return;
     this.loadingRevision = revision;
     this.loadingStamp = stamp;
-    usePreviewStore.getState().setStatus({ kind: 'loading' });
+    // 只改了参数（模板、输出、资源栈都没变，上一次装载成功）：setParams，不重新装载代码，也不进入“装载中”
+    const paramsOnly = this.loadedRevision >= 0 && structureRevision === this.loadedStructure && stamp === this.loadedStamp && usePreviewStore.getState().status.kind === 'ready';
+    if (!paramsOnly) usePreviewStore.getState().setStatus({ kind: 'loading' });
     this.assets = template.assets;
     let result: LoadResult;
     try {
-      result = await host.load({ manifest: template.manifest, code: template.code, params, output, resourceStamp: stamp });
+      result = paramsOnly ? await host.setParams(params) : await host.load({ manifest: template.manifest, code: template.code, params, output, resourceStamp: stamp });
     } catch (error) {
       this.loadedRevision = -1;
+      this.loadedStructure = -1;
       this.handleError(error);
       return;
     } finally {
       if (this.loadingRevision === revision) this.loadingRevision = -1;
     }
-    if (host !== this.host || revision !== useProjectStore.getState().revision) return;
+    if (host !== this.host) return;
     this.loadedRevision = revision;
+    this.loadedStructure = structureRevision;
     this.loadedStamp = stamp;
+    // 装载期间工程又变了：再来一次（这一次的结果照样画出来）
+    if (revision !== useProjectStore.getState().revision) this.again = true;
     // 装载期间资源栈又变了：再装一次
     if (stamp !== loadStamp(useProjectStore.getState().template?.assets ?? null)) queueMicrotask(() => this.reload());
     useTransportStore.getState().setTimeline(result.duration, result.cutTime);

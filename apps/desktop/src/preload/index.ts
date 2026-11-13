@@ -93,6 +93,13 @@ const api = {
     importFile: invoke(IPC.presets.importFile),
     exportFile: invoke(IPC.presets.exportFile),
   },
+  project: {
+    open: invoke(IPC.project.open),
+    openRecent: invoke(IPC.project.openRecent),
+    save: invoke(IPC.project.save),
+    saveAs: invoke(IPC.project.saveAs),
+    recents: invoke(IPC.project.recents),
+  },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),
     putThumb: invoke(IPC.cache.putThumb),

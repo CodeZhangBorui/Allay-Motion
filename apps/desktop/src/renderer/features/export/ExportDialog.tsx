@@ -1,4 +1,8 @@
+import { AllayProgress } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
+import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@allay/ui/components/dialog';
+import { ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
+import { Clapperboard } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExportErrorCode, ExportPreset, FfmpegInfo } from '../../../shared/export';
@@ -7,8 +11,8 @@ import { useTransportStore } from '../../stores/transportStore';
 import { localized } from '../../templates/catalog';
 import { ExportRun, QUALITY_SUBFRAMES, type ExportOutcome, type ExportProgress, type QualityLevel } from './exportRunner';
 
-// M1 的最小导出对话框：格式（ProRes 4444 / PNG 序列）、画质、进度、取消、结果。
-// 完整的设置页、进度页、完成页（AllayProgress、剪辑点说明、体积估算）在 M7。
+// M1 的最小导出对话框（M4 套上新的视觉规范）：格式（ProRes 4444 / PNG 序列）、画质、进度、取消、结果。
+// 完整的设置页、进度页、完成页（720×520、格式卡片、剪辑点说明、体积估算、AllayProgress 的完整编排）在 M7。
 
 type Phase = { kind: 'settings' } | { kind: 'running'; progress: ExportProgress } | { kind: 'finished'; outcome: ExportOutcome };
 
@@ -29,11 +33,22 @@ export const EXPORT_ERROR_KEYS: Record<ExportErrorCode, string> = {
 
 export function ExportDialog({ onClose }: { onClose(): void }) {
   const { t, i18n } = useTranslation();
-  const [preset, setPreset] = useState<ExportPreset>('prores4444');
-  const [quality, setQuality] = useState<QualityLevel>('standard');
+  const saved = useProjectStore((s) => s.exportSettings);
+  const [preset, setPresetState] = useState<ExportPreset>(saved.preset === 'png-sequence' ? 'png-sequence' : 'prores4444');
+  const [quality, setQualityState] = useState<QualityLevel>(saved.quality);
   const [phase, setPhase] = useState<Phase>({ kind: 'settings' });
   const [info, setInfo] = useState<FfmpegInfo | null>(null);
   const runRef = useRef<ExportRun | null>(null);
+
+  // 选择记进工程（1.9 的 export 字段）
+  const setPreset = (p: ExportPreset) => {
+    setPresetState(p);
+    useProjectStore.getState().setExportSettings({ preset: p });
+  };
+  const setQuality = (q: QualityLevel) => {
+    setQualityState(q);
+    useProjectStore.getState().setExportSettings({ quality: q });
+  };
 
   useEffect(() => {
     // 导出是模态的：预览停下来
@@ -47,9 +62,9 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   }, []);
 
   const start = async () => {
-    const { template, params, output } = useProjectStore.getState();
+    const { template, params, output, name: projectName } = useProjectStore.getState();
     if (!template) return;
-    const name = `${t('topbar.project')}_${localized(template.manifest.name, i18n.language)}_${output.width}x${output.height}_${output.fps}fps`;
+    const name = `${projectName ?? t('project.untitled')}_${localized(template.manifest.name, i18n.language)}_${output.width}x${output.height}_${output.fps}fps`;
     const run = new ExportRun({ template, params, output, preset, quality, shutterAngle: 180, suggestedName: name }, (progress) =>
       setPhase({ kind: 'running', progress }),
     );
@@ -64,11 +79,15 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
   const presetAvailable = (p: ExportPreset) => info === null || info.presets[p];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" data-testid="export-dialog">
-      <div role="dialog" aria-modal="true" aria-labelledby="export-title" className="flex w-[420px] flex-col gap-4 rounded-lg border bg-surface-2 p-5 shadow-lg">
-        <h2 id="export-title" className="text-base font-semibold">
-          {t('export.title')}
-        </h2>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        // 导出进行中不能点外面或按 Esc 关掉：要用“取消”
+        if (!open && phase.kind !== 'running') onClose();
+      }}
+    >
+      <DialogContent showClose={phase.kind !== 'running'} closeLabel={t('common.close')} className="w-[460px]" data-testid="export-dialog">
+        <DialogTitle>{t('export.title')}</DialogTitle>
 
         {phase.kind === 'settings' && (
           <>
@@ -77,69 +96,75 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
                 {t('export.errors.ffmpegMissing')}
               </p>
             )}
-            <fieldset className="flex flex-col gap-2">
+            <fieldset className="flex flex-col gap-1.5">
               <legend className="mb-1 text-xs text-fg-muted">{t('export.format')}</legend>
               {PRESETS.map((p) => (
-                <label key={p} className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} />
+                <label
+                  key={p}
+                  className="flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm has-checked:border-primary has-checked:bg-surface-3 has-disabled:cursor-default has-disabled:opacity-50"
+                >
+                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="accent-(--primary)" />
                   {t(`export.presets.${p === 'prores4444' ? 'prores' : 'png'}`)}
                 </label>
               ))}
             </fieldset>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="text-xs text-fg-muted">{t('export.quality')}</span>
-              <select
-                className="h-7 rounded-md border bg-surface-1 px-2"
-                value={quality}
-                data-testid="export-quality"
-                onChange={(e) => setQuality(e.target.value as QualityLevel)}
-              >
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-fg-muted" id="export-quality-label">
+                {t('export.quality')}
+              </span>
+              <ToggleGroup value={[quality]} onValueChange={(v) => v[0] && setQuality(v[0] as QualityLevel)} aria-labelledby="export-quality-label" className="w-full" data-testid="export-quality">
                 {QUALITIES.map((q) => (
-                  <option key={q} value={q}>
-                    {t(`export.qualities.${q}`)}
-                  </option>
+                  <ToggleGroupItem key={q} value={q} data-testid={`export-quality-${q}`} title={t(`export.qualities.${q}`)}>
+                    {t(`export.qualityShort.${q}`)}
+                  </ToggleGroupItem>
                 ))}
-              </select>
-            </label>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="lg" onClick={onClose}>
+              </ToggleGroup>
+              <span className="text-xs text-fg-muted">{t(`export.qualities.${quality}`)}</span>
+            </div>
+            <DialogFooter>
+              <Button variant="secondary" size="lg" onClick={onClose} data-testid="export-dismiss">
                 {t('export.close')}
               </Button>
               <Button size="lg" data-testid="export-start" disabled={info !== null && !info.presets[preset]} onClick={() => void start()}>
                 {t('export.start')}
               </Button>
-            </div>
+            </DialogFooter>
           </>
         )}
 
         {phase.kind === 'running' && (
           <>
             <div className="flex flex-col gap-2">
-              <progress className="w-full" max={Math.max(1, phase.progress.total)} value={phase.progress.written} />
-              <span data-testid="export-progress" className="tabular-nums text-xs text-fg-muted">
+              <AllayProgress
+                value={phase.progress.total > 0 ? phase.progress.written / phase.progress.total : 0}
+                phase="rendering"
+                label={t('export.progressLabel')}
+                carry={<Clapperboard className="size-4 text-foreground" />}
+              />
+              <span data-testid="export-progress" className="text-xs text-fg-muted tabular-nums">
                 {t('export.progress', { written: phase.progress.written, total: phase.progress.total })}
               </span>
             </div>
-            <div className="flex justify-end">
+            <DialogFooter>
               <Button variant="secondary" size="lg" data-testid="export-cancel" onClick={cancel}>
                 {t('export.cancel')}
               </Button>
-            </div>
+            </DialogFooter>
           </>
         )}
 
         {phase.kind === 'finished' && (
           <>
             <ExportResult outcome={phase.outcome} />
-            <div className="flex justify-end">
+            <DialogFooter>
               <Button size="lg" data-testid="export-close" onClick={onClose}>
                 {t('export.close')}
               </Button>
-            </div>
+            </DialogFooter>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -162,8 +187,9 @@ function ExportResult({ outcome }: { outcome: ExportOutcome }) {
   }
   return (
     <div data-testid="export-result" data-kind="done" className="flex flex-col gap-1 text-sm">
+      <p className="font-semibold">{t('export.doneTitle')}</p>
       <p>{t('export.done', { frames: outcome.frames, seconds: outcome.seconds.toFixed(1) })}</p>
-      <p data-testid="export-path" className="break-all text-xs text-fg-muted">
+      <p data-testid="export-path" className="text-xs break-all text-fg-muted select-text">
         {outcome.path}
       </p>
       {outcome.cutFrame !== null && <p className="text-xs">{t('export.cutFrame', { frame: outcome.cutFrame })}</p>}

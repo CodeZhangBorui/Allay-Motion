@@ -1,9 +1,9 @@
 {
   "topbar": {
-    "project": "Untitled project",
     "undo": "Undo",
     "redo": "Redo",
-    "export": "Export"
+    "export": "Export",
+    "settings": "Settings"
   },
   "gallery": {
     "title": "Templates",
@@ -12,7 +12,29 @@
     "user": "Mine",
     "baseMissing": "base template missing",
     "nondeterministic": "preview and export may differ",
-    "empty": "No templates available."
+    "empty": "No templates available.",
+    "search": "Search templates",
+    "clearSearch": "Clear search",
+    "categoriesLabel": "Template categories",
+    "tabs": {
+      "all": "All",
+      "transition": "Transitions",
+      "overlay": "Overlays",
+      "mine": "Mine"
+    },
+    "categories": {
+      "transition": "Transition",
+      "overlay": "Overlay",
+      "title": "Title"
+    },
+    "loading": "Fetching templates…",
+    "redrawing": "Redrawing covers with the new assets…",
+    "noResults": "Nothing found for “{{query}}”.",
+    "mineEmptyTitle": "No templates of your own yet",
+    "mineEmpty": "Drop a template package here, or use “Save as template” on any template.",
+    "exportPackage": "Export template package…",
+    "exported": "Template package exported.",
+    "remove": "Delete template"
   },
   "templates": {
     "installed": "Template installed.",
@@ -55,7 +77,24 @@
     "unresponsiveHint": "It took too long to draw a frame, so it was stopped. The preview has been restarted without it.",
     "templateError": "The template ran into an error",
     "crashed": "The preview stopped working",
-    "retry": "Try again"
+    "retry": "Try again",
+    "background": "Background",
+    "backgrounds": {
+      "checker": "Checkerboard",
+      "sample": "Sample footage",
+      "solid": "Solid color"
+    },
+    "sampleUnavailable": "Sample footage isn’t available yet: the two built-in sample pictures are still missing. Use the checkerboard or a solid color for now.",
+    "solidColor": "Background color",
+    "guides": "Safe-area guides",
+    "zoom": "Zoom",
+    "zoomFit": "Fit",
+    "zoom100": "100%",
+    "loading": "Setting the scene…",
+    "resetParams": "Reset parameters",
+    "copyDiagnostics": "Copy diagnostics",
+    "diagnosticsCopied": "Diagnostics copied.",
+    "diagnosticsFailed": "Couldn’t copy the diagnostics."
   },
   "transport": {
     "region": "Transport",
@@ -63,11 +102,46 @@
     "play": "Play",
     "loop": "Loop",
     "pause": "Pause",
-    "scrub": "Timeline"
+    "scrub": "Timeline",
+    "time": "Current time",
+    "cut": "Cut point",
+    "boundary": "Boundary between “{{left}}” and “{{right}}”",
+    "hq": "High-quality preview",
+    "hqHint": "Add motion blur to the preview too (slower)",
+    "mute": "Mute",
+    "unmute": "Unmute"
   },
   "params": {
     "title": "Properties",
-    "placeholder": "Select a template to adjust its parameters here."
+    "placeholder": "Select a template to adjust its parameters here.",
+    "more": "More",
+    "resetAll": "Reset all parameters",
+    "saveAsTemplate": "Save as template…",
+    "presets": {
+      "title": "Presets",
+      "none": "No presets for this template yet",
+      "save": "Save as preset…",
+      "saveTitle": "Save as preset",
+      "saveBody": "Only parameters that differ from the defaults are saved.",
+      "saved": "Saved preset “{{name}}”.",
+      "saveFailed": "Couldn’t save the preset.",
+      "applyFailed": "The template for this preset isn’t installed.",
+      "import": "Import preset…",
+      "export": "Export preset",
+      "imported": "Imported preset “{{name}}”.",
+      "importFailed": "This file isn’t a valid preset.",
+      "exported": "Preset exported."
+    },
+    "saveTemplate": {
+      "title": "Save as template",
+      "body": "Make a new template from the current parameters. It appears under “Mine”. Unchecked parameters are hidden and fixed at their current values.",
+      "keep": "Parameters to keep in the panel",
+      "keepOne": "Keep “{{name}}”",
+      "noBase": "This template’s base template is missing, so it can’t be saved as a new one.",
+      "failed": "Couldn’t save as a template: {{reason}}",
+      "imageUnreadable": "a chosen image can no longer be read",
+      "saved": "Saved as template “{{name}}”."
+    }
   },
   "layout": {
     "resizeHandle": "Drag to resize"
@@ -103,7 +177,15 @@
       "frameMismatch": "The frames didn't match the export settings.",
       "templateFailed": "The template ran into an error while exporting.",
       "templateUnresponsive": "The template stopped responding while exporting."
-    }
+    },
+    "progressLabel": "Export progress",
+    "qualityShort": {
+      "draft": "Draft",
+      "standard": "Standard",
+      "high": "High",
+      "ultra": "Ultra"
+    },
+    "doneTitle": "Export complete"
   },
   "resources": {
     "button": "Assets: {{name}}",
@@ -180,6 +262,280 @@
       "decline": "Not now",
       "later": "You can change this any time under “Assets”."
     },
-    "close": "Close"
+    "close": "Close",
+    "drag": "Drag to reorder “{{name}}”"
+  },
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "save": "Save",
+    "name": "Name"
+  },
+  "project": {
+    "untitled": "Untitled project",
+    "new": "New project",
+    "open": "Open project…",
+    "save": "Save",
+    "saveAs": "Save as…",
+    "recents": "Recent projects",
+    "noRecents": "No recent projects yet",
+    "unsavedMark": "Unsaved changes",
+    "saved": "Saved “{{name}}”.",
+    "missingFiles": "Some images are missing; these parameters were reset to their defaults: {{keys}}",
+    "resourceHint": "This project was saved with different assets; the picture may look different.",
+    "unsaved": {
+      "title": "Discard unsaved changes?",
+      "body": "The current project has unsaved changes. If you continue, they will be lost.",
+      "discard": "Discard changes"
+    },
+    "errors": {
+      "unreadable": "This project file can’t be read.",
+      "invalid": "This project file is incomplete or damaged.",
+      "too-new": "This project was made with a newer version of the app. Please update.",
+      "too-large": "This file is too large to be a project file.",
+      "missing": "The project file can’t be found.",
+      "templateMissing": "Can’t open: the template {{id}} ({{version}}) is not installed.",
+      "not-writable": "Can’t write to this location. Choose another folder.",
+      "unknown-handle": "The original project file is gone. Use “Save as”."
+    }
+  },
+  "output": {
+    "title": "Output settings",
+    "resolution": "Resolution",
+    "fps": "Frame rate",
+    "resolutions": {
+      "1080p": "1920×1080 (1080p)",
+      "720p": "1280×720 (720p)",
+      "2160p": "3840×2160 (4K)",
+      "vertical": "1080×1920 (vertical)",
+      "square": "1080×1080 (square)"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "pages": {
+      "general": "General",
+      "assets": "Assets",
+      "export": "Export",
+      "shortcuts": "Shortcuts",
+      "about": "About"
+    },
+    "language": "Language",
+    "languages": {
+      "system": "Follow system",
+      "zh-CN": "简体中文",
+      "en": "English"
+    },
+    "theme": "Theme",
+    "themes": {
+      "dark": "Dark",
+      "light": "Light"
+    },
+    "reducedMotion": "Reduce motion",
+    "reducedMotions": {
+      "system": "Follow system",
+      "on": "On",
+      "off": "Off"
+    },
+    "cache": "Thumbnail and cover cache",
+    "cacheUsage": "{{files}} files, {{size}}",
+    "clearCache": "Clear cache",
+    "cacheCleared": "Cache cleared.",
+    "defaultOutput": "Output settings",
+    "ffmpeg": "FFmpeg version",
+    "ffmpegUnknown": "Unknown",
+    "encoders": "Encoders",
+    "redetect": "Re-detect encoders",
+    "encodersLater": "Encoder detection comes in a later version.",
+    "version": "Version {{version}}",
+    "thirdParty": "Third-party licenses",
+    "licenses": {
+      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process; the full license ships with the installer.",
+      "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
+      "inter": "Inter typeface: SIL Open Font License 1.1.",
+      "npm": "Other open-source components use MIT, BSD, ISC, Apache-2.0 and similar licenses."
+    }
+  },
+  "shortcuts": {
+    "keys": {
+      "space": "Space"
+    },
+    "frameStep": "Previous / next frame",
+    "shiftTen": "Shift: ten frames"
+  },
+  "command": {
+    "title": "Command palette",
+    "placeholder": "Search actions, templates, presets…",
+    "empty": "No matches.",
+    "groups": {
+      "actions": "Actions",
+      "templates": "Templates",
+      "presets": "Presets"
+    },
+    "items": {
+      "playPause": "Play / pause",
+      "toStart": "Go to start",
+      "toEnd": "Go to end",
+      "loop": "Toggle loop",
+      "reroll": "New random seed",
+      "undo": "Undo",
+      "redo": "Redo",
+      "newProject": "New project",
+      "openProject": "Open project…",
+      "saveProject": "Save project",
+      "saveProjectAs": "Save project as…",
+      "export": "Export…",
+      "palette": "Command palette",
+      "searchTemplates": "Search templates",
+      "toggleLeft": "Toggle template library",
+      "settings": "Settings",
+      "resources": "Assets and resource stack",
+      "toggleTheme": "Toggle dark / light theme",
+      "guides": "Safe-area guides"
+    }
+  },
+  "editor": {
+    "color": {
+      "hex": "Hex",
+      "recent": "Recent",
+      "palette": {
+        "dye": "Dye colors",
+        "chat": "Chat colors"
+      },
+      "dye": {
+        "white": "White",
+        "orange": "Orange",
+        "magenta": "Magenta",
+        "light_blue": "Light Blue",
+        "yellow": "Yellow",
+        "lime": "Lime",
+        "pink": "Pink",
+        "gray": "Gray",
+        "light_gray": "Light Gray",
+        "cyan": "Cyan",
+        "purple": "Purple",
+        "blue": "Blue",
+        "brown": "Brown",
+        "green": "Green",
+        "red": "Red",
+        "black": "Black"
+      },
+      "chat": {
+        "black": "Black",
+        "dark_blue": "Dark Blue",
+        "dark_green": "Dark Green",
+        "dark_aqua": "Dark Aqua",
+        "dark_red": "Dark Red",
+        "dark_purple": "Dark Purple",
+        "gold": "Gold",
+        "gray": "Gray",
+        "dark_gray": "Dark Gray",
+        "blue": "Blue",
+        "green": "Green",
+        "aqua": "Aqua",
+        "red": "Red",
+        "light_purple": "Light Purple",
+        "yellow": "Yellow",
+        "white": "White"
+      }
+    },
+    "easing": {
+      "custom": "Custom curve",
+      "handle1": "First control point",
+      "handle2": "Second control point",
+      "names": {
+        "linear": "Linear",
+        "quadIn": "Quad in",
+        "quadOut": "Quad out",
+        "quadInOut": "Quad in-out",
+        "cubicIn": "Cubic in",
+        "cubicOut": "Cubic out",
+        "cubicInOut": "Cubic in-out",
+        "quartIn": "Quart in",
+        "quartOut": "Quart out",
+        "quartInOut": "Quart in-out",
+        "quintIn": "Quint in",
+        "quintOut": "Quint out",
+        "quintInOut": "Quint in-out",
+        "expoIn": "Expo in",
+        "expoOut": "Expo out",
+        "expoInOut": "Expo in-out",
+        "circIn": "Circ in",
+        "circOut": "Circ out",
+        "circInOut": "Circ in-out",
+        "backIn": "Back in",
+        "backOut": "Back out",
+        "backInOut": "Back in-out",
+        "elasticOut": "Elastic out",
+        "bounceOut": "Bounce out"
+      }
+    },
+    "duration": {
+      "frames": "{{n}} f"
+    },
+    "seed": {
+      "roll": "New random seed",
+      "rollHint": "New random seed (R)"
+    },
+    "angle": {
+      "hint": "Drag the dial to set the direction; hold Shift to snap to 15°"
+    },
+    "sound": {
+      "none": "None",
+      "preview": "Preview",
+      "previewLater": "Previewing comes in a later version",
+      "names": {
+        "minecraft_block_stone_place": "Place block (stone)",
+        "minecraft_block_stone_break": "Break block (stone)",
+        "minecraft_block_wood_place": "Place block (wood)",
+        "minecraft_ui_button_click": "Button click",
+        "minecraft_entity_experience_orb_pickup": "Experience orb pickup",
+        "minecraft_entity_player_levelup": "Level up",
+        "minecraft_ui_toast_in": "Toast in",
+        "minecraft_ui_toast_out": "Toast out",
+        "minecraft_ui_toast_challenge_complete": "Challenge complete",
+        "minecraft_entity_generic_explode": "Explosion",
+        "allay_whoosh": "Whoosh"
+      }
+    },
+    "picker": {
+      "recent": "Recent",
+      "search": "Search by name or ID",
+      "noAssets": "No assets yet; thumbnails show placeholders.",
+      "addAssets": "Add assets",
+      "blocks": "Blocks",
+      "items": "Items",
+      "empty": "Nothing found for “{{q}}”.",
+      "groups": {
+        "natural": "Natural",
+        "wood": "Wood",
+        "building": "Building",
+        "ores": "Ores",
+        "minerals": "Mineral blocks",
+        "functional": "Functional",
+        "wool": "Wool",
+        "concrete": "Concrete",
+        "terracotta": "Terracotta",
+        "items": "Items"
+      }
+    },
+    "blockList": {
+      "replace": "Replace “{{name}}”",
+      "weight": "Weight of “{{name}}”",
+      "remove": "Remove “{{name}}”",
+      "add": "Add block"
+    },
+    "texture": {
+      "none": "(none)",
+      "search": "Search textures by ID",
+      "fromStack": "Textures from the resource stack",
+      "import": "Import image…"
+    },
+    "param": {
+      "resetOne": "Reset “{{name}}” to default",
+      "reset": "Reset",
+      "copy": "Copy value",
+      "paste": "Paste value"
+    }
   }
 }

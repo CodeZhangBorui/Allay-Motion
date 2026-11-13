@@ -1,9 +1,9 @@
 {
   "topbar": {
-    "project": "未命名工程",
     "undo": "撤销",
     "redo": "重做",
-    "export": "导出"
+    "export": "导出",
+    "settings": "设置"
   },
   "gallery": {
     "title": "模板",
@@ -12,7 +12,29 @@
     "user": "我的",
     "baseMissing": "基模板缺失",
     "nondeterministic": "预览与导出可能不一致",
-    "empty": "没有可用的模板。"
+    "empty": "没有可用的模板。",
+    "search": "搜索模板",
+    "clearSearch": "清除搜索",
+    "categoriesLabel": "模板分类",
+    "tabs": {
+      "all": "全部",
+      "transition": "转场",
+      "overlay": "叠加",
+      "mine": "我的"
+    },
+    "categories": {
+      "transition": "转场",
+      "overlay": "叠加",
+      "title": "标题"
+    },
+    "loading": "正在取模板…",
+    "redrawing": "正在用新素材重画封面…",
+    "noResults": "没有找到“{{query}}”。",
+    "mineEmptyTitle": "还没有自己的模板",
+    "mineEmpty": "把模板包拖到这里，或者从任何模板“另存为模板”。",
+    "exportPackage": "导出模板包…",
+    "exported": "模板包已导出。",
+    "remove": "删除模板"
   },
   "templates": {
     "installed": "模板已安装。",
@@ -55,7 +77,24 @@
     "unresponsiveHint": "画一帧花的时间太长，已被停止。预览已重新启动，没有再装载这个模板。",
     "templateError": "模板出错了",
     "crashed": "预览停止工作了",
-    "retry": "重试"
+    "retry": "重试",
+    "background": "背景",
+    "backgrounds": {
+      "checker": "棋盘格",
+      "sample": "示例素材",
+      "solid": "纯色"
+    },
+    "sampleUnavailable": "示例素材背景暂不可用：内置的两张示意图还没有。先用棋盘格或纯色。",
+    "solidColor": "背景颜色",
+    "guides": "安全框参考线",
+    "zoom": "缩放",
+    "zoomFit": "适应窗口",
+    "zoom100": "100%",
+    "loading": "正在搭场景…",
+    "resetParams": "重置参数",
+    "copyDiagnostics": "复制诊断信息",
+    "diagnosticsCopied": "诊断信息已复制。",
+    "diagnosticsFailed": "无法复制诊断信息。"
   },
   "transport": {
     "region": "播放条",
@@ -63,11 +102,46 @@
     "play": "播放",
     "loop": "循环",
     "pause": "暂停",
-    "scrub": "时间轴"
+    "scrub": "时间轴",
+    "time": "当前时间",
+    "cut": "剪辑点",
+    "boundary": "“{{left}}”与“{{right}}”的分界",
+    "hq": "高质量预览",
+    "hqHint": "预览也加上运动模糊（更慢）",
+    "mute": "静音",
+    "unmute": "取消静音"
   },
   "params": {
     "title": "属性",
-    "placeholder": "选中模板后，在这里调整参数。"
+    "placeholder": "选中模板后，在这里调整参数。",
+    "more": "更多",
+    "resetAll": "重置全部参数",
+    "saveAsTemplate": "另存为模板…",
+    "presets": {
+      "title": "预设",
+      "none": "这个模板还没有预设",
+      "save": "保存为预设…",
+      "saveTitle": "保存为预设",
+      "saveBody": "只记下和默认值不同的参数。",
+      "saved": "已保存预设“{{name}}”。",
+      "saveFailed": "无法保存预设。",
+      "applyFailed": "这个预设对应的模板没有安装。",
+      "import": "导入预设…",
+      "export": "导出预设",
+      "imported": "已导入预设“{{name}}”。",
+      "importFailed": "这个文件不是有效的预设。",
+      "exported": "预设已导出。"
+    },
+    "saveTemplate": {
+      "title": "另存为模板",
+      "body": "用现在的参数做一个新模板，出现在“我的”里。没勾选的参数会隐藏，固定为现在的值。",
+      "keep": "在属性面板里保留的参数",
+      "keepOne": "保留“{{name}}”",
+      "noBase": "找不到这个模板的基模板，不能另存。",
+      "failed": "无法另存为模板：{{reason}}",
+      "imageUnreadable": "选的图片读不出来了",
+      "saved": "已保存为模板“{{name}}”。"
+    }
   },
   "layout": {
     "resizeHandle": "拖动调整宽度"
@@ -103,7 +177,15 @@
       "frameMismatch": "画面与导出设置不一致。",
       "templateFailed": "导出时模板出错了。",
       "templateUnresponsive": "导出时模板无响应。"
-    }
+    },
+    "progressLabel": "导出进度",
+    "qualityShort": {
+      "draft": "草稿",
+      "standard": "标准",
+      "high": "高",
+      "ultra": "极致"
+    },
+    "doneTitle": "导出完成"
   },
   "resources": {
     "button": "素材：{{name}}",
@@ -180,6 +262,280 @@
       "decline": "暂不使用",
       "later": "之后可以在“素材”里随时更改。"
     },
-    "close": "关闭"
+    "close": "关闭",
+    "drag": "拖动以调整“{{name}}”的顺序"
+  },
+  "common": {
+    "close": "关闭",
+    "cancel": "取消",
+    "save": "保存",
+    "name": "名称"
+  },
+  "project": {
+    "untitled": "未命名工程",
+    "new": "新建工程",
+    "open": "打开工程…",
+    "save": "保存",
+    "saveAs": "另存为…",
+    "recents": "最近的工程",
+    "noRecents": "还没有最近的工程",
+    "unsavedMark": "有未保存的改动",
+    "saved": "已保存“{{name}}”。",
+    "missingFiles": "有些图片找不到了，这些参数已回到默认值：{{keys}}",
+    "resourceHint": "这个工程保存时用的素材和现在的不一样，画面可能会有差别。",
+    "unsaved": {
+      "title": "放弃未保存的改动？",
+      "body": "当前工程有还没保存的改动。继续的话，这些改动会丢失。",
+      "discard": "放弃改动"
+    },
+    "errors": {
+      "unreadable": "这个工程文件无法读取。",
+      "invalid": "这个工程文件内容不完整或已损坏。",
+      "too-new": "这个工程来自更新版本的应用，请先升级。",
+      "too-large": "这个文件太大，不像是工程文件。",
+      "missing": "找不到这个工程文件。",
+      "templateMissing": "打不开：需要模板 {{id}}（{{version}}），但它没有安装。",
+      "not-writable": "无法写入这个位置，请换一个文件夹。",
+      "unknown-handle": "找不到原来的工程文件，请用“另存为”。"
+    }
+  },
+  "output": {
+    "title": "输出设置",
+    "resolution": "分辨率",
+    "fps": "帧率",
+    "resolutions": {
+      "1080p": "1920×1080（1080p）",
+      "720p": "1280×720（720p）",
+      "2160p": "3840×2160（4K）",
+      "vertical": "1080×1920（竖屏）",
+      "square": "1080×1080（方形）"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "pages": {
+      "general": "通用",
+      "assets": "素材",
+      "export": "导出",
+      "shortcuts": "快捷键",
+      "about": "关于"
+    },
+    "language": "语言",
+    "languages": {
+      "system": "跟随系统",
+      "zh-CN": "简体中文",
+      "en": "English"
+    },
+    "theme": "主题",
+    "themes": {
+      "dark": "深色",
+      "light": "浅色"
+    },
+    "reducedMotion": "减少动效",
+    "reducedMotions": {
+      "system": "跟随系统",
+      "on": "开",
+      "off": "关"
+    },
+    "cache": "缩略图与封面缓存",
+    "cacheUsage": "{{files}} 个文件，{{size}}",
+    "clearCache": "清除缓存",
+    "cacheCleared": "缓存已清除。",
+    "defaultOutput": "输出设置",
+    "ffmpeg": "FFmpeg 版本",
+    "ffmpegUnknown": "未知",
+    "encoders": "编码器",
+    "redetect": "重新检测编码器",
+    "encodersLater": "编码器探测在后续版本提供。",
+    "version": "版本 {{version}}",
+    "thirdParty": "第三方许可",
+    "licenses": {
+      "ffmpeg": "FFmpeg：LGPL 3.0，以独立进程调用，许可全文随安装包附带。",
+      "ark": "方舟像素字体：SIL Open Font License 1.1。",
+      "inter": "Inter 字体：SIL Open Font License 1.1。",
+      "npm": "其余开源组件使用 MIT、BSD、ISC、Apache-2.0 等许可。"
+    }
+  },
+  "shortcuts": {
+    "keys": {
+      "space": "空格"
+    },
+    "frameStep": "前后一帧",
+    "shiftTen": "加 Shift 为十帧"
+  },
+  "command": {
+    "title": "命令面板",
+    "placeholder": "搜索操作、模板、预设…",
+    "empty": "没有匹配的结果。",
+    "groups": {
+      "actions": "操作",
+      "templates": "模板",
+      "presets": "预设"
+    },
+    "items": {
+      "playPause": "播放 / 暂停",
+      "toStart": "回到开头",
+      "toEnd": "跳到结尾",
+      "loop": "循环开关",
+      "reroll": "换一个随机种子",
+      "undo": "撤销",
+      "redo": "重做",
+      "newProject": "新建工程",
+      "openProject": "打开工程…",
+      "saveProject": "保存工程",
+      "saveProjectAs": "工程另存为…",
+      "export": "导出…",
+      "palette": "命令面板",
+      "searchTemplates": "搜索模板",
+      "toggleLeft": "折叠或展开模板库",
+      "settings": "设置",
+      "resources": "素材与资源栈",
+      "toggleTheme": "切换深色 / 浅色主题",
+      "guides": "安全框参考线"
+    }
+  },
+  "editor": {
+    "color": {
+      "hex": "十六进制",
+      "recent": "最近用过",
+      "palette": {
+        "dye": "染料色",
+        "chat": "聊天格式色"
+      },
+      "dye": {
+        "white": "白色",
+        "orange": "橙色",
+        "magenta": "品红色",
+        "light_blue": "淡蓝色",
+        "yellow": "黄色",
+        "lime": "黄绿色",
+        "pink": "粉红色",
+        "gray": "灰色",
+        "light_gray": "淡灰色",
+        "cyan": "青色",
+        "purple": "紫色",
+        "blue": "蓝色",
+        "brown": "棕色",
+        "green": "绿色",
+        "red": "红色",
+        "black": "黑色"
+      },
+      "chat": {
+        "black": "黑色",
+        "dark_blue": "深蓝色",
+        "dark_green": "深绿色",
+        "dark_aqua": "湖蓝色",
+        "dark_red": "深红色",
+        "dark_purple": "紫色",
+        "gold": "金色",
+        "gray": "灰色",
+        "dark_gray": "深灰色",
+        "blue": "蓝色",
+        "green": "绿色",
+        "aqua": "天蓝色",
+        "red": "红色",
+        "light_purple": "粉红色",
+        "yellow": "黄色",
+        "white": "白色"
+      }
+    },
+    "easing": {
+      "custom": "自定义曲线",
+      "handle1": "第一个控制点",
+      "handle2": "第二个控制点",
+      "names": {
+        "linear": "线性",
+        "quadIn": "二次 · 缓入",
+        "quadOut": "二次 · 缓出",
+        "quadInOut": "二次 · 缓入缓出",
+        "cubicIn": "三次 · 缓入",
+        "cubicOut": "三次 · 缓出",
+        "cubicInOut": "三次 · 缓入缓出",
+        "quartIn": "四次 · 缓入",
+        "quartOut": "四次 · 缓出",
+        "quartInOut": "四次 · 缓入缓出",
+        "quintIn": "五次 · 缓入",
+        "quintOut": "五次 · 缓出",
+        "quintInOut": "五次 · 缓入缓出",
+        "expoIn": "指数 · 缓入",
+        "expoOut": "指数 · 缓出",
+        "expoInOut": "指数 · 缓入缓出",
+        "circIn": "圆形 · 缓入",
+        "circOut": "圆形 · 缓出",
+        "circInOut": "圆形 · 缓入缓出",
+        "backIn": "回弹 · 缓入",
+        "backOut": "回弹 · 缓出",
+        "backInOut": "回弹 · 缓入缓出",
+        "elasticOut": "弹性 · 缓出",
+        "bounceOut": "弹跳 · 缓出"
+      }
+    },
+    "duration": {
+      "frames": "{{n}} 帧"
+    },
+    "seed": {
+      "roll": "换一个随机种子",
+      "rollHint": "换一个随机种子（R）"
+    },
+    "angle": {
+      "hint": "拖动转盘调整方向，按住 Shift 以 15° 吸附"
+    },
+    "sound": {
+      "none": "无",
+      "preview": "试听",
+      "previewLater": "试听在后续版本提供",
+      "names": {
+        "minecraft_block_stone_place": "放置方块（石头）",
+        "minecraft_block_stone_break": "破坏方块（石头）",
+        "minecraft_block_wood_place": "放置方块（木头）",
+        "minecraft_ui_button_click": "按钮点击",
+        "minecraft_entity_experience_orb_pickup": "经验球拾取",
+        "minecraft_entity_player_levelup": "升级",
+        "minecraft_ui_toast_in": "提示框滑入",
+        "minecraft_ui_toast_out": "提示框滑出",
+        "minecraft_ui_toast_challenge_complete": "挑战完成",
+        "minecraft_entity_generic_explode": "爆炸",
+        "allay_whoosh": "飞掠"
+      }
+    },
+    "picker": {
+      "recent": "最近使用",
+      "search": "按名称或 ID 搜索",
+      "noAssets": "还没有素材，缩略图显示为占位。",
+      "addAssets": "添加素材",
+      "blocks": "方块",
+      "items": "物品",
+      "empty": "没有找到“{{q}}”。",
+      "groups": {
+        "natural": "自然",
+        "wood": "木材",
+        "building": "建材",
+        "ores": "矿石",
+        "minerals": "矿物块",
+        "functional": "功能",
+        "wool": "羊毛",
+        "concrete": "混凝土",
+        "terracotta": "陶瓦",
+        "items": "物品"
+      }
+    },
+    "blockList": {
+      "replace": "更换“{{name}}”",
+      "weight": "“{{name}}”的权重",
+      "remove": "移除“{{name}}”",
+      "add": "添加方块"
+    },
+    "texture": {
+      "none": "（无）",
+      "search": "按 ID 搜索贴图",
+      "fromStack": "资源栈里的贴图",
+      "import": "导入图片…"
+    },
+    "param": {
+      "resetOne": "把“{{name}}”恢复为默认值",
+      "reset": "重置",
+      "copy": "复制值",
+      "paste": "粘贴值"
+    }
   }
 }

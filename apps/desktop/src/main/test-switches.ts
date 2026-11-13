@@ -15,10 +15,12 @@ export interface TestSwitches {
   gameAppData: string | null;
   /** 原版下载改连本机的假服务器（http://127.0.0.1:端口），三个 Mojang 主机都映射到它（decisions.md M2a、M2b） */
   mojangOrigin: string | null;
+  /** 工程的打开、保存对话框不弹出，直接用这个路径（对话框路径由服务层单元测试覆盖，e2e 用它走通界面） */
+  projectPath: string | null;
 }
 
 export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<string, string | undefined>>): TestSwitches {
-  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null };
+  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null, projectPath: null };
   const origin = env.ALLAY_E2E_MOJANG_ORIGIN;
   return {
     userDataDir: env.ALLAY_USER_DATA_DIR ? env.ALLAY_USER_DATA_DIR : null,
@@ -29,5 +31,6 @@ export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<strin
     gameAppData: env.ALLAY_E2E_GAME_APPDATA ? env.ALLAY_E2E_GAME_APPDATA : null,
     // 只接受本机回环地址，避免测试开关被拿来把下载指到别处
     mojangOrigin: origin && /^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(origin) ? origin : null,
+    projectPath: env.ALLAY_E2E_PROJECT_PATH ? env.ALLAY_E2E_PROJECT_PATH : null,
   };
 }

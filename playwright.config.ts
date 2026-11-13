@@ -9,4 +9,6 @@ export default defineConfig({
   timeout: 60_000,
   reporter: [['list']],
   outputDir: 'test-results',
+  // T-UI-5 的截图基线：由 pnpm test:e2e:baselines 在本机渲染（假原版层、纯色色块），登记为 origin: rendered
+  snapshotPathTemplate: 'tests/fixtures/ui-baselines/{arg}{ext}',
 });

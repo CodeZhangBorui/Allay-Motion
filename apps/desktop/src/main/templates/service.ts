@@ -258,14 +258,28 @@ export class TemplateService {
    * 另存为派生模板（4.7）：新的 id 是 user.<随机>.<名字>，版本 1.0.0。
    * 覆盖的默认值按基模板的参数定义清洗，只留基模板有的键。
    */
-  saveDerived(req: SaveDerivedRequest): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: string }> {
+  saveDerived(req: SaveDerivedRequest, resolveFile: (ref: string) => string | null = () => null): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: string }> {
     return this.serial(async () => {
       const base = this.templates.get(key(req.base.id, req.base.version));
       if (!base) return { ok: false, error: 'base-missing' };
       if (base.manifest.extends) return { ok: false, error: 'base-not-script' };
       const defs = base.manifest.params ?? [];
       const known = new Set(defs.map((d) => d.key));
-      const picked = Object.fromEntries(Object.entries(req.defaults).filter(([k]) => known.has(k)));
+      const picked: Record<string, unknown> = Object.fromEntries(Object.entries(req.defaults).filter(([k]) => known.has(k)));
+      // 用户选的图片（texture 参数的 file: 引用）：按引用读出、复制进派生模板的 assets/，默认值改成 asset: 引用（4.7、M4）
+      const assets: { name: string; bytes: Uint8Array }[] = [];
+      for (const def of defs) {
+        const v = picked[def.key];
+        if (def.type !== 'texture' || typeof v !== 'string') continue;
+        const m = /^file:([0-9a-fA-F-]{36})$/.exec(v);
+        if (!m) continue;
+        const path = resolveFile(m[1]!);
+        const image = path ? await readImageFile(path) : null;
+        if (!image) return { ok: false, error: 'image-unreadable' };
+        const name = `${def.key}.${image.ext}`;
+        assets.push({ name, bytes: image.bytes });
+        picked[def.key] = `asset:${name}`;
+      }
       const clean = sanitizeParams(defs, picked);
       const defaults = Object.fromEntries(Object.keys(picked).map((k) => [k, clean[k]!]));
       const slug = req.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'template';
@@ -283,6 +297,10 @@ export class TemplateService {
       if (!parsed.ok) return { ok: false, error: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ') };
       const dir = this.versionDir(id, '1.0.0');
       await mkdir(dir, { recursive: true });
+      if (assets.length > 0) {
+        await mkdir(join(dir, 'assets'), { recursive: true });
+        for (const a of assets) await writeFile(join(dir, 'assets', a.name), a.bytes);
+      }
       await writeJsonAtomic(join(dir, 'manifest.json'), raw);
       await writeJsonAtomic(this.metaFile(id, '1.0.0'), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [] });
       const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
@@ -423,4 +441,23 @@ async function listDir(dir: string, prefix = ''): Promise<string[]> {
     else if (d.isFile()) out.push(rel);
   }
   return out.sort();
+}
+
+/** 派生模板里带的图片上限（单张） */
+export const MAX_DERIVED_IMAGE_BYTES = 16 * 1024 * 1024;
+
+/** 读用户选的图片：只认 PNG、JPEG、WebP（按文件头判断，不看扩展名） */
+export async function readImageFile(path: string): Promise<{ bytes: Uint8Array; ext: 'png' | 'jpg' | 'webp' } | null> {
+  try {
+    const info = await stat(path);
+    if (!info.isFile() || info.size > MAX_DERIVED_IMAGE_BYTES || info.size < 12) return null;
+    const bytes = new Uint8Array(await readFile(path));
+    const ascii = (from: number, to: number) => String.fromCharCode(...bytes.subarray(from, to));
+    if (bytes[0] === 0x89 && ascii(1, 4) === 'PNG') return { bytes, ext: 'png' };
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return { bytes, ext: 'jpg' };
+    if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return { bytes, ext: 'webp' };
+    return null;
+  } catch {
+    return null;
+  }
 }

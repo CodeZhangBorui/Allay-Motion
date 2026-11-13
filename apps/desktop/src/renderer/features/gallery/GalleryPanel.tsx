@@ -1,47 +1,203 @@
+import { AllayEmpty, AllayLoader } from '@allay/mascot';
+import { localize } from '@allay/template-sdk';
 import { Button } from '@allay/ui/components/button';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@allay/ui/components/context-menu';
+import { Input, Skeleton } from '@allay/ui/components/misc';
+import { Tabs, TabsList, TabsTrigger } from '@allay/ui/components/tabs';
+import { TemplateCard } from '@allay/ui/editor';
+import { Import, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TemplateEntry } from '../../../shared/templates';
+import { notify } from '../../stores/noticeStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTemplateStore } from '../../stores/templateStore';
-import { localized } from '../../templates/catalog';
-import { installViaDialog, selectTemplate } from '../templates/actions';
+import { installViaDialog, removeTemplate, selectTemplate } from '../templates/actions';
+import { COVER_FPS, COVER_H, COVER_W, coverKey, covers, useCoverStore, type Cover } from './covers';
 
-// 左栏：模板库（6.4）。M3 是一个最小的列表：已安装的模板（内置和用户的）和“导入模板…”。
-// 卡片、封面、悬停预览、搜索、分类在 M4。
+// 左栏：模板库（6.4）。搜索框（Ctrl+F 聚焦），分类标签：全部、转场、叠加、我的。两列卡片，16:9 的封面加一行名称；
+// 悬停时播放预览循环；选中时 --ring 描边加悦灵青辉光；用户模板角上有 --amethyst 的小标记。底部“导入模板…”。
+// 首次加载、资源栈变化后重建封面时：骨架加悦灵（AllayLoader）。
+
+type Tab = 'all' | 'transition' | 'overlay' | 'mine';
+
+/** 悬停预览：按 30 fps 把网格图里的帧画到一块小画布上（一个 rAF 循环） */
+function HoverPlayer({ cover }: { cover: Cover }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const sheet = cover.sheet;
+    if (!canvas || !sheet || cover.frames === 0) return;
+    const g = canvas.getContext('2d');
+    if (!g) return;
+    let raf = 0;
+    let last = -1;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      const i = Math.floor(((now - t0) / 1000) * COVER_FPS) % cover.frames;
+      if (i !== last) {
+        last = i;
+        g.clearRect(0, 0, COVER_W, COVER_H);
+        g.drawImage(sheet, (i % cover.cols) * COVER_W, Math.floor(i / cover.cols) * COVER_H, COVER_W, COVER_H, 0, 0, COVER_W, COVER_H);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [cover]);
+  return <canvas ref={ref} width={COVER_W} height={COVER_H} className="preview-checker-sm size-full" aria-hidden="true" />;
+}
+
+function GridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-1 p-2" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="flex flex-col gap-1.5 p-1">
+          <Skeleton className="aspect-video w-full" />
+          <Skeleton className="h-3 w-2/3 rounded-sm" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function warningOf(e: TemplateEntry, t: (k: string) => string): string | undefined {
+  if (e.baseMissing) return t('gallery.baseMissing');
+  if (e.trialWarnings.length > 0) return e.trialWarnings.map((w) => t(`templates.warnings.${w}`)).join(t('templates.listSeparator'));
+  return undefined;
+}
+
 export function GalleryPanel() {
   const { t, i18n } = useTranslation();
   const entries = useTemplateStore((s) => s.entries);
   const loaded = useTemplateStore((s) => s.loaded);
   const current = useProjectStore((s) => s.template?.ref);
+  const coverMap = useCoverStore((s) => s.covers);
+  const pending = useCoverStore((s) => s.pending);
+  const [tab, setTab] = useState<Tab>('all');
+  const [query, setQuery] = useState('');
+  const locale = i18n.language;
+
+  useEffect(() => covers.ensure(entries), [entries]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return entries.filter((e) => {
+      if (tab === 'mine' && e.source !== 'user') return false;
+      if ((tab === 'transition' || tab === 'overlay') && e.manifest.category !== tab) return false;
+      if (!q) return true;
+      const names = [localize(e.manifest.name, 'zh-CN'), localize(e.manifest.name, 'en'), e.id, ...(e.manifest.tags ?? [])];
+      return names.some((n) => n.toLowerCase().includes(q));
+    });
+  }, [entries, tab, query]);
+
+  // 首次加载，或者资源栈变了、封面全部作废正在重画
+  const anyCover = Object.values(coverMap).some(Boolean);
+  const loading = !loaded || (pending > 0 && !anyCover);
+  const loaderLabel = loaded ? t('gallery.redrawing') : t('gallery.loading');
+
   return (
-    <aside aria-label={t('gallery.title')} className="flex h-full min-w-0 flex-col bg-surface-1">
-      <div className="flex h-10 items-center border-b px-3 text-base font-medium">{t('gallery.title')}</div>
-      <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2" data-testid="template-list">
-        {entries.map((e) => {
-          const active = current?.id === e.id && current.version === e.version;
-          return (
-            <li key={`${e.id}@${e.version}`}>
-              <button
-                type="button"
-                data-testid={`template-${e.id}`}
-                aria-current={active ? 'true' : undefined}
-                disabled={e.baseMissing}
-                onClick={() => void selectTemplate(e.id, e.version, i18n.language)}
-                className={`flex w-full flex-col items-start rounded-md px-2 py-1.5 text-left text-sm ${active ? 'bg-surface-3 text-foreground' : 'text-fg-muted hover:bg-surface-2'} disabled:opacity-50`}
-              >
-                <span className="truncate">{localized(e.manifest.name, i18n.language)}</span>
-                <span className="text-xs text-fg-subtle">
-                  {e.source === 'builtin' ? t('gallery.builtin') : t('gallery.user')} · {e.version}
-                  {e.baseMissing ? ` · ${t('gallery.baseMissing')}` : ''}
-                  {e.trialWarnings.includes('nondeterministic') ? ` · ${t('gallery.nondeterministic')}` : ''}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-        {loaded && entries.length === 0 && <li className="px-2 text-xs text-fg-muted">{t('gallery.empty')}</li>}
-      </ul>
+    <aside aria-label={t('gallery.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="gallery">
+      <div className="flex flex-col gap-2 border-b p-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
+          <Input id="gallery-search" value={query} onChange={(e) => setQuery(e.currentTarget.value)} placeholder={t('gallery.search')} aria-label={t('gallery.search')} className="pr-7 pl-7" data-testid="gallery-search" />
+          {query && (
+            <button type="button" aria-label={t('gallery.clearSearch')} className="absolute top-1/2 right-1 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-fg-muted hover:text-foreground" onClick={() => setQuery('')}>
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
+          <TabsList className="w-full" aria-label={t('gallery.categoriesLabel')}>
+            {(['all', 'transition', 'overlay', 'mine'] as const).map((k) => (
+              <TabsTrigger key={k} value={k} data-testid={`gallery-tab-${k}`} className="flex-auto px-1.5">
+                {t(`gallery.tabs.${k}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <AllayLoader loading={loading} label={loaderLabel} className="min-h-full" testId="gallery-loader">
+          {loading ? (
+            <GridSkeleton />
+          ) : shown.length === 0 ? (
+            query ? (
+              <div className="flex flex-col items-center gap-2 px-4 py-8 text-center" data-testid="gallery-no-results">
+                <p className="text-sm">{t('gallery.noResults', { query: query.trim() })}</p>
+                <Button variant="secondary" onClick={() => setQuery('')}>
+                  {t('gallery.clearSearch')}
+                </Button>
+              </div>
+            ) : tab === 'mine' ? (
+              <AllayEmpty
+                title={t('gallery.mineEmptyTitle')}
+                description={t('gallery.mineEmpty')}
+                action={
+                  <Button variant="secondary" onClick={() => void installViaDialog(t, locale)}>
+                    {t('gallery.import')}
+                  </Button>
+                }
+              />
+            ) : (
+              <p className="p-4 text-xs text-fg-muted">{t('gallery.empty')}</p>
+            )
+          ) : (
+            <div className="grid grid-cols-2 gap-1 p-2" data-testid="template-list">
+              {shown.map((e) => {
+                const key = coverKey(e.id, e.version);
+                const cover = coverMap[key];
+                const name = localize(e.manifest.name, locale);
+                const warning = warningOf(e, t);
+                const card = (
+                  <TemplateCard
+                    testId={`template-${e.id}`}
+                    name={name}
+                    coverUrl={cover?.url ?? null}
+                    selected={current?.id === e.id && current.version === e.version}
+                    user={e.source === 'user'}
+                    userLabel={t('gallery.user')}
+                    warning={warning}
+                    disabled={e.baseMissing}
+                    description={t(`gallery.categories.${e.manifest.category}`)}
+                    renderPreview={cover?.sheet ? () => <HoverPlayer cover={cover} /> : undefined}
+                    onSelect={() => void selectTemplate(e.id, e.version, locale)}
+                  />
+                );
+                return (
+                  <div key={`${e.id}@${e.version}`} data-allay-item>
+                    {e.source === 'user' ? (
+                      <ContextMenu>
+                        <ContextMenuTrigger render={<div />}>{card}</ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() =>
+                              void window.allay.templates.exportPackage(e.id, e.version).then((r) => {
+                                if (!r.canceled) notify('info', t('gallery.exported'));
+                              })
+                            }
+                          >
+                            {t('gallery.exportPackage')}
+                          </ContextMenuItem>
+                          <ContextMenuItem className="text-danger" onClick={() => void removeTemplate(e.id, e.version, locale)}>
+                            {t('gallery.remove')}
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ) : (
+                      card
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </AllayLoader>
+      </div>
       <div className="border-t p-2">
-        <Button variant="ghost" className="w-full justify-start text-fg-muted" data-testid="template-import" onClick={() => void installViaDialog(t, i18n.language)}>
+        <Button variant="ghost" className="w-full justify-start text-fg-muted" data-testid="template-import" onClick={() => void installViaDialog(t, locale)}>
+          <Import />
           {t('gallery.import')}
         </Button>
       </div>

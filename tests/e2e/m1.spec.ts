@@ -168,6 +168,8 @@ test.describe('预览', () => {
         await new Promise((r) => setTimeout(r, 20));
       }
     })();
+    // 模板库的封面由杂务 Worker 生成，生成完就销毁（M4）；等它结束，下面才只数到预览 Worker
+    await expect.poll(() => page.workers().filter((w) => /engine.worker/.test(w.url())).length, { timeout: 30_000 }).toBe(1);
     const started = Date.now();
     await page.evaluate((code) => window.__allayTest!.loadTemplate(code), readFixture('hang-update.js'));
     await waitStatus(page, 'unresponsive', 10_000);
@@ -276,7 +278,7 @@ test.describe('导出', () => {
     await waitStatus(page, 'ready');
     await page.getByTestId('topbar-export').click();
     await expect(page.getByTestId('export-dialog')).toBeVisible();
-    if (quality) await page.getByTestId('export-quality').selectOption(quality);
+    if (quality) await page.getByTestId(`export-quality-${quality}`).click();
     await page.getByTestId('export-start').click();
   }
 

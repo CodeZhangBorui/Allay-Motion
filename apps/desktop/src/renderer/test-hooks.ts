@@ -9,6 +9,8 @@ import { trialTimeouts } from './features/templates/trial';
 import i18next from 'i18next';
 import { setExportGate } from './features/export/exportRunner';
 import { previewEngine } from './features/preview/previewEngine';
+import { setDebugLoading } from './features/preview/debugLoading';
+import { missingKeys } from './i18n';
 import { thumbnails, type ThumbKind, type ThumbSize } from './features/thumbnails/thumbnails';
 import type { ResourceState } from '../shared/resources';
 import { useResourceStore } from './stores/resourceStore';
@@ -59,6 +61,14 @@ export interface AllayTestHooks {
   /** 导出当前停在第几帧（已写入的帧数）；没有停住时为 null */
   exportPausedAt(): number | null;
   resumeExport(): void;
+  /** 让预览视口的加载编排假装在加载（T-ALY-2、T-ALY-5） */
+  simulateLoading(on: boolean): void;
+  /** 预览画布在 t 时刻的像素哈希（T-UI-1：改参数后画面变了） */
+  previewHash(t: number): Promise<string>;
+  /** 撤销历史的长度（T-UI-2：一次拖动只算一步） */
+  history(): { past: number; future: number };
+  /** 界面用到但文案里没有的键（T-UI-4） */
+  missingKeys(): string[];
 }
 
 declare global {
@@ -173,6 +183,20 @@ export function installTestHooks(): void {
     resumeExport() {
       release();
     },
+    simulateLoading(on) {
+      setDebugLoading(on);
+    },
+    async previewHash(t) {
+      const px = await previewEngine.readPreview(t);
+      let h = 0x811c9dc5;
+      for (let i = 0; i < px.length; i++) h = Math.imul(h ^ px[i]!, 0x01000193);
+      return (h >>> 0).toString(16);
+    },
+    history() {
+      const s = useProjectStore.temporal.getState();
+      return { past: s.pastStates.length, future: s.futureStates.length };
+    },
+    missingKeys: () => [...missingKeys],
   };
   Object.defineProperty(window, '__allayTest', { value: Object.freeze(hooks), configurable: false, writable: false });
 }

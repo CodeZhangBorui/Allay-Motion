@@ -13,6 +13,7 @@ import {
   ThumbPngSchema,
   VanillaPatchSchema,
 } from './resources';
+import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
 import {
   AssetPathSchema,
@@ -89,6 +90,11 @@ export const IPC_ARGS = {
   [IPC.presets.remove]: z.tuple([PresetIdSchema]),
   [IPC.presets.importFile]: z.tuple([]),
   [IPC.presets.exportFile]: z.tuple([PresetIdSchema]),
+  [IPC.project.open]: z.tuple([]),
+  [IPC.project.openRecent]: z.tuple([z.uuid()]),
+  [IPC.project.save]: z.tuple([ProjectHandleSchema.nullable(), ProjectDataSchema]),
+  [IPC.project.saveAs]: z.tuple([ProjectDataSchema]),
+  [IPC.project.recents]: z.tuple([]),
   [IPC.cache.getThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema]),
   [IPC.cache.putThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema, ThumbPngSchema]),
   [IPC.cache.clear]: z.tuple([]),

@@ -33,12 +33,16 @@
     "es-module-lexer": "3.0.4",
     "i18next": "^27.1.1",
     "lucide-react": "^1.72.0",
+    "motion": "^14.13.0",
     "react": "^19.3.1",
+    "react-colorful": "^5.8.1",
     "react-dom": "^19.3.1",
     "react-i18next": "^18.0.1",
     "react-resizable-panels": "^4.21.0",
+    "sonner": "^2.0.8",
     "yauzl": "^3.4.0",
     "zod": "^4.6.7",
+    "zundo": "^2.3.0",
     "zustand": "^5.1.0"
   }
 }
