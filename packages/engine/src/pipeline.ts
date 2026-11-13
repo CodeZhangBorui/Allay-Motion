@@ -1,5 +1,9 @@
-// 帧管线（docs/02-engine.md 2.6）：子帧 → sceneRT（RGBA16F、线性、MSAA 4×、预乘 alpha）
-// → 加法累积进 accumRT（RGBA16F）→ 全屏 resolve 着色器输出到 8 位目标。
+// 帧管线（docs/02-engine.md 2.6）：子帧 → sceneRT（RGBA16F、线性、2×2 超采样、预乘 alpha）
+// → 2×2 平均后加法累积进 accumRT（RGBA16F）→ 全屏 resolve 着色器输出到 8 位目标。
+//
+// 抗锯齿用 2×2 超采样而不是规格写的 MSAA 4×：实测硬件的多重采样 resolve 不是逐位可复现的（NVIDIA/D3D11 上同一帧
+// 反复渲染，恰好落在取整边界上的像素会在 127/128 之间跳），破坏 T-ENG-1。超采样的平均在我们自己的着色器里按固定顺序做，
+// 结果只取决于输入（docs/decisions.md M3“多重采样 resolve 不确定”）。显存与 MSAA 4× 相同。
 import {
   AddEquation,
   BufferGeometry,
@@ -34,14 +38,26 @@ void main() {
 }`;
 
 // 把子帧按权重 1/N 加进 accumRT（混合方式是 ONE, ONE）
+/** 超采样倍数（每边） */
+export const SUPERSAMPLE = 2;
+
+// 把 sceneRT 的 uScale × uScale 个像素按固定顺序平均，乘上权重（1/N）累积进 accumRT
 const ACCUMULATE = /* glsl */ `
 precision highp float;
 precision highp sampler2D;
 uniform sampler2D tSrc;
 uniform float uWeight;
+uniform int uScale;
 out highp vec4 fragColor;
 void main() {
-  fragColor = texelFetch(tSrc, ivec2(gl_FragCoord.xy), 0) * uWeight;
+  ivec2 base = ivec2(gl_FragCoord.xy) * uScale;
+  vec4 sum = vec4(0.0);
+  for (int y = 0; y < uScale; y++) {
+    vec4 row = vec4(0.0);
+    for (int x = 0; x < uScale; x++) row += texelFetch(tSrc, base + ivec2(x, y), 0);
+    sum += row;
+  }
+  fragColor = sum * (uWeight / float(uScale * uScale));
 }`;
 
 // 源缓冲是线性、预乘 alpha。
@@ -111,6 +127,9 @@ export interface PipelineRenderOptions {
 export class FramePipeline {
   private width: number;
   private height: number;
+  /** 实际的超采样倍数：输出的 2 倍超过显卡的最大尺寸时退回 1（不抗锯齿） */
+  private scale = SUPERSAMPLE;
+  private readonly maxSize: number;
   private sceneRT: WebGLRenderTarget;
   private accumRT: WebGLRenderTarget;
   private outRT: WebGLRenderTarget | null = null;
@@ -129,7 +148,10 @@ export class FramePipeline {
   ) {
     this.width = width;
     this.height = height;
-    this.sceneRT = halfFloatTarget(width, height, 4, true);
+    const gl = renderer.getContext();
+    this.maxSize = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE) as number, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) as number);
+    this.scale = this.scaleFor(width, height);
+    this.sceneRT = halfFloatTarget(width * this.scale, height * this.scale, 0, true);
     this.accumRT = halfFloatTarget(width, height, 0, false);
     if (withOutputTarget) this.outRT = this.makeOutputTarget();
 
@@ -137,7 +159,7 @@ export class FramePipeline {
       glslVersion: GLSL3,
       vertexShader: VERTEX,
       fragmentShader: ACCUMULATE,
-      uniforms: { tSrc: { value: null }, uWeight: { value: 1 } },
+      uniforms: { tSrc: { value: null }, uWeight: { value: 1 }, uScale: { value: SUPERSAMPLE } },
       blending: CustomBlending,
       blendEquation: AddEquation,
       blendSrc: OneFactor,
@@ -171,11 +193,21 @@ export class FramePipeline {
     return { width: this.width, height: this.height };
   }
 
+  /** 当前的超采样倍数（诊断用） */
+  get supersample(): number {
+    return this.scale;
+  }
+
+  private scaleFor(width: number, height: number): number {
+    return Math.max(width, height) * SUPERSAMPLE <= this.maxSize ? SUPERSAMPLE : 1;
+  }
+
   setSize(width: number, height: number): void {
     if (width === this.width && height === this.height) return;
     this.width = width;
     this.height = height;
-    this.sceneRT.setSize(width, height);
+    this.scale = this.scaleFor(width, height);
+    this.sceneRT.setSize(width * this.scale, height * this.scale);
     this.accumRT.setSize(width, height);
     this.outRT?.setSize(width, height);
   }
@@ -186,18 +218,12 @@ export class FramePipeline {
     const n = opts.times.length;
     renderer.setClearColor(0x000000, 0);
 
-    if (n === 1) {
-      opts.update(opts.times[0]!);
-      renderer.setRenderTarget(this.sceneRT);
-      renderer.clear(true, true, false);
-      renderer.render(opts.scene, opts.camera);
-      return this.sceneRT.texture;
-    }
-
+    // N = 1 也经过累积通道：超采样的平均在那里做（权重 1，加到清空的 accumRT 上，结果与直接写入相同）
     renderer.setRenderTarget(this.accumRT);
     renderer.clear(true, false, false);
     this.accumulate.uniforms.tSrc!.value = this.sceneRT.texture;
     this.accumulate.uniforms.uWeight!.value = 1 / n;
+    this.accumulate.uniforms.uScale!.value = this.scale;
     for (let k = 0; k < n; k++) {
       opts.update(opts.times[k]!);
       renderer.setRenderTarget(this.sceneRT);

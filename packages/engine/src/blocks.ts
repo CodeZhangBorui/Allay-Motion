@@ -153,6 +153,10 @@ function createInstances(geometry: THREE.BufferGeometry, materials: THREE.Materi
   const mesh = new THREE.InstancedMesh(geometry, materials, count);
   // 实例分散在整个舞台上，包围球没有意义
   mesh.frustumCulled = false;
+  // 包围球固定在原点：Three 在第一次渲染时按当时的实例矩阵算包围球并缓存下来，透明队列按它的中心排序。
+  // 不固定的话，几组实例之间的绘制顺序（以及深度相等时谁胜出）取决于这个 Worker 先渲染了哪一帧，
+  // 画面就不再是时间的纯函数（docs/decisions.md M3“实例包围球与绘制顺序”）。
+  mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 1e9);
   const white = new THREE.Color(1, 1, 1);
   for (let i = 0; i < count; i++) mesh.setColorAt(i, white);
   const tmp = new THREE.Color();
