@@ -1,0 +1,39 @@
+# Windows 安装包（docs/08-milestones.md M0、M8）。不签名（H-SIGN），不发布（--publish never）。
+# productName 是品牌的一部分：换品牌（09-compliance.md 9.4）时这里也要改，见 docs/decisions.md。
+appId: dev.allay.motion
+productName: Allay Motion
+executableName: AllayMotion
+copyright: ""
+directories:
+  output: release
+  buildResources: build
+# 主进程、preload、渲染进程全部由 electron-vite 打包进 out/，安装包里不需要 node_modules
+files:
+  - out/**/*
+  - package.json
+  - "!node_modules{,/**/*}"
+asar: true
+npmRebuild: false
+nodeGypRebuild: false
+# 1.6 第 8 条：关闭 RunAsNode、NODE_OPTIONS、--inspect 系列参数；只从 asar 加载并校验其完整性
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  loadBrowserProcessSpecificV8Snapshot: false
+  grantFileProtocolExtraPrivileges: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # 没有证书，不签名
+  signAndEditExecutable: true
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-x64-setup.${ext}
+publish: null
