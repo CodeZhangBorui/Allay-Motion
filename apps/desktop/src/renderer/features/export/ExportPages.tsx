@@ -1,9 +1,10 @@
 import { AllayProgress, type AllayProgressPhase } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
-import { useEditor } from '@allay/ui/editor';
+import { ResourceThumb } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
-import { CheckCircle, Copy, FilmSlate, FolderOpen, WarningCircle } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { CheckCircle, Copy, FileVideo, FilmSlate, FolderOpen, WarningCircle } from '@phosphor-icons/react';
+import type { ParamDef, ParamValues } from '@allay/template-sdk';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { frameTimecode } from '../../../shared/export';
 import { dispatch } from '../../app/registry';
@@ -14,6 +15,8 @@ import { useExportInfo } from './exportInfo';
 import type { ExportTaskSnapshot } from './exportTasks';
 
 // 导出对话框的进度页、完成页（docs/06-ui-design.md 6.4）。两页都只读导出任务的状态。
+// 悦灵的进度条（ExportAllay）由对话框放在两页之上、同一个位置，进度页换成结果页时不重新挂载，
+// 完成、失败、取消的编排接着进度的状态演（07-allay-mascot.md 7.6 B，decisions.md M5b、“四路合并的对接”）。
 
 /** 剩余时间 m:ss */
 export function formatEta(seconds: number): string {
@@ -21,44 +24,65 @@ export function formatEta(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** 悦灵捧着的东西：模板第一个方块参数的第一个方块；没有方块参数时是胶片图标（07-allay-mascot.md 7.6 B） */
-function useCarry(): React.ReactNode {
-  const editor = useEditor();
-  const blockId = useProjectStore((s) => {
-    const t = s.template;
-    if (!t) return null;
-    for (const p of t.params) {
-      const v = s.params[p.key];
-      if (p.type === 'block' && typeof v === 'string') return v;
-      if (p.type === 'blockList' && Array.isArray(v) && v.length > 0) {
-        const first = v[0] as { id?: unknown };
-        if (typeof first.id === 'string') return first.id;
-      }
+/** 导出时悦灵捧着的方块（7.6 B）：模板的第一个 block 参数，或第一个 blockList 的第一项；都没有时为 null（捧胶片图标） */
+export function primaryBlockId(defs: readonly ParamDef[], params: ParamValues): string | null {
+  for (const p of defs) {
+    const v: unknown = params[p.key];
+    if (p.type === 'block' && typeof v === 'string') return v;
+    if (p.type === 'blockList' && Array.isArray(v)) {
+      const first: unknown = v[0];
+      if (first && typeof first === 'object' && 'id' in first && typeof first.id === 'string') return first.id;
     }
-    return null;
-  });
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    if (blockId) void editor.thumbnail('block', blockId).then((u) => alive && setUrl(u));
-    return () => {
-      alive = false;
-    };
-  }, [blockId, editor]);
-  if (url) return <img src={url} alt="" className="size-5 [image-rendering:pixelated]" />;
-  return <FilmSlate size={ICON.md} className="text-foreground" />;
+  }
+  return null;
+}
+
+/** 任务状态 → AllayProgress 的阶段：写完全部帧、等 FFmpeg 收尾时算“封装”；结束后完成跳舞、失败 sad、取消飞出 */
+export function allayPhase(task: ExportTaskSnapshot): AllayProgressPhase {
+  switch (task.status) {
+    case 'done':
+      return 'done';
+    case 'failed':
+      return 'error';
+    case 'canceled':
+      return 'canceled';
+    case 'muxing':
+      return 'muxing';
+    default:
+      return 'rendering';
+  }
+}
+
+/**
+ * 进度页和结果页共用的悦灵进度条：对话框把它放在固定的位置，换页时不重新挂载。
+ * 结果页上停在最后的进度处（完成时到头）；封装阶段飞向文件图标。
+ */
+export function ExportAllay({ task }: { task: ExportTaskSnapshot }) {
+  const { t } = useTranslation();
+  const last = useRef(0);
+  if (task.status === 'preparing' || task.status === 'rendering' || task.status === 'muxing') last.current = task.progress;
+  const carryBlock = useProjectStore((s) => (s.template ? primaryBlockId(s.template.params, s.params) : null));
+  const carry = carryBlock ? <ResourceThumb kind="block" id={carryBlock} size={16} /> : <FilmSlate size={ICON.md} className="text-foreground" />;
+  return (
+    <div data-testid="export-allay" data-phase={allayPhase(task)}>
+      <AllayProgress
+        value={task.status === 'done' ? 1 : last.current}
+        phase={allayPhase(task)}
+        label={t('export.progressLabel')}
+        carry={carry}
+        target={<FileVideo size={ICON.md} />}
+      />
+    </div>
+  );
 }
 
 export function ExportProgressPage({ task }: { task: ExportTaskSnapshot }) {
   const { t } = useTranslation();
-  const carry = useCarry();
   const [canceling, setCanceling] = useState(false);
   const percent = Math.floor(task.progress * 100);
-  const phase: AllayProgressPhase = task.status === 'muxing' ? 'muxing' : 'rendering';
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col justify-center gap-5 px-12" data-testid="export-progress-page" data-status={task.status}>
-        <AllayProgress value={task.progress} phase={phase} label={t('export.progressLabel')} carry={carry} />
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
             <span className="text-sm text-fg-muted" data-testid="export-stage">

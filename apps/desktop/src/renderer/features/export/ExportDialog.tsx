@@ -26,7 +26,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { useUiStore } from '../../stores/uiStore';
 import { PRESET_KEY, PRESET_STATE_KEYS, presetState, useEnsureExportInfo, useExportInfo } from './exportInfo';
-import { ExportProgressPage, ExportResultPage } from './ExportPages';
+import { ExportAllay, ExportProgressPage, ExportResultPage } from './ExportPages';
 import { formatBytes } from './labels';
 import { coverCheck, QUALITY_SUBFRAMES, type CoverResult, type QualityLevel } from './exportRunner';
 import { defaultFileName, useExportTasks } from './exportTasks';
@@ -81,8 +81,15 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
           <DialogTitle className="text-base">{page === 'result' && task?.status === 'done' ? t('export.doneTitle') : t('export.title')}</DialogTitle>
         </div>
         {page === 'settings' && <SettingsPage onClose={onClose} onStarted={setTaskId} name={name} setName={setName} />}
-        {page === 'progress' && task && <ExportProgressPage task={task} />}
-        {page === 'result' && task && <ExportResultPage task={task} onAgain={() => setTaskId(null)} onClose={onClose} />}
+        {page !== 'settings' && task && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {/* 进度页和结果页共用同一个悦灵进度条（不重新挂载，7.6 B） */}
+            <div className="shrink-0 px-12 pt-10">
+              <ExportAllay task={task} />
+            </div>
+            {page === 'progress' ? <ExportProgressPage task={task} /> : <ExportResultPage task={task} onAgain={() => setTaskId(null)} onClose={onClose} />}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

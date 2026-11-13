@@ -434,3 +434,36 @@ test('后台测试默认不建启动画面', async () => {
     removeUserDataDir(dir);
   }
 });
+
+test('M5b × M7 导出编排：进度页和结果页共用同一个悦灵进度条（换页不重新挂载）；完成 done、取消 canceled', async () => {
+  const dir = makeUserDataDir();
+  const out = join(dir, 'exports');
+  mkdirSync(out);
+  const ctx = await start({ env: { ALLAY_E2E_EXPORT_TARGET: out, ALLAY_FFMPEG: requirePinnedFfmpeg() } });
+  const { page } = ctx;
+  try {
+    for (const finish of ['done', 'canceled'] as const) {
+      await page.evaluate(() => window.__allayTest!.pauseExportAfter(3));
+      await page.getByTestId('topbar-export').click();
+      await page.getByTestId('export-quality-draft').click();
+      await page.getByTestId('export-start').click();
+      await expect.poll(() => page.evaluate(() => window.__allayTest!.exportPausedAt()), { timeout: 30_000 }).toBe(3);
+      const allay = page.getByTestId('export-allay');
+      await expect(allay).toHaveAttribute('data-phase', 'rendering');
+      // 捧着的东西：T1 的第一个 blockList 第一项的方块缩略图（不是胶片图标）
+      await expect(allay.locator('img').first()).toBeAttached({ timeout: 15_000 });
+      // 给这个 DOM 节点打个记号：结果页上还是它，说明没有重新挂载
+      await allay.evaluate((el) => ((el as HTMLElement & { __mark?: number }).__mark = 1));
+      if (finish === 'canceled') await page.getByTestId('export-cancel').click();
+      await page.evaluate(() => window.__allayTest!.pauseExportAfter(null));
+      await page.evaluate(() => window.__allayTest!.resumeExport());
+      await expect(page.getByTestId('export-result')).toHaveAttribute('data-kind', finish, { timeout: 60_000 });
+      await expect(allay).toHaveAttribute('data-phase', finish);
+      expect(await allay.evaluate((el) => (el as HTMLElement & { __mark?: number }).__mark)).toBe(1);
+      await page.getByTestId('export-close').click();
+    }
+  } finally {
+    await stop(ctx);
+    removeUserDataDir(dir);
+  }
+});
