@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrubNumberField } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
-import { CheckCircle, CircleNotch, FolderOpen, Warning } from '@phosphor-icons/react';
+import { CheckCircle, CircleNotch, CloudArrowDown, FolderOpen, Warning } from '@phosphor-icons/react';
 import { frameCount } from '@allay/engine/frames';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,7 @@ import {
   type ExportPreset,
 } from '../../../shared/export';
 import { dispatch } from '../../app/registry';
+import { soundFileStates } from '../../audio/sound-library';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
@@ -250,6 +251,7 @@ function SettingsPage({ onClose, onStarted, name, setName }: { onClose(): void; 
             </div>
           </Row>
           <CoverLine cover={cover} />
+          <SoundsLine />
         </div>
       </div>
 
@@ -414,6 +416,49 @@ function useCoverCheck(quality: QualityLevel, shutterAngle: number): CoverResult
     };
   }, [key, ready]);
   return result;
+}
+
+/**
+ * 导出前检查要用的音效（M6b）：预览装载结果里引擎选定的变体（与导出的相同）还在下载缓存的索引里、没取回时，
+ * 提示数量并给“取回音效”（用户操作，联网只经 fetchObject）。不取回也能导出：这些音效静音。导出过程中不联网。
+ */
+function SoundsLine() {
+  const { t } = useTranslation();
+  const cues = usePreviewStore((s) => s.audioCues);
+  const files = useMemo(() => [...new Set(cues.flatMap((c) => (c.variant ? [c.variant.file] : [])))], [cues]);
+  const [remote, setRemote] = useState<string[]>([]);
+  const [state, setState] = useState<'idle' | 'fetching' | 'failed'>('idle');
+  useEffect(() => {
+    let alive = true;
+    void soundFileStates(files, false).then((st) => alive && setRemote(files.filter((f) => st[f] === 'remote')));
+    return () => {
+      alive = false;
+    };
+  }, [files]);
+  if (remote.length === 0) return null;
+  const fetchAll = async () => {
+    setState('fetching');
+    const st = await soundFileStates(remote, true);
+    const still = remote.filter((f) => st[f] !== 'local');
+    setRemote(still);
+    setState(still.length > 0 ? 'failed' : 'idle');
+  };
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md bg-control px-3 py-2" data-testid="export-sounds-remote" data-count={remote.length}>
+      <span className="flex items-start gap-1.5 text-xs text-fg-muted">
+        <CloudArrowDown size={ICON.xs} className="mt-px shrink-0" />
+        {t('export.soundsRemote', { count: remote.length })}
+      </span>
+      {state === 'failed' && (
+        <span role="alert" className="text-xs text-warning" data-testid="export-sounds-failed">
+          {t('audio.fetchFailed')}
+        </span>
+      )}
+      <Button variant="secondary" className="self-start" disabled={state === 'fetching'} onClick={() => void fetchAll()} data-testid="export-sounds-fetch">
+        {t(state === 'fetching' ? 'export.soundsFetching' : 'export.soundsFetch')}
+      </Button>
+    </div>
+  );
 }
 
 function CoverLine({ cover }: { cover: CoverResult | 'checking' | null }) {

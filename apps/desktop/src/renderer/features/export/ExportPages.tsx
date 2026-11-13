@@ -2,7 +2,7 @@ import { AllayProgress, type AllayProgressPhase } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
 import { ResourceThumb } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
-import { CheckCircle, Copy, FileVideo, FilmSlate, FolderOpen, WarningCircle } from '@phosphor-icons/react';
+import { CheckCircle, Copy, FileVideo, FilmSlate, FolderOpen, Info, WarningCircle } from '@phosphor-icons/react';
 import type { ParamDef, ParamValues } from '@allay/template-sdk';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -151,6 +151,12 @@ export function ExportResultPage({ task, onAgain, onClose }: { task: ExportTaskS
           <p data-testid="export-cutpoint" className="rounded-md bg-control px-3 py-2.5 text-sm">
             <span className="mr-1.5 inline-block size-2 rotate-45 bg-mark align-middle" aria-hidden="true" />
             {t('export.cutPoint', { frame: r.cutFrame, timecode: frameTimecode(r.cutFrame, r.fps) })}
+          </p>
+        )}
+        {r.peakNormalized && (
+          <p className="flex items-center gap-1.5 text-xs text-fg-subtle" data-testid="export-peak-normalized">
+            <Info size={ICON.xs} className="shrink-0" />
+            {t('audio.peakNormalized')}
           </p>
         )}
         {r.encoder && (

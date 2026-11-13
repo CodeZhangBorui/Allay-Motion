@@ -286,7 +286,7 @@ test.describe('M6b 音效库', () => {
     }
   });
 
-  test('M6b 下载缓存的原版层：下载时只取常用事件的音效；选中别的音效时才按需取回；导出前发现没取回的会提示，可一键取回，导出中途不联网', async () => {
+  test('M6b 下载缓存的原版层：下载时只取常用事件的音效；选中别的音效时才按需取回；导出设置页提示没取回的音效，可一键取回，导出中途不联网', async () => {
     const dir = setup(false);
     const out = join(dir, 'exports');
     mkdirSync(out);
@@ -339,20 +339,39 @@ test.describe('M6b 音效库', () => {
       await page.evaluate(() => window.__allayTest!.setParams({ placeSound: 'minecraft:block.bell.use' }));
       await expect.poll(async () => (await cues(page)).some((c) => c.variant?.file === 'minecraft:test/bell')).toBe(true);
       await waitReady(page);
+      // 经命令直接启动任务（MCP 等）：没取回的音效静音导出，不联网、不卡住
+      const before2 = server.requests.length;
+      const started = await page.evaluate(() => window.__allayTest!.dispatch('exportTask.start', { preset: 'prores4444', quality: 'draft' }));
+      expect(started.ok).toBe(true);
+      const taskId = (started as { ok: true; output: { taskId: string } }).output.taskId;
+      await expect
+        .poll(async () => ((await page.evaluate((id) => window.__allayTest!.dispatch('exportTask.get', { taskId: id }), taskId)) as { output: { status: string } }).output.status, { timeout: 60_000 })
+        .toBe('done');
+      expect(server.requests.slice(before2)).toEqual([]);
+      const viaCommand = ((await page.evaluate((id) => window.__allayTest!.dispatch('exportTask.get', { taskId: id }), taskId)) as { output: { result: { path: string; audio: boolean } } }).output.result;
+      // 破坏音效在本地，照常有音轨；钟静音
+      expect(viaCommand.audio).toBe(true);
+      expect(streams(viaCommand.path).filter((x) => x.codec_type === 'audio')).toHaveLength(1);
+
       server.objectMode = 'fail';
       await page.getByTestId('topbar-export').click();
       await page.getByTestId('export-quality-draft').click();
-      await page.getByTestId('export-start').click();
-      await expect(page.getByTestId('export-sounds-remote')).toBeVisible();
+      // 设置页上提示有没取回的音效（导出前检查，M7 的设置页里）
+      await expect(page.getByTestId('export-sounds-remote')).toHaveAttribute('data-count', '1');
       await page.getByTestId('export-sounds-fetch').click();
       await expect(page.getByTestId('export-sounds-failed')).toBeVisible();
       server.objectMode = 'ok';
       await page.getByTestId('export-sounds-fetch').click();
+      await expect(page.getByTestId('export-sounds-remote')).toHaveCount(0);
+      await page.getByTestId('export-start').click();
       await expect(page.getByTestId('export-result')).toHaveAttribute('data-kind', 'done', { timeout: 60_000 });
       const path = (await page.getByTestId('export-path').textContent())!;
       expect(streams(path).filter((x) => x.codec_type === 'audio')).toHaveLength(1);
+      // 同名的第二个文件加了 “ (2)”
+      expect(path).toMatch(/ \(2\)\.mov$/);
       // 导出过程中没有再联网：钟的文件只在确认取回时请求过（失败一次、成功一次）
       expect(server.requests.filter((p) => p === objectPath('minecraft/sounds/test/bell.ogg'))).toHaveLength(2);
+      expect(readdirSync(out)).toHaveLength(2);
       expect(server.identifyingHeaders).toEqual([]);
     } finally {
       await app.close();
