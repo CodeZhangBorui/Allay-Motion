@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { BrowserWindow, screen } from 'electron';
 import type { Theme } from '../shared/settings';
-import { THEME_CHROME_COLORS, TOPBAR_HEIGHT } from '../shared/theme-colors';
+import { THEME_CHROME_COLORS, TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import type { Logger } from './logger';
 import type { SettingsStore } from './settings-store';
 import { MIN_WINDOW, restoreBounds } from './window-state';
@@ -35,7 +35,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     backgroundColor: colors.background,
     // 无边框窗口加系统窗口按钮（6.3）
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: colors.titleBar, symbolColor: colors.titleBarSymbol, height: TOPBAR_HEIGHT },
+    titleBarOverlay: { color: colors.titleBar, symbolColor: colors.titleBarSymbol, height: TITLEBAR_OVERLAY_HEIGHT },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // 1.6 第 1 条，一条都不许放宽

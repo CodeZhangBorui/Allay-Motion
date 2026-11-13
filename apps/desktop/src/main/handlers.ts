@@ -4,7 +4,7 @@ import { app, dialog, type BrowserWindow } from 'electron';
 import type { AppInfo, PickedFile } from '../shared/ipc-contract';
 import type { AddPackResult, ChooseGameDirResult } from '../shared/resources';
 import { IPC } from '../shared/ipc-channels';
-import { TOPBAR_HEIGHT } from '../shared/theme-colors';
+import { TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import { UnknownJobError, type ExportService } from './export/export-service';
 import type { FileGrants } from './file-grants';
 import { IpcRejected, type createIpcRegistrar } from './ipc';
@@ -69,7 +69,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.window.setTitleBarColors, (_event, colors) => {
     const win = getMainWindow();
     if (!win || win.isDestroyed()) return;
-    win.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TOPBAR_HEIGHT });
+    win.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_OVERLAY_HEIGHT });
   });
 
   handle(IPC.files.pickImage, async (): Promise<PickedFile | null> => {

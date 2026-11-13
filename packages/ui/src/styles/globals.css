@@ -1,5 +1,5 @@
 /*
- * 设计变量与两套主题，来源：docs/06-ui-design.md 6.2。
+ * 设计变量与两套主题，来源：docs/06-ui-design.md 6.2（“方块工作台”）。
  * 色值已经验算过对比度（node docs/reference/contrast-check.mjs），不要凭感觉改。
  * 使用方需要在自己的入口 CSS 里加 @source 指向本包的 src，让 Tailwind 扫描到这里的类名。
  */
@@ -8,6 +8,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
+/* 方舟像素字体 12px 比例宽度 zh_hans（OFL 1.1，原样取自官方发布包 2026.11.10，见 ASSETS_PROVENANCE.json） */
+@font-face {
+  font-family: "Ark Pixel 12";
+  src: url("../../assets/fonts/ark-pixel-12px-proportional-zh_hans.otf.woff2") format("woff2");
+  font-display: block;
+}
+
 /* 主题由 <html data-theme="dark|light"> 决定；dark: 前缀跟随它而不是系统设置 */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
@@ -15,68 +22,77 @@
 :root,
 [data-theme='dark'] {
   color-scheme: dark;
-  --background: #0B0F13;
-  --surface-1: #14171D;
-  --surface-2: #1C2127;
-  --surface-3: #252B32;
-  --border: #2D333B;
-  --border-strong: #474E57;
-  --input-border: #5C646E;
-  --foreground: #F2F4F6;
-  --fg-muted: #9EA5AE;
-  --fg-subtle: #7A8189;
-  --primary: #2072D5;
-  --primary-hover: #2E80E0;
-  --primary-active: #1665C8;
-  --primary-foreground: #FAFCFE;
-  --primary-text: #60AAF3;
-  --ring: #52CFF3;
-  --allay: #52CFF3;
-  --allay-glow: #9EEDFB;
-  --allay-deep: #1B92C2;
-  --amethyst: #B98CEA;
-  --success: #52CD7D;
-  --warning: #F8BD40;
-  --danger: #F4514F;
-  --viewport: #060606;
-  --skeleton: #22272D;
-
-  --shadow-popover: 0 8px 24px rgb(0 0 0 / .45);
-  --shadow-dialog: 0 16px 48px rgb(0 0 0 / .55);
+  --background: #19181C;
+  --surface-1: #242328;
+  --surface-2: #33323A;
+  --surface-3: #3D3C45;
+  --well: #121115;
+  --border: #4A4852;
+  --input-border: #737080;
+  --bevel-hi: #5C5A66;
+  --bevel-lo: #0C0B0E;
+  --foreground: #ECE7DF;
+  --fg-muted: #AFA9A1;
+  --fg-subtle: #7E7972;
+  --primary: #43D3EA;
+  --primary-hover: #6ADDEF;
+  --primary-active: #2FBFD6;
+  --primary-foreground: #141216;
+  --primary-bevel-hi: #B4F1FA;
+  --primary-bevel-lo: #16899C;
+  --primary-text: #43D3EA;
+  --ring: #43D3EA;
+  --allay: #43D3EA;
+  --allay-deep: #1B9AB0;
+  --allay-light: #A6EEF8;
+  --amethyst: #9B6FE0;
+  --stage-enter: #43D3EA;
+  --stage-hold: #D9B76A;
+  --stage-exit: #9B6FE0;
+  --success: #2FB36B;
+  --warning: #E3A22C;
+  --danger: #EC6146;
+  --shadow-hard: #070608;
+  --viewport: #0E0E0E;
+  --skeleton: #2E2D33;
 }
 
-/* ---------- 6.2 设计变量：浅色 ---------- */
+/* ---------- 6.2 设计变量：浅色（石英/羊皮纸） ---------- */
 [data-theme='light'] {
   color-scheme: light;
-  --background: #F5F7F9;
-  --surface-1: #FFFFFF;
-  --surface-2: #EDF0F4;
-  --surface-3: #E3E7EC;
-  --border: #DADEE3;
-  --border-strong: #B9BEC6;
-  --input-border: #81878F;
-  --foreground: #141B24;
-  --fg-muted: #565E69;
-  --fg-subtle: #737B85;
-  --primary: #0D6AD7;
-  --primary-hover: #085DC7;
-  --primary-active: #0052B4;
-  --primary-foreground: #FAFCFE;
-  --primary-text: #0D6AD7;
-  --ring: #257DA9;
-  --allay: #22A6D5;
-  --allay-glow: #76DBF3;
-  --allay-deep: #257DA9;
-  --amethyst: #925AC9;
-  --success: #078543;
-  --warning: #A2650A;
-  --danger: #D4212D;
-  --viewport: #D1D1D1;
-  --skeleton: #E4E8ED;
-
-  /* 规格只给了深色主题的阴影；浅色用同样的形状、更淡的不透明度（见 docs/decisions.md） */
-  --shadow-popover: 0 8px 24px rgb(16 24 40 / .12);
-  --shadow-dialog: 0 16px 48px rgb(16 24 40 / .18);
+  --background: #E9E3D8;
+  --surface-1: #F4EFE6;
+  --surface-2: #FBF6EC;
+  --surface-3: #F0E9DD;
+  --well: #DAD3C6;
+  --border: #A39B8E;
+  --input-border: #857D71;
+  --bevel-hi: #FFFFFF;
+  --bevel-lo: #B3AA9A;
+  --foreground: #27231F;
+  --fg-muted: #5E574F;
+  --fg-subtle: #776F65;
+  --primary: #43D3EA;
+  --primary-hover: #6ADDEF;
+  --primary-active: #2FBFD6;
+  --primary-foreground: #141216;
+  --primary-bevel-hi: #B4F1FA;
+  --primary-bevel-lo: #16899C;
+  --primary-text: #08627A;
+  --ring: #0E7F99;
+  --allay: #43D3EA;
+  --allay-deep: #1B9AB0;
+  --allay-light: #A6EEF8;
+  --amethyst: #7A4FC4;
+  --stage-enter: #2FBFD6;
+  --stage-hold: #C29A45;
+  --stage-exit: #8A5BD6;
+  --success: #1B7843;
+  --warning: #94600F;
+  --danger: #B8321F;
+  --shadow-hard: #A8A091;
+  --viewport: #CFCFCF;
+  --skeleton: #E2DBCE;
 }
 
 /* ---------- 映射到 shadcn 的变量（6.2“映射到 shadcn 的变量”），两套主题共用 ---------- */
@@ -85,56 +101,68 @@
 [data-theme='light'] {
   --card: var(--surface-1);
   --card-foreground: var(--foreground);
-  --popover: var(--surface-2);
+  --popover: var(--surface-1);
   --popover-foreground: var(--foreground);
   --muted: var(--surface-2);
   --muted-foreground: var(--fg-muted);
-  --secondary: var(--surface-3);
+  --secondary: var(--surface-2);
   --secondary-foreground: var(--foreground);
   --accent: var(--surface-3);
   --accent-foreground: var(--foreground);
   --destructive: var(--danger);
-  --input: var(--border-strong);
+  --input: var(--input-border);
 }
 
 /* ---------- 尺寸、字体、动效 ---------- */
 :root {
   --font-ui: "Inter Variable", "Segoe UI Variable Text", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --font-pixel: "Ark Pixel 12", var(--font-ui);
   --font-id: "Cascadia Mono", Consolas, monospace;
 
-  --dur-1: 90ms;   /* 悬停、按下 */
-  --dur-2: 160ms;  /* 弹层、开关、内容切换的淡入淡出 */
-  --dur-3: 240ms;  /* 面板、对话框 */
-  --dur-4: 400ms;  /* 页面级、悦灵进出场 */
-  --ease-out: cubic-bezier(.2, .8, .2, 1);
-  --ease-in-out: cubic-bezier(.45, .05, .2, 1);
+  /* 像素字的实际 CSS 字号：让字形的每个像素落在整数个设备像素上（installPixelScale 按 devicePixelRatio 改写） */
+  --px-12: 12px;
+  --px-24: 24px;
+
+  /* 棋盘格（预览区、封面、色块的透明部分）：无彩色 */
+  --checker-a: #2A2A2A;
+  --checker-b: #3A3A3A;
+
+  --dur-1: 60ms;   /* 悬停、按下 */
+  --dur-2: 120ms;  /* 弹层、开关、内容切换 */
+  --dur-3: 120ms;  /* 面板、对话框 */
+  --dur-4: 400ms;  /* 悦灵进出场 */
+  --ease-step: steps(3, end);
+  --ease-out: cubic-bezier(.2, .8, .2, 1);       /* 只给悦灵的飞行用 */
+  --ease-in-out: cubic-bezier(.45, .05, .2, 1);  /* 只给悦灵的飞行用 */
 
   --topbar-height: 40px;
   --transport-height: 48px;
 }
 
-/* 减少动效：除 120 ms 的透明度渐变外其余时长归零（6.2 动效） */
+/* 减少动效：所有时长归零（6.2 动效） */
 [data-reduced-motion='true'] {
   --dur-1: 0ms;
   --dur-2: 0ms;
   --dur-3: 0ms;
   --dur-4: 0ms;
-  --dur-fade: 120ms;
 }
 
 @theme inline {
   --font-sans: var(--font-ui);
-  --font-heading: var(--font-ui);
+  --font-heading: var(--font-pixel);
   --font-mono: var(--font-id);
+  --font-pixel: var(--font-pixel);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+  --color-well: var(--well);
   --color-border: var(--border);
-  --color-border-strong: var(--border-strong);
   --color-input-border: var(--input-border);
+  --color-bevel-hi: var(--bevel-hi);
+  --color-bevel-lo: var(--bevel-lo);
   --color-fg-muted: var(--fg-muted);
   --color-fg-subtle: var(--fg-subtle);
   --color-primary: var(--primary);
@@ -144,12 +172,16 @@
   --color-primary-text: var(--primary-text);
   --color-ring: var(--ring);
   --color-allay: var(--allay);
-  --color-allay-glow: var(--allay-glow);
   --color-allay-deep: var(--allay-deep);
+  --color-allay-light: var(--allay-light);
   --color-amethyst: var(--amethyst);
+  --color-stage-enter: var(--stage-enter);
+  --color-stage-hold: var(--stage-hold);
+  --color-stage-exit: var(--stage-exit);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-shadow-hard: var(--shadow-hard);
   --color-viewport: var(--viewport);
   --color-skeleton: var(--skeleton);
 
@@ -166,7 +198,7 @@
   --color-destructive: var(--destructive);
   --color-input: var(--input);
 
-  /* 字号阶梯 11/12/13/14/16/20，行高 1.4 */
+  /* Inter 的字号阶梯 11/12/13/14/16，行高 1.4；像素字只用 font-px12 / font-px24 */
   --text-2xs: 11px;
   --text-2xs--line-height: 1.4;
   --text-xs: 12px;
@@ -177,25 +209,128 @@
   --text-base--line-height: 1.4;
   --text-lg: 16px;
   --text-lg--line-height: 1.4;
-  --text-xl: 20px;
-  --text-xl--line-height: 1.4;
 
-  /* 圆角：6 控件、8 卡片与弹层、12 对话框 */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  /* 圆角一律为 0 */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
 
-  --shadow-popover: var(--shadow-popover);
-  --shadow-dialog: var(--shadow-dialog);
-
+  --ease-step: var(--ease-step);
   --ease-out: var(--ease-out);
   --ease-in-out: var(--ease-in-out);
+}
+
+/* ---------- 方块：缺角 2 px 的实色描边、硬边斜面、硬投影（6.2 形状与厚度） ----------
+ * 描边画在盒子外面：四个只沿一个方向偏移 2 px 的零模糊投影，四角各空出一个 2×2 的方块（缺角）。
+ * 不用 clip-path：它会把焦点环也切掉。斜面是盒子里面的两条 2 px 硬边 inset。
+ * 三部分各占一个不继承的变量，box-shadow 每次都按同一个顺序合成，组合使用互不覆盖。
+ */
+@property --blk-bevel {
+  syntax: '*';
+  inherits: false;
+}
+@property --blk-ring {
+  syntax: '*';
+  inherits: false;
+}
+@property --blk-drop {
+  syntax: '*';
+  inherits: false;
+}
+@property --blk-c {
+  syntax: '*';
+  inherits: false;
+}
+
+@utility blk {
+  --blk-ring: 0 -2px 0 0 var(--blk-c, var(--input-border)), 0 2px 0 0 var(--blk-c, var(--input-border)), -2px 0 0 0 var(--blk-c, var(--input-border)), 2px 0 0 0 var(--blk-c, var(--input-border));
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+}
+/* 描边颜色：容器用 --border，被选中用 --ring */
+@utility blk-edge-container {
+  --blk-c: var(--border);
+}
+@utility blk-edge-ring {
+  --blk-c: var(--ring);
+}
+/* 凸起：上、左亮；下、右暗 */
+@utility blk-raised {
+  background-color: var(--surface-2);
+  --blk-bevel: inset 2px 2px 0 0 var(--bevel-hi), inset -2px -2px 0 0 var(--bevel-lo);
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+}
+/* 凹槽：亮暗反过来 */
+@utility blk-sunken {
+  background-color: var(--well);
+  --blk-bevel: inset 2px 2px 0 0 var(--bevel-lo), inset -2px -2px 0 0 var(--bevel-hi);
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+}
+/* 主操作：青色实心块配深色墨字 */
+@utility blk-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  --blk-bevel: inset 2px 2px 0 0 var(--primary-bevel-hi), inset -2px -2px 0 0 var(--primary-bevel-lo);
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+}
+/* 平的：没有斜面（只有描边，或者什么都没有） */
+@utility blk-flat {
+  --blk-bevel: 0 0 #0000;
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+}
+/* 按下：斜面对调、整体下移 1 px */
+@utility blk-down {
+  --blk-bevel: inset 2px 2px 0 0 var(--bevel-lo), inset -2px -2px 0 0 var(--bevel-hi);
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+  translate: 0 1px;
+}
+/* 浮层（对话框、弹层、菜单、通知、提示）：面板底色、容器描边、4 px 硬投影（沿缺角的轮廓） */
+@utility blk-float {
+  background-color: var(--surface-1);
+  --blk-c: var(--input-border);
+  --blk-ring: 0 -2px 0 0 var(--blk-c, var(--input-border)), 0 2px 0 0 var(--blk-c, var(--input-border)), -2px 0 0 0 var(--blk-c, var(--input-border)), 2px 0 0 0 var(--blk-c, var(--input-border));
+  --blk-drop: 4px 4px 0 0 var(--shadow-hard), 4px 2px 0 0 var(--shadow-hard), 4px 6px 0 0 var(--shadow-hard), 2px 4px 0 0 var(--shadow-hard), 6px 4px 0 0 var(--shadow-hard);
+  box-shadow: var(--blk-bevel, 0 0 #0000), var(--blk-ring, 0 0 #0000), var(--blk-drop, 0 0 #0000);
+}
+
+/* 像素字：只在 12 的整数倍字号上用，关闭字体平滑 */
+@utility font-px12 {
+  font-family: var(--font-pixel);
+  font-size: var(--px-12);
+  line-height: calc(var(--px-12) * 4 / 3);
+  font-weight: 400;
+  letter-spacing: 0;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+  font-variant-numeric: normal;
+}
+@utility font-px24 {
+  font-family: var(--font-pixel);
+  font-size: var(--px-24);
+  line-height: calc(var(--px-24) * 4 / 3);
+  font-weight: 400;
+  letter-spacing: 0;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  text-rendering: optimizeSpeed;
+  font-variant-numeric: normal;
 }
 
 @layer base {
   * {
     @apply border-border;
+  }
+  /* 圆角一律为 0；全应用不用背景模糊（第三方组件的内置样式也一样） */
+  *,
+  ::before,
+  ::after {
+    border-radius: 0 !important;
+    backdrop-filter: none !important;
   }
   html,
   body {
@@ -207,10 +342,33 @@
     @apply bg-background text-foreground font-sans text-sm antialiased;
     user-select: none;
   }
-  /* 焦点环：2 px 的 --ring，外偏移 2 px（6.9） */
+  /* 焦点环：2 px 实线 --ring，外偏移 2 px，方角（6.9） */
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+  /* Lucide 图标：方头方角、线宽 2.5（6.2 图标） */
+  svg.lucide {
+    stroke-width: 2.5;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    shape-rendering: crispEdges;
+  }
+  /* 滚动条：方的、窄的 */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    background: var(--well);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--input-border);
+    border: 2px solid var(--well);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-muted);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--well);
   }
   .tabular-nums {
     font-variant-numeric: tabular-nums;
@@ -223,31 +381,31 @@
 /* ---------- 骨架、悦灵占位、内容入场（docs/07-allay-mascot.md 7.6 A） ---------- */
 @keyframes allay-breathe {
   0%, 100% { opacity: 1; }
-  50% { opacity: .9; }
+  50% { opacity: .85; }
 }
 @keyframes allay-ph-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6%); }
 }
 @keyframes allay-ph-wing {
-  0%, 100% { transform: scaleY(1) rotate(-8deg); }
-  50% { transform: scaleY(.55) rotate(8deg); }
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(.5); }
 }
 @keyframes allay-item-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
 }
 @layer components {
   .allay-breathe {
-    animation: allay-breathe 1.6s var(--ease-in-out) infinite;
+    animation: allay-breathe 1.6s steps(2, jump-none) infinite;
   }
   .allay-placeholder[data-clip='hover'] .allay-ph-bob,
   .allay-placeholder[data-clip='sad'] .allay-ph-bob {
-    animation: allay-ph-bob 1.5s var(--ease-in-out) infinite;
+    animation: allay-ph-bob 1.5s steps(4, jump-none) infinite;
   }
   .allay-placeholder .allay-ph-wing {
     transform-origin: 90% 50%;
-    animation: allay-ph-wing .25s linear infinite;
+    animation: allay-ph-wing .25s steps(2, jump-none) infinite;
   }
   .allay-placeholder[data-clip='fly'] .allay-ph-wing {
     animation-duration: .133s;
@@ -256,24 +414,45 @@
     animation-duration: .9s;
   }
   .allay-item-in {
-    animation: allay-item-in var(--dur-3) var(--ease-out) both;
+    animation: allay-item-in var(--dur-3) var(--ease-step) both;
   }
-  /* 小尺寸的棋盘格（模板封面、色块的透明部分） */
+  /* 棋盘格：锐利的方格（预览区 16 px、封面与色块 8 px） */
+  .preview-checker {
+    background-color: var(--checker-a);
+    background-image: conic-gradient(var(--checker-b) 25%, transparent 0 50%, var(--checker-b) 0 75%, transparent 0);
+    background-size: 16px 16px;
+  }
   .preview-checker-sm {
-    background-color: #2a2a2a;
-    background-image: conic-gradient(#3a3a3a 25%, transparent 0 50%, #3a3a3a 0 75%, transparent 0);
+    background-color: var(--checker-a);
+    background-image: conic-gradient(var(--checker-b) 25%, transparent 0 50%, var(--checker-b) 0 75%, transparent 0);
     background-size: 8px 8px;
   }
-  /* react-colorful 的尺寸与圆角 */
+  /* react-colorful：尺寸；取色点是方的凸块 */
   .allay-colorful .react-colorful {
     width: 100%;
     height: 160px;
+    gap: 6px;
   }
-  .allay-colorful .react-colorful__saturation {
-    border-radius: 6px 6px 0 0;
+  .allay-colorful .react-colorful__saturation,
+  .allay-colorful .react-colorful__hue,
+  .allay-colorful .react-colorful__alpha {
+    border-bottom: 0;
+    box-shadow: 0 -2px 0 0 var(--input-border), 0 2px 0 0 var(--input-border), -2px 0 0 0 var(--input-border), 2px 0 0 0 var(--input-border);
   }
-  .allay-colorful .react-colorful__last-control {
-    border-radius: 0 0 6px 6px;
+  .allay-colorful .react-colorful__pointer {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--well);
+    box-shadow: inset 0 0 0 2px #fff;
+  }
+  /* 通知（Sonner）：同一套缺角、描边、硬投影 */
+  [data-sonner-toaster] [data-sonner-toast][data-styled='true'] {
+    border: 0 !important;
+    background: var(--surface-1) !important;
+    color: var(--foreground) !important;
+    box-shadow:
+      0 -2px 0 0 var(--input-border), 0 2px 0 0 var(--input-border), -2px 0 0 0 var(--input-border), 2px 0 0 0 var(--input-border),
+      4px 4px 0 0 var(--shadow-hard), 4px 2px 0 0 var(--shadow-hard), 4px 6px 0 0 var(--shadow-hard), 2px 4px 0 0 var(--shadow-hard), 6px 4px 0 0 var(--shadow-hard) !important;
   }
 }
 /* 减少动效：悦灵、骨架、入场都不动（T-ALY-4） */

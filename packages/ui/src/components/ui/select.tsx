@@ -3,20 +3,20 @@ import { cn } from 'cn';
 import { Check, ChevronDown } from 'lucide-react';
 import { menuItemClass, menuPopupClass } from './dropdown-menu';
 
-// shadcn 的 Select（Base UI）。触发器高 28（6.2 控件高度），底色 surface-3，边框 --input-border。
+// shadcn 的 Select（Base UI）。触发器高 28（6.2 控件高度），是凹槽；右端是一块方形的箭头凸块。
 
 const Select = SelectPrimitive.Root;
 const SelectValue = SelectPrimitive.Value;
 
 export const fieldClass =
-  'h-7 rounded-md border border-input-border bg-surface-3 px-2 text-sm outline-none transition-colors duration-(--dur-1) hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) disabled:opacity-50';
+  'h-7 blk blk-sunken px-2 text-sm text-foreground outline-none hover:[--blk-c:var(--fg-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring) disabled:opacity-50';
 
 function SelectTrigger({ className, children, ...props }: SelectPrimitive.Trigger.Props) {
   return (
-    <SelectPrimitive.Trigger className={cn(fieldClass, 'inline-flex min-w-0 items-center justify-between gap-1.5 text-left', className)} {...props}>
+    <SelectPrimitive.Trigger className={cn(fieldClass, 'inline-flex min-w-0 items-center justify-between gap-1.5 pr-0.5 text-left', className)} {...props}>
       {children}
-      <SelectPrimitive.Icon className="inline-flex shrink-0 text-fg-muted">
-        <ChevronDown className="size-3.5" />
+      <SelectPrimitive.Icon className="inline-flex size-6 shrink-0 items-center justify-center blk-raised text-fg-muted">
+        <ChevronDown className="size-4" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -46,7 +46,7 @@ function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Prop
 }
 
 function SelectSeparator({ className, ...props }: SelectPrimitive.Separator.Props) {
-  return <SelectPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+  return <SelectPrimitive.Separator className={cn('-mx-1.5 my-1.5 h-0.5 bg-border', className)} {...props} />;
 }
 
 export { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue };

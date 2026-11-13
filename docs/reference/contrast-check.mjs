@@ -1,31 +1,34 @@
 // 复核 docs/06-ui-design.md 6.2 的对比度表。改了任何色值之后运行：node docs/reference/contrast-check.mjs
 const themes = {
   dark: {
-    background: '#0B0F13', 'surface-1': '#14171D', 'surface-2': '#1C2127', 'surface-3': '#252B32',
-    border: '#2D333B', 'border-strong': '#474E57', 'input-border': '#5C646E',
-    foreground: '#F2F4F6', 'fg-muted': '#9EA5AE', 'fg-subtle': '#7A8189',
-    primary: '#2072D5', 'primary-hover': '#2E80E0', 'primary-active': '#1665C8', 'primary-foreground': '#FAFCFE',
-    'primary-text': '#60AAF3', ring: '#52CFF3', success: '#52CD7D', warning: '#F8BD40', danger: '#F4514F', amethyst: '#B98CEA',
+    background: '#19181C', 'surface-1': '#242328', 'surface-2': '#33323A', 'surface-3': '#3D3C45', well: '#121115',
+    border: '#4A4852', 'input-border': '#737080',
+    foreground: '#ECE7DF', 'fg-muted': '#AFA9A1', 'fg-subtle': '#7E7972',
+    primary: '#43D3EA', 'primary-hover': '#6ADDEF', 'primary-active': '#2FBFD6', 'primary-foreground': '#141216',
+    'primary-text': '#43D3EA', ring: '#43D3EA', success: '#2FB36B', warning: '#E3A22C', danger: '#EC6146', amethyst: '#9B6FE0',
   },
   light: {
-    background: '#F5F7F9', 'surface-1': '#FFFFFF', 'surface-2': '#EDF0F4', 'surface-3': '#E3E7EC',
-    border: '#DADEE3', 'border-strong': '#B9BEC6', 'input-border': '#81878F',
-    foreground: '#141B24', 'fg-muted': '#565E69', 'fg-subtle': '#737B85',
-    primary: '#0D6AD7', 'primary-hover': '#085DC7', 'primary-active': '#0052B4', 'primary-foreground': '#FAFCFE',
-    'primary-text': '#0D6AD7', ring: '#257DA9', success: '#078543', warning: '#A2650A', danger: '#D4212D', amethyst: '#925AC9',
+    background: '#E9E3D8', 'surface-1': '#F4EFE6', 'surface-2': '#FBF6EC', 'surface-3': '#F0E9DD', well: '#DAD3C6',
+    border: '#A39B8E', 'input-border': '#857D71',
+    foreground: '#27231F', 'fg-muted': '#5E574F', 'fg-subtle': '#776F65',
+    primary: '#43D3EA', 'primary-hover': '#6ADDEF', 'primary-active': '#2FBFD6', 'primary-foreground': '#141216',
+    'primary-text': '#08627A', ring: '#0E7F99', success: '#1B7843', warning: '#94600F', danger: '#B8321F', amethyst: '#7A4FC4',
   },
 };
 
 // [前景, 背景, 最低要求]。3.0 用于非文字的界面元素和瞬时状态，4.5 用于正文。
+// 文字可能出现在面板（surface-1）、凸起面（surface-2、悬停时 surface-3）、凹槽（well）和窗口底色上。
 const pairs = [
-  ['foreground', 'surface-1', 4.5], ['foreground', 'background', 4.5], ['foreground', 'surface-2', 4.5],
-  ['fg-muted', 'surface-1', 4.5], ['fg-muted', 'background', 4.5], ['fg-muted', 'surface-2', 4.5],
-  ['fg-subtle', 'surface-1', 3.0],
-  ['primary-foreground', 'primary', 4.5], ['primary-foreground', 'primary-hover', 3.0], ['primary-foreground', 'primary-active', 4.5],
-  ['primary-text', 'surface-1', 4.5], ['primary-text', 'background', 4.5],
-  ['ring', 'surface-1', 3.0], ['ring', 'background', 3.0],
-  ['input-border', 'surface-1', 3.0],
-  ['success', 'surface-1', 4.5], ['warning', 'surface-1', 4.5], ['danger', 'surface-1', 4.5], ['amethyst', 'surface-1', 4.5],
+  ['foreground', 'surface-1', 4.5], ['foreground', 'background', 4.5], ['foreground', 'surface-2', 4.5], ['foreground', 'surface-3', 4.5], ['foreground', 'well', 4.5],
+  ['fg-muted', 'surface-1', 4.5], ['fg-muted', 'background', 4.5], ['fg-muted', 'surface-2', 4.5], ['fg-muted', 'well', 4.5],
+  ['fg-muted', 'surface-3', 3.0],
+  ['fg-subtle', 'surface-1', 3.0], ['fg-subtle', 'well', 3.0],
+  ['primary-foreground', 'primary', 4.5], ['primary-foreground', 'primary-hover', 4.5], ['primary-foreground', 'primary-active', 4.5],
+  ['primary-text', 'surface-1', 4.5], ['primary-text', 'background', 4.5], ['primary-text', 'surface-2', 4.5], ['primary-text', 'well', 4.5],
+  ['ring', 'surface-1', 3.0], ['ring', 'background', 3.0], ['ring', 'well', 3.0], ['ring', 'surface-2', 3.0],
+  ['input-border', 'surface-1', 3.0], ['input-border', 'background', 3.0],
+  ['success', 'surface-1', 4.5], ['warning', 'surface-1', 4.5], ['danger', 'surface-1', 4.5], ['danger', 'background', 4.5],
+  ['amethyst', 'surface-1', 3.0],
 ];
 
 const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);

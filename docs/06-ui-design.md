@@ -5,119 +5,163 @@
 ## 6.1 设计原则
 
 1. **默认流程只有三步：选模板、调参数、导出。** 进阶功能收在菜单和对话框里，不占主界面。
-2. **界面外壳现代、中性、紧凑；Minecraft 的味道只出现在内容和品牌时刻。** 缩略图、方块图标、悦灵、少量像素字标题是像素风的；按钮、输入框、面板不是。
-3. **蓝色是唯一的强调色。** 主蓝用于主要操作；悦灵青用于焦点、选中、进度这些“发光”的地方。
+2. **“方块工作台”。** 界面像一张做方块活计的工作台：方、硬、平、有厚度。用像素字和硬边斜面说话，不用圆角、渐变和柔光。借的是“像素与方块”这个通用的视觉语言，不照搬 Minecraft 的界面：不用其字体或仿其字体、不用其贴图、标志、界面截图，不逐像素复刻它的按钮和物品栏。
+3. **悦灵青是唯一的强调色，面积要小。** 用于选中、焦点、播放头和主操作按钮；大面积永远是中性色。中性色是带一点暖紫的石头灰（深色）和石英/羊皮纸色（浅色），不用蓝灰。
 4. **所见即所得。** 任何参数变化都在下一帧反映到预览；预览和导出逐帧一致。
-5. **丝滑。** 只动画 `transform` 和 `opacity`；骨架屏的形状与最终布局完全一致，内容出现时没有位移。
+5. **动效是“翻一格”。** 小状态变化不超过 120 ms，用 `steps()` 的分级缓动；不做长淡入淡出，只动画 `transform`、`opacity` 和颜色；骨架屏的形状与最终布局完全一致，内容出现时没有位移。
+
+**明确禁止**：渐变、玻璃拟态、背景模糊、发光、药丸形、任何非 0 圆角、蓝灰色系、柔和阴影、emoji、给每个卡片配一个彩色小图标块这类装饰。
 
 ## 6.2 设计变量
 
-用 Tailwind CSS v4 的 CSS 变量主题。下面的色值已经算过对比度，不要凭感觉改；要改就重新验算（`node docs/reference/contrast-check.mjs`）。
+用 Tailwind CSS v4 的 CSS 变量主题，全部集中在 `packages/ui/src/styles/globals.css`，组件里不写死颜色。下面的色值已经算过对比度，不要凭感觉改；要改就重新验算（`node docs/reference/contrast-check.mjs`）。
 
 ```css
-:root, [data-theme='dark'] {              /* 默认主题 */
-  --background: #0B0F13;
-  --surface-1: #14171D;                   /* 面板、卡片 */
-  --surface-2: #1C2127;                   /* 弹层、悬停 */
-  --surface-3: #252B32;                   /* 输入框底、按下 */
-  --border: #2D333B;
-  --border-strong: #474E57;
-  --input-border: #5C646E;
-  --foreground: #F2F4F6;
-  --fg-muted: #9EA5AE;
-  --fg-subtle: #7A8189;                   /* 仅用于占位符、禁用、装饰性文字 */
-  --primary: #2072D5;
-  --primary-hover: #2E80E0;
-  --primary-active: #1665C8;
-  --primary-foreground: #FAFCFE;
-  --primary-text: #60AAF3;                /* 深色底上的蓝色文字、图标、链接 */
-  --ring: #52CFF3;
-  --allay: #52CFF3;
-  --allay-glow: #9EEDFB;
-  --allay-deep: #1B92C2;
-  --amethyst: #B98CEA;                    /* 只用于“我的模板”标记和庆祝时刻 */
-  --success: #52CD7D;
-  --warning: #F8BD40;
-  --danger: #F4514F;
-  --viewport: #060606;                    /* 预览区四周，必须是无彩色的中性灰 */
-  --skeleton: #22272D;
+:root, [data-theme='dark'] {              /* 默认主题：暖紫石头灰 */
+  --background: #19181C;
+  --surface-1: #242328;                   /* 面板、浮层的面 */
+  --surface-2: #33323A;                   /* 凸起面（按钮、标签、分组标题条） */
+  --surface-3: #3D3C45;                   /* 凸起面悬停、菜单高亮 */
+  --well: #121115;                        /* 凹槽（输入框、数值框、轨道、封面槽、格子） */
+  --border: #4A4852;                      /* 容器之间的分隔线 */
+  --input-border: #737080;                /* 控件和浮层的 2 px 描边（非文字元素 ≥ 3:1） */
+  --bevel-hi: #5C5A66;                    /* 斜面亮缘 */
+  --bevel-lo: #0C0B0E;                    /* 斜面暗缘 */
+  --foreground: #ECE7DF;                  /* 暖白 */
+  --fg-muted: #AFA9A1;
+  --fg-subtle: #7E7972;                   /* 仅用于占位符、禁用、装饰性文字 */
+  --primary: #43D3EA;                     /* 主操作：青色实心块 */
+  --primary-hover: #6ADDEF;
+  --primary-active: #2FBFD6;
+  --primary-foreground: #141216;          /* 主操作上的深色墨字 */
+  --primary-bevel-hi: #B4F1FA;
+  --primary-bevel-lo: #16899C;
+  --primary-text: #43D3EA;                /* 青色文字、图标、细线 */
+  --ring: #43D3EA;
+  --allay: #43D3EA;
+  --allay-deep: #1B9AB0;
+  --allay-light: #A6EEF8;
+  --amethyst: #9B6FE0;                    /* “我的模板”标记 */
+  --stage-enter: #43D3EA;                 /* 时间轴：进入 */
+  --stage-hold: #D9B76A;                  /* 时间轴：停留（沙色） */
+  --stage-exit: #9B6FE0;                  /* 时间轴：退出（紫水晶） */
+  --success: #2FB36B;                     /* 绿宝石 */
+  --warning: #E3A22C;                     /* 金 */
+  --danger: #EC6146;                      /* 红石红（为了正文对比度比 #D9472F 略亮） */
+  --shadow-hard: #070608;                 /* 浮层的硬投影 */
+  --viewport: #0E0E0E;                    /* 预览区四周，必须是无彩色的中性灰 */
+  --skeleton: #2E2D33;
 }
-[data-theme='light'] {
-  --background: #F5F7F9;
-  --surface-1: #FFFFFF;
-  --surface-2: #EDF0F4;
-  --surface-3: #E3E7EC;
-  --border: #DADEE3;
-  --border-strong: #B9BEC6;
-  --input-border: #81878F;
-  --foreground: #141B24;
-  --fg-muted: #565E69;
-  --fg-subtle: #737B85;
-  --primary: #0D6AD7;
-  --primary-hover: #085DC7;
-  --primary-active: #0052B4;
-  --primary-foreground: #FAFCFE;
-  --primary-text: #0D6AD7;
-  --ring: #257DA9;
-  --allay: #22A6D5;                       /* 浅色主题下只做装饰，不做文字和焦点环 */
-  --allay-glow: #76DBF3;
-  --allay-deep: #257DA9;
-  --amethyst: #925AC9;
-  --success: #078543;
-  --warning: #A2650A;
-  --danger: #D4212D;
-  --viewport: #D1D1D1;
-  --skeleton: #E4E8ED;
+[data-theme='light'] {                    /* 石英/羊皮纸，不是纯白 */
+  --background: #E9E3D8;
+  --surface-1: #F4EFE6;
+  --surface-2: #FBF6EC;
+  --surface-3: #F0E9DD;
+  --well: #DAD3C6;
+  --border: #A39B8E;
+  --input-border: #857D71;
+  --bevel-hi: #FFFFFF;
+  --bevel-lo: #B3AA9A;
+  --foreground: #27231F;
+  --fg-muted: #5E574F;
+  --fg-subtle: #776F65;
+  --primary: #43D3EA;
+  --primary-hover: #6ADDEF;
+  --primary-active: #2FBFD6;
+  --primary-foreground: #141216;
+  --primary-bevel-hi: #B4F1FA;
+  --primary-bevel-lo: #16899C;
+  --primary-text: #08627A;                /* 浅色底上的青色文字和细线要深得多 */
+  --ring: #0E7F99;
+  --allay: #43D3EA;                       /* 浅色主题下只做装饰（悦灵、剪辑点），不做文字和焦点环 */
+  --allay-deep: #1B9AB0;
+  --allay-light: #A6EEF8;
+  --amethyst: #7A4FC4;
+  --stage-enter: #2FBFD6;
+  --stage-hold: #C29A45;
+  --stage-exit: #8A5BD6;
+  --success: #1B7843;
+  --warning: #94600F;
+  --danger: #B8321F;
+  --shadow-hard: #A8A091;
+  --viewport: #CFCFCF;
+  --skeleton: #E2DBCE;
 }
 ```
 
-**已验算的对比度**
+**已验算的对比度**（`contrast-check.mjs` 的完整列表更长）
 
 | 组合 | 深色 | 浅色 |
 |---|---|---|
-| `foreground` / `surface-1` | 16.2 | 17.3 |
-| `fg-muted` / `surface-1` | 7.2 | 6.5 |
-| `fg-subtle` / `surface-1` | 4.5 | 4.3 |
-| `primary-foreground` / `primary` | 4.6 | 5.0 |
-| `primary-foreground` / `primary-hover` | 3.9（悬停是瞬时状态，接受） | 6.0 |
-| `primary-text` / `surface-1` | 7.3 | 5.2 |
-| `ring` / `surface-1` | 9.9 | 4.6 |
-| `danger` / `surface-1` | 5.2 | 5.2 |
+| `foreground` / `surface-1` | 12.7 | 13.6 |
+| `foreground` / `well` | 15.3 | 10.5 |
+| `fg-muted` / `surface-1` | 6.7 | 6.2 |
+| `fg-muted` / `well` | 8.1 | 4.8 |
+| `fg-subtle` / `surface-1` | 3.6 | 4.3 |
+| `primary-foreground` / `primary` | 10.4 | 10.4 |
+| `primary-text` / `surface-1` | 8.7 | 6.0 |
+| `primary-text` / `well`（选中的分段、标签） | 10.5 | 4.7 |
+| `ring` / `surface-1` | 8.7 | 4.1 |
+| `danger` / `surface-1` | 4.7 | 5.2 |
 | `input-border` / `surface-1` | 3.0 | 3.6 |
 
-**映射到 shadcn 的变量**：`--card` = `surface-1`，`--popover` = `surface-2`，`--muted` = `surface-2`，`--muted-foreground` = `fg-muted`，`--secondary` 和 `--accent` = `surface-3`，`--destructive` = `danger`，`--input` = `border-strong`，其余同名。
+**映射到 shadcn 的变量**：`--card` 和 `--popover` = `surface-1`，`--muted` 和 `--secondary` = `surface-2`，`--accent` = `surface-3`，`--muted-foreground` = `fg-muted`，`--destructive` = `danger`，`--input` = `input-border`，其余同名。
+
+**形状**
+
+- 圆角一律为 0（Tailwind 的圆角变量全部是 0，`globals.css` 另有一条全局规则兜住第三方组件的内置圆角）。
+- 主要容器（按钮、卡片、对话框、弹层、输入框）都有 2 px 的实色描边，四角各缺一个 2×2 的方块（“缺角”）。描边画在盒子外面：四个只沿一个方向偏移 2 px 的零模糊 `box-shadow`。不用 `clip-path`，因为它会把焦点环也切掉。全应用只有这一种缺角尺寸。
+- 分隔靠色块和 2 px 实线，不靠 1 px 发丝线和阴影。
+
+**厚度**（代替阴影和模糊）
+
+| 状态 | 做法 | 工具类 |
+|---|---|---|
+| 凸起（按钮、卡片、滑块手柄、标签页、分组标题条） | 上、左内缘 2 px `--bevel-hi`；下、右内缘 2 px `--bevel-lo`；面是 `--surface-2` | `blk blk-raised` |
+| 按下 | 亮暗对调，整体下移 1 px | `blk-down` |
+| 凹槽（输入框、数值框、下拉、时间轴轨道、封面槽、方块格子） | 亮暗反过来；面是 `--well` | `blk blk-sunken` |
+| 主操作 | 青色实心面、青色系的亮暗缘、深色墨字 | `blk blk-primary` |
+| 浮层（对话框、弹层、菜单、通知、工具提示、错误卡片） | 面是 `--surface-1`，2 px 缺角描边，沿缺角轮廓的 `4px 4px 0` 硬投影（`--shadow-hard`） | `blk-float` |
+| 选中 | 描边换成 `--ring` | `blk-edge-ring` |
+
+全应用禁止 `backdrop-filter`、带模糊的阴影、外发光、渐变填充。
 
 **字体**
 
 - 界面字体：`"Inter Variable", "Segoe UI Variable Text", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif`。只随包带 Inter，中文用系统字体。
-- 数字和时间码加 `font-variant-numeric: tabular-nums`。
+- 像素字：方舟像素字体（Ark Pixel Font）2026.11.10 的 12px 比例宽度 zh_hans，官方发布包里的 OTF 版 WOFF2 原样使用（OFL 1.1），放在 `packages/ui/assets/fonts/`，经 `font-src 'self'` 加载。
+- 像素字只用在 12 和 24 两个名义字号（`font-px12`、`font-px24`），关闭字体平滑（`-webkit-font-smoothing: none`、`font-smooth: never`、`text-rendering: optimizeSpeed`）。实际 CSS 字号由 `installPixelScale()` 按 `devicePixelRatio` 换算，让每个字形像素占用 `round(dpr)` 个整数设备像素：100% 和 200% 下就是 12 / 24 px，150% 下是 16 / 24 px（否则 12 px 会落在 18 个设备像素上，糊掉）。
+- 像素字用在：字标、面板标题和分组标题、分类标签页、按钮文字、徽标、时间码和帧号、数值框里的数字、模板卡片名称、空状态和错误卡片的标题、对话框标题。Inter 用在：参数标签、说明文字、提示、对话框正文、长句、菜单项、搜索框输入。两种语言都按这个规则。
+- 层级靠字号（12 与 24）和色块，不靠字重。
 - 资源 ID 用等宽：`"Cascadia Mono", Consolas, monospace`。
-- 像素字只用在：应用名字标、空状态标题、导出完成标题、启动画面。字号必须是该字体原生像素尺寸的整数倍。
-- 字号阶梯：11（注释）、12（标签、次要信息）、13（正文，默认）、14（强调、按钮）、16（对话框标题）、20（页面级标题）。行高 1.4。
+- Inter 的字号阶梯：11（注释）、12（标签、次要信息）、13（正文，默认）、14、16。行高 1.4。
 
 **尺寸**
 
 - 4 px 网格。面板内边距 12，控件间距 8。
-- 控件高度：28（默认）、24（紧凑）、32（对话框底部的按钮）。属性面板每行高 32。
-- 图标 16 px，线宽 1.5，用 Lucide。
-- 圆角：6（控件）、8（卡片、弹层）、12（对话框）。边框 1 px。
-- 阴影（深色主题）：弹层 `0 8px 24px rgb(0 0 0 / .45)`，对话框 `0 16px 48px rgb(0 0 0 / .55)`，都另加 1 px 边框。
+- 控件高度：28（默认）、24（紧凑）、32（对话框底部的按钮、顶栏的导出）。属性面板每行高 36。
+- 描边、分隔线、斜面、焦点环都是 2 px。
+
+**图标**：Lucide，不自绘。统一方头方角：`stroke-width: 2.5`、`stroke-linecap: square`、`stroke-linejoin: miter`，尺寸 16 或 20。
+
+**滚动条**：方的、10 px 宽，滑块是 `--input-border`，轨道是 `--well`。
 
 **动效**
 
 ```css
---dur-1: 90ms;    /* 悬停、按下 */
---dur-2: 160ms;   /* 弹层、开关、内容切换的淡入淡出 */
---dur-3: 240ms;   /* 面板、对话框 */
---dur-4: 400ms;   /* 页面级、悦灵进出场 */
---ease-out: cubic-bezier(.2, .8, .2, 1);
---ease-in-out: cubic-bezier(.45, .05, .2, 1);
+--dur-1: 60ms;    /* 悬停、按下 */
+--dur-2: 120ms;   /* 弹层、开关、内容切换 */
+--dur-3: 120ms;   /* 面板、对话框 */
+--dur-4: 400ms;   /* 悦灵进出场 */
+--ease-step: steps(3, end);                    /* 界面上的分级缓动 */
+--ease-out: cubic-bezier(.2, .8, .2, 1);       /* 只给悦灵的飞行用 */
+--ease-in-out: cubic-bezier(.45, .05, .2, 1);  /* 只给悦灵的飞行用 */
 ```
 
-- 布局类动画用 Motion 的 `layout`，弹簧参数 stiffness 420、damping 34。
-- “减少动效”开启时（系统设置或应用内开关）：除 120 ms 的透明度渐变外，其余时长归零。
+- 弹层和对话框只做 `--dur-2` / `--dur-3` 的分级透明度变化，不缩放。
+- “减少动效”开启时（系统设置或应用内开关）：所有时长归零，悦灵和骨架不动。
 
-**像素图的显示**：缩略图、方块图标一律 `image-rendering: pixelated`，按设备像素的整数倍缩放。
+**像素图的显示**：缩略图、方块图标一律 `image-rendering: pixelated`，按设备像素的整数倍缩放。棋盘格用锐利的方格（`--checker-a` / `--checker-b`，无彩色）。
 
 ## 6.3 窗口与布局
 
@@ -146,21 +190,23 @@
 
 **顶栏（40 px）**
 
-- 左：悦灵头像（20 px）和字标；工程名按钮，下拉里是新建、打开、保存、另存为、最近的工程。
-- 右：素材按钮（显示最上层的图标和名称，点开是资源栈弹层）；撤销、重做；主按钮“导出”。最右留出系统窗口按钮的位置。
+- 一条平的 `--surface-1` 色带，下缘 2 px 线（系统窗口按钮区比顶栏矮 2 px，让这条线通到窗口右边）。
+- 左：悦灵头像（20 px）和像素字的字标；工程名按钮，下拉里是新建、打开、保存、另存为、最近的工程。
+- 右：素材按钮（显示最上层的图标和名称，点开是资源栈弹层）；撤销、重做；主按钮“导出”（全应用最显眼的一块：32 px 高的青色实心凸块）。最右留出系统窗口按钮的位置。
 - 空白处是窗口拖动区；所有可交互元素标 `no-drag`。
 
 **左栏：模板库**
 
 - 搜索框（`Ctrl+F` 聚焦），分类标签：全部、转场、叠加、我的。
-- 两列卡片。卡片是 16:9 的封面加一行名称。悬停时播放预览循环；选中时 2 px 的 `--ring` 描边加一圈柔和的悦灵青辉光。用户自己的模板在角上有一个 `--amethyst` 的小标记。
+- 搜索框是凹槽；分类是一排相连的方块按钮（像素字），选中的那块是“按下去”的凹槽、字是悦灵青。
+- 两列卡片。卡片是一个凹槽里放 16:9 的封面，名称在槽下用像素字。悬停时播放预览循环；选中时整张卡片是 2 px 的 `--ring` 缺角描边，四角各有一个小方块标记，不发光。用户自己的模板在封面角上有一个 `--amethyst` 的小方块。
 - 封面和悬停预览在模板安装时、以及资源栈变化后，由杂务 Worker 以 320×180、30 fps 渲染并缓存。重建期间显示骨架和悦灵。
 - 底部：“导入模板…”。也可以把 `.allaytpl` 拖进窗口。
 - `Ctrl+B` 折叠或展开左栏。
 
 **中间：预览视口**
 
-- 画布按输出比例等比缩放、居中，四周留 24 px。
+- 画布按输出比例等比缩放、居中，四周留 24 px；画面外框 2 px（`--border`）。工具条是一排相连的方块按钮。
 - 背景模式（视口右上角的分段控件）：棋盘格（默认）、示例素材、纯色。示例素材模式在 `cutTime` 之前显示画面 A、之后显示画面 B，让用户看到转场盖在素材上的效果；A 和 B 是内置的两张原创示意图，用户也可以换成自己的图片。
 - 可开关的安全框参考线。缩放：适应、100%。
 - 引擎装载超过 180 ms 时，视口里出现悦灵的加载编排（见 `07-allay-mascot.md`）。
@@ -169,15 +215,15 @@
 **播放条（48 px）**
 
 - 回到开头、播放/暂停、循环开关。
-- 时间码 `秒.帧`，以及 `F当前帧/总帧数`。
-- 时间轴：按 `timeline.segments` 画出色段，段与段之间的分界线可以拖动（见 `04-templates.md` 4.3）；`cutTime` 处有一个菱形标记，悬停提示“剪辑点”；播放头可拖，悬停显示时间。
+- 时间码 `秒.帧`（24 的像素字），以及 `F当前帧/总帧数`（12 的像素字）。中间栏太窄（< 640 px，最小窗口时）时两者都退成 12 的像素字、上下两行。
+- 时间轴：一条 16 px 高的凹槽，按 `timeline.segments` 画出平涂色段（进入 `--stage-enter`、停留 `--stage-hold`、退出 `--stage-exit`），段与段之间留 2 px 间隙，分界线可以拖动（见 `04-templates.md` 4.3）；`cutTime` 处有一个转 45° 的小方块，悬停提示“剪辑点”；播放头是 2 px 竖线加方形头，可拖，悬停显示时间。
 - 右侧：输出规格徽标（如 `1920×1080 · 60fps`，点开是输出设置的弹层）、“高质量预览”开关、静音。
 
 **右栏：属性**
 
 - 头部：模板名、分类徽标、预设下拉、更多菜单（保存为预设、另存为模板、重置全部参数、导入/导出预设）。
-- 主体：按 `groups` 分组的可折叠区块，折叠状态按模板记忆。
-- 每一行：左边是标签（约 40% 宽，过长截断，悬停显示 `hint`），右边是控件。值不等于默认值时，标签前出现一个小圆点，点它恢复默认。右键菜单：重置、复制值、粘贴值。
+- 主体：按 `groups` 分组的可折叠区块，折叠状态按模板记忆。分组标题是通栏的凸起色条加像素字。
+- 每一行：左边是标签（约 40% 宽，过长截断，悬停显示 `hint`），右边是控件。控件都是凹槽：滑块轨道是凹槽、已填充部分平涂青色、手柄是方的凸块；分段控件同分类按钮；下拉是带方形箭头块的凹槽。值不等于默认值时，标签前出现一个小方块，点它恢复默认。右键菜单：重置、复制值、粘贴值。
 
 **资源栈弹层**
 
@@ -221,7 +267,7 @@
 | `BlockPicker` / `ItemPicker` | 弹层网格，可搜索（ID、中文名、英文名），分组，最近使用，虚拟滚动；缩略图来自当前资源栈 |
 | `BlockListField` | 多个方块芯片，每个带权重（可拖拽调值），可增删 |
 | `TextureField` | 从资源栈按 ID 选，或导入本地图片 |
-| `EasingField` | 下拉里每个预设配一条小曲线；“自定义”展开一个 SVG 贝塞尔编辑器（两个可拖控制点）和一个按曲线运动的小圆点 |
+| `EasingField` | 下拉里每个预设配一条小曲线；“自定义”展开一个 SVG 贝塞尔编辑器（两个可拖的方形控制点）和一个按曲线运动的小方块 |
 | `DurationField` | 以秒编辑，旁边显示帧数；吸附到 `1 / fps` |
 | `SeedField` | 数字框加骰子按钮（快捷键 `R`） |
 | `AngleField` | 圆形方向盘加数字框，支持吸附 |
@@ -285,7 +331,7 @@
 
 - i18next + react-i18next。`zh-CN` 和 `en` 两套文案齐全，默认跟随系统语言。界面里不出现硬编码的文字。
 - 产品名、字标、图标、非官方声明由 `packages/ui/src/brand/` 统一提供，文案键以 `brand.` 开头。其他地方不直接写产品名（原因见 `09-compliance.md` 9.4）。
-- 所有功能可以只用键盘完成。焦点环：2 px 的 `--ring`，外偏移 2 px。
+- 所有功能可以只用键盘完成。焦点环：2 px 实线的 `--ring`，外偏移 2 px，方角。
 - 加载区域标 `aria-busy`，并有一段屏幕阅读器可读的状态文字。
 - 可点击目标不小于 24×24。
 
@@ -297,7 +343,7 @@
 | T-UI-2 | 连续改 5 个参数再撤销 5 次；拖动一次滑块再撤销一次 | 回到初始参数；一次拖动只算一步 |
 | T-UI-3 | 只用键盘完成：选模板、改参数、打开导出对话框、取消 | 全程可达，焦点环可见 |
 | T-UI-4 | 两种语言各跑一遍，窗口取最小尺寸 | 没有缺失的文案键，没有文字溢出或截断关键信息 |
-| T-UI-5 | 两种主题的截图基线；axe-core 检查 | 截图与基线一致；除 6.2 表里注明的一项外无对比度问题 |
+| T-UI-5 | 两种主题的截图基线；axe-core 检查 | 截图与基线一致；无对比度问题 |
 | T-UI-6 | 调整分栏、折叠左栏、重启 | 布局恢复 |
 | T-UI-7 | 脚本持续拖动一个滑块 3 秒 | 主线程没有超过 50 ms 的长任务 |
 | T-UI-8 | 切换主题 | 窗口按钮区域的颜色随之更新；拖动区可拖动窗口 |

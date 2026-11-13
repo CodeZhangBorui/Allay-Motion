@@ -3,12 +3,12 @@ import { cn } from 'cn';
 import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 
-// shadcn 的 DropdownMenu（Base UI Menu）。弹层：surface-2、圆角 8、弹层阴影加 1 px 边框（6.2）。
+// shadcn 的 DropdownMenu（Base UI Menu）。弹层：缺角 2 px 描边加 4 px 硬投影（6.2）；高亮项是平涂的色块。
 
 export const menuPopupClass =
-  'z-50 min-w-44 origin-(--transform-origin) rounded-lg border bg-surface-2 p-1 text-sm shadow-(--shadow-popover) outline-none transition-[opacity,scale] duration-(--dur-2) data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0';
+  'z-50 min-w-44 blk-float p-1.5 text-sm outline-none transition-opacity duration-(--dur-2) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0';
 export const menuItemClass =
-  'relative flex h-7 cursor-default items-center gap-2 rounded-md px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-3 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-fg-muted';
+  'relative flex h-7 cursor-default items-center gap-2 px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-3 data-[highlighted]:shadow-[inset_2px_0_0_0_var(--ring)] [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-fg-muted';
 
 const DropdownMenu = MenuPrimitive.Root;
 const DropdownMenuTrigger = MenuPrimitive.Trigger;
@@ -59,11 +59,11 @@ function DropdownMenuRadioItem({ className, children, ...props }: MenuPrimitive.
 }
 
 function DropdownMenuLabel({ className, ...props }: MenuPrimitive.GroupLabel.Props) {
-  return <MenuPrimitive.GroupLabel className={cn('px-2 py-1 text-xs text-fg-muted', className)} {...props} />;
+  return <MenuPrimitive.GroupLabel className={cn('px-2 py-1 font-px12 text-fg-muted', className)} {...props} />;
 }
 
 function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
-  return <MenuPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+  return <MenuPrimitive.Separator className={cn('-mx-1.5 my-1.5 h-0.5 bg-border', className)} {...props} />;
 }
 
 function DropdownMenuShortcut({ className, ...props }: ComponentProps<'span'>) {
