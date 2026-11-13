@@ -641,3 +641,75 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 用户要求“为动画纯代码编辑做准备”，并要求该功能解耦、可整块砍掉。主控据三路调研给出方案 `docs/code-editing-and-mcp-plan.md`，用户答复“纳入”：把 P0（模板开发模式：外部编辑器改模板文件、应用监视并热重载）纳入本次交付，新增里程碑 MD（`docs/08-milestones.md`），排在 M7 之后、M8 之前。
 - 这改变了 `docs/01-product-architecture.md` 1.2 的范围（原“之后的方向”第 1 条）。内嵌编辑器（P1 及以后）和 MCP 仍不做；MCP 启用前必须另行取得用户同意（H-MCP）。
 - 界面重设计中途定稿的方向见 `docs/design/ui-direction-v4.*`；用户同意引入 IBM Plex Sans、IBM Plex Mono、Noto Sans SC 三种 OFL 字体，图标由 Lucide 换为 Phosphor。
+
+## MD-a 模板开发模式中不碰界面的部分
+
+范围：H5 的引擎与协议侧、H8、H10、H12，以及可选模块的接入骨架（`docs/code-editing-and-mcp-plan.md`；`docs/08-milestones.md` MD）。界面接线（热重载管线、错误浮层、命令、修订号、静帧接口、撤销分组）在 MD-b。
+
+### 版本与依赖
+
+| 项 | 版本 | 许可 | 说明 |
+|---|---|---|---|
+| acorn | 8.19.0 | MIT | 应用（`apps/desktop`）的运行时依赖：模板源码的语法预检和确定性静态规则。纯 JS，源码里没有 `eval`、`new Function`（查过），不用 WebAssembly，CSP 不放宽。`dist/acorn.mjs` 约 235 KB（未压缩），进渲染进程主包和主进程包。仓库里本来就有（ESLint 的 espree 依赖它），离线安装 |
+
+没有用 es-module-lexer 做语法预检：它只是词法扫描，大部分语法错误发现不了，发现的也没有可用的位置。它仍然是 import 检查（T-ARC-4 的安全门），行为不变，只是错误里补上了位置。
+
+### 结构化诊断（H5）
+
+- `TemplateDiagnostic` 在 `packages/template-sdk/src/protocol.ts`：`compile | load | setup | update | watchdog | determinism | rule` 的判别联合，共有 `severity`、稳定的 `code`、`message`（不超过 2000 字）、可选的 `line`/`column`（都从 1 开始，列按 UTF-16 码元，与 V8 的调用栈和 VS Code 一致）。`update`、`determinism` 可带出错时刻 `t`；`watchdog` 带 `operation`、`timeoutMs`。错误码：compile 的 `syntax-error`/`has-import`/`too-large`，load 的 `evaluate-failed`/`bad-export`，setup 的 `setup-threw`/`bad-instance`，update 的 `update-threw`/`audio-cue-outside-setup`，watchdog 的 `unresponsive`，determinism 的 `forbidden-api`（开发构建拦到的调用，error）/`render-mismatch`（双渲比对不一致，warning），rule 见下。
+- **位置只从模板自己的栈帧来**：引擎记下装载时的 Blob URL，在 `error.stack` 里找第一个属于它的栈帧。模板不转译，行列 1:1。找不到就不带位置，不猜。V8 记的位置：`throw new Error()` 记在 `new` 上，读 null 的属性记在出错的属性名上，方法调用记在方法名上。所以同一处 `Math.random()`，静态规则（指向表达式开头）和运行时拦截（指向 `random`）的列不同、行相同（T-DEV-2 两个都断言了）。
+- **语法错误在宿主预检**：`EngineHost.load` 交给 Worker 之前用 acorn 解析，失败抛 `TemplateCodeError`，带 compile 诊断和位置。引擎里动态 `import()` 报的 SyntaxError 没有可用位置，只在 acorn 放过而 V8 不认时才会出现，归为 compile、不带位置。acorn 用 `ecmaVersion: 'latest'`；若将来有 V8 认而 acorn 还不认的新语法，模板会被拒绝，届时升级 acorn。
+- **跨线程**：Comlink 默认只序列化错误的 name/message/stack，宿主一侧用 `Object.assign` 还原。Worker 入口换了一个 throw 处理器（`engine-host/error-transfer.ts`），多放一个 `diagnostic` 字段；宿主在 `EngineHost.call` 的出错路径上用 `diagnosticOf`（zod）校验，不合 schema 的删掉（线程边界照 2.3 的约定校验）。`EngineUnresponsiveError` 自己带 watchdog 诊断；`EngineCrashedError`（Worker 自己挂了）不带。
+- **向后兼容**：错误的 `name` 不变（`TemplateError`、`TemplateCodeError`、`EngineUnresponsiveError`），`message` 沿用原来的写法（“template setup() failed: …”）。有一处变化：`update` 抛出的错误以前原样冒出来，现在包成 `TemplateError`，message 是 “template update(t) failed: 原错误名: 原信息”；试运行的 `detail` 和预览错误卡片的文字因此多了前缀。界面没改，现有测试的判定（如 `toMatch(/Math\.random\(\) is not allowed/)`）都照样成立。
+- `LoadResult` 多一个可选的 `diagnostics`：宿主把静态规则的提示附在装载结果上，引擎自己不填。旧的调用方只看 `warnings`。
+- **新增引擎方法 `checkDeterminism(probe, others, quality)`**（2.3 的接口表里没有）：在 Worker 里把 probe 帧渲染两次、中间穿插 others，逐字节比较，不一致时返回 determinism 诊断，像素不出 Worker。试运行（`trial.ts`）还是自己比；MD-b 的热重载管线和试运行可以改用它。时限按导出单帧时限乘以（others 的个数 + 2）。
+- update 的零分配预算不变：只在 `catch` 里分配。
+
+### 确定性的静态规则（H12）
+
+- `apps/desktop/src/shared/template-code.ts` 的 `analyzeTemplateCode`：一次 acorn 解析，先报 compile 错误，再在同一棵语法树上跑规则：`Math.random`（含 `Math['random']`）→ `math-random`；`Date.now` → `date-now`；不带参数的 `new Date()` 和 `Date()` → `new-date`（`new Date(0)` 是确定的，不报）；`performance.now` → `performance-now`；`import` 声明、`import()`、`export … from` → `import`。只看语法树，字符串、注释、模板字符串、对象属性名里的不报。不管变量遮蔽（局部变量叫 `Math` 也报）：它只是提示。最多 100 条。
+- **安装校验**：第 3 步在同一次解析里得到规则提示，暂存时带着；提交安装时主进程自己把它并进 `nondeterministic` 警告（沿用现有的“预览与导出可能不一致”文案，界面不用加字），具体位置写进 `<version>.meta.json` 的 `ruleDiagnostics`；不拒绝安装。`StageResult` 多一个 `ruleDiagnostics`，`InstallError` 多一个可选的 `diagnostic`（预检失败时带位置），渲染进程现在不读它们。
+- `pnpm templates:build`：内置模板打包后有任何规则命中就构建失败（硬性规则 2）。六个内置模板现在都没有。
+
+### 类型定义与编写指南（H8）
+
+- `pnpm templates:api`（`scripts/gen-template-api.ts`）生成三个文件，提交进仓库，T-DEV-3 核对重新生成后无差异（比较前把 CRLF 统一成 LF，产物本身总是 LF）：
+  - `packages/template-sdk/generated/template-api.d.ts`：`runtime.ts` 的类型原文，把 `import type * as THREE from 'three'` 换成手写的最小类型面（`scripts/template-api/three-surface.d.ts`，`export declare namespace THREE`），自包含、不 import 任何包。
+  - `packages/template-sdk/generated/template-api.json`：`ctx` 各成员和相关接口的签名、说明，以及缓动名。形状是 `@allay/host-api` 的 `SdkApiDoc`。
+  - `docs/template-authoring.md`：由 `scripts/template-api/authoring.md` 填入生成的部分（`ctx` 的成员表、缓动名、诊断种类、jsconfig、最小示例）。最小示例是 `scripts/template-api/example/` 下真实的文件。
+- **`runtime.ts` 不在本任务可改的范围里**，它有不少成员没写 JSDoc。生成脚本从 `scripts/template-api/member-docs.ts` 补说明，作为 JSDoc 插进 d.ts（悬停可见）和 JSON。以后 `runtime.ts` 自己补了说明，生成脚本会报“已有 JSDoc”，提醒删掉重复的那条。
+- **THREE 的取舍**：完整的 `@types/three` 有几百个文件，打成单文件既大又难维护；只写模板实际用得到的类和成员（向量、四元数、矩阵、颜色、Object3D、几种相机、几何体、材质、Mesh、贴图、常量、MathUtils），没写的成员运行时照样在，只是没有补全。为了不和真实的 three 走样，T-DEV-3 用编译器核对“真实的 `typeof THREE` 可以赋给类型面”。比较时关掉 `strictFunctionTypes`：类型面是子集，构造函数参数里出现的 `Color` 等是“少了成员”的版本，逆变比较必然不过；双向比较仍能抓出不存在的成员、类型不对的属性（实际抓到过 `isScene` 应为 boolean、`Blending` 少了 6、`Color.set` 的重载）。
+- `Texture.image` 与 three 一样是 `unknown`。T3 的源码里用 `as` 断言读它的宽高，打包后断言没了，所以复制 T3 出来在外部编辑器里打开，会在两行看到 4 个类型错误（运行不受影响）。测试把这 4 条列为已知例外，别的模板、别的错误一律不许有。
+- 写进模板文件夹的 `jsconfig.json`（`shared/template-dev.ts`）：`checkJs: true`、`strict: false`（复制出来的是打包产物，没有类型注解，开 strict 会满屏红线）、`lib: ES2023`、不带 DOM（模板在 Worker 里）。
+- 生成物放在 `packages/template-sdk/generated/`（不在包的 `exports` 里：template-sdk 的 `package.json` 不在本任务可改的范围）；主进程用相对路径加 Vite 的 `?raw` 把 d.ts 以文本打进主进程包（`main/templates/template-api-dts.ts`，另加了 `*?raw` 的模块声明）。
+- 示例 JS 里没写 `// @ts-check`：根 tsconfig 以 `allowJs` 收了 `scripts/`，写了会让根类型检查去查它（找不到同目录的 d.ts）；jsconfig 的 `checkJs` 已经打开检查。
+
+### 模板目录的监视与开发模式的主进程方法（H10）
+
+- `TemplateWatcher`（`main/templates/dev-watcher.ts`）只监视 `userData/templates/`（`fs.watch` 递归，Windows 原生支持）。下面一层是 `<id>/<版本>/`，id 和版本不合格式的（`.staging`、`*.meta.json`）忽略。只认 `manifest.json`、`template.js`、`assets/**`；编辑器的临时文件和交换文件（`~`、`.swp`、`#…#`、`.crswap`、`4913`、`.tmp` 等）、`template-api.d.ts`、`jsconfig.json`、`.vscode/` 都不算。
+- 每个模板一个 150 ms 的防抖计时器；到点时按内容重新算 SHA-256（相对路径、字节数、内容），与上次相同就不报。所以“写临时文件再改名”的原子保存只报一次，原样重写不报。事件：`{ id, version, change: added | changed | removed, hash }`；给渲染进程的 `templates:changed` 多一个 `valid`（改动后模板服务还能不能装载它）。
+- **自己的写入**：`ownWrite(id, version, fn)` 期间这个模板的事件不报，写完按新内容更新哈希，之后才到的事件比较出来相同也不报。`TemplateService` 加了写入钩子（`setWriteGuard`），安装提交、删除、另存为、复制内置模板都经过它；开发服务写类型定义也包在里面。
+- **外部改动**：开发服务先让 `TemplateService.refreshUser` 按磁盘上的 manifest 刷新（与启动扫描同一个函数），再通知；manifest 坏了时这个模板从列表移除，`valid: false`。
+- **复制内置模板**：新 id 是 `user.<6 位随机十六进制>.<原 id 最后一段>`（与“另存为模板”一致，不会以 `allay.` 开头），版本 1.0.0，名字可选（不给时沿用原名：主进程里不写“副本”这类界面文字，MD-b 决定怎么起名）。包里的文件原样解压出来，`template.js` 只多一行类型注解（`/** @type {import('./template-api').TemplateModule} */`，认不出打包产物的形状时不加）；元数据里记 `copiedFrom`。然后写 `template-api.d.ts` 和 `jsconfig.json`。
+- **打开文件夹**：只开文件夹（`shell.openPath(目录)`），绝不对 `.js` 调用。路径由主进程按 id 和版本决定，并且要求：是已知的用户模板；真实路径（解开符号链接和目录联接之后）正好是根目录下两层。目录联接指向外面的拒绝（`outside`）。单元测试里打开文件夹用假的函数，e2e 只发畸形参数，测试不会真的弹出资源管理器。
+- IPC：`templates.copyBuiltin({ id, version, name? })`、`templates.writeDevFiles(id, version)`、`templates.openFolder(id, version)`、`templates.onChanged(cb)`。失败时返回 `{ ok: false, error }`（枚举），不抛错。T-ARC-6 的畸形参数表补了三个方法。渲染进程只在 preload 和 `test-hooks.ts`（`copyBuiltinTemplate`、`writeTemplateDevFiles`、`templateChanges`）里接了，界面组件和 store 没动。
+- 监视在模板列表就绪后启动，不阻塞窗口；启动失败只记日志（MD-b 可以在界面上提示）。
+
+### 可选模块的接入骨架
+
+- `packages/host-api`：只有类型。`EditorHost` 按方案 3.3 落地，每个成员注明“已有”还是“MD-b”。`SdkApiDoc`（接口 JSON 的形状）、`OptionalModule`（`activate(host): Disposable`）也在这里。只能引用 template-sdk 的类型。
+- `packages/optional/` 现在只有 `README.md`。`pnpm-workspace.yaml` 加了 `packages/optional/*`；`packages/*` 也会匹配到 `packages/optional` 本身，它没有 `package.json`，pnpm 不当它是包。
+- **依赖方向**（`eslint.config.js`）：兜底一条“任何文件不得引用 `packages/optional`”（包名 `@allay/optional-*`、路径里有 `packages/optional`、`../…/optional/`），排在最前；原有每条规则也带上同样的条目（扁平配置里后面的同名规则会整个覆盖前面的选项）。可选模块：`@allay/` 下只能引用 `host-api`；相对路径够到 `apps`、`engine`、`template-sdk`、`ui` 等主程序目录名的拦下（代价：模块自己的子目录不能叫这些名字）。第三方依赖不限。夹具：`tests/fixtures/lint/core-imports-optional.ts`、`optional-imports-core.ts`。
+- **目录被删时**：手工把 `packages/optional` 移走，跑 `pnpm install --offline --frozen-lockfile`、`pnpm typecheck`、`pnpm lint`、T-DEV-4 与 T-ARC-1，全部通过，再移回来。T-DEV-4 另外核对主程序的构建、类型检查、测试配置里没有点名可选模块。没有把“删目录跑完整 `pnpm check`”做成 CI 步骤：要在 CI 里删工作区的目录，留给 M8 的 CI 配置。
+- **惰性发现的实验**（在仓库外的临时目录，Vite 8.3.8，结构与本仓库相同：根目录有 `pnpm-workspace.yaml`，Vite 根目录是子目录）：`import.meta.glob('../../packages/optional/*/src/index.ts')`
+  - 生产构建：有模块时每个模块打成单独的惰性块；目录为空、目录不存在都构建成功，结果是空对象。
+  - 开发服务器：路径被改写成 `/@fs/<绝对路径>`，能取到（Vite 的 `server.fs.allow` 默认是按 `pnpm-workspace.yaml` 找到的工作区根目录）；目录不存在时是空对象。
+  - 结论：可行。没验证的：electron-vite 的渲染进程构建里同样的写法（MD-b 接线时验证），以及 `app://` 下加载那个惰性块（应与其他分块相同）。
+
+### 测试
+
+- T-DEV-2（引擎层，`tests/engine/T-DEV-2.spec.ts`，夹具在 `tests/fixtures/templates/dev/`）：语法错误（compile，6:25）、setup 抛错（setup，5:11）、update 抛错（update，9:29，带 t）、死循环（watchdog，没有位置）、`Math.random`（rule 8:24 与 determinism 8:29）、乱序不一致（determinism `render-mismatch`，没有位置），加一个确定模板（T1）的对照。静态部分在 `tests/unit/T-DEV-2.rules.test.ts`。
+- T-DEV-3：`tests/unit/T-DEV-3.template-api.test.ts`。内置模板源码按与 tsconfig.base 一样严格的选项、`@allay/template-sdk` 指向生成的 d.ts 检查；示例 JS 按 jsconfig 和严格模式各检查一次；另有一个反例确认 checkJs 真的在查。
+- T-DEV-4：`tests/unit/T-DEV-4.optional-modules.test.ts`。
+- 监视和开发模式方法：`tests/unit/template-dev.test.ts`，用真实的文件系统事件（临时目录、测试时生成的模板），含“自己写入不触发”“原子保存只触发一次”“目录外的路径被拒绝”（目录联接），以及复制出的六个内置模板按 jsconfig 做 checkJs。
+- T-DEV-1 和 T-DEV-2 的界面部分（错误浮层显示位置、保留上一帧、修好后恢复）属于 MD-b，没有做。
