@@ -17,6 +17,7 @@ import {
   isSafeAssetPath,
   isValidVersion,
   parseManifest,
+  type TemplateDiagnostic,
   pickVersion,
   resolveDerived,
   resolveScript,
@@ -58,6 +59,8 @@ interface Staged {
   manifest: TemplateManifest;
   code: string | null;
   expires: number;
+  /** 确定性静态规则的提示（H12），提交时并进警告 */
+  ruleDiagnostics: TemplateDiagnostic[];
 }
 
 const MetaSchema = z.looseObject({ formatVersion: z.literal(1), installedAt: z.string(), trialWarnings: z.array(z.string()) });
@@ -184,9 +187,15 @@ export class TemplateService {
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, data);
       }
-      this.staged.set(stagingId, { dir, manifest, code: pkg.code, expires: this.now() + STAGING_TTL_MS });
+      this.staged.set(stagingId, { dir, manifest, code: pkg.code, expires: this.now() + STAGING_TTL_MS, ruleDiagnostics: pkg.ruleDiagnostics });
       const entry: TemplateEntry = { id: manifest.id, version: manifest.version, source: 'user', kind: manifest.extends ? 'derived' : 'script', manifest, baseMissing: false, trialWarnings: [] };
-      return { ok: true, stagingId, bundle: { entry, resolved, code }, replaces: this.templates.has(key(manifest.id, manifest.version)) };
+      return {
+        ok: true,
+        stagingId,
+        bundle: { entry, resolved, code },
+        replaces: this.templates.has(key(manifest.id, manifest.version)),
+        ruleDiagnostics: pkg.ruleDiagnostics,
+      };
     });
   }
 
@@ -205,7 +214,15 @@ export class TemplateService {
       await mkdir(dirname(dir), { recursive: true });
       await rename(st.dir, dir);
       const warnings = InstallReportSchema.parse(report).warnings;
-      await writeJsonAtomic(this.metaFile(id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: warnings });
+      // 静态规则发现了 Math.random 之类（H12）：和试运行的确定性自检一样记为“预览与导出可能不一致”。
+      // 只是提示，不拒绝安装；具体位置记进元数据
+      if (st.ruleDiagnostics.length > 0 && !warnings.includes('nondeterministic')) warnings.push('nondeterministic');
+      await writeJsonAtomic(this.metaFile(id, version), {
+        formatVersion: 1,
+        installedAt: new Date(this.now()).toISOString(),
+        trialWarnings: warnings,
+        ...(st.ruleDiagnostics.length > 0 ? { ruleDiagnostics: st.ruleDiagnostics } : {}),
+      });
       const stored: Stored = { source: 'user', manifest: st.manifest, files: null, dir, trialWarnings: warnings };
       this.templates.set(key(id, version), stored);
       this.opts.log.info('templates', 'installed', { id, version, warnings });

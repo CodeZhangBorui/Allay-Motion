@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import { isReservedId, parseManifest, type TemplateManifest } from '../packages/template-sdk/src/index';
 import { writeZip, type ZipInput } from '../apps/desktop/src/main/templates/zip-writer';
-import { assertTemplateCode } from '../apps/desktop/src/shared/template-code';
+import { analyzeTemplateCode } from '../apps/desktop/src/shared/template-code';
 import { PACKAGE_EXTENSIONS, packageFileName } from '../apps/desktop/src/shared/templates';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -58,7 +58,11 @@ export async function bundleTemplate(dir: string): Promise<string> {
   const out = result.outputFiles[0];
   if (!out) throw new Error(`${relative(ROOT, dir)}: esbuild produced no output`);
   const code = out.text;
-  await assertTemplateCode(code);
+  // 内置模板也过确定性的静态规则（H12）：有 Math.random、Date.now 之类就让构建失败（硬性规则 2）
+  const rules = await analyzeTemplateCode(code);
+  if (rules.length > 0) {
+    throw new Error(`${relative(ROOT, dir)}: ${rules.map((d) => `${d.code} at ${d.line ?? '?'}:${d.column ?? '?'}`).join(', ')} (bundled output)`);
+  }
   return code;
 }
 

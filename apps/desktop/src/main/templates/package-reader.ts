@@ -2,7 +2,7 @@
 // zip 的读取复用 resources/zip.ts 的防护（路径穿越、解压炸弹，1.6 第 9 条）；整包读进内存（≤ 50 MB）再校验，
 // 校验通过的内容原样写进暂存区，所以“校验的”就是“安装的”。
 import { stat } from 'node:fs/promises';
-import { isReservedId, parseManifest, parseVersion, compareVersions, type TemplateManifest } from '@allay/template-sdk';
+import { isReservedId, parseManifest, parseVersion, compareVersions, type TemplateDiagnostic, type TemplateManifest } from '@allay/template-sdk';
 import {
   MAX_PACKAGE_BYTES,
   MAX_PACKAGE_ENTRIES,
@@ -12,20 +12,22 @@ import {
   type InstallError,
   type InstallErrorCode,
 } from '../../shared/templates';
-import { assertTemplateCode, TemplateCodeError } from '../../shared/template-code';
+import { analyzeTemplateCode, TemplateCodeError } from '../../shared/template-code';
 import { openZip, ZipRejectedError } from '../resources/zip';
 
 export class PackageError extends Error {
   constructor(
     readonly code: InstallErrorCode,
     readonly detail: string,
+    /** 源码预检失败时的 compile 类诊断（带位置） */
+    readonly diagnostic?: TemplateDiagnostic,
   ) {
     super(`${code}: ${detail}`);
     this.name = 'PackageError';
   }
 
   toInstallError(): InstallError {
-    return { code: this.code, detail: this.detail };
+    return { code: this.code, detail: this.detail, ...(this.diagnostic ? { diagnostic: this.diagnostic } : {}) };
   }
 }
 
@@ -35,6 +37,8 @@ export interface TemplatePackage {
   code: string | null;
   /** 包里的全部文件（路径 → 内容），包括 manifest.json */
   files: Map<string, Uint8Array>;
+  /** 确定性静态规则的提示（rule 类诊断，H12）；内置模板和派生模板为空 */
+  ruleDiagnostics: TemplateDiagnostic[];
 }
 
 export interface ReadPackageOptions {
@@ -118,7 +122,7 @@ export async function readPackage(file: string, options: ReadPackageOptions): Pr
     const codeBytes = files.get('template.js');
     if (manifest.extends) {
       if (codeBytes) throw new PackageError('derived-has-code', 'a derived template must not contain template.js');
-      return { manifest, code: null, files };
+      return { manifest, code: null, files, ruleDiagnostics: [] };
     }
     if (!codeBytes) throw new PackageError('code-missing', 'template.js');
     let code: string;
@@ -127,18 +131,20 @@ export async function readPackage(file: string, options: ReadPackageOptions): Pr
     } catch {
       throw new PackageError('code-syntax', 'template.js is not valid UTF-8');
     }
+    let ruleDiagnostics: TemplateDiagnostic[] = [];
     if (!builtin) {
       try {
-        await assertTemplateCode(code);
+        // 同一次解析里跑确定性的静态规则（H12）：只是提示，安装时并进试运行的警告
+        ruleDiagnostics = await analyzeTemplateCode(code);
       } catch (error) {
         if (error instanceof TemplateCodeError) {
           const code2: InstallErrorCode = error.problem === 'too-large' ? 'code-too-large' : error.problem === 'has-import' ? 'code-has-import' : 'code-syntax';
-          throw new PackageError(code2, error.message);
+          throw new PackageError(code2, error.message, error.diagnostic);
         }
         throw error;
       }
     }
-    return { manifest, code, files };
+    return { manifest, code, files, ruleDiagnostics };
   } finally {
     archive.close();
   }

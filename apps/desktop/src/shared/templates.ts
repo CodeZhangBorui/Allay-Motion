@@ -1,5 +1,5 @@
 // 模板与预设在主进程和渲染进程之间传的数据（docs/04-templates.md 4.7、4.8；01-product-architecture.md 1.8）。
-import { TemplateIdSchema, type ParamValues, type ResolvedTemplate, type TemplateManifest } from '@allay/template-sdk';
+import { TemplateIdSchema, type ParamValues, type ResolvedTemplate, type TemplateDiagnostic, type TemplateManifest } from '@allay/template-sdk';
 import { z } from 'zod';
 
 /** 模板包大小上限（4.8 第 1 步） */
@@ -44,6 +44,8 @@ export interface InstallError {
   code: InstallErrorCode;
   /** 给人看的细节（出错的字段、条目名），英文，界面放在错误码对应文案的后面 */
   detail: string;
+  /** 源码预检失败（code-syntax、code-has-import、code-too-large）时的 compile 类诊断，能定位时带行列 */
+  diagnostic?: TemplateDiagnostic;
 }
 
 /** 试运行（4.8 第 4 步）发现的问题：只是警告，仍允许安装 */
@@ -82,7 +84,18 @@ export interface TemplateBundle {
 export type StageResult =
   | { canceled: true }
   | { canceled?: false; ok: false; error: InstallError }
-  | { canceled?: false; ok: true; stagingId: string; bundle: TemplateBundle; replaces: boolean };
+  | {
+      canceled?: false;
+      ok: true;
+      stagingId: string;
+      bundle: TemplateBundle;
+      replaces: boolean;
+      /**
+       * 确定性静态规则的提示（H12）。只是提示：提交安装时主进程自己把它并进 nondeterministic 警告，
+       * 渲染进程不用转交；附在这里供将来显示位置。
+       */
+      ruleDiagnostics: TemplateDiagnostic[];
+    };
 
 export type CommitResult = { ok: true; entry: TemplateEntry } | { ok: false; error: InstallError };
 
