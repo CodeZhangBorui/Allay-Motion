@@ -4,6 +4,7 @@ import type { AllayApi } from './api';
 import type { ResourceState } from '../shared/resources';
 import type { UiSettings } from '../shared/settings';
 import type { TemplateDevChange } from '../shared/templates';
+import type { HostCommandRequest } from '../shared/host-commands';
 
 // preload 只做转发，不做判断：所有参数原样交给主进程，由主进程的 zod schema 校验。
 // 不暴露 ipcRenderer 本身，也不暴露任何通用的“发消息”函数。
@@ -104,6 +105,10 @@ const api = {
     save: invoke(IPC.project.save),
     saveAs: invoke(IPC.project.saveAs),
     recents: invoke(IPC.project.recents),
+  },
+  host: {
+    onCommand: subscribe<HostCommandRequest>(IPC.host.command),
+    commandResult: invoke(IPC.host.commandResult),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

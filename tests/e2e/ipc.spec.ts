@@ -27,6 +27,11 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ editor: { recent: { color: ['#000000'] } } }],
     [{ editor: { groups: { 'allay.builtin.block-wipe': { timing: 'yes' } } } }],
     [{ editor: { solidColor: 'red' } }],
+    // 可选模块的开关表（MD-b）：键必须是目录名的格式，值必须是布尔
+    [{ optionalModules: { 'Bad Name': true } }],
+    [{ optionalModules: { 'code-editor': 'yes' } }],
+    [{ optionalModules: ['code-editor'] }],
+    [{ optionalModules: Object.fromEntries(Array.from({ length: 33 }, (_, i) => [`m${i}`, true])) }],
     ['x'.repeat(200_000)],
   ],
   'window.setTitleBarColors': [
@@ -177,6 +182,18 @@ const MALFORMED: Record<string, unknown[][]> = {
   ],
   'project.saveAs': [[], [null], [{ name: '' }], [{ name: 'x', path: 'C:\\x.allay' }]],
   'project.recents': [[1], ['x']],
+  // 主进程到界面的命令通道（MD-b）：界面只能交回格式对的结果
+  'host.commandResult': [
+    [],
+    [null],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'],
+    [{ requestId: 'not-a-uuid', ok: true }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: 'yes' }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: false, error: 'exploded', message: 'x' }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true, path: 'C:\\Windows' }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true, output: 'x'.repeat(1_000_001) }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true }, 'extra'],
+  ],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],

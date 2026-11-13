@@ -21,6 +21,7 @@ import { TemplateService } from './templates/service';
 import { TemplateDevService } from './templates/dev-service';
 import { TemplateWatcher } from './templates/dev-watcher';
 import { TEMPLATE_API_DTS } from './templates/template-api-dts';
+import { HostCommandChannel } from './host-commands';
 import { createMainWindow } from './window';
 
 // ---- 必须在 ready 之前完成的事 ----
@@ -99,6 +100,17 @@ if (!app.requestSingleInstanceLock()) {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.templates.changed, change);
   });
 
+  // 主进程到界面的命令通道（H11）。测试开关打开时（只在未打包时）挂到全局，e2e 从主进程一侧调用它
+  const hostCommands = new HostCommandChannel({
+    send: (request) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return false;
+      mainWindow.webContents.send(IPC.host.command, request);
+      return true;
+    },
+    log,
+  });
+  if (testSwitches.testHooks) (globalThis as { __allayHostCommands?: HostCommandChannel }).__allayHostCommands = hostCommands;
+
   app.on('second-instance', () => {
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -144,6 +156,7 @@ if (!app.requestSingleInstanceLock()) {
       thumbs,
       templates,
       templateDev,
+      hostCommands,
       presets,
       projects,
       projectPathForTests: testSwitches.projectPath,
@@ -163,6 +176,7 @@ if (!app.requestSingleInstanceLock()) {
     mainWindow.on('focus', () => void resources.rescanFolders());
     mainWindow.on('closed', () => {
       mainWindow = null;
+      hostCommands.cancelAll();
     });
     await mainWindow.loadURL(devOrigin ?? APP_ENTRY_URL);
   });

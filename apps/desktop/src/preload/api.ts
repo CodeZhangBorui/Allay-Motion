@@ -7,6 +7,7 @@ import type {
 } from '../shared/export';
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
+import type { HostCommandRequest, HostCommandResult } from '../shared/host-commands';
 import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState } from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
@@ -133,6 +134,12 @@ export interface AllayApi {
     /** 弹出保存对话框 */
     saveAs(data: ProjectData): Promise<ProjectSaveResult>;
     recents(): Promise<RecentProject[]>;
+  };
+  host: {
+    /** 主进程请界面执行命令（H11）；请求在界面一侧再按 schema 校验。返回取消订阅的函数 */
+    onCommand(callback: (request: HostCommandRequest) => void): () => void;
+    /** 交回命令的结果；主进程按 schema 校验 */
+    commandResult(result: HostCommandResult): Promise<boolean>;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;
