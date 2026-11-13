@@ -13,6 +13,8 @@ import type { SettingsStore } from './settings-store';
 import type { ThumbCache } from './thumb-cache';
 import type { ExportFileResult, StageResult } from '../shared/templates';
 import type { PresetStore } from './templates/preset-store';
+import type { ProjectService } from './project/service';
+import { PROJECT_EXTENSION, type ProjectOpenResult, type ProjectSaveResult } from '../shared/project';
 import type { TemplateService } from './templates/service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
@@ -26,6 +28,9 @@ export interface HandlerDeps {
   thumbs: ThumbCache;
   templates: TemplateService;
   presets: PresetStore;
+  projects: ProjectService;
+  /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
+  projectPathForTests: string | null;
   testHooks: boolean;
   getMainWindow(): BrowserWindow | null;
 }
@@ -47,7 +52,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, presets, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -161,7 +166,38 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
     await writeFile(path, bytes);
     return { ok: true, path };
   });
-  handle(IPC.templates.saveDerived, (_event, req) => templates.saveDerived(req));
+  // 另存为派生模板：用户选的图片（file: 引用）由主进程按引用读出、复制进模板的 assets/（4.7）
+  handle(IPC.templates.saveDerived, (_event, req) => templates.saveDerived(req, (ref) => grants.resolve(ref)));
+
+  // ---- project（1.9）----
+  const pickProjectToOpen = async (): Promise<string | null> => {
+    if (projectPathForTests) return projectPathForTests;
+    const win = getMainWindow();
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Project', extensions: [PROJECT_EXTENSION] }] });
+    const path = result.filePaths[0];
+    return result.canceled || !path ? null : path;
+  };
+  const pickProjectToSave = async (name: string): Promise<string | null> => {
+    if (projectPathForTests) return projectPathForTests;
+    return pickSavePath(getMainWindow(), `${name.replace(/[\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`, PROJECT_EXTENSION);
+  };
+  handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
+    const path = await pickProjectToOpen();
+    return path ? projects.openPath(path) : { canceled: true };
+  });
+  handle(IPC.project.openRecent, (_event, id) => projects.openRecent(id));
+  handle(IPC.project.save, async (_event, handle, data): Promise<ProjectSaveResult> => {
+    const known = handle ? projects.pathOf(handle) : null;
+    if (handle && !known) throw new IpcRejected('unknown project handle');
+    const path = known ?? (await pickProjectToSave(data.name));
+    return path ? projects.saveTo(path, data) : { canceled: true };
+  });
+  handle(IPC.project.saveAs, async (_event, data): Promise<ProjectSaveResult> => {
+    const path = await pickProjectToSave(data.name);
+    return path ? projects.saveTo(path, data) : { canceled: true };
+  });
+  handle(IPC.project.recents, () => projects.recents());
 
   // ---- presets（4.7）----
   handle(IPC.presets.list, () => presets.list());

@@ -102,5 +102,6 @@ export const DroppedPathSchema = z.string().min(3).max(32_767);
 export const ResourceStampSchema = z.string().regex(/^[0-9a-f]{16}$/);
 /** 缩略图的键：渲染进程把 ID 里的 : 和 / 换成 ~ */
 export const ThumbKeySchema = z.string().regex(/^[a-z0-9_.~-]{1,200}$/);
-export const MAX_THUMB_BYTES = 1024 * 1024;
-export const ThumbPngSchema = z.instanceof(Uint8Array).refine((b) => b.byteLength > 8 && b.byteLength <= MAX_THUMB_BYTES, { message: 'thumbnail must be a PNG of at most 1 MB' });
+/** 缩略图上限；模板封面的悬停预览是一张帧网格图，放宽到 8 MB（decisions.md M4） */
+export const MAX_THUMB_BYTES = 8 * 1024 * 1024;
+export const ThumbPngSchema = z.instanceof(Uint8Array).refine((b) => b.byteLength > 8 && b.byteLength <= MAX_THUMB_BYTES, { message: 'thumbnail must be a PNG of at most 8 MB' });

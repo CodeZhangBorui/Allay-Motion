@@ -5,6 +5,7 @@ import { IPC } from '../shared/ipc-channels';
 import { handleAppProtocol, registerAppScheme } from './app-protocol';
 import { FileGrants } from './file-grants';
 import { registerHandlers } from './handlers';
+import { ProjectService } from './project/service';
 import { ExportService } from './export/export-service';
 import { createIpcRegistrar } from './ipc';
 import { createLogger } from './logger';
@@ -114,7 +115,22 @@ if (!app.requestSingleInstanceLock()) {
     const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
     // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
     await templatesReady;
-    registerHandlers({ registrar, settings, grants: new FileGrants(), exports, resources, thumbs, templates, presets, testHooks: testSwitches.testHooks, getMainWindow: () => mainWindow });
+    const grants = new FileGrants();
+    const projects = new ProjectService({ userDataDir: userData, appVersion: app.getVersion(), grants, log });
+    registerHandlers({
+      registrar,
+      settings,
+      grants,
+      exports,
+      resources,
+      thumbs,
+      templates,
+      presets,
+      projects,
+      projectPathForTests: testSwitches.projectPath,
+      testHooks: testSwitches.testHooks,
+      getMainWindow: () => mainWindow,
+    });
     // 资源栈：内置层和资源包先打开，原版层在后台离线探测（3.4），结果经 resources:changed 推给渲染进程
     void resources.init();
     // 启动时跑一次 ffmpeg -version 并记进日志（5.6），不阻塞窗口

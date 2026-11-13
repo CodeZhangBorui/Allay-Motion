@@ -2,7 +2,8 @@
 // 命名空间与 docs/01-product-architecture.md 1.8 一致；M0 实现了 app、settings、window、files，
 // M1 加上 export 的 start、writeFrame、finish、cancel、ffmpegInfo（writeAudio、probeEncoders 在 M6、M7）；
 // M2 加上 resources 和 cache（规格之外多出的几个方法见 docs/decisions.md M2b）；
-// M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）。
+// M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）；
+// M4 加上 project（没有 create：新建工程只是渲染进程里的状态，见 docs/decisions.md M4）。
 
 export const IPC = {
   app: {
@@ -68,6 +69,13 @@ export const IPC = {
     importFile: 'presets:importFile',
     exportFile: 'presets:exportFile',
   },
+  project: {
+    open: 'project:open',
+    openRecent: 'project:openRecent',
+    save: 'project:save',
+    saveAs: 'project:saveAs',
+    recents: 'project:recents',
+  },
   cache: {
     getThumb: 'cache:getThumb',
     putThumb: 'cache:putThumb',
@@ -126,6 +134,11 @@ export const INVOKE_CHANNELS = [
   IPC.presets.remove,
   IPC.presets.importFile,
   IPC.presets.exportFile,
+  IPC.project.open,
+  IPC.project.openRecent,
+  IPC.project.save,
+  IPC.project.saveAs,
+  IPC.project.recents,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

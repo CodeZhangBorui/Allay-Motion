@@ -8,6 +8,7 @@ import type {
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
 import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState } from '../shared/resources';
+import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type {
   CommitResult,
@@ -110,6 +111,16 @@ export interface AllayApi {
     importFile(): Promise<PresetImportResult>;
     /** 弹出主进程的保存对话框导出 */
     exportFile(id: string): Promise<ExportFileResult>;
+  };
+  project: {
+    /** 弹出主进程的打开对话框 */
+    open(): Promise<ProjectOpenResult>;
+    openRecent(id: string): Promise<ProjectOpenResult>;
+    /** 保存到句柄对应的文件；句柄为 null 时弹出保存对话框 */
+    save(handle: string | null, data: ProjectData): Promise<ProjectSaveResult>;
+    /** 弹出保存对话框 */
+    saveAs(data: ProjectData): Promise<ProjectSaveResult>;
+    recents(): Promise<RecentProject[]>;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;
