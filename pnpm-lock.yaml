@@ -406,6 +406,18 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/templates/loading-screen:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/ui:
     dependencies:
       '@base-ui/react':
