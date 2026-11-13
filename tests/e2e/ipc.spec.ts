@@ -202,7 +202,7 @@ test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不�
           },
           { method, args },
         );
-        expect(outcome, `${method}(${JSON.stringify(args).slice(0, 80)})`).toMatch(/^rejected: .*(invalid arguments|unknown file reference|unknown export job|expected a File)/);
+        expect(outcome, `${method}(${JSON.stringify(args).slice(0, 80)})`).toMatch(/^rejected: .*(invalid arguments|unknown file reference|unknown export job|unknown project handle|expected a File)/);
       }
     }
 

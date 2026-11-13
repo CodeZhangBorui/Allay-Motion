@@ -99,7 +99,7 @@ test('启动时从 resources/templates/ 装载内置的 T1，参数是默认值'
   expect(p.ref).toEqual({ id: 'allay.builtin.block-wipe', version: '1.0.0' });
   expect(p.params).toMatchObject({ cols: 12, style: '3d', inPattern: 'centerOut', outPattern: 'reverse', inDuration: 0.5, hold: 0.1, outDuration: 0.5, easing: 'backOut', spin: 'flipY', seed: 1 });
   expect(Object.keys(p.params)).toHaveLength(16);
-  await expect(page.getByTestId('template-allay.builtin.block-wipe')).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByTestId('template-allay.builtin.block-wipe')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('改参数（经测试钩子）：时长和剪辑点跟着变，越界的钳制，预览重新装载', async () => {

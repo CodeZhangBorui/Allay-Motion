@@ -56,7 +56,6 @@ function blobUrl(png: Uint8Array): string {
 class CoverService {
   private host: Promise<EngineHost> | null = null;
   private chain: Promise<unknown> = Promise.resolve();
-  private idle: ReturnType<typeof setTimeout> | null = null;
   private wanted = new Map<string, { id: string; version: string }>();
   private inflight = new Set<string>();
 
@@ -110,11 +109,12 @@ class CoverService {
       .finally(() => {
         this.inflight.delete(key);
         useCoverStore.setState((s) => ({ pending: Math.max(0, s.pending - 1) }));
+        // 封面是一阵一阵生成的（安装、资源栈变化）：这一批做完就销毁杂务 Worker，不占着显存
+        if (this.inflight.size === 0) this.dispose();
       });
   }
 
   private async getHost(): Promise<EngineHost> {
-    if (this.idle) clearTimeout(this.idle);
     this.host ??= EngineHost.create({ mode: 'utility', resolveResource: createResolver(() => this.assets), strictDeterminism: import.meta.env.DEV });
     try {
       return await this.host;
@@ -175,8 +175,6 @@ class CoverService {
     } catch (error) {
       if (host.dead) this.host = null;
       throw error;
-    } finally {
-      this.idle = setTimeout(() => this.dispose(), 30_000);
     }
   }
 
