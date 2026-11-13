@@ -1,0 +1,87 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.block-fall",
+  "version": "1.0.0",
+  "name": { "zh-CN": "方块坠落", "en": "Block fall" },
+  "description": {
+    "zh-CN": "方块从画面上方一列列掉下来垒成一面墙，停留，然后整面墙散落。",
+    "en": "Blocks drop in column by column to build a wall, hold, then the wall scatters."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "fall"],
+  "groups": [
+    { "key": "blocks", "label": { "zh-CN": "方块", "en": "Blocks" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "blocks",
+      "type": "blockList",
+      "label": { "zh-CN": "方块", "en": "Blocks" },
+      "hint": { "zh-CN": "按权重随机分配到每个格子", "en": "Assigned to cells at random by weight" },
+      "group": "blocks",
+      "default": [
+        { "id": "minecraft:stone", "weight": 3 },
+        { "id": "minecraft:cobblestone", "weight": 1 }
+      ],
+      "max": 8
+    },
+    { "key": "cols", "type": "integer", "label": { "zh-CN": "列数", "en": "Columns" }, "group": "blocks", "default": 10, "min": 4, "max": 32, "ui": "slider" },
+    {
+      "key": "columnOrder",
+      "type": "enum",
+      "label": { "zh-CN": "落下顺序", "en": "Column order" },
+      "hint": { "zh-CN": "列与列之间的先后；同一列里下面的行先落", "en": "Which columns drop first; within a column the lower rows land first" },
+      "group": "motion",
+      "default": "random",
+      "options": [
+        { "value": "leftToRight", "label": { "zh-CN": "从左到右", "en": "Left to right" } },
+        { "value": "rightToLeft", "label": { "zh-CN": "从右到左", "en": "Right to left" } },
+        { "value": "centerOut", "label": { "zh-CN": "中间向两边", "en": "Center out" } },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" } }
+      ]
+    },
+    {
+      "key": "bounce",
+      "type": "number",
+      "label": { "zh-CN": "回弹", "en": "Bounce" },
+      "hint": { "zh-CN": "落地后弹起的高度，以方块边长计", "en": "How high a block bounces after landing, in block sizes" },
+      "group": "motion",
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "ui": "slider"
+    },
+    {
+      "key": "outMode",
+      "type": "enum",
+      "label": { "zh-CN": "退出方式", "en": "Out mode" },
+      "group": "motion",
+      "default": "fall",
+      "options": [
+        { "value": "fall", "label": { "zh-CN": "散落", "en": "Fall" } },
+        { "value": "explode", "label": { "zh-CN": "炸开", "en": "Explode" } },
+        { "value": "shrink", "label": { "zh-CN": "缩回", "en": "Shrink" } }
+      ]
+    },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.7, "min": 0.2, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.1, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.6, "min": 0.2, "max": 2 },
+    { "key": "placeSound", "type": "sound", "label": { "zh-CN": "落地音效", "en": "Land sound" }, "group": "sound", "default": "minecraft:block.stone.place" },
+    { "key": "breakSound", "type": "sound", "label": { "zh-CN": "散落音效", "en": "Scatter sound" }, "group": "sound", "default": "minecraft:block.stone.break" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "motion", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

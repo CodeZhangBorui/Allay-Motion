@@ -1,0 +1,15 @@
+{
+  "name": "@allay/template-item-stinger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "T3 物品飞掠（allay.builtin.item-stinger），由 pnpm templates:build 打成 .allaytpl",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@types/three": "0.187.0",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.item-stinger",
+  "version": "1.0.0",
+  "name": { "zh-CN": "物品飞掠", "en": "Item stinger" },
+  "description": {
+    "zh-CN": "一个大号物品掠过画面，身后拖着一条色带把画面盖住，色带尾端随后扫过，露出下一段素材。",
+    "en": "A big item sweeps across the screen trailing a band that covers it, then the band's tail sweeps past to reveal the next clip."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["item", "stinger", "wipe"],
+  "groups": [
+    { "key": "item", "label": { "zh-CN": "物品", "en": "Item" } },
+    { "key": "band", "label": { "zh-CN": "色带", "en": "Band" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "item", "type": "item", "label": { "zh-CN": "物品", "en": "Item" }, "group": "item", "default": "minecraft:diamond_sword" },
+    {
+      "key": "image",
+      "type": "texture",
+      "label": { "zh-CN": "自定义图片", "en": "Custom image" },
+      "hint": { "zh-CN": "选了图片就用它代替物品", "en": "When set, this image replaces the item" },
+      "group": "item",
+      "default": "",
+      "allowFile": true
+    },
+    {
+      "key": "itemScale",
+      "type": "number",
+      "label": { "zh-CN": "物品大小", "en": "Item size" },
+      "hint": { "zh-CN": "相对画面高度", "en": "Relative to the screen height" },
+      "group": "item",
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1.4,
+      "step": 0.01,
+      "ui": "slider"
+    },
+    {
+      "key": "itemLead",
+      "type": "number",
+      "label": { "zh-CN": "物品领先", "en": "Item lead" },
+      "hint": { "zh-CN": "物品走在色带前沿前方多远，相对画面高度", "en": "How far the item travels ahead of the band, relative to the screen height" },
+      "group": "item",
+      "default": 0.15,
+      "min": 0,
+      "max": 0.6,
+      "step": 0.01,
+      "ui": "slider"
+    },
+    { "key": "spin", "type": "number", "label": { "zh-CN": "自转", "en": "Spin" }, "group": "item", "default": 1, "min": -4, "max": 4, "step": 0.1, "unit": "rev/s" },
+    { "key": "angle", "type": "angle", "label": { "zh-CN": "方向", "en": "Direction" }, "hint": { "zh-CN": "0° 为从左到右", "en": "0° moves left to right" }, "group": "band", "default": 0, "snap": 15 },
+    {
+      "key": "fill",
+      "type": "enum",
+      "label": { "zh-CN": "填充", "en": "Fill" },
+      "group": "band",
+      "default": "color",
+      "options": [
+        { "value": "color", "label": { "zh-CN": "纯色", "en": "Color" } },
+        { "value": "block", "label": { "zh-CN": "方块", "en": "Block" } }
+      ]
+    },
+    { "key": "fillColor", "type": "color", "label": { "zh-CN": "颜色", "en": "Color" }, "group": "band", "default": "#2072D5", "visibleWhen": { "key": "fill", "equals": "color" } },
+    { "key": "fillBlock", "type": "block", "label": { "zh-CN": "方块", "en": "Block" }, "group": "band", "default": "minecraft:lapis_block", "visibleWhen": { "key": "fill", "equals": "block" } },
+    {
+      "key": "tileSize",
+      "type": "number",
+      "label": { "zh-CN": "贴图大小", "en": "Tile size" },
+      "hint": { "zh-CN": "平铺贴图的边长", "en": "Edge length of each tile" },
+      "group": "band",
+      "default": 120,
+      "min": 40,
+      "max": 360,
+      "step": 1,
+      "visibleWhen": { "key": "fill", "equals": "block" }
+    },
+    {
+      "key": "edge",
+      "type": "enum",
+      "label": { "zh-CN": "边缘", "en": "Edge" },
+      "group": "band",
+      "default": "stairs",
+      "options": [
+        { "value": "straight", "label": { "zh-CN": "直线", "en": "Straight" } },
+        { "value": "stairs", "label": { "zh-CN": "像素阶梯", "en": "Pixel stairs" } }
+      ]
+    },
+    { "key": "pixelSize", "type": "integer", "label": { "zh-CN": "像素大小", "en": "Pixel size" }, "hint": { "zh-CN": "阶梯的格子和条纹的宽度", "en": "Size of the stair steps and width of the stripes" }, "group": "band", "default": 60, "min": 12, "max": 180 },
+    { "key": "stripeA", "type": "color", "label": { "zh-CN": "条纹 A", "en": "Stripe A" }, "hint": { "zh-CN": "全透明即不显示", "en": "Fully transparent hides it" }, "group": "band", "default": "#52CFF3", "alpha": true },
+    { "key": "stripeB", "type": "color", "label": { "zh-CN": "条纹 B", "en": "Stripe B" }, "hint": { "zh-CN": "全透明即不显示", "en": "Fully transparent hides it" }, "group": "band", "default": "#F2F4F6", "alpha": true },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.45, "min": 0.15, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.08, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.45, "min": 0.15, "max": 2 },
+    { "key": "easing", "type": "easing", "label": { "zh-CN": "缓动", "en": "Easing" }, "group": "timing", "default": "cubicInOut" },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放", "en": "Plays at the start" }, "group": "sound", "default": "allay:whoosh" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

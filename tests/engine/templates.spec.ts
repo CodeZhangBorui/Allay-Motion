@@ -63,8 +63,12 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
       expect(r.warnings, `${where} warnings`).toEqual([]);
       expect(r.mismatched, `${where} T-ENG-1 mismatched frames ${JSON.stringify(r.debug)}`).toEqual([]);
       expect(r.deterministic, `${where} T-ENG-1`).toBe(true);
-      // 确实在动
-      expect(r.distinct, `${where} distinct frames`).toBeGreaterThan(r.total / 2);
+      // 确实在动。转场类照旧要求一半以上的帧互不相同；叠加层（没有剪辑点，如 T6 的提示框）在停留阶段本来就静止，
+      // 停留阶段内部的帧不计入（docs/decisions.md M6a）
+      const holdDef = manifest.params?.find((p) => p.key === 'hold');
+      const holdSeconds = manifest.category !== 'transition' && holdDef?.type === 'duration' ? holdDef.default : 0;
+      const still = Math.max(0, Math.floor(holdSeconds * 60) - 1);
+      expect(r.distinct, `${where} distinct frames`).toBeGreaterThan((r.total - still) / 2);
       expect(r.first.max, `${where} first frame`).toBe(0);
       expect(r.last.max, `${where} last frame`).toBe(0);
       if (manifest.category === 'transition') {
