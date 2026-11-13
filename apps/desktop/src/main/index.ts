@@ -27,6 +27,10 @@ app.setPath('userData', join(app.getPath('appData'), 'AllayMotion'));
 const testSwitches = readTestSwitches(app.isPackaged, process.env);
 if (testSwitches.userDataDir) app.setPath('userData', testSwitches.userDataDir);
 const hiddenForTests = testSwitches.hiddenWindow;
+// 不显示的窗口没有显示器的垂直同步，Chromium 退回每秒 1 帧的帧时钟；主线程有时要等到下一帧才继续处理消息，
+// 可见窗口里这个等待不超过一帧（约 16 ms），隐藏窗口里会被拉长到将近 1 秒（docs/decisions.md M2b“T-ARC-5 的 1 秒空洞”）。
+// 测试窗口去掉帧率限制，让帧时钟和可见窗口一样快。只影响帧的节拍，不碰 1.6 的任何安全设置；打包后 hiddenForTests 恒为假。
+if (hiddenForTests) app.commandLine.appendSwitch('disable-frame-rate-limit');
 
 registerAppScheme();
 app.enableSandbox();
