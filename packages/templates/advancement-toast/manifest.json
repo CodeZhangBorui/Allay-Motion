@@ -1,0 +1,75 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.advancement-toast",
+  "version": "1.0.0",
+  "name": { "zh-CN": "进度提示", "en": "Advancement toast" },
+  "description": {
+    "zh-CN": "屏幕一角滑入一个提示框：左边一个物品图标，右边两行字。停留后滑出。",
+    "en": "A toast slides into a corner with an item icon and two lines of text, holds, then slides out."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["toast", "advancement", "text"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "layout", "label": { "zh-CN": "位置", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "icon", "type": "item", "label": { "zh-CN": "图标", "en": "Icon" }, "group": "content", "default": "minecraft:diamond" },
+    {
+      "key": "frame",
+      "type": "enum",
+      "label": { "zh-CN": "进度类型", "en": "Frame" },
+      "hint": { "zh-CN": "决定标题行的默认颜色", "en": "Sets the default header color" },
+      "group": "content",
+      "default": "task",
+      "options": [
+        { "value": "task", "label": { "zh-CN": "进度", "en": "Task" } },
+        { "value": "goal", "label": { "zh-CN": "目标", "en": "Goal" } },
+        { "value": "challenge", "label": { "zh-CN": "挑战", "en": "Challenge" } }
+      ]
+    },
+    { "key": "header", "type": "text", "label": { "zh-CN": "标题行", "en": "Header" }, "group": "content", "default": { "zh-CN": "进度已达成！", "en": "Advancement Made!" }, "maxLength": 24 },
+    { "key": "title", "type": "text", "label": { "zh-CN": "名称", "en": "Title" }, "group": "content", "default": { "zh-CN": "钻石！", "en": "Diamonds!" }, "maxLength": 28 },
+    {
+      "key": "headerColor",
+      "type": "color",
+      "label": { "zh-CN": "标题行颜色", "en": "Header color" },
+      "hint": { "zh-CN": "保持默认值时按进度类型取色（挑战为粉色）", "en": "At the default value the color follows the frame (pink for challenges)" },
+      "group": "content",
+      "default": "#FFFF55",
+      "palette": "chat"
+    },
+    { "key": "titleColor", "type": "color", "label": { "zh-CN": "名称颜色", "en": "Title color" }, "group": "content", "default": "#FFFFFF", "palette": "chat" },
+    {
+      "key": "anchor",
+      "type": "enum",
+      "label": { "zh-CN": "位置", "en": "Anchor" },
+      "group": "layout",
+      "default": "topRight",
+      "options": [
+        { "value": "topRight", "label": { "zh-CN": "右上", "en": "Top right" } },
+        { "value": "topLeft", "label": { "zh-CN": "左上", "en": "Top left" } },
+        { "value": "bottomRight", "label": { "zh-CN": "右下", "en": "Bottom right" } },
+        { "value": "bottomLeft", "label": { "zh-CN": "左下", "en": "Bottom left" } }
+      ]
+    },
+    { "key": "guiScale", "type": "integer", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位", "en": "Design units per GUI pixel" }, "group": "layout", "default": 4, "min": 2, "max": 10, "ui": "slider" },
+    { "key": "margin", "type": "number", "label": { "zh-CN": "边距", "en": "Margin" }, "hint": { "zh-CN": "离屏幕边缘的距离", "en": "Distance from the screen edges" }, "group": "layout", "default": 0, "min": 0, "max": 120, "step": 1 },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "滑入", "en": "In" }, "group": "timing", "default": 0.25, "min": 0.1, "max": 1 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 2.5, "min": 0.5, "max": 10 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "滑出", "en": "Out" }, "group": "timing", "default": 0.25, "min": 0.1, "max": 1 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放", "en": "Plays at the start" }, "group": "sound", "default": "minecraft:ui.toast.in" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "滑入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "滑出", "en": "Out" } }
+    ]
+  },
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
