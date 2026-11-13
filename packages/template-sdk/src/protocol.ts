@@ -42,11 +42,82 @@ export const AudioCueSchema = z.strictObject({
 });
 export type AudioCue = z.infer<typeof AudioCueSchema>;
 
+// ---- 结构化诊断（docs/code-editing-and-mcp-plan.md H5、H12） ----
+
+/**
+ * 诊断的种类：
+ * - compile：装载前的预检（语法错误、出现 import、源码过大）
+ * - load：模块求值失败、默认导出不对
+ * - setup / update：模板的 setup()、update(t) 抛错，或 setup() 的返回值不合契约
+ * - watchdog：在时限内没有返回，Worker 已被终止
+ * - determinism：开发构建在 update(t) 里拦到 Math.random 等；同一帧穿插渲染后不一致
+ * - rule：静态规则检查的提示（不替代运行时的拦截与比对）
+ */
+export const DIAGNOSTIC_KINDS = ['compile', 'load', 'setup', 'update', 'watchdog', 'determinism', 'rule'] as const;
+export type DiagnosticKind = (typeof DIAGNOSTIC_KINDS)[number];
+
+export const DiagnosticSeveritySchema = z.enum(['error', 'warning']);
+export type DiagnosticSeverity = z.infer<typeof DiagnosticSeveritySchema>;
+
+/** 诊断里文字的上限：错误信息来自模板代码，限长后才交给界面 */
+export const MAX_DIAGNOSTIC_MESSAGE = 2000;
+
+const diagnosticBase = {
+  severity: DiagnosticSeveritySchema,
+  /** 稳定的错误码（小写、连字符），界面和测试按它判断，不解析 message */
+  code: z.string().regex(/^[a-z][a-z0-9-]*$/).max(64),
+  /** 给人看的细节（英文，来自引擎或模板抛出的错误） */
+  message: z.string().max(MAX_DIAGNOSTIC_MESSAGE),
+  /** 模板源码里的位置，从 1 开始数；拿不到可靠位置时不带（不编造） */
+  line: z.int().min(1).optional(),
+  column: z.int().min(1).optional(),
+};
+/** 出错时的时刻（秒） */
+const atTime = { t: z.number().optional() };
+
+export const TemplateDiagnosticSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('compile'), ...diagnosticBase }),
+  z.strictObject({ kind: z.literal('load'), ...diagnosticBase }),
+  z.strictObject({ kind: z.literal('setup'), ...diagnosticBase }),
+  z.strictObject({ kind: z.literal('update'), ...diagnosticBase, ...atTime }),
+  z.strictObject({
+    kind: z.literal('watchdog'),
+    ...diagnosticBase,
+    /** 超时的调用（load、render、renderFrame 等） */
+    operation: z.string().max(64),
+    timeoutMs: z.number().min(0),
+  }),
+  z.strictObject({ kind: z.literal('determinism'), ...diagnosticBase, ...atTime }),
+  z.strictObject({ kind: z.literal('rule'), ...diagnosticBase }),
+]);
+export type TemplateDiagnostic = z.infer<typeof TemplateDiagnosticSchema>;
+export const TemplateDiagnosticsSchema = z.array(TemplateDiagnosticSchema).max(200);
+
+/**
+ * 错误对象上带的诊断（引擎的 TemplateError、宿主的看门狗错误、源码预检错误都挂在 `diagnostic` 字段上）。
+ * 跨线程传来的错误也走这里：字段不合 schema 就当没有。
+ */
+export function diagnosticOf(error: unknown): TemplateDiagnostic | null {
+  if (!error || typeof error !== 'object') return null;
+  const parsed = TemplateDiagnosticSchema.safeParse((error as { diagnostic?: unknown }).diagnostic);
+  return parsed.success ? parsed.data : null;
+}
+
+/** 截断给人看的文字 */
+export function clipDiagnosticMessage(message: string): string {
+  return message.length <= MAX_DIAGNOSTIC_MESSAGE ? message : `${message.slice(0, MAX_DIAGNOSTIC_MESSAGE - 1)}…`;
+}
+
 export const LoadResultSchema = z.strictObject({
   duration: z.number().min(0.1).max(30),
   cutTime: z.number().nullable(),
   audioCues: z.array(AudioCueSchema),
   warnings: z.array(z.string()),
+  /**
+   * 静态规则检查的提示（rule 类诊断，H12）。由宿主在交给引擎之前算出并附上；引擎自己不填。
+   * 可选字段：旧的调用方只看 warnings。
+   */
+  diagnostics: TemplateDiagnosticsSchema.optional(),
 });
 export type LoadResult = z.infer<typeof LoadResultSchema>;
 
@@ -148,3 +219,4 @@ export const EngineModeSchema = z.enum(['preview', 'export', 'utility']);
 export type EngineMode = z.infer<typeof EngineModeSchema>;
 
 export const ResizeSchema = z.tuple([z.int().min(1).max(8192), z.int().min(1).max(8192)]);
+

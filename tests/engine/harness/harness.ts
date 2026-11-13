@@ -8,10 +8,15 @@ import hangUpdate from '../../fixtures/templates/hang-update.js?raw';
 import usesImport from '../../fixtures/templates/uses-import.js?raw';
 import escapeAttempts from '../../fixtures/templates/escape-attempts.js?raw';
 import m2Features from '../../fixtures/templates/m2-features.js?raw';
+import devSyntaxError from '../../fixtures/templates/dev/syntax-error.js?raw';
+import devSetupThrows from '../../fixtures/templates/dev/setup-throws.js?raw';
+import devUpdateThrows from '../../fixtures/templates/dev/update-throws.js?raw';
+import devRandomUpdate from '../../fixtures/templates/dev/random-update.js?raw';
+import devOrderDependent from '../../fixtures/templates/dev/order-dependent.js?raw';
 import { EngineHost, type WatchdogTimeouts } from '../../../apps/desktop/src/renderer/engine-host/EngineHost';
 import { ANIM_COLORS, FAKE_STAMP, fakeColor, fakeResolveResource, setFakeVanillaFont } from './fake-resources';
 import { frameCount } from '../../../packages/engine/src/frames';
-import { TemplateManifestSchema, type FrameQuality, type OutputSettings, type ParamValues, type TemplateManifest } from '../../../packages/template-sdk/src/index';
+import { diagnosticOf, TemplateManifestSchema, type FrameQuality, type TemplateDiagnostic, type OutputSettings, type ParamValues, type TemplateManifest } from '../../../packages/template-sdk/src/index';
 
 const fixture = (params: unknown[] = []) =>
   TemplateManifestSchema.parse({ formatVersion: 1, id: 'test.engine.fixture', version: '0.0.0', name: 'fixture', category: 'transition', params });
@@ -27,6 +32,11 @@ const SOURCES = {
   hangUpdate: { code: hangUpdate, manifest: fixture() },
   usesImport: { code: usesImport, manifest: fixture() },
   escapeAttempts: { code: escapeAttempts, manifest: fixture() },
+  devSyntaxError: { code: devSyntaxError, manifest: fixture() },
+  devSetupThrows: { code: devSetupThrows, manifest: fixture() },
+  devUpdateThrows: { code: devUpdateThrows, manifest: fixture() },
+  devRandomUpdate: { code: devRandomUpdate, manifest: fixture() },
+  devOrderDependent: { code: devOrderDependent, manifest: fixture() },
   m2Features: {
     code: m2Features,
     manifest: fixture([
@@ -366,6 +376,44 @@ const harness = {
       }
     } catch (error) {
       return { failed: true, name: (error as Error).name, message: (error as Error).message, ms: performance.now() - started, dead: true };
+    }
+  },
+
+  /**
+   * T-DEV-2（引擎层）：装载并渲染一帧（check 给了时改做确定性自检），返回结构化诊断。
+   * phase 说明诊断出在哪一步；rules 是装载结果里附带的静态规则提示。
+   */
+  async diagnose(name: TemplateKey, output: OutputSettings, opts: { timeouts?: Partial<WatchdogTimeouts>; check?: { probe: number; others: number[] } } = {}) {
+    const { code, manifest } = sourceOf(name);
+    const host = await EngineHost.create({ mode: 'export', resolveResource: fakeResolveResource, strictDeterminism: true, timeouts: opts.timeouts });
+    const q = { subframes: 1, shutterAngle: 180 };
+    const failed = (phase: 'load' | 'render', error: unknown, rules: TemplateDiagnostic[]) => ({
+      phase,
+      diagnostic: diagnosticOf(error),
+      rules,
+      name: (error as Error).name,
+      message: (error as Error).message,
+      dead: host.dead,
+    });
+    try {
+      let rules: TemplateDiagnostic[];
+      try {
+        rules = (await host.load({ manifest, code, params: {}, output, resourceStamp: FAKE_STAMP })).diagnostics ?? [];
+      } catch (error) {
+        return failed('load', error, []);
+      }
+      if (opts.check) {
+        const diagnostic = await host.checkDeterminism(opts.check.probe, opts.check.others, q);
+        return { phase: 'check' as const, diagnostic, rules, name: '', message: '', dead: host.dead };
+      }
+      try {
+        await host.renderFrame(Math.round(output.fps / 2), q);
+      } catch (error) {
+        return failed('render', error, rules);
+      }
+      return { phase: 'ok' as const, diagnostic: null, rules, name: '', message: '', dead: host.dead };
+    } finally {
+      host.dispose();
     }
   },
 

@@ -48,6 +48,14 @@ function removeEverywhere(target: object, name: string): void {
   }
 }
 
+/** 开发构建在 update(t) 里拦到的不确定调用（2.4）；引擎把它转成 determinism 类诊断 */
+export class DeterminismViolation extends Error {
+  constructor(readonly api: 'Math.random' | 'Date.now' | 'performance.now', message: string) {
+    super(message);
+    this.name = 'DeterminismViolation';
+  }
+}
+
 /**
  * 开发构建里，在调用模板 update(t) 期间把 Math.random、Date.now、performance.now 换成会抛错的版本（2.4），
  * 尽早抓出不确定性。生产构建不拦截。
@@ -61,17 +69,17 @@ export class DeterminismGuard {
     if (!this.enabled) return fn();
     const perf = (globalThis as { performance?: Performance }).performance;
     Math.random = () => {
-      throw new Error('Math.random() is not allowed in update(t); use ctx.random(key) instead');
+      throw new DeterminismViolation('Math.random', 'Math.random() is not allowed in update(t); use ctx.random(key) instead');
     };
     Date.now = () => {
-      throw new Error('Date.now() is not allowed in update(t); the frame must depend only on t');
+      throw new DeterminismViolation('Date.now', 'Date.now() is not allowed in update(t); the frame must depend only on t');
     };
     if (perf) {
       Object.defineProperty(perf, 'now', {
         configurable: true,
         writable: true,
         value: () => {
-          throw new Error('performance.now() is not allowed in update(t); the frame must depend only on t');
+          throw new DeterminismViolation('performance.now', 'performance.now() is not allowed in update(t); the frame must depend only on t');
         },
       });
     }
