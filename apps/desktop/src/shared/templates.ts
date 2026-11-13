@@ -136,3 +136,31 @@ export interface PresetEntry {
 
 export type PresetImportResult = { canceled: true } | { canceled?: false; ok: true; entry: PresetEntry } | { canceled?: false; ok: false; error: string };
 export type ExportFileResult = { canceled: true } | { canceled?: false; ok: true; path: string };
+
+// ---- 模板开发模式（docs/08-milestones.md MD）----
+
+/** templates.copyBuiltin 的入参：要复制的内置模板，以及可选的新名字（不给时沿用原名） */
+export const CopyBuiltinSchema = z.strictObject({
+  id: TemplateIdSchema,
+  version: TemplateVersionArgSchema,
+  name: z.string().trim().min(1).max(60).optional(),
+});
+export type CopyBuiltinRequest = z.infer<typeof CopyBuiltinSchema>;
+
+/** 开发模式各方法的失败原因（枚举值，界面按它显示文案） */
+export type TemplateDevError = 'not-found' | 'not-builtin' | 'not-script' | 'bad-id' | 'not-user' | 'outside' | 'open-failed';
+export type TemplateDevResult<T extends object = object> = ({ ok: true } & T) | { ok: false; error: TemplateDevError };
+
+/**
+ * 用户模板文件夹在应用之外被改动（templates.onChanged，主进程 → 渲染进程）。
+ * 应用自己的写入（安装、复制、写类型定义等）不会触发。
+ */
+export interface TemplateDevChange {
+  id: string;
+  version: string;
+  change: 'added' | 'changed' | 'removed';
+  /** 新的内容哈希（manifest.json、template.js、assets/** 的 SHA-256）；removed 时为 null */
+  hash: string | null;
+  /** 改动之后这个模板还能装载（manifest 合法、template.js 在）；为 false 时它已从模板列表里移除 */
+  valid: boolean;
+}

@@ -16,6 +16,7 @@ import type { PresetStore } from './templates/preset-store';
 import type { ProjectService } from './project/service';
 import { PROJECT_EXTENSION, type ProjectOpenResult, type ProjectSaveResult } from '../shared/project';
 import type { TemplateService } from './templates/service';
+import type { TemplateDevService } from './templates/dev-service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -27,6 +28,7 @@ export interface HandlerDeps {
   resources: ResourceService;
   thumbs: ThumbCache;
   templates: TemplateService;
+  templateDev: TemplateDevService;
   presets: PresetStore;
   projects: ProjectService;
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
@@ -52,7 +54,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -168,6 +170,10 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   });
   // 另存为派生模板：用户选的图片（file: 引用）由主进程按引用读出、复制进模板的 assets/（4.7）
   handle(IPC.templates.saveDerived, (_event, req) => templates.saveDerived(req, (ref) => grants.resolve(ref)));
+  // 模板开发模式（MD）：路径全由主进程按 id 和版本决定，只认用户模板目录里的文件夹（1.6 第 6 条）
+  handle(IPC.templates.copyBuiltin, (_event, req) => templateDev.copyBuiltin(req));
+  handle(IPC.templates.writeDevFiles, (_event, id, version) => templateDev.writeDevFiles({ id, version }));
+  handle(IPC.templates.openFolder, (_event, id, version) => templateDev.openFolder({ id, version }));
 
   // ---- project（1.9）----
   const pickProjectToOpen = async (): Promise<string | null> => {

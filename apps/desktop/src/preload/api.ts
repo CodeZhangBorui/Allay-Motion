@@ -12,6 +12,7 @@ import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject }
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type {
   CommitResult,
+  CopyBuiltinRequest,
   ExportFileResult,
   InstallReport,
   PresetEntry,
@@ -20,6 +21,8 @@ import type {
   SavePresetRequest,
   StageResult,
   TemplateBundle,
+  TemplateDevChange,
+  TemplateDevResult,
   TemplateEntry,
 } from '../shared/templates';
 
@@ -102,6 +105,15 @@ export interface AllayApi {
     exportPackage(id: string, version: string): Promise<ExportFileResult>;
     /** 另存为派生模板（4.7） */
     saveDerived(req: SaveDerivedRequest): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: string }>;
+    // ---- 模板开发模式（MD）：界面接线在 MD-b ----
+    /** 把内置模板复制成可编辑的用户模板（新 id，版本 1.0.0），并写好 template-api.d.ts 和 jsconfig.json */
+    copyBuiltin(req: CopyBuiltinRequest): Promise<TemplateDevResult<{ entry: TemplateEntry }>>;
+    /** 往用户模板的文件夹写 template-api.d.ts 和 jsconfig.json */
+    writeDevFiles(id: string, version: string): Promise<TemplateDevResult>;
+    /** 在系统文件管理器里打开用户模板的文件夹 */
+    openFolder(id: string, version: string): Promise<TemplateDevResult>;
+    /** 用户模板文件夹在应用之外被改动（应用自己的写入不触发）；返回取消订阅的函数 */
+    onChanged(callback: (change: TemplateDevChange) => void): () => void;
   };
   presets: {
     list(): Promise<PresetEntry[]>;

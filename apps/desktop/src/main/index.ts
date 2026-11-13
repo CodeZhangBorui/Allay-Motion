@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { app, session, type BrowserWindow } from 'electron';
+import { app, session, shell, type BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels';
 import { handleAppProtocol, registerAppScheme } from './app-protocol';
 import { FileGrants } from './file-grants';
@@ -18,6 +18,9 @@ import { readTestSwitches } from './test-switches';
 import { ThumbCache } from './thumb-cache';
 import { PresetStore } from './templates/preset-store';
 import { TemplateService } from './templates/service';
+import { TemplateDevService } from './templates/dev-service';
+import { TemplateWatcher } from './templates/dev-watcher';
+import { TEMPLATE_API_DTS } from './templates/template-api-dts';
 import { createMainWindow } from './window';
 
 // ---- 必须在 ready 之前完成的事 ----
@@ -83,6 +86,18 @@ if (!app.requestSingleInstanceLock()) {
   const templates = new TemplateService({ builtinDir: join(bundledResources, 'templates'), userDataDir: userData, appVersion: app.getVersion(), log });
   const presets = new PresetStore(userData, log);
   const templatesReady = templates.init().catch((error: unknown) => log.error('templates', 'init failed', { error }));
+  // 模板开发模式（MD）：监视 userData/templates/，外部改动经 templates:changed 推给渲染进程。
+  // shell.openPath 只会收到模板的文件夹（dev-service 里按 id 和版本解析、确认在用户模板目录之内）
+  const templateDev = new TemplateDevService({
+    templates,
+    watcher: new TemplateWatcher({ root: join(userData, 'templates'), log }),
+    templateApiDts: TEMPLATE_API_DTS,
+    openFolder: (dir) => shell.openPath(dir),
+    log,
+  });
+  templateDev.onChange((change) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.templates.changed, change);
+  });
 
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -100,6 +115,7 @@ if (!app.requestSingleInstanceLock()) {
     resources.cancelDownload();
     void Promise.allSettled([settings.flush(), exports.cancelAll()]).finally(() => {
       resources.close();
+      templateDev.close();
       flushed = true;
       app.quit();
     });
@@ -115,6 +131,8 @@ if (!app.requestSingleInstanceLock()) {
     const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
     // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
     await templatesReady;
+    // 监视在模板列表就绪之后开始，不阻塞窗口（只读一遍现有用户模板的文件算哈希）
+    void templateDev.start().catch((error: unknown) => log.warn('templates', 'template folder watcher did not start', { error: String(error) }));
     const grants = new FileGrants();
     const projects = new ProjectService({ userDataDir: userData, appVersion: app.getVersion(), grants, log });
     registerHandlers({
@@ -125,6 +143,7 @@ if (!app.requestSingleInstanceLock()) {
       resources,
       thumbs,
       templates,
+      templateDev,
       presets,
       projects,
       projectPathForTests: testSwitches.projectPath,

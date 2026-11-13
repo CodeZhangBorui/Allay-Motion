@@ -537,7 +537,7 @@ export declare namespace THREE {
 
   class Texture {
     readonly isTexture: boolean;
-    /** 宿主给的图像数据；不要在模板里读写它 */
+    /** 图像数据（类型与 three 一致是 unknown）。引擎给的贴图都有 width、height（像素），读之前自己断言类型 */
     image: unknown;
     magFilter: MagnificationTextureFilter;
     minFilter: MinificationTextureFilter;
