@@ -370,3 +370,92 @@ M5 拆成两半：M5a 只做依赖 M1 的三项（模型、动作、烘焙）；
 - `packages/mascot/model/` 不在 `eslint.config.js` 的 mascot 依赖方向规则覆盖范围内（规则只管 `src/`），这次没有改 eslint 配置；model 里的文件只导入同目录文件和 template-sdk 的类型。
 - 模型布局凭记忆写成，只用本机 1.21.1 的贴图对照过；没有和游戏里的实际渲染逐像素比较。
 - H-ALY 待人确认：悦灵的样子、动作是否自然、首尾是否无缝、闭眼版是否可接受（材料见 `docs/review/M5a/README.md`）。7.10 要求的 A、B、C 三段编排录屏属于 M5 后半，这次交的是四段动作本身的 APNG。
+
+## M3 模板系统
+
+### 版本与依赖
+
+| 项 | 版本 | 许可 | 说明 |
+|---|---|---|---|
+| esbuild | 0.28.2 | MIT | 根目录 devDependency，只给 `pnpm templates:build` 和 test:engine 的打包用，不进安装包。装的是工作区里已有的版本（Vite 的依赖），离线安装 |
+
+没有引入 semver、zip 写入库：版本范围（`template-sdk/src/semver.ts`，只支持精确、`^`、`~`、比较符、`x`/`*` 和空格连接）和确定性的 zip 写入（`apps/desktop/src/main/templates/zip-writer.ts`，Node 的 zlib，时间戳固定）都自己写。template-sdk 只能依赖 zod（1.4）。
+
+### manifest 与参数（4.3、4.4）
+
+- schema 在 `packages/template-sdk/src/manifest.ts`，类型从 schema 推出；顶层和参数定义都是 looseObject（未知字段保留但忽略）。schema 之外的检查（都给出具体字段路径）：参数 key 不重复；默认值本身合法（在 `[min, max]` 内、在选项里、颜色没开 alpha 不能带 alpha、text 不超过 `maxLength` 等）；`group` 指向存在的分组；`visibleWhen.key` 指向存在的其他参数；`timeline.segments` 指向 `duration` 参数。**脚本模板必须有 `params`，派生模板不能有 `params`、`timeline`，只有派生模板能有 `overrides`**（规格只说“脚本模板必需”“派生模板用”）。
+- 迁移框架（`migrate.ts`）：`{ current, steps: { n: n → n+1 } }`，更高的格式版本拒绝（`format-too-new`，提示升级应用），更低的按链升级后再过 schema。manifest 和预设的迁移表现在都是空的（只有格式版本 1）；T-TPL-1 用一张假的三版迁移表测框架。
+- 参数清洗（`params.ts` 的 `sanitizeParams`，引擎和界面共用）规格没写细的地方：
+  - `integer`、`seed`：带小数的数字先四舍五入再钳制；`seed` 钳制到 `[0, 2³¹−1]`。
+  - `angle` 没有上下限：折回 `[0, 360)`。
+  - `color`：统一成大写；没开 `alpha` 时去掉 alpha 通道（而不是回到默认值）。
+  - `text`：超过 `maxLength` 按码位截断。多语言默认值按 `locale` 取（缺省英文），之后就是普通字符串。
+  - `blockList`：形状不对的条目丢掉，缺权重的取 1，权重钳制到 `[0, 1000]`，超过 `max` 截掉；清洗后为空或权重全为 0 时回到默认值。
+  - `easing`：贝塞尔的 x1、x2 钳制到 `[0, 1]`，y 不限。
+  - 资源 ID（`block`、`item`、`sound`、`texture`）：`命名空间:路径`，路径里不能有空段、`.`、`..`，命名空间不能是 `asset` 或 `file`（T-TPL-2 抓出来过 `asset:../x.png` 被当成资源 ID 放过去）。`texture` 另外接受空串、`asset:<安全的相对路径>`，以及 `allowFile` 时的 `file:<主进程签发的 UUID 引用>`（不接受路径）。
+- **引擎在 `load`/`setParams` 时用同一个函数清洗参数**（manifest 有参数定义时）：`ctx.params` 总是完整的一组。`LoadRequest` 多了可选的 `locale`。`ctx.random` 的种子取第一个 `seed` 类型参数（规格：“模板有 seed 参数时”），不再按键名 `seed`。
+- 测试模板（test:engine、e2e 的钩子、悦灵的内部模板）现在也都在 manifest 里声明了自己用到的参数。
+
+### 模板包、安装与卸载（4.2、4.8）
+
+- **安装分两段，IPC 比 1.8 多出 `commitInstall`、`cancelInstall`**：主进程做第 1–3 步并把包解压到 `userData/templates/.staging/<uuid>/`，返回暂存 ID 和装载需要的 manifest、代码；渲染进程在杂务 Worker 里试运行（第 4 步）后调用 `commitInstall(暂存 ID, { warnings })`，主进程把暂存目录改名为 `templates/<id>/<version>/`（第 6 步）。渲染进程交来的只有暂存 ID 和枚举值的警告，路径全由主进程决定（1.6 第 6 条）。暂存 10 分钟不提交作废；启动时清空暂存区。同 id 同版本再装一次是替换。
+- 第 1 步：包 ≤ 50 MB；zip 读取复用 `resources/zip.ts`（任何不安全的条目名整包拒绝）。另加：单个条目解压后 ≤ 50 MB、全部条目 ≤ 200 MB、≤ 2000 个条目；**zip.ts 跳过的任何条目（过大、加密、重复）都让整个包被拒绝**，不装一个缺了东西的模板。扩展名白名单照 4.8。
+- 错误码：`not-a-zip`、`package-too-large`、`unsafe-path`、`bad-extension`、`unpacked-too-large`、`manifest-missing`、`manifest-invalid`、`format-too-new`、`app-too-old`（`minAppVersion`）、`reserved-id`、`base-missing`、`base-not-script`、`code-missing`、`derived-has-code`、`code-too-large`、`code-has-import`、`code-syntax`、`trial-failed`、`staging-expired`。界面按错误码显示两种语言的文案，后面附英文细节（出错的字段或条目）。
+- 安装元数据（试运行的警告、安装时间）放在 `templates/<id>/<version>.meta.json`，不放进版本目录，免得和包里的文件重名。
+- **试运行（第 4 步）**：320×180、manifest 的 `defaultOutput.fps`（没有时 60）、标准画质（N = 8、180°）、默认参数；渲染剪辑点那一帧（没有剪辑点时取中间一帧）、首帧、末帧，再把第一帧重新渲染一次比较字节（2.4 的确定性自检）。装载或渲染失败（含看门狗）拒绝安装（`trial-failed`）；不确定、首末帧不透明、剪辑点不是完全不透明、装载有警告，只记为警告（`nondeterministic` 等），仍允许安装。M3 的最小模板列表在条目上标“预览与导出可能不一致”；完整的卡片标注在 M4。
+- **第 5 步（封面和悬停预览）留到 M4**：它们属于模板库卡片（6.4），M3 没有卡片。
+- **内置模板**：`resources/templates/<id>-<version>.allaytpl`，启动时读进内存（经同一个 `readPackage`，跳过第 1、3 步，manifest 照样校验，不检查 `allay.` 前缀）。**启动时不对内置模板试运行**：冷启动有预算（T-ARC-7），而内置模板的同一组检查由 T-TPL-3、T-TPL-4 在 CI 里做。内置模板不能删除，用户模板不能用 `allay.` 前缀，所以两个来源的 id 不会冲突。
+- 卸载：只删用户模板（版本目录和元数据，最后一个版本时连 id 目录）。依赖它的派生模板保留，列表里标 `baseMissing`、不能选；预设本来就按 id 记模板，不受影响。正在用的模板被删时换回 T1。
+- 导出（`exportPackage`）：把包内容重新打成 `.allaytpl`，经主进程的保存对话框写出。
+
+### 派生模板与预设（4.7）
+
+- 基模板取“已安装的、满足 `extends.version` 的最高版本”；它本身是派生模板时 `base-not-script`。装载时（`resolveDerived`）覆盖的默认值经参数清洗：越界钳制、类型不对回到基模板的默认值、不认识的键丢弃；`hidden` 里不认识的键忽略。交给引擎的是“生效 manifest”：派生模板的 id 和名称 + 基模板的参数定义（套上覆盖）和时间段，没有 `extends`。代码来自基模板。
+- `asset:` 引用先找派生模板自己的 `assets/`，再找基模板的。渲染进程给每个引擎宿主一个按模板取图的 `resolveResource`（`createResolver`），交给引擎的 `resourceStamp` 带上模板（`<资源栈 stamp>|<id>@<version>`），换模板时引擎清空贴图缓存，同名的 `asset:logo.png` 不会串。试运行时按暂存 ID 读暂存包里的图。`file:` 引用经 `files.read(ref)` 读（引用只来自主进程的对话框）。
+- **另存为派生模板多一个 IPC `templates.saveDerived`**（规格把它放在属性面板底部的弹窗里，界面在 M4）：id 是 `user.<6 位随机十六进制>.<名称转成的 slug>`，版本 `1.0.0`，`extends` 写成 `^<基模板版本>`。M3 不支持在另存时带上图片（`file:` 参数转成 `asset:`），这要等 M4 的弹窗。
+- 预设：`userData/presets/<32 位十六进制>.allaypreset`。渲染进程按参数定义去掉与默认值相同的项（text 与任一语言的默认值相同都算没改），主进程再按 schema 校验一次后写入。套用时：预设记的版本还在就用它，否则用同一个 id 的最高版本，参数经清洗（多的丢弃、缺的补默认值）。导入、导出经主进程的对话框。预设的界面在 M4，M3 经测试钩子覆盖。
+
+### templates:build（4.9）
+
+- `scripts/build-templates.ts`：esbuild 把 `src/index.ts` 打成单文件 ESM；**本目录以外的导入（包括 `three` 和 template-sdk 的运行时）一律留作外部**，随后被 es-module-lexer 的检查（与安装时同一个函数，`apps/desktop/src/shared/template-code.ts`）拒绝，所以内置模板在构建时就不可能夹带依赖。lint 另有一条依赖方向规则（M0 已有）。产物逐字节确定。
+- 根 `pnpm build` 和 `pnpm dist` 先跑 `pnpm templates:build`；electron-builder 把 `resources/templates/*.allaytpl` 作为 `extraResources` 带进安装包。
+- test:engine 的测试页用同一个打包函数现场打包内置模板（Vite 插件 `virtual:builtin-templates`），测的就是装进 `.allaytpl` 的那份代码。Vite 的配置加载器默认不能跟着配置文件导入仓库里没有扩展名的 TS 源码，test:engine 改用 `vite build --configLoader runner`。
+- M1 的 `packages/templates/m1-block-wipe/` 和渲染进程里 `?raw` 的装载路径已删除；应用启动时经 `templates.list` / `templates.read` 选旗舰模板。
+
+### T1 方块擦除
+
+- 全部 16 个参数照 4.10；分组：方块、动画、时间、音效（折叠）。manifest 里不写 `author`（硬性规则第 9 条：产品名只在品牌目录）。
+- **时间余量（M1 发现的规格问题）**：按 4.10 的公式进入阶段从 `t = 0` 开始，开了运动模糊时首帧就有内容。T1 的做法和 M1 的临时模板一样，但把剪辑点也算进去，记 `pad = 1/fps`：
+  - 进入阶段的局部进度用 `[pad, min(inDuration, cutTime − pad)]`，退出阶段用 `[max(inDuration + hold, cutTime + pad), duration − pad]`，公式的其余部分不变。
+  - 理由：子帧最多偏离帧时刻 ±0.5/fps（快门角 360°）；剪辑点那一帧（`round(cutTime × fps)`）离 `cutTime` 最多 0.5/fps。所以 `[0, 1/fps]` 和 `[duration − 1/fps, duration]` 里画面全空，`[cutTime − 1/fps, cutTime + 1/fps]` 里全满，**任意画质、0–360° 快门角**下首末帧最大 alpha 为 0、剪辑点最小 alpha 为 255（T-TPL-4 随机了画质和快门角）。`hold` 大于 2/fps 时（默认 0.1 s），只有首尾各被压缩了一帧，与规格公式的差别看不出来。
+  - 局部进度到 1 时直接取 1（不经浮点误差落在 0.9999…），缓动在 0 和 1 处取精确的 0 和 1。
+  - 帧率极低（一帧比半个阶段还长）时余量做不到，退回各阶段的一半，保证时间窗不为空；这时首末帧可能不透明，试运行会给出警告。
+  - 没有在引擎里做任何特殊处理。
+- 图案（规格只给了名字）：`leftToRight` 等取格子中心的归一化坐标；`centerOut` 是到舞台中心的距离除以半对角线（圆形，三种画幅都自然），`edgesIn` 是它的反面；`diagonal` 是 `x + y`（左上到右下）；`random` 用 `ctx.random`；`noise` 是 `ctx.noise2D(x / 420, y / 420)`（设计单位）。先把原始值归一化，再加 `jitter × 随机数`，再归一化。`outPattern` 的 `same` 是“先出现的先消失”，`reverse` 是 `1 − u`。
+- 每个格子按权重随机分配一种方块（`ctx.random('blocks')`），每种方块一组实例。`flat` 用默认的正交相机、不加面明暗（`shading: false`）；`3d` 用 fov 30 的透视相机和面明暗。`spin` 的轴：`flipX` 是 x 轴、`flipY` 是 y 轴、`twist` 是 z 轴。
+- 剪辑点完全不透明的前提是方块不透明。用户选了玻璃这类半透明或镂空的方块时剪辑点本来就盖不满；T-TPL-4 的随机参数只从目录里不透明的方块里挑。
+- 音效：按顺序值排序后均匀取最多 12 个方块，在它们开始动的时刻放 `placeSound`/`breakSound`，增益 `volume`。音频的调度和混音在 M6。
+
+### 引擎里两处确定性问题（T-TPL-3/4 发现）
+
+T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定。查清了两个与模板无关的根因，都在引擎里修掉：
+
+1. **多重采样 resolve 不是逐位可复现的**。现象：1080p、标准画质下第 43 帧每次渲染在两个结果之间随机跳（同一个 Worker 里也一样）；差的是 8 个像素的绿色通道 127/128，这 8 个像素在一条竖直的边上，两种颜色的子样本各占一半，线性值恰好落在取整边界上。只在开了 MSAA 时出现：把 sceneRT 的 MSAA 关掉、或者子帧时间全相同（快门角 0），都不再出现；8 位的预览画布也看不出来。结论是 NVIDIA/D3D11 上多重采样缓冲的硬件 resolve 在最低位上不稳定（试过 RGBA32F 的 MSAA 缓冲和 `invariant gl_Position`，都只是换了出问题的帧）。**修法：sceneRT 改用 2×2 超采样（RGBA16F，不带 MSAA），在累积着色器里按固定顺序把 2×2 个像素平均**，结果只取决于输入。规格 2.6 写的是“MSAA 4×”，这是偏离：显存与 MSAA 4× 相同；片元着色多 4 倍，我们的材质都很简单；纹理边缘和抠图边缘也一并抗锯齿。输出的两倍超过显卡的最大尺寸时退回 1×（不抗锯齿）。`N = 1` 也经过累积通道（权重 1）。T-ENG-2 至 T-ENG-5 照原判定通过。
+2. **InstancedMesh 的包围球在第一次渲染时按当时的实例矩阵算出并缓存**，Three 的透明队列按它的中心排序。几组实例（几种方块）之间的绘制顺序——以及深度相等的面谁胜出——就取决于这个 Worker 先渲染了哪一帧：同一组随机参数下，先渲染第 0 帧和先渲染第 10 帧的 Worker 从第 28 帧起结果不同（各自稳定）。**修法：实例的包围球固定在原点**（`frustumCulled` 本来就关着）。
+- 修完后：T1 全部帧在三种画幅、N = 1/8/16 下各渲染 5 次全部一致；T-TPL-3 连跑 3 次、T-TPL-4（50 组）全部通过。M1 的 T-ENG-1 在 720p 下一直通过，是碰巧没有落在取整边界上的像素。
+
+### 测试的做法
+
+- T-TPL-1、T-TPL-2：`tests/unit/`，manifest 合法夹具 11 个、非法 26 个，每个非法夹具断言错误路径；15 种参数类型各测默认值、合法值、越界、错类型、缺失。
+- T-TPL-6、T-TPL-7、T-TPL-8：主进程的 `TemplateService`、`PresetStore` 在 `tests/unit/` 里对着测试时生成的包测（内置模板用 `buildTemplates` 打到临时目录）；e2e（`tests/e2e/m3.spec.ts`）再走一遍界面路径：经真实的文件输入框拿到带路径的 `File` 安装、试运行、派生模板的自带图片画在预览里、预设往返、删除基模板。
+- T-TPL-3：test:engine，三种画幅的全分辨率（1920×1080 等）、60 fps、标准画质、默认参数；T-ENG-1 是全部帧顺序渲染一遍、在另一个新 Worker 里乱序渲染一遍。
+- T-TPL-4：50 组随机合法参数（固定种子的伪随机数），画幅轮换，每组随机帧率（24/30/60）、画质（N = 1/2/4/8/16）、快门角（0–360，每 5 组有一组 360°）；为了在合理时间内对每组做完整的 T-ENG-1，分辨率是全分辨率的 1/8（如 240×135）。本机约 40 秒。
+- T-TPL-5：基准图在 `tests/fixtures/baselines/<模板 id>/`，三种画幅（640×360、360×640、480×480）各五帧，标准画质。**用 test:engine 的纯色假资源栈渲染，不含任何原版贴图**。`pnpm templates:baselines` 重新生成。比较全部通道的平均绝对误差；渲染器名字里有 SwiftShader 等软件渲染器时放宽到 4/255。
+- **来源登记多了一种 `origin: rendered`**：基准图由脚本在显卡上渲染，能重新生成，但不同显卡的输出不逐字节相同，不能用 `generated` 的逐字节比对。`rendered` 的记录必须写一个存在于 `package.json` 的生成命令，且只能覆盖测试夹具目录下的文件。
+- 测试钩子新增：选模板、改参数、装模板包（`File`）、删模板、存取预设、调短试运行的看门狗、`previewUpToDate`（预览装载了工程的最新一版且就绪：改参数之后旧的“就绪”状态还会留一会儿，e2e 不能只看状态）。
+- M1、M2 里引用临时模板的测试（T-ENG-*、T-EXP-7、预览、资源栈）都改用 T1，判定不变；T1 的默认参数下时长 1.1 秒、剪辑点 0.55 秒，与临时模板相同。
+
+### 没做的、留给 M4
+
+- 模板库卡片、封面和悬停预览（4.8 第 5 步）；由参数定义生成的属性面板（M3 只经测试钩子改参数）；“另存为模板”的弹窗（含把用户选的图片带进派生模板）；预设的界面。M3 的左栏只是一个最小的模板列表加“导入模板…”。
+- 主进程对话框的几条路径（`install`、`exportPackage`、`presets.importFile`/`exportFile`）没有 e2e：测试窗口不显示，弹对话框会卡住；它们背后的服务方法有单元测试，拖放安装有 e2e。
