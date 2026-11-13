@@ -100,6 +100,50 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.removeLayer': [[], [42], ['x'.repeat(200)]],
   'resources.reorder': [['x'], [[1, 2]], [null], [Array.from({ length: 300 }, (_, i) => `p${i}`)]],
   'resources.setEnabled': [['vanilla'], ['vanilla', 'yes'], [42, true]],
+  'templates.list': [[1], ['all']],
+  'templates.read': [[], ['allay.builtin.block-wipe'], [42, '1.0.0'], ['../../x', '1.0.0'], ['Allay.Builtin', '1.0.0'], ['allay.builtin.block-wipe', '1.0.0', 'x']],
+  'templates.readAsset': [
+    [],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0' }],
+    [{ id: 'allay.builtin.block-wipe' }, 'a.png'],
+    [{ path: 'C:\\Windows\\win.ini' }, 'a.png'],
+    [{ stagingId: 'not-a-uuid' }, 'a.png'],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0', stagingId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' }, 'a.png'],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0' }, 42],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0' }, 'x'.repeat(300)],
+  ],
+  // 合法的 install、exportPackage 会弹对话框，这里只有畸形参数
+  'templates.install': [[1], ['C:\\x.allaytpl']],
+  'templates.installDropped': [[], [null], ['C:\\x.allaytpl'], [{ path: 'C:\\x.allaytpl', name: 'x.allaytpl' }]],
+  'templates.commitInstall': [
+    [],
+    ['not-a-uuid', { warnings: [] }],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', { warnings: ['hacked'] }],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', { warnings: [], target: 'C:\\Windows' }],
+  ],
+  'templates.cancelInstall': [[], [42], ['../x']],
+  'templates.remove': [[], ['allay.builtin.block-wipe'], ['C:\\Windows', '1.0.0']],
+  'templates.exportPackage': [[], ['allay.builtin.block-wipe'], [{ path: 'C:\\x' }, '1.0.0']],
+  'templates.saveDerived': [
+    [],
+    [null],
+    [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' } }],
+    [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: '', defaults: {}, hidden: [] }],
+    [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', defaults: {}, hidden: [], id: 'allay.builtin.evil' }],
+  ],
+  'presets.list': [[1]],
+  'presets.save': [
+    [],
+    [null],
+    [{ template: { id: 'Bad', version: '1.0.0' }, name: 'x', params: {} }],
+    [{ template: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: '', params: {} }],
+    [{ template: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', params: {}, path: 'C:\\x.allaypreset' }],
+  ],
+  'presets.remove': [[], ['../settings'], ['x']],
+  // 合法的 importFile、exportFile 会弹对话框，这里只有畸形参数
+  'presets.importFile': [[1], ['C:\\x.allaypreset']],
+  'presets.exportFile': [[], ['../x'], [42]],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],
@@ -153,6 +197,15 @@ test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不�
       }
     });
     expect(fakeFile).toMatch(/^rejected: .*invalid arguments/);
+    const fakeTemplate = await page.evaluate(async () => {
+      try {
+        await window.allay.templates.installDropped(new File(['PK'], 't.allaytpl'));
+        return 'resolved';
+      } catch (e) {
+        return `rejected: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    });
+    expect(fakeTemplate).toMatch(/^rejected: .*invalid arguments/);
 
     // 订阅函数只接受函数
     const badSubscribe = await page.evaluate(() => {

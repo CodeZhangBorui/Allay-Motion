@@ -1,36 +1,50 @@
+import { Button } from '@allay/ui/components/button';
 import { useTranslation } from 'react-i18next';
+import { useProjectStore } from '../../stores/projectStore';
+import { useTemplateStore } from '../../stores/templateStore';
+import { localized } from '../../templates/catalog';
+import { installViaDialog, selectTemplate } from '../templates/actions';
 
-// 左栏：模板库（6.4）。M0 只有外形；卡片、搜索、分类在 M4。
+// 左栏：模板库（6.4）。M3 是一个最小的列表：已安装的模板（内置和用户的）和“导入模板…”。
+// 卡片、封面、悬停预览、搜索、分类在 M4。
 export function GalleryPanel() {
-  const { t } = useTranslation();
-  const categories = ['all', 'transition', 'overlay', 'mine'] as const;
+  const { t, i18n } = useTranslation();
+  const entries = useTemplateStore((s) => s.entries);
+  const loaded = useTemplateStore((s) => s.loaded);
+  const current = useProjectStore((s) => s.template?.ref);
   return (
     <aside aria-label={t('gallery.title')} className="flex h-full min-w-0 flex-col bg-surface-1">
-      <div className="flex flex-col gap-2 p-3">
-        <div className="flex h-7 items-center rounded-md border border-input-border bg-surface-3 px-2 text-fg-subtle">
-          {t('gallery.search')}
-        </div>
-        <div className="flex gap-1 text-xs">
-          {categories.map((c, i) => (
-            <span
-              key={c}
-              className={i === 0 ? 'rounded-md bg-surface-3 px-2 py-1 text-foreground' : 'rounded-md px-2 py-1 text-fg-muted'}
-            >
-              {t(`gallery.categories.${c}`)}
-            </span>
-          ))}
-        </div>
+      <div className="flex h-10 items-center border-b px-3 text-base font-medium">{t('gallery.title')}</div>
+      <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2" data-testid="template-list">
+        {entries.map((e) => {
+          const active = current?.id === e.id && current.version === e.version;
+          return (
+            <li key={`${e.id}@${e.version}`}>
+              <button
+                type="button"
+                data-testid={`template-${e.id}`}
+                aria-current={active ? 'true' : undefined}
+                disabled={e.baseMissing}
+                onClick={() => void selectTemplate(e.id, e.version, i18n.language)}
+                className={`flex w-full flex-col items-start rounded-md px-2 py-1.5 text-left text-sm ${active ? 'bg-surface-3 text-foreground' : 'text-fg-muted hover:bg-surface-2'} disabled:opacity-50`}
+              >
+                <span className="truncate">{localized(e.manifest.name, i18n.language)}</span>
+                <span className="text-xs text-fg-subtle">
+                  {e.source === 'builtin' ? t('gallery.builtin') : t('gallery.user')} · {e.version}
+                  {e.baseMissing ? ` · ${t('gallery.baseMissing')}` : ''}
+                  {e.trialWarnings.includes('nondeterministic') ? ` · ${t('gallery.nondeterministic')}` : ''}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        {loaded && entries.length === 0 && <li className="px-2 text-xs text-fg-muted">{t('gallery.empty')}</li>}
+      </ul>
+      <div className="border-t p-2">
+        <Button variant="ghost" className="w-full justify-start text-fg-muted" data-testid="template-import" onClick={() => void installViaDialog(t, i18n.language)}>
+          {t('gallery.import')}
+        </Button>
       </div>
-      <div className="grid grid-cols-2 gap-2 px-3" aria-hidden="true">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="flex flex-col gap-1.5">
-            <div className="aspect-video rounded-lg bg-skeleton" />
-            <div className="h-3 w-2/3 rounded bg-skeleton" />
-          </div>
-        ))}
-      </div>
-      <p className="px-3 pt-3 text-xs text-fg-muted">{t('gallery.placeholder')}</p>
-      <div className="mt-auto border-t p-3 text-xs text-fg-muted">{t('gallery.import')}</div>
     </aside>
   );
 }

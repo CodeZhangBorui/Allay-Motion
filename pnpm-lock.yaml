@@ -187,6 +187,9 @@ importers:
       '@types/yauzl':
         specifier: ^3.4.0
         version: 3.4.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       eslint:
         specifier: ^10.14.0
         version: 10.14.0(jiti@2.7.0)(supports-color@7.2.0)
@@ -232,9 +235,6 @@ importers:
       '@allay/mascot':
         specifier: workspace:*
         version: link:../../packages/mascot
-      '@allay/template-m1-block-wipe':
-        specifier: workspace:*
-        version: link:../../packages/templates/m1-block-wipe
       '@allay/template-sdk':
         specifier: workspace:*
         version: link:../../packages/template-sdk
@@ -370,7 +370,7 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
-  packages/templates/m1-block-wipe:
+  packages/templates/block-wipe:
     devDependencies:
       '@allay/template-sdk':
         specifier: workspace:*

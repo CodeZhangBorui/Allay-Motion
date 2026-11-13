@@ -36,7 +36,7 @@ test.describe('预览', () => {
     removeUserDataDir(dir);
   });
 
-  test('临时模板装载后预览画布有画面：首帧全透明，剪辑点完全盖住', async () => {
+  test('内置 T1 装载后预览画布有画面：首帧全透明，剪辑点完全盖住', async () => {
     const { page } = launched;
     await waitStatus(page, 'ready');
     const tr = await page.evaluate(() => window.__allayTest!.transport());
@@ -280,7 +280,7 @@ test.describe('导出', () => {
     await page.getByTestId('export-start').click();
   }
 
-  test('T-EXP-7 端到端：临时模板（代替 T1）默认参数，1080p60，标准画质，ProRes 4444', async () => {
+  test('T-EXP-7 端到端：T1 默认参数，1080p60，标准画质，ProRes 4444', async () => {
     const dir = makeUserDataDir();
     const out = join(dir, 'exports');
     mkdirSync(out);
@@ -292,7 +292,7 @@ test.describe('导出', () => {
       const result = page.getByTestId('export-result');
       await expect(result).toHaveAttribute('data-kind', 'done', { timeout: 60_000 });
       const seconds = (Date.now() - started) / 1000;
-      // 预算：1080p60、2 秒、标准画质 ≤ 20 秒（2.11）；临时模板只有 1.1 秒，用同一个上限
+      // 预算：1080p60、2 秒、标准画质 ≤ 20 秒（2.11）；T1 默认参数只有 1.1 秒，用同一个上限
       expect(seconds).toBeLessThanOrEqual(20);
       const path = (await page.getByTestId('export-path').textContent())!;
       expect(path.startsWith(out)).toBe(true);

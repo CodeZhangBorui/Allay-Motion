@@ -27,7 +27,6 @@
     "@allay/assets": "workspace:*",
     "@allay/engine": "workspace:*",
     "@allay/mascot": "workspace:*",
-    "@allay/template-m1-block-wipe": "workspace:*",
     "@allay/template-sdk": "workspace:*",
     "@allay/ui": "workspace:*",
     "comlink": "4.4.2",

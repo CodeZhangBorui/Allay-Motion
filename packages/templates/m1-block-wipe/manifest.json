@@ -1,7 +1,0 @@
-{
-  "formatVersion": 1,
-  "id": "allay.m1.block-wipe",
-  "version": "0.1.0",
-  "name": { "zh-CN": "方块擦除（临时）", "en": "Block wipe (temporary)" },
-  "category": "transition"
-}

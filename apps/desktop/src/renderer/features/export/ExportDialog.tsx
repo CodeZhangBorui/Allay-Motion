@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { ExportErrorCode, ExportPreset, FfmpegInfo } from '../../../shared/export';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
-import { localized } from '../../templates/builtin';
+import { localized } from '../../templates/catalog';
 import { ExportRun, QUALITY_SUBFRAMES, type ExportOutcome, type ExportProgress, type QualityLevel } from './exportRunner';
 
 // M1 的最小导出对话框：格式（ProRes 4444 / PNG 序列）、画质、进度、取消、结果。
@@ -48,6 +48,7 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
 
   const start = async () => {
     const { template, params, output } = useProjectStore.getState();
+    if (!template) return;
     const name = `${t('topbar.project')}_${localized(template.manifest.name, i18n.language)}_${output.width}x${output.height}_${output.fps}fps`;
     const run = new ExportRun({ template, params, output, preset, quality, shutterAngle: 180, suggestedName: name }, (progress) =>
       setPhase({ kind: 'running', progress }),

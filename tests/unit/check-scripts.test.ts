@@ -86,6 +86,13 @@ describe('check-provenance（9.6）', () => {
     expect(checkFiles(['resources/builtin-pack/assets/minecraft/textures/block/dirt.png'], e)).toHaveLength(1);
   });
 
+  it('rendered（渲染基准图）只能覆盖测试夹具目录，生成命令必须是 pnpm 脚本（docs/decisions.md M3）', () => {
+    const e = ProvenanceSchema.parse([{ path: '**/*.png', origin: 'rendered', generator: 'pnpm templates:baselines', license: 'x' }]);
+    expect(checkFiles(['tests/fixtures/baselines/t/16x9-p0.png'], e)).toEqual([]);
+    expect(checkFiles(['docs/review/M3/x.png'], e)).toHaveLength(1);
+    expect(ProvenanceSchema.safeParse([{ path: 'x', origin: 'rendered', generator: 'node evil.js', license: 'x' }]).success).toBe(false);
+  });
+
   it('不覆盖任何文件的记录被报出来', () => {
     expect(findUnusedEntries(['docs/review/M0/dark.png'], entries).map((e) => e.path)).toEqual([
       'resources/builtin-pack/**',

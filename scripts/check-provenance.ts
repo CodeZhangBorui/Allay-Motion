@@ -5,6 +5,8 @@
 // 3. origin 为 generated 的记录：重新运行生成器，产物必须与仓库里的文件逐字节相同
 //    （这样“与原版贴图同名、内容却不是生成脚本产出的”文件过不了）。
 //    生成器约定：以环境变量 ALLAY_GEN_OUT=<临时目录> 运行时，把产物按仓库相对路径写进那个目录。
+// 4. origin 为 rendered 的记录（模板的渲染基准图，docs/decisions.md M3）：由脚本用显卡渲染重新生成，
+//    不同显卡的输出不逐字节相同，所以不比对；只要求生成命令存在，且只能放在测试夹具目录下。
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,6 +41,14 @@ const EntrySchema = z.discriminatedUnion('origin', [
     origin: z.literal('third-party'),
     source: z.url(),
     author: z.string().min(1),
+    license: z.string().min(1),
+    note: z.string().optional(),
+  }),
+  // 由脚本在显卡上渲染出来的测试基准图：可以重新生成，但不逐字节可复现（docs/decisions.md M3）
+  z.strictObject({
+    path: z.string().min(1),
+    origin: z.literal('rendered'),
+    generator: z.string().regex(/^pnpm [\w:-]+$/),
     license: z.string().min(1),
     note: z.string().optional(),
   }),
@@ -92,6 +102,9 @@ export function checkFiles(files: readonly string[], entries: readonly Provenanc
     }
     if (lower.startsWith(BUILTIN_PACK) && covering.entry.origin !== 'generated') {
       problems.push({ path, problem: '内置素材包里的文件必须由生成脚本产出（origin: generated）' });
+    }
+    if (covering.entry.origin === 'rendered' && !FIXTURE_DIRS.some((d) => lower.startsWith(d))) {
+      problems.push({ path, problem: 'origin: rendered 只用于测试夹具目录下的基准图' });
     }
   }
   return problems;
@@ -163,8 +176,12 @@ function main(): void {
   const manifest = join(root, 'ASSETS_PROVENANCE.json');
   const entries = ProvenanceSchema.parse(JSON.parse(readFileSync(manifest, 'utf8')));
   const files = listRepoFiles(root);
+  const scripts = (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { scripts?: Record<string, string> }).scripts ?? {};
   const problems = [
     ...checkFiles(files, entries),
+    ...entries
+      .filter((e) => e.origin === 'rendered' && !Object.hasOwn(scripts, e.generator.slice('pnpm '.length)))
+      .map((e) => ({ path: e.path, problem: `生成命令 ${e.origin === 'rendered' ? e.generator : ''} 不在 package.json 的 scripts 里` })),
     ...findUnusedEntries(files, entries).map((e) => ({ path: e.path, problem: 'ASSETS_PROVENANCE.json 里的这条记录不覆盖任何文件' })),
   ];
   if (problems.length === 0) {

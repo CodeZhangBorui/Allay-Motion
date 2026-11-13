@@ -2,6 +2,11 @@
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
 import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
+import type { PresetEntry, TemplateEntry } from '../shared/templates';
+import { applyPresetEntry, saveCurrentPreset } from './features/templates/presets';
+import { installDroppedTemplate, removeTemplate, selectTemplate } from './features/templates/actions';
+import { trialTimeouts } from './features/templates/trial';
+import i18next from 'i18next';
 import { setExportGate } from './features/export/exportRunner';
 import { previewEngine } from './features/preview/previewEngine';
 import { thumbnails, type ThumbKind, type ThumbSize } from './features/thumbnails/thumbnails';
@@ -10,14 +15,32 @@ import { useResourceStore } from './stores/resourceStore';
 import { usePreviewStore, type PreviewStatus } from './stores/previewStore';
 import { useProjectStore } from './stores/projectStore';
 import { useTransportStore } from './stores/transportStore';
-import { M1_BLOCK_WIPE } from './templates/builtin';
+import { useTemplateStore } from './stores/templateStore';
+import { DEFAULT_TEMPLATE_ID } from './templates/catalog';
 
 export interface AllayTestHooks {
   /** 换成一段测试模板（不含 import 的 ESM 源码） */
   loadTemplate(code: string, params?: ParamValues): void;
-  /** 换回内置的临时模板 */
-  loadBuiltin(): void;
+  /** 换回内置的旗舰模板 T1（经 templates.read，与界面选模板同一条路） */
+  loadBuiltin(): Promise<boolean>;
+  /** 选一个已安装的模板 */
+  selectTemplate(id: string, version: string, params?: ParamValues): Promise<boolean>;
+  /** 改当前模板的一部分参数（经参数校验清洗） */
+  setParams(patch: Record<string, unknown>): void;
+  /** 当前模板与参数 */
+  project(): { ref: { id: string; version: string } | null; params: ParamValues; hidden: string[]; paramDefaults: Record<string, unknown>; revision: number };
+  templates(): Promise<TemplateEntry[]>;
+  /** 安装一个模板包（File 来自真实的文件输入框）：与拖放同一条路，返回结果 */
+  installFile(file: File): Promise<{ kind: string; code?: string; detail?: string; warnings?: string[]; loadWarnings?: string[]; entry?: TemplateEntry }>;
+  removeTemplate(id: string, version: string): Promise<boolean>;
+  /** 试运行的看门狗时限（毫秒） */
+  setTrialTimeouts(t: { load?: number; exportFrame?: number }): void;
+  savePreset(name: string): Promise<PresetEntry | null>;
+  listPresets(): Promise<PresetEntry[]>;
+  applyPreset(id: string): Promise<boolean>;
   status(): PreviewStatus;
+  /** 预览已经装载了当前工程（模板和参数的最新一版）且处于就绪状态 */
+  previewUpToDate(): boolean;
   workerGeneration(): number;
   transport(): { time: number; playing: boolean; duration: number; cutTime: number | null };
   setTime(t: number): void;
@@ -49,15 +72,46 @@ export function installTestHooks(): void {
   let release: () => void = () => undefined;
   const hooks: AllayTestHooks = {
     loadTemplate(code, params = {}) {
-      const manifest = TemplateManifestSchema.parse({ formatVersion: 1, id: 'test.e2e.template', version: '0.0.0', name: 'test', category: 'transition' });
-      useProjectStore.getState().setTemplate({ manifest, code }, params);
+      const manifest = TemplateManifestSchema.parse({ formatVersion: 1, id: 'test.e2e.template', version: '0.0.0', name: 'test', category: 'transition', params: [] });
+      useProjectStore.getState().setTemplate({ ref: { id: manifest.id, version: manifest.version }, manifest, params: [], hidden: [], code, assets: null }, params);
       previewEngine.retry();
     },
-    loadBuiltin() {
-      useProjectStore.getState().setTemplate(M1_BLOCK_WIPE);
-      previewEngine.retry();
+    async loadBuiltin() {
+      const entries = await useTemplateStore.getState().refresh();
+      const flagship = entries.filter((e) => e.id === DEFAULT_TEMPLATE_ID).at(-1);
+      return flagship ? selectTemplate(flagship.id, flagship.version, i18next.language) : false;
+    },
+    selectTemplate: (id, version, params = {}) => selectTemplate(id, version, i18next.language, params),
+    setParams: (patch) => useProjectStore.getState().setParams(patch, i18next.language),
+    project() {
+      const { template, params, revision } = useProjectStore.getState();
+      return {
+        ref: template?.ref ?? null,
+        params,
+        hidden: template?.hidden ?? [],
+        paramDefaults: Object.fromEntries((template?.params ?? []).map((p) => [p.key, p.default])),
+        revision,
+      };
+    },
+    templates: () => useTemplateStore.getState().refresh(),
+    async installFile(file) {
+      const o = await installDroppedTemplate(i18next.t.bind(i18next), file, i18next.language);
+      if (o.kind === 'installed') return { kind: o.kind, warnings: o.trial.warnings, loadWarnings: o.trial.loadWarnings, entry: o.entry };
+      if (o.kind === 'rejected') return { kind: o.kind, code: o.code, detail: o.detail };
+      return { kind: o.kind };
+    },
+    removeTemplate: (id, version) => removeTemplate(id, version, i18next.language),
+    setTrialTimeouts(t) {
+      Object.assign(trialTimeouts, t);
+    },
+    savePreset: (name) => saveCurrentPreset(name, i18next.language),
+    listPresets: () => window.allay.presets.list(),
+    async applyPreset(id) {
+      const entry = (await window.allay.presets.list()).find((p) => p.id === id);
+      return entry ? applyPresetEntry(entry, i18next.language) : false;
     },
     status: () => usePreviewStore.getState().status,
+    previewUpToDate: () => usePreviewStore.getState().status.kind === 'ready' && previewEngine.loadedProjectRevision === useProjectStore.getState().revision,
     workerGeneration: () => previewEngine.workerGeneration,
     transport: () => {
       const s = useTransportStore.getState();

@@ -17,7 +17,7 @@ import {
 } from '@allay/template-sdk';
 import * as Comlink from 'comlink';
 import { createEngineWorker } from './create-worker';
-import { assertTemplateCode } from './template-check';
+import { assertTemplateCode } from '../../shared/template-code';
 
 export const WATCHDOG_MS = { load: 10_000, previewFrame: 5_000, exportFrame: 30_000 } as const;
 export type WatchdogTimeouts = { [K in keyof typeof WATCHDOG_MS]: number };

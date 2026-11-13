@@ -5,6 +5,7 @@ import './app.css';
 import { App } from './app/App';
 import { applyThemeToDocument } from './app/useThemeSync';
 import { initI18n, resolveLanguage } from './i18n';
+import { loadInitialTemplate } from './features/templates/actions';
 import { installTestHooks } from './test-hooks';
 import { useResourceStore } from './stores/resourceStore';
 import { useUiStore } from './stores/uiStore';
@@ -22,6 +23,9 @@ async function bootstrap(): Promise<void> {
   const i18n = await initI18n(language);
   document.documentElement.lang = language;
   document.title = i18n.t('brand.name');
+
+  // 模板列表与默认模板（内置的旗舰模板）。预览引擎等 projectStore 里有了模板再装载
+  void loadInitialTemplate(language).catch((error: unknown) => console.error('[templates] initial load failed', error));
 
   // 设置可能在别处被改（以后的设置对话框、测试），以主进程推来的为准
   window.allay.settings.onChanged((next) => useUiStore.getState().replace(next));

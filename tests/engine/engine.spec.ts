@@ -117,7 +117,7 @@ test('T-ENG-5 分辨率无关：1080p 与 2160p 缩小一半的平均绝对误�
   }
 });
 
-test('临时方块擦除模板：首末帧全透明，剪辑点完全不透明（04-templates.md 4.6）', async () => {
+test('T1 默认参数：首末帧全透明，剪辑点完全不透明（04-templates.md 4.6）', async () => {
   for (const output of [HD, { width: 1080, height: 1920, fps: 60 }, { width: 1080, height: 1080, fps: 60 }]) {
     const r = await call('alphaRange', BLOCK, output, [0, 33, -1], STANDARD);
     expect(r.cutTime).toBeCloseTo(0.55, 6);

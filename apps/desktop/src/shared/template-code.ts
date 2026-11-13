@@ -1,4 +1,5 @@
-// 交给引擎之前的源码检查：模板必须是不含任何 import 的单文件 ESM（docs/02-engine.md 2.4、04-templates.md 4.8 第 3 步）。
+// 模板源码检查：模板必须是不含任何 import 的单文件 ESM（docs/02-engine.md 2.4、04-templates.md 4.8 第 3 步）。
+// 主进程（安装校验）、渲染进程（每次交给引擎之前）和构建脚本共用。
 // 用 es-module-lexer 的纯 JS 版本（不需要 WebAssembly，CSP 不用放宽）。
 import { init, parse } from 'es-module-lexer/js';
 import { MAX_TEMPLATE_CODE_BYTES } from '@allay/template-sdk';
