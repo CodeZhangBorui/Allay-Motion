@@ -33,9 +33,9 @@ export function decodeFrame(path: string, pixFmt: string, index = 0, pre: string
   return r.stdout;
 }
 
-/** 解码全部帧为 RGBA，逐帧回调 */
-export async function decodeAllRgba(path: string, frameBytes: number, onFrame: (frame: Buffer, index: number) => void): Promise<number> {
-  const p = spawn(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-i', path, '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], { windowsHide: true });
+/** 解码全部帧为 RGBA，逐帧回调；pre 是输入前的参数（VP9 带 alpha 要用 -c:v libvpx-vp9） */
+export async function decodeAllRgba(path: string, frameBytes: number, onFrame: (frame: Buffer, index: number) => void, pre: string[] = []): Promise<number> {
+  const p = spawn(FFMPEG, ['-hide_banner', '-loglevel', 'error', ...pre, '-i', path, '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1'], { windowsHide: true });
   let pending: Buffer = Buffer.alloc(0);
   let n = 0;
   p.stdout.on('data', (chunk: Buffer) => {

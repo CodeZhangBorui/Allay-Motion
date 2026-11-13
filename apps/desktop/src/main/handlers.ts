@@ -245,4 +245,9 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.export.finish, (_event, jobId) => knownJob(() => exports.finish(jobId)));
   // 取消一个已经结束或不存在的任务不算错
   handle(IPC.export.cancel, (_event, jobId) => exports.cancel(jobId));
+  handle(IPC.export.probeEncoders, (_event, force) => exports.probeEncoders(force));
+  handle(IPC.export.outputFolder, () => exports.outputFolder());
+  handle(IPC.export.chooseFolder, () => exports.chooseFolder());
+  handle(IPC.export.reveal, (_event, jobId) => knownJob(async () => exports.reveal(jobId)));
+  handle(IPC.export.copyDiagnostics, (_event, text) => exports.copyDiagnostics(text));
 }

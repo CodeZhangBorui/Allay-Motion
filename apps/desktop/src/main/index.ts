@@ -56,9 +56,11 @@ if (!app.requestSingleInstanceLock()) {
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'), log);
   const exports = new ExportService({
     log,
+    settings,
     getMainWindow: () => mainWindow,
     ffmpegOverride: testSwitches.ffmpeg,
     testTarget: testSwitches.exportTarget,
+    h264Candidates: testSwitches.h264Candidates,
   });
 
   const userData = app.getPath('userData');

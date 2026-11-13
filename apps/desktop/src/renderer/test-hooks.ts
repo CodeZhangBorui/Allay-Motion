@@ -9,6 +9,7 @@ import { installDroppedTemplate, removeTemplate, selectTemplate } from './featur
 import { trialTimeouts } from './features/templates/trial';
 import i18next from 'i18next';
 import { setExportGate } from './features/export/exportRunner';
+import { CommandError, dispatch } from './app/registry';
 import { previewEngine } from './features/preview/previewEngine';
 import { setDebugLoading } from './features/preview/debugLoading';
 import { missingKeys } from './i18n';
@@ -67,6 +68,8 @@ export interface AllayTestHooks {
   /** 导出当前停在第几帧（已写入的帧数）；没有停住时为 null */
   exportPausedAt(): number | null;
   resumeExport(): void;
+  /** 经注册表的 dispatch 执行一个命令（和命令面板、菜单同一条路），返回命令的结果；出错时返回 { error: code } */
+  dispatch(id: string, input?: unknown): Promise<unknown>;
   /** 让预览视口的加载编排假装在加载（T-ALY-2、T-ALY-5） */
   simulateLoading(on: boolean): void;
   /** 预览画布在 t 时刻的像素哈希（T-UI-1：改参数后画面变了） */
@@ -214,6 +217,13 @@ export function installTestHooks(): void {
     exportPausedAt: () => pausedAt,
     resumeExport() {
       release();
+    },
+    async dispatch(id, input) {
+      try {
+        return await dispatch(id, input);
+      } catch (error) {
+        return { error: error instanceof CommandError ? error.code : String(error) };
+      }
     },
     simulateLoading(on) {
       setDebugLoading(on);

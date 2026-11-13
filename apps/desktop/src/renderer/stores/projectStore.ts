@@ -44,7 +44,10 @@ export type QualityLevel = 'draft' | 'standard' | 'high' | 'ultra';
 export interface ExportSettings {
   preset: ExportPreset;
   quality: QualityLevel;
+  /** 快门角 0–360（5.2） */
   shutterAngle: number;
+  /** 绿幕 MP4 的底色 #RRGGBB */
+  key: string;
 }
 
 interface ProjectState {
@@ -79,7 +82,7 @@ interface ProjectState {
 }
 
 export const DEFAULT_OUTPUT: OutputSettings = { width: 1920, height: 1080, fps: 60 };
-export const DEFAULT_EXPORT: ExportSettings = { preset: 'prores4444', quality: 'standard', shutterAngle: 180 };
+export const DEFAULT_EXPORT: ExportSettings = { preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: '#00FF00' };
 
 type Tracked = Pick<ProjectState, 'template' | 'params' | 'origin'>;
 

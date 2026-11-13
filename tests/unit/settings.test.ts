@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger, formatLine } from '../../apps/desktop/src/main/logger';
 import { SettingsStore, writeJsonAtomic } from '../../apps/desktop/src/main/settings-store';
 import { restoreBounds } from '../../apps/desktop/src/main/window-state';
-import { defaultResourceSettings, defaultUiSettings } from '../../apps/desktop/src/shared/settings';
+import { defaultExportAppSettings, defaultResourceSettings, defaultUiSettings } from '../../apps/desktop/src/shared/settings';
 
 let dir: string;
 const log = createLogger(null, false);
@@ -21,7 +21,7 @@ describe('设置读写（1.9）', () => {
   it('没有文件时用默认值', async () => {
     const store = new SettingsStore(join(dir, 'settings.json'), log);
     const s = await store.load();
-    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings() });
+    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings() });
   });
 
   it('资源栈配置：M1 的设置文件没有 resources 时用默认值；坏掉时只回退这一项', async () => {
@@ -157,13 +157,14 @@ describe('只给测试用的开关', () => {
     ALLAY_E2E_HOOKS: '1',
     ALLAY_E2E_EXPORT_TARGET: 'C:/out',
     ALLAY_FFMPEG: 'C:/ff.exe',
+    ALLAY_E2E_H264: 'allay_bogus, h264_mf,../x',
     ALLAY_E2E_GAME_APPDATA: 'C:/game',
     ALLAY_E2E_MOJANG_ORIGIN: 'http://127.0.0.1:4567',
     ALLAY_E2E_PROJECT_PATH: 'C:/p.allay',
     ALLAY_E2E_MASCOT_DIR: 'C:/mascot',
     ALLAY_E2E_SPLASH: '1',
   };
-  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false };
+  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false };
   it('打包后的应用忽略它们', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
     expect(readTestSwitches(true, ALL)).toEqual(OFF);
@@ -176,6 +177,7 @@ describe('只给测试用的开关', () => {
       testHooks: true,
       exportTarget: 'C:/out',
       ffmpeg: 'C:/ff.exe',
+      h264Candidates: ['allay_bogus', 'h264_mf'],
       gameAppData: 'C:/game',
       mojangOrigin: 'http://127.0.0.1:4567',
       projectPath: 'C:/p.allay',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ExportJobIdSchema, ExportStartSchema, FramePixelsSchema } from './export';
+import { DiagnosticsTextSchema, ExportJobIdSchema, ExportStartSchema, FramePixelsSchema } from './export';
 import { IPC, type InvokeChannel } from './ipc-channels';
 import {
   AddPackKindSchema,
@@ -60,6 +60,12 @@ export const IPC_ARGS = {
   [IPC.export.finish]: z.tuple([ExportJobIdSchema]),
   [IPC.export.cancel]: z.tuple([ExportJobIdSchema]),
   [IPC.export.ffmpegInfo]: z.tuple([]),
+  /** force：忽略缓存重新试编码 */
+  [IPC.export.probeEncoders]: z.tuple([z.boolean()]),
+  [IPC.export.outputFolder]: z.tuple([]),
+  [IPC.export.chooseFolder]: z.tuple([]),
+  [IPC.export.reveal]: z.tuple([ExportJobIdSchema]),
+  [IPC.export.copyDiagnostics]: z.tuple([DiagnosticsTextSchema]),
   [IPC.resources.layers]: z.tuple([]),
   [IPC.resources.stamp]: z.tuple([]),
   [IPC.resources.read]: z.tuple([ResourcePathSchema]),
