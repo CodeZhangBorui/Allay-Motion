@@ -7,7 +7,7 @@ import type {
 } from '../shared/export';
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
-import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundVariantInfo } from '../shared/resources';
+import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type {
@@ -67,6 +67,13 @@ export interface AllayApi {
     readTexture(id: string): Promise<{ png: Uint8Array; mcmeta: string | null } | null>;
     /** 音效事件的全部变体（资源栈里合并后的 sounds.json）；没有这个事件时为 null */
     soundVariants(eventId: string): Promise<SoundVariantInfo[] | null>;
+    /** 音效选择器的库：资源栈合并后的 sounds.json 里的全部事件和可用状态 */
+    soundLibrary(): Promise<SoundLibrary>;
+    /**
+     * 音效文件（音效名）的状态；fetch 为真时联网取回下载缓存的原版层里还没取的对象。
+     * 只在用户试听、选中音效，或导出前确认取回时调用
+     */
+    soundFiles(files: string[], fetch: boolean): Promise<SoundFilesResult>;
     list(prefix: string): Promise<string[]>;
     fontProviders(fontId: string): Promise<FontProvidersResult | null>;
     /** 兜底像素字体 */

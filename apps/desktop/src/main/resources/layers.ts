@@ -17,6 +17,11 @@ const MAX_ICON_BYTES = 1024 * 1024;
 export interface ClosableLayer extends ResourceLayer {
   /** 释放文件句柄（zip）；文件夹和内置层什么也不做 */
   close(): void;
+  /**
+   * 只有原版层有：资源索引里的对象还不在本地时，返回取回它要用的哈希和大小（下载缓存的原版层按需取音效，
+   * decisions.md M6b）；已在本地或不是索引里的对象时为 null。
+   */
+  remoteObject?(path: string): Promise<{ hash: string; size: number } | null>;
 }
 
 interface Source {

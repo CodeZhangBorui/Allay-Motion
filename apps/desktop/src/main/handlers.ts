@@ -107,6 +107,8 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.readTexture, (_event, id) => resources.readTexture(id));
   handle(IPC.resources.list, (_event, prefix) => resources.list(prefix));
   handle(IPC.resources.soundVariants, (_event, id) => resources.soundVariants(id));
+  handle(IPC.resources.soundLibrary, () => resources.soundLibrary());
+  handle(IPC.resources.soundFiles, (_event, files, fetch) => resources.soundFiles(files, fetch));
   handle(IPC.resources.fontProviders, (_event, id) => resources.fontProviders(id));
   handle(IPC.resources.fallbackFont, () => resources.fallbackFontTables());
   handle(IPC.resources.detectMinecraft, () => resources.detectMinecraft());

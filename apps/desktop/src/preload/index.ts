@@ -53,6 +53,8 @@ const api = {
     read: invoke(IPC.resources.read),
     readTexture: invoke(IPC.resources.readTexture),
     soundVariants: invoke(IPC.resources.soundVariants),
+    soundLibrary: invoke(IPC.resources.soundLibrary),
+    soundFiles: invoke(IPC.resources.soundFiles),
     list: invoke(IPC.resources.list),
     fontProviders: invoke(IPC.resources.fontProviders),
     fallbackFont: invoke(IPC.resources.fallbackFont),

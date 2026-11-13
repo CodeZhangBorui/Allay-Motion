@@ -164,6 +164,13 @@ export async function openVanillaLayer(install: VanillaInstall, options: Vanilla
         if (!st || !st.isFile() || st.size > MAX_ENTRY_BYTES) return null;
         return new Uint8Array(await readFile(obj.file));
       },
+      remoteObject: async (path) => {
+        if (jar.has(path)) return null;
+        const obj = objects.get(path);
+        if (!obj) return null;
+        const st = await stat(obj.file).catch(() => null);
+        return st && st.isFile() && st.size === obj.size ? null : { hash: obj.hash, size: obj.size };
+      },
       close: jar.close,
     };
   } catch (err) {

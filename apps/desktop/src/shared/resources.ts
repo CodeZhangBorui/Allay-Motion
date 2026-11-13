@@ -91,6 +91,24 @@ export interface SoundVariantInfo {
   weight: number;
 }
 
+/**
+ * 一个音效文件（或事件）现在能不能放：local 在本地；remote 在下载缓存的原版层的资源索引里、还没取回，
+ * 用户试听或选中时可以按需从 Mojang 取（decisions.md M6b）；missing 哪里都没有。
+ */
+export type SoundFileState = 'local' | 'remote' | 'missing';
+
+/** 音效选择器的库：资源栈合并后的 sounds.json 里的全部事件 */
+export interface SoundLibrary {
+  stamp: string;
+  events: { id: string; state: SoundFileState }[];
+}
+
+export type SoundFilesResult = { ok: true; states: Record<string, SoundFileState> } | { ok: false; error: DownloadErrorKind; states: Record<string, SoundFileState> };
+
+/** 一次最多问多少个音效文件 */
+export const MAX_SOUND_FILES = 256;
+export const SoundFileNamesSchema = z.array(z.string().min(3).max(256).regex(/^[a-z0-9_.-]+:[a-z0-9_./-]+$/)).max(MAX_SOUND_FILES);
+
 export interface CacheUsage {
   files: number;
   bytes: number;

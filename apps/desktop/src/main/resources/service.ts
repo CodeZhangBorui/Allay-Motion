@@ -17,6 +17,7 @@ import {
   readResource,
   resolveFontProviders,
   SOUND_EVENTS,
+  soundNameToPaths,
   soundsJsonPath,
   textureIdToPath,
   textureMetaPath,
@@ -35,6 +36,9 @@ import type {
   FontProvidersResult,
   LayerInfo,
   ResourceState,
+  SoundFileState,
+  SoundFilesResult,
+  SoundLibrary,
   SoundVariantInfo,
   VanillaState,
 } from '../../shared/resources';
@@ -539,6 +543,99 @@ export class ResourceService {
     return expandSoundEvent(defs, id)
       .slice(0, 1024)
       .map((v) => ({ file: v.file, volume: clamp(v.volume), pitch: clamp(v.pitch), weight: Math.min(1_000_000, v.weight) }));
+  }
+
+  /** 下载缓存的原版层生效时，缺的音效对象可以按需取（用户试听、选中、导出前确认时） */
+  private get soundsFetchable(): boolean {
+    return this.vanillaLayer !== null && this.vanillaInstall === this.cached && this.cached !== null;
+  }
+
+  /** 音效名在资源栈里的状态；按 .ogg、.wav 的顺序找胜出的那一层 */
+  private async soundFileState(file: string): Promise<{ state: SoundFileState; remote?: { hash: string; size: number } }> {
+    for (const path of soundNameToPaths(file)) {
+      const layer = layersWith(this.stack, path)[0];
+      if (!layer) continue;
+      const remote = (await (layer as ClosableLayer).remoteObject?.(path)) ?? null;
+      if (!remote) return { state: 'local' };
+      return this.soundsFetchable ? { state: 'remote', remote } : { state: 'missing' };
+    }
+    return { state: 'missing' };
+  }
+
+  private library: Promise<SoundLibrary> | null = null;
+
+  /**
+   * 音效选择器的库（decisions.md M6b）：资源栈里每个命名空间的 sounds.json 合并后的全部事件，带可用状态。
+   * 按 stamp 缓存；按需取回音效对象后重算。没有任何素材层时为空。
+   */
+  soundLibrary(): Promise<SoundLibrary> {
+    const stamp = this.stamp;
+    if (this.library) {
+      const cached = this.library;
+      return cached.then((l) => (l.stamp === stamp ? l : ((this.library = null), this.soundLibrary())));
+    }
+    const stack = this.stack;
+    this.library = (async () => {
+      const namespaces = new Set<string>();
+      for (const layer of stack) {
+        if (!layer.enabled) continue;
+        for (const p of layer.list('assets/')) {
+          const m = /^assets\/([^/]+)\/sounds\.json$/.exec(p);
+          if (m) namespaces.add(m[1]!);
+        }
+      }
+      const events: SoundLibrary['events'] = [];
+      const fileStates = new Map<string, SoundFileState>();
+      for (const ns of [...namespaces].sort()) {
+        const defs = await this.soundDefinitions(ns);
+        for (const id of [...defs.keys()].sort()) {
+          const states: SoundFileState[] = [];
+          for (const v of expandSoundEvent(defs, id)) {
+            let s = fileStates.get(v.file);
+            if (!s) {
+              s = (await this.soundFileState(v.file)).state;
+              fileStates.set(v.file, s);
+            }
+            states.push(s);
+          }
+          const state: SoundFileState = states.length === 0 || states.every((s) => s === 'missing') ? 'missing' : states.includes('remote') ? 'remote' : 'local';
+          events.push({ id, state });
+        }
+      }
+      return { stamp, events };
+    })();
+    this.library.catch(() => (this.library = null));
+    return this.library;
+  }
+
+  /**
+   * 音效文件的状态；fetch 为真时先把 remote 的取回来（联网，只经 fetchObject：白名单、sha1 和大小校验不变）。
+   * 只在用户试听、选中某个音效，或在导出前确认取回时由渲染进程调用；不做后台批量下载（decisions.md M6b）。
+   */
+  async soundFiles(files: readonly string[], fetch: boolean): Promise<SoundFilesResult> {
+    const states: Record<string, SoundFileState> = {};
+    let failed: DownloadErrorKind | null = null;
+    let fetched = false;
+    for (const file of new Set(files)) {
+      const s = await this.soundFileState(file);
+      if (s.state === 'remote' && fetch && s.remote && !failed) {
+        try {
+          await this.opts.downloader.fetchObject(s.remote.hash, s.remote.size);
+          states[file] = 'local';
+          fetched = true;
+          continue;
+        } catch (e) {
+          failed = downloadErrorKind(e);
+          this.opts.log.warn('resources', 'sound object fetch failed', { file, kind: failed });
+        }
+      }
+      states[file] = s.state;
+    }
+    if (fetched) {
+      this.library = null;
+      this.opts.log.info('resources', 'sound objects fetched on demand', { count: Object.values(states).filter((s) => s === 'local').length });
+    }
+    return failed ? { ok: false, error: failed, states } : { ok: true, states };
   }
 
   /** 兜底像素字体（不随资源栈变），第一次用到时解析 */

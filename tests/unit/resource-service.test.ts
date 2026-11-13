@@ -279,6 +279,83 @@ describe('ResourceService', () => {
     svc.close();
   });
 
+  it('M6b 音效库：资源栈合并后 sounds.json 的全部事件（各命名空间），文件在不在决定状态；资源栈变了库跟着变', async () => {
+    const { svc } = await makeService();
+    expect((await svc.soundLibrary()).events).toEqual([]);
+    const pack = join(dir, 'pack-sounds');
+    writeFiles(pack, {
+      'pack.mcmeta': packMcmeta('s'),
+      'assets/minecraft/sounds.json': JSON.stringify({ 'block.stone.place': { sounds: ['test/a'] }, 'ambient.cave': { sounds: ['test/nofile'] } }),
+      'assets/minecraft/sounds/test/a.ogg': 'OggS-a',
+      'assets/mypack/sounds.json': JSON.stringify({ 'fx.boom': { sounds: ['boom'] } }),
+      'assets/mypack/sounds/boom.wav': 'RIFF-boom',
+    });
+    expect(await svc.addPackFromPath(pack)).toMatchObject({ ok: true });
+    const lib = await svc.soundLibrary();
+    expect(lib.stamp).toBe(svc.resourceStamp);
+    expect(lib.events).toEqual([
+      { id: 'minecraft:ambient.cave', state: 'missing' },
+      { id: 'minecraft:block.stone.place', state: 'local' },
+      { id: 'mypack:fx.boom', state: 'local' },
+    ]);
+    const id = svc.state().layers.find((l) => l.kind === 'pack')!.id;
+    await svc.setEnabled(id, false);
+    expect((await svc.soundLibrary()).events).toEqual([]);
+    svc.close();
+  });
+
+  it('M6b 下载缓存的原版层：还没取回的音效是 remote，只有 soundFiles(…, true) 才经 fetchObject 取回；取不到时报错误类型、状态不变', async () => {
+    const appData = join(dir, 'appdata');
+    const objectsDir = join(dir, 'cache-objects');
+    // 模拟“下载原版资源”时已经取回了 sounds.json，但没取 dig/stone1
+    const soundsJson = JSON.stringify({ 'block.stone.place': { sounds: ['dig/stone1'] } });
+    writeFiles(objectsDir, { [`aa/${'a'.repeat(40)}`]: soundsJson });
+    const cached: CachedVanilla = {
+      source: 'downloaded',
+      gameDir: join(dir, 'cache'),
+      versionId: '26.3',
+      releaseTime: '2026-09-15T00:00:00+00:00',
+      jarPath: join(appData, '.minecraft', 'versions', '1.21.1', '1.21.1.jar'),
+      assetIndexPath: join(appData, '.minecraft', 'assets', 'indexes', '17.json'),
+      objectsDir,
+    };
+    let online = false;
+    const fetched: string[] = [];
+    const downloader = fakeDownloader({
+      findCached: async () => cached,
+      fetchObject: async (hash, size) => {
+        if (!online) throw new DownloadError('offline', 'network');
+        fetched.push(hash);
+        const file = join(objectsDir, hash.slice(0, 2), hash);
+        writeFiles(objectsDir, { [`${hash.slice(0, 2)}/${hash}`]: 'x'.repeat(size) });
+        return file;
+      },
+    });
+    const { svc } = await makeService({ game: true, downloader });
+    await svc.setVanilla({ consent: true });
+    expect(svc.state().vanilla.active).toBe('cached');
+    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'remote' }]);
+    expect(await svc.soundFiles(['minecraft:dig/stone1', 'minecraft:nope'], false)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'remote', 'minecraft:nope': 'missing' } });
+    expect(fetched).toEqual([]);
+    // 离线：取不到，报 network，状态仍是 remote，不报错
+    expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: false, error: 'network', states: { 'minecraft:dig/stone1': 'remote' } });
+    online = true;
+    expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'local' } });
+    expect(fetched).toEqual(['b'.repeat(40)]);
+    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
+    svc.close();
+  });
+
+  it('M6b 本机游戏的原版层：对象在本地就是 local；不在本地的对象标成 missing（不从本机游戏的层按需联网）', async () => {
+    const { svc } = await makeService({ game: true });
+    await svc.setVanilla({ consent: true });
+    expect(svc.state().vanilla.active).toBe('local');
+    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
+    rmSync(join(dir, 'appdata', '.minecraft', 'assets', 'objects', 'bb'), { recursive: true });
+    expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'missing' } });
+    svc.close();
+  });
+
   it('原版 jar 不见了：静默退回，并在资源面板里提示', async () => {
     const { svc } = await makeService({ game: true });
     await svc.setVanilla({ consent: true });

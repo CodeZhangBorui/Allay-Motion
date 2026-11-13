@@ -98,6 +98,8 @@ const MALFORMED: Record<string, unknown[][]> = {
     ['assets/minecraft/textures/block/stone.png', 'extra'],
   ],
   'resources.readTexture': [[], [42], [null], ['x'.repeat(600)]],
+  'resources.soundLibrary': [[1], ['minecraft']],
+  'resources.soundFiles': [[], [['minecraft:dig/stone1']], [['minecraft:dig/stone1'], 'yes'], [['../x'], false], [['C:\\x.ogg'], true], ['minecraft:dig/stone1', true], [Array.from({ length: 300 }, (_, i) => `minecraft:x${i}`), false]],
   'resources.soundVariants': [[], [42], [null], ['../x'], ['C:\\x'], ['no-namespace'], ['Minecraft:Block.Stone'], ['x'.repeat(300)]],
   'resources.list': [[42], ['../'], ['C:\\'], [null]],
   'resources.fontProviders': [[], [42], ['x'.repeat(600)]],
