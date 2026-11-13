@@ -1,0 +1,122 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.block-wipe",
+  "version": "1.0.0",
+  "name": { "zh-CN": "方块擦除", "en": "Block wipe" },
+  "description": {
+    "zh-CN": "方块按某种顺序一个个弹出来铺满画面，停留，再按某种顺序缩回去。",
+    "en": "Blocks pop in one by one to fill the screen, hold, then shrink away."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "wipe"],
+  "groups": [
+    { "key": "blocks", "label": { "zh-CN": "方块", "en": "Blocks" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "blocks",
+      "type": "blockList",
+      "label": { "zh-CN": "方块", "en": "Blocks" },
+      "hint": { "zh-CN": "按权重随机分配到每个格子", "en": "Assigned to cells at random by weight" },
+      "group": "blocks",
+      "default": [{ "id": "minecraft:diamond_block", "weight": 1 }],
+      "max": 8
+    },
+    { "key": "cols", "type": "integer", "label": { "zh-CN": "列数", "en": "Columns" }, "group": "blocks", "default": 12, "min": 4, "max": 40, "ui": "slider" },
+    {
+      "key": "style",
+      "type": "enum",
+      "label": { "zh-CN": "样式", "en": "Style" },
+      "group": "blocks",
+      "default": "3d",
+      "options": [
+        { "value": "flat", "label": { "zh-CN": "平面", "en": "Flat" } },
+        { "value": "3d", "label": { "zh-CN": "立体", "en": "3D" } }
+      ]
+    },
+    {
+      "key": "inPattern",
+      "type": "enum",
+      "label": { "zh-CN": "进入顺序", "en": "In pattern" },
+      "group": "motion",
+      "default": "centerOut",
+      "options": [
+        { "value": "leftToRight", "label": { "zh-CN": "从左到右", "en": "Left to right" } },
+        { "value": "rightToLeft", "label": { "zh-CN": "从右到左", "en": "Right to left" } },
+        { "value": "topToBottom", "label": { "zh-CN": "从上到下", "en": "Top to bottom" } },
+        { "value": "bottomToTop", "label": { "zh-CN": "从下到上", "en": "Bottom to top" } },
+        { "value": "centerOut", "label": { "zh-CN": "中心扩散", "en": "Center out" } },
+        { "value": "edgesIn", "label": { "zh-CN": "四周向内", "en": "Edges in" } },
+        { "value": "diagonal", "label": { "zh-CN": "对角线", "en": "Diagonal" } },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" } },
+        { "value": "noise", "label": { "zh-CN": "噪声", "en": "Noise" } }
+      ]
+    },
+    {
+      "key": "outPattern",
+      "type": "enum",
+      "label": { "zh-CN": "退出顺序", "en": "Out pattern" },
+      "group": "motion",
+      "default": "reverse",
+      "options": [
+        { "value": "same", "label": { "zh-CN": "与进入相同", "en": "Same as in" } },
+        { "value": "reverse", "label": { "zh-CN": "与进入相反", "en": "Reverse of in" } },
+        { "value": "leftToRight", "label": { "zh-CN": "从左到右", "en": "Left to right" } },
+        { "value": "rightToLeft", "label": { "zh-CN": "从右到左", "en": "Right to left" } },
+        { "value": "topToBottom", "label": { "zh-CN": "从上到下", "en": "Top to bottom" } },
+        { "value": "bottomToTop", "label": { "zh-CN": "从下到上", "en": "Bottom to top" } },
+        { "value": "centerOut", "label": { "zh-CN": "中心扩散", "en": "Center out" } },
+        { "value": "edgesIn", "label": { "zh-CN": "四周向内", "en": "Edges in" } },
+        { "value": "diagonal", "label": { "zh-CN": "对角线", "en": "Diagonal" } },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" } },
+        { "value": "noise", "label": { "zh-CN": "噪声", "en": "Noise" } }
+      ]
+    },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.5, "min": 0.15, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.1, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.5, "min": 0.15, "max": 2 },
+    {
+      "key": "overlap",
+      "type": "number",
+      "label": { "zh-CN": "重叠", "en": "Overlap" },
+      "hint": { "zh-CN": "单个方块的动画占整个阶段的比例", "en": "Share of the phase each block spends animating" },
+      "group": "motion",
+      "default": 0.45,
+      "min": 0.1,
+      "max": 1,
+      "step": 0.01,
+      "ui": "slider"
+    },
+    { "key": "easing", "type": "easing", "label": { "zh-CN": "缓动", "en": "Easing" }, "group": "motion", "default": "backOut" },
+    {
+      "key": "spin",
+      "type": "enum",
+      "label": { "zh-CN": "翻转", "en": "Spin" },
+      "group": "motion",
+      "default": "flipY",
+      "options": [
+        { "value": "none", "label": { "zh-CN": "无", "en": "None" } },
+        { "value": "flipX", "label": { "zh-CN": "横轴翻转", "en": "Flip X" } },
+        { "value": "flipY", "label": { "zh-CN": "竖轴翻转", "en": "Flip Y" } },
+        { "value": "twist", "label": { "zh-CN": "扭转", "en": "Twist" } }
+      ]
+    },
+    { "key": "jitter", "type": "number", "label": { "zh-CN": "随机错落", "en": "Jitter" }, "group": "motion", "default": 0.1, "min": 0, "max": 0.5, "step": 0.01, "ui": "slider" },
+    { "key": "placeSound", "type": "sound", "label": { "zh-CN": "放置音效", "en": "Place sound" }, "group": "sound", "default": "minecraft:block.stone.place" },
+    { "key": "breakSound", "type": "sound", "label": { "zh-CN": "破坏音效", "en": "Break sound" }, "group": "sound", "default": "minecraft:block.stone.break" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "motion", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
