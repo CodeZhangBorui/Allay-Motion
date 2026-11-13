@@ -42,6 +42,8 @@ app.whenReady().then(() => {
     height: 600,
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false },
   });
+  // 测试不发出可听见的声音（音频测试只用 OfflineAudioContext，这里再保险一次）
+  win.webContents.setAudioMuted(true);
   void win.loadURL('harness://engine/index.html');
 });
 app.on('window-all-closed', () => app.quit());

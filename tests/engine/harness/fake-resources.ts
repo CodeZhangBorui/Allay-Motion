@@ -67,6 +67,21 @@ export async function fakeResolveResource(kind: ResourceKind, id: string): Promi
     }
     return vanillaFont ? testFont() : null;
   }
+  if (kind === 'sound-meta') {
+    // M6b：多变体事件（权重 1、2、1）和单变体事件；其余事件没有定义
+    if (id === 'test:multi') {
+      return {
+        kind: 'sound',
+        variants: [
+          { file: 'test:multi/a', volume: 1, pitch: 1, weight: 1 },
+          { file: 'test:multi/b', volume: 0.8, pitch: 1.1, weight: 2 },
+          { file: 'test:multi/c', volume: 1, pitch: 0.9, weight: 1 },
+        ],
+      };
+    }
+    if (id === 'test:single') return { kind: 'sound', variants: [{ file: 'test:single/only', volume: 0.5, pitch: 1.2, weight: 1 }] };
+    return null;
+  }
   if (kind !== 'texture') return null;
   if (id.includes('does_not_exist') || id.includes('missing')) return null;
   if (id === 'test:anim') {

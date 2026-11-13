@@ -8,15 +8,19 @@ import hangUpdate from '../../fixtures/templates/hang-update.js?raw';
 import usesImport from '../../fixtures/templates/uses-import.js?raw';
 import escapeAttempts from '../../fixtures/templates/escape-attempts.js?raw';
 import m2Features from '../../fixtures/templates/m2-features.js?raw';
+import m6bFeatures from '../../fixtures/templates/m6b-features.js?raw';
 import devSyntaxError from '../../fixtures/templates/dev/syntax-error.js?raw';
 import devSetupThrows from '../../fixtures/templates/dev/setup-throws.js?raw';
 import devUpdateThrows from '../../fixtures/templates/dev/update-throws.js?raw';
 import devRandomUpdate from '../../fixtures/templates/dev/random-update.js?raw';
 import devOrderDependent from '../../fixtures/templates/dev/order-dependent.js?raw';
 import { EngineHost, type WatchdogTimeouts } from '../../../apps/desktop/src/renderer/engine-host/EngineHost';
+import { mixOffline } from '../../../apps/desktop/src/renderer/audio/mix';
+import { SoundBank } from '../../../apps/desktop/src/renderer/audio/sound-bank';
+import { encodeWav } from '../../../apps/desktop/src/renderer/audio/wav';
 import { ANIM_COLORS, FAKE_STAMP, fakeColor, fakeResolveResource, setFakeVanillaFont } from './fake-resources';
 import { frameCount } from '../../../packages/engine/src/frames';
-import { diagnosticOf, TemplateManifestSchema, type FrameQuality, type TemplateDiagnostic, type OutputSettings, type ParamValues, type TemplateManifest } from '../../../packages/template-sdk/src/index';
+import { diagnosticOf, TemplateManifestSchema, type AudioCue, type FrameQuality, type TemplateDiagnostic, type OutputSettings, type ParamValues, type TemplateManifest } from '../../../packages/template-sdk/src/index';
 
 const fixture = (params: unknown[] = []) =>
   TemplateManifestSchema.parse({ formatVersion: 1, id: 'test.engine.fixture', version: '0.0.0', name: 'fixture', category: 'transition', params });
@@ -42,6 +46,15 @@ const SOURCES = {
     manifest: fixture([
       { key: 'scenario', type: 'text', label: 'scenario', default: '' },
       { key: 'text', type: 'text', label: 'text', default: 'AB' },
+    ]),
+  },
+  m6bFeatures: {
+    code: m6bFeatures,
+    manifest: fixture([
+      { key: 'scenario', type: 'text', label: 'scenario', default: '' },
+      { key: 'block', type: 'text', label: 'block', default: 'minecraft:stone' },
+      { key: 'face', type: 'text', label: 'face', default: 'south' },
+      { key: 'seed', type: 'seed', label: 'seed', default: 1 },
     ]),
   },
 } satisfies Record<string, { code: string; manifest: TemplateManifest }>;
@@ -415,6 +428,69 @@ const harness = {
     } finally {
       host.dispose();
     }
+  },
+
+  /** M6b：装载 m6b-features 的某个场景，返回 warnings、audioCues 和若干像素（第 0 帧） */
+  async m6b(extra: ParamValues, output: OutputSettings, points: [number, number][] = []) {
+    const { host, loaded } = await exportEngine('m6bFeatures', output, extra);
+    try {
+      const buf = points.length > 0 ? await host.renderFrame(0, { subframes: 1, shutterAngle: 180 }) : null;
+      return { warnings: loaded.warnings, audioCues: loaded.audioCues, pixels: buf ? points.map(([x, y]) => px(buf, output.width, x, y)) : [] };
+    } finally {
+      host.dispose();
+    }
+  },
+
+  /** M6b：同一个导出 Worker 里先装载再改参数（setParams）回到原参数，两次的 audioCues */
+  async m6bReparam(params: ParamValues, other: ParamValues, output: OutputSettings) {
+    const { host, loaded } = await exportEngine('m6bFeatures', output, params);
+    try {
+      const changed = await host.setParams({ ...params, ...other });
+      const back = await host.setParams(params);
+      return { first: loaded.audioCues, changed: changed.audioCues, back: back.audioCues };
+    } finally {
+      host.dispose();
+    }
+  },
+
+  /**
+   * M6b 离线混音（与导出同一个函数，真实的 OfflineAudioContext）。音效是脚本生成的正弦波 WAV（测试数据）：
+   * 文件名 test:sine/<频率>/<毫秒>。每次用新的音效库（重新解码），返回 WAV 的哈希、长度、峰值和第一个非零样本的位置。
+   */
+  async audioMix(cues: AudioCue[], length: number) {
+    const loads: string[] = [];
+    const bank = new SoundBank(async (file) => {
+      loads.push(file);
+      const m = /^test:sine\/(\d+)\/(\d+)$/.exec(file);
+      if (!m) return null;
+      const n = Math.round((Number(m[2]) / 1000) * 44_100);
+      const data = new Float32Array(n);
+      for (let i = 0; i < n; i++) data[i] = 0.9 * Math.sin((2 * Math.PI * Number(m[1]) * i) / 44_100);
+      // 44.1 kHz 的源：解码时重采样到 48 kHz，确认重采样也是确定的
+      return encodeWav([data, data], 44_100);
+    });
+    const r = await mixOffline(cues, length, bank);
+    let firstNonZero = -1;
+    let peak = 0;
+    if (r.wav) {
+      const view = new DataView(r.wav.buffer, r.wav.byteOffset + 44);
+      for (let i = 0; i < view.byteLength / 2; i++) {
+        const v = Math.abs(view.getInt16(i * 2, true));
+        if (v > 0 && firstNonZero < 0) firstNonZero = Math.floor(i / 2);
+        peak = Math.max(peak, v);
+      }
+    }
+    const lastFrame = r.wav ? [new DataView(r.wav.buffer, r.wav.byteLength - 4).getInt16(0, true), new DataView(r.wav.buffer, r.wav.byteLength - 2).getInt16(0, true)] : null;
+    return {
+      hash: r.wav ? await sha256(new Uint8Array(r.wav)) : null,
+      bytes: r.wav?.byteLength ?? null,
+      peak,
+      firstNonZero,
+      lastFrame,
+      peakNormalized: r.peakNormalized,
+      missing: r.missing,
+      loads,
+    };
   },
 
   /** 装载模板，返回 warnings（escape-attempts 用它报告结果） */
