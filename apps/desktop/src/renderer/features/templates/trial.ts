@@ -28,12 +28,6 @@ function alphaRange(px: Uint8Array): { min: number; max: number } {
   return { min, max };
 }
 
-function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
 export async function trialRun(bundle: TemplateBundle, assets: AssetSource, locale: string): Promise<TrialResult> {
   const source = sourceFromBundle(bundle, assets);
   const fps = source.manifest.defaultOutput?.fps ?? 60;
@@ -53,14 +47,14 @@ export async function trialRun(bundle: TemplateBundle, assets: AssetSource, loca
     const cut = loaded.cutTime === null ? null : Math.min(last, Math.round(loaded.cutTime * fps));
     const probe = cut ?? Math.round(last / 2);
 
-    // 确定性自检：同一帧渲染两次，中间穿插渲染别的帧（2.4）
     const firstProbe = await host.renderFrame(probe, TRIAL_QUALITY);
     const first = alphaRange(await host.renderFrame(0, TRIAL_QUALITY));
     const lastRange = alphaRange(await host.renderFrame(last, TRIAL_QUALITY));
-    const secondProbe = await host.renderFrame(probe, TRIAL_QUALITY);
+    // 确定性自检（2.4）：引擎在 Worker 里把同一帧渲染两次、中间穿插首帧和末帧，逐字节比较（像素不出 Worker）
+    const mismatch = await host.checkDeterminism(probe, [0, last], TRIAL_QUALITY);
 
     const warnings: TrialWarning[] = [];
-    if (!sameBytes(firstProbe, secondProbe)) warnings.push('nondeterministic');
+    if (mismatch) warnings.push('nondeterministic');
     if (first.max > 0) warnings.push('first-frame-visible');
     if (lastRange.max > 0) warnings.push('last-frame-visible');
     if (source.manifest.category === 'transition' && (cut === null || alphaRange(firstProbe).min < 255)) warnings.push('cut-not-opaque');
