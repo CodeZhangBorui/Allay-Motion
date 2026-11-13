@@ -1,0 +1,15 @@
+{
+  "name": "@allay/template-loading-screen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "T4 加载界面（allay.builtin.loading-screen），由 pnpm templates:build 打成 .allaytpl",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@types/three": "0.187.0",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.loading-screen",
+  "version": "1.0.0",
+  "name": { "zh-CN": "加载界面", "en": "Loading screen" },
+  "description": {
+    "zh-CN": "整屏平铺的压暗方块贴图，中间一行标题、一行副标题和一条进度条，进度条在停留阶段走满。",
+    "en": "A full screen of dimmed block tiles with a title, a subtitle and a progress bar that fills during the hold."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["loading", "text", "blocks"],
+  "groups": [
+    { "key": "background", "label": { "zh-CN": "背景", "en": "Background" } },
+    { "key": "text", "label": { "zh-CN": "文字", "en": "Text" } },
+    { "key": "motion", "label": { "zh-CN": "进出方式", "en": "Transitions" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } }
+  ],
+  "params": [
+    { "key": "block", "type": "block", "label": { "zh-CN": "方块", "en": "Block" }, "group": "background", "default": "minecraft:dirt" },
+    { "key": "dim", "type": "number", "label": { "zh-CN": "亮度", "en": "Brightness" }, "hint": { "zh-CN": "贴图颜色乘以这个值", "en": "The tile color is multiplied by this" }, "group": "background", "default": 0.25, "min": 0.05, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "tileSize", "type": "number", "label": { "zh-CN": "贴图大小", "en": "Tile size" }, "group": "background", "default": 128, "min": 32, "max": 360, "step": 1 },
+    { "key": "title", "type": "text", "label": { "zh-CN": "标题", "en": "Title" }, "group": "text", "default": { "zh-CN": "正在加载世界", "en": "Loading world" }, "maxLength": 40 },
+    { "key": "subtitle", "type": "text", "label": { "zh-CN": "副标题", "en": "Subtitle" }, "hint": { "zh-CN": "可以留空", "en": "Can be left empty" }, "group": "text", "default": { "zh-CN": "正在生成地形…", "en": "Building terrain…" }, "maxLength": 60 },
+    { "key": "textColor", "type": "color", "label": { "zh-CN": "文字颜色", "en": "Text color" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
+    { "key": "textScale", "type": "number", "label": { "zh-CN": "字号", "en": "Text scale" }, "hint": { "zh-CN": "一个字体像素对应的设计单位", "en": "Design units per font pixel" }, "group": "text", "default": 5, "min": 2, "max": 12, "step": 0.5, "ui": "slider" },
+    { "key": "showBar", "type": "boolean", "label": { "zh-CN": "显示进度条", "en": "Show progress bar" }, "group": "text", "default": true },
+    { "key": "barColor", "type": "color", "label": { "zh-CN": "进度条颜色", "en": "Bar color" }, "group": "text", "default": "#55FF55", "palette": "chat", "visibleWhen": { "key": "showBar", "equals": true } },
+    {
+      "key": "inStyle",
+      "type": "enum",
+      "label": { "zh-CN": "进入方式", "en": "In style" },
+      "group": "motion",
+      "default": "fade",
+      "options": [
+        { "value": "fade", "label": { "zh-CN": "淡入", "en": "Fade" } },
+        { "value": "slideUp", "label": { "zh-CN": "向上滑入", "en": "Slide up" } },
+        { "value": "dissolve", "label": { "zh-CN": "像素溶解", "en": "Dissolve" } }
+      ]
+    },
+    {
+      "key": "outStyle",
+      "type": "enum",
+      "label": { "zh-CN": "退出方式", "en": "Out style" },
+      "group": "motion",
+      "default": "fade",
+      "options": [
+        { "value": "fade", "label": { "zh-CN": "淡出", "en": "Fade" } },
+        { "value": "slideUp", "label": { "zh-CN": "向上滑出", "en": "Slide up" } },
+        { "value": "dissolve", "label": { "zh-CN": "像素溶解", "en": "Dissolve" } }
+      ]
+    },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "hint": { "zh-CN": "只有像素溶解用到", "en": "Only used by Dissolve" }, "group": "motion", "default": 1 },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.3, "min": 0.1, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.9, "min": 0.2, "max": 5 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.3, "min": 0.1, "max": 2 },
+    {
+      "key": "cutAt",
+      "type": "number",
+      "label": { "zh-CN": "剪辑点", "en": "Cut point" },
+      "hint": { "zh-CN": "剪辑点在停留阶段里的位置，0 为开头、1 为末尾", "en": "Where the cut falls within the hold, 0 = start, 1 = end" },
+      "group": "timing",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "ui": "slider"
+    }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
