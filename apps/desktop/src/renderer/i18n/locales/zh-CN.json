@@ -165,8 +165,42 @@
     "format": "格式",
     "presets": {
       "prores": "透明 MOV（ProRes 4444）",
-      "png": "PNG 序列"
+      "png": "PNG 序列",
+      "webm": "透明 WebM（VP9）",
+      "greenscreen": "绿幕 MP4（H.264）"
     },
+    "presetDesc": {
+      "prores": "带透明通道、画质最好，体积大。",
+      "png": "每帧一张图，无损，体积小。",
+      "webm": "带透明通道、体积很小；多数剪辑软件不认它的透明通道。",
+      "greenscreen": "不带透明通道，用纯色底，再在剪辑软件里抠掉。"
+    },
+    "worksWith": "适用于：{{apps}}",
+    "presetFor": {
+      "prores": "Premiere、DaVinci Resolve、Final Cut、After Effects",
+      "png": "几乎所有剪辑软件（按图片序列导入）",
+      "webm": "OBS、网页",
+      "greenscreen": "任何剪辑软件（用色度抠像）"
+    },
+    "blockers": {
+      "checking": "正在检测 H.264 编码器…",
+      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动",
+      "encoderMissing": "随附的 FFmpeg 里没有这个格式的编码器",
+      "noH264": "这台电脑上没有可用的 H.264 编码器（可在设置里重新检测）"
+    },
+    "resolution": "分辨率",
+    "resolutions": {
+      "1080p": "1920×1080（1080p）",
+      "1440p": "2560×1440（1440p）",
+      "2160p": "3840×2160（4K）",
+      "vertical": "1080×1920（竖屏）",
+      "square": "1080×1080（方形）",
+      "custom": "自定义"
+    },
+    "width": "宽",
+    "height": "高",
+    "customHint": "宽高各取 64–4096 之间的偶数，奇数会自动减一。",
+    "fps": "帧率",
     "quality": "画质",
     "qualities": {
       "draft": "草稿（无运动模糊）",
@@ -174,32 +208,70 @@
       "high": "高（16 个子帧）",
       "ultra": "极致（32 个子帧）"
     },
-    "start": "导出…",
-    "cancel": "取消",
-    "close": "关闭",
-    "progress": "第 {{written}} / {{total}} 帧",
-    "canceled": "已取消导出，没有留下任何文件。",
-    "done": "已导出 {{frames}} 帧，用时 {{seconds}} 秒。",
-    "cutFrame": "剪辑点：第 {{frame}} 帧。让这一帧对齐两段素材的接缝。",
-    "failedAtFrame": "停在第 {{frame}} 帧。",
-    "errors": {
-      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动。",
-      "outputNotWritable": "无法写入这个位置，请换一个文件夹。",
-      "diskFull": "磁盘空间不足，清理后再试。",
-      "encoderUnavailable": "随附的 FFmpeg 里没有这个格式的编码器。",
-      "ffmpegFailed": "视频编码器出错退出了。",
-      "frameMismatch": "画面与导出设置不一致。",
-      "templateFailed": "导出时模板出错了。",
-      "templateUnresponsive": "导出时模板无响应。"
-    },
-    "progressLabel": "导出进度",
     "qualityShort": {
       "draft": "草稿",
       "standard": "标准",
       "high": "高",
       "ultra": "极致"
     },
-    "doneTitle": "导出完成"
+    "shutter": "快门角",
+    "shutterHint": "运动模糊的长度：180° 是常见的电影感，0° 没有模糊，360° 最长。",
+    "key": "底色",
+    "keyHex": "底色（十六进制）",
+    "keyOptions": {
+      "green": "绿",
+      "blue": "蓝",
+      "black": "黑",
+      "custom": "自定义"
+    },
+    "location": "输出位置",
+    "folderUnset": "导出时选择文件夹",
+    "chooseFolder": "更改…",
+    "fileName": "文件名",
+    "estimate": "约 {{size}} · {{frames}} 帧",
+    "cover": {
+      "checking": "正在检查剪辑点的画面是否完全遮住…",
+      "ok": "剪辑点（第 {{frame}} 帧）画面完全遮住。",
+      "warn": "剪辑点（第 {{frame}} 帧）这一刻画面没有完全遮住，接缝会露出来。",
+      "overlay": "叠加层模板没有剪辑点。"
+    },
+    "start": "导出",
+    "cancel": "取消",
+    "close": "关闭",
+    "stages": {
+      "preparing": "准备中…",
+      "rendering": "渲染帧",
+      "muxing": "封装文件"
+    },
+    "progress": "第 {{written}} / {{total}} 帧",
+    "progressLabel": "导出进度",
+    "eta": "剩余约 {{time}}",
+    "etaUnknown": "正在估算剩余时间…",
+    "canceled": "已取消导出，没有留下任何文件。",
+    "doneTitle": "导出完成",
+    "done": "已导出 {{frames}} 帧，用时 {{seconds}} 秒。",
+    "savedTo": "保存在",
+    "cutPoint": "剪辑点：第 {{frame}} 帧（{{timecode}}）。把片段放在上方轨道，让这一帧对齐两段素材的接缝。",
+    "encoderUsed": "H.264 编码器：{{encoder}}",
+    "reveal": "在文件夹中显示",
+    "again": "再导出一个",
+    "finish": "完成",
+    "failedTitle": "导出失败",
+    "failedAtFrame": "停在第 {{frame}} 帧。",
+    "noLeftovers": "没有留下任何临时文件。",
+    "copyDiagnostics": "复制诊断信息",
+    "copied": "已复制",
+    "back": "返回设置",
+    "errors": {
+      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动。",
+      "outputNotWritable": "无法写入这个位置，请换一个文件夹。",
+      "diskFull": "磁盘空间不足，清理后再试。",
+      "encoderUnavailable": "没有可用的编码器来导出这个格式。",
+      "ffmpegFailed": "视频编码器出错退出了。",
+      "frameMismatch": "画面与导出设置不一致。",
+      "templateFailed": "导出时模板出错了。",
+      "templateUnresponsive": "导出时模板无响应。"
+    }
   },
   "resources": {
     "button": "素材：{{name}}",
@@ -359,9 +431,8 @@
     "defaultOutput": "输出设置",
     "ffmpeg": "FFmpeg 版本",
     "ffmpegUnknown": "未知",
-    "encoders": "编码器",
-    "redetect": "重新检测编码器",
-    "encodersLater": "编码器探测在后续版本提供。",
+    "encoders": "H.264 编码器",
+    "redetect": "重新检测",
     "version": "版本 {{version}}",
     "thirdParty": "第三方许可",
     "licenses": {
@@ -371,7 +442,10 @@
       "noto": "Noto Sans SC（思源黑体）字体：SIL Open Font License 1.1。",
       "phosphor": "Phosphor 图标：MIT。",
       "npm": "其余开源组件使用 MIT、BSD、ISC、Apache-2.0 等许可。"
-    }
+    },
+    "encoderNone": "没有可用的",
+    "encoderNotProbed": "尚未检测",
+    "encoderProbing": "正在检测…"
   },
   "shortcuts": {
     "keys": {
@@ -408,7 +482,10 @@
       "settings": "设置",
       "resources": "素材与资源栈",
       "toggleTheme": "切换深色 / 浅色主题",
-      "guides": "安全框参考线"
+      "guides": "安全框参考线",
+      "exportTaskStart": "启动导出任务",
+      "exportTaskGet": "查询导出任务",
+      "exportTaskCancel": "取消导出任务"
     }
   },
   "editor": {

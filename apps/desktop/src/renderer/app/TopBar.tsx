@@ -3,6 +3,7 @@ import { Button } from '@allay/ui/components/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -15,7 +16,8 @@ import { ArrowUUpLeft, ArrowUUpRight, CaretDown, Export, GearSix } from '@phosph
 import { Fragment } from 'react';
 import { useStore } from 'zustand';
 import { useTranslation } from 'react-i18next';
-import type { ExportPreset } from '../../shared/export';
+import { EXPORT_PRESETS } from '../../shared/export';
+import { ExportFormatItems } from '../features/export/ExportFormatMenu';
 import { shortcutLabel } from '../features/commands/commands';
 import { ResourceButton } from '../features/resources/ResourceButton';
 import { usePreviewStore } from '../stores/previewStore';
@@ -28,11 +30,6 @@ import { commandEnabled, trigger, useMenuGroups, useRegistry, type MenuId, type 
 // 正中：工程名和“已修改”。右：素材状态（点开是资源栈弹层）、撤销、重做、设置、“导出”分体按钮
 // （主体打开导出对话框，右侧小段列出导出格式，选中后带着这个格式打开对话框）。
 // 空白处是窗口拖动区；所有可交互元素标 no-drag。最右留出系统窗口按钮的位置。
-
-const EXPORT_PRESETS: { preset: ExportPreset; key: string }[] = [
-  { preset: 'prores4444', key: 'export.presets.prores' },
-  { preset: 'png-sequence', key: 'export.presets.png' },
-];
 
 const MENUS: { id: MenuId; titleKey: string; testId?: string }[] = [
   { id: 'file', titleKey: 'menu.file', testId: 'project-menu' },
@@ -107,13 +104,12 @@ function ExportButton() {
         >
           <CaretDown size={ICON.xs - 1} weight="bold" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>{t('topbar.exportAs')}</DropdownMenuLabel>
-          {EXPORT_PRESETS.map((p) => (
-            <DropdownMenuItem key={p.preset} onClick={() => open(p.preset)} data-testid={`topbar-export-${p.preset}`}>
-              {t(p.key)}
-            </DropdownMenuItem>
-          ))}
+        <DropdownMenuContent align="end" className="w-72">
+          {/* GroupLabel 必须在 Group 里（Base UI 错误 #31） */}
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>{t('topbar.exportAs')}</DropdownMenuLabel>
+            <ExportFormatItems presets={EXPORT_PRESETS} onPick={(p) => open(p)} />
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
