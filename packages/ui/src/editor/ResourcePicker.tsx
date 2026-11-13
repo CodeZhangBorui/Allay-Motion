@@ -29,11 +29,11 @@ export function ResourceThumb({ kind, id, size = 32, className }: { kind: Kind; 
     };
     // resourceStamp 变了要重新取
   }, [kind, id, editor, editor.hasAssets, editor.resourceStamp]);
-  if (url === undefined) return <Skeleton className={cn('shrink-0 rounded-sm', className)} style={{ width: size, height: size }} />;
+  if (url === undefined) return <Skeleton className={cn('shrink-0', className)} style={{ width: size, height: size }} />;
   if (url === null)
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center rounded-sm bg-skeleton text-fg-muted', className)} style={{ width: size, height: size }} aria-hidden="true">
-        <ImageOff className="size-3.5" />
+      <span className={cn('inline-flex shrink-0 items-center justify-center bg-skeleton text-fg-muted', className)} style={{ width: size, height: size }} aria-hidden="true">
+        <ImageOff className="size-4" />
       </span>
     );
   return <img src={url} alt="" width={size} height={size} draggable={false} className={cn('pixelated shrink-0', className)} />;
@@ -90,11 +90,11 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
   return (
     <div className="flex flex-col gap-2">
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
-        <Input autoFocus value={q} onChange={(e) => setQ(e.currentTarget.value)} placeholder={editor.t('picker.search')} aria-label={editor.t('picker.search')} className="pl-7" />
+        <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
+        <Input autoFocus value={q} onChange={(e) => setQ(e.currentTarget.value)} placeholder={editor.t('picker.search')} aria-label={editor.t('picker.search')} className="pl-8" />
       </div>
       {!editor.hasAssets && (
-        <div className="flex items-center justify-between gap-2 rounded-md bg-surface-3 px-2 py-1.5 text-xs text-fg-muted" data-testid="picker-no-assets">
+        <div className="flex items-center justify-between gap-2 bg-well px-2 py-1.5 text-xs text-fg-muted" data-testid="picker-no-assets">
           <span>{editor.t('picker.noAssets')}</span>
           {editor.openResources && (
             <Button size="xs" variant="secondary" onClick={editor.openResources}>
@@ -111,7 +111,7 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
             return (
               <div key={vi.key} className="absolute inset-x-0" style={{ transform: `translateY(${vi.start}px)`, height: vi.size }}>
                 {row.kind === 'header' ? (
-                  <div className="flex h-6 items-end px-1 pb-0.5 text-xs text-fg-muted">{row.label}</div>
+                  <div className="flex h-6 items-end px-0.5 pb-1 font-px12 text-fg-muted">{row.label}</div>
                 ) : (
                   <div className="flex gap-0.5">
                     {row.entries.map((e) => {
@@ -125,7 +125,7 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
                           aria-label={name}
                           title={`${name}\n${e.id}`}
                           data-testid={`pick-${e.id}`}
-                          className={cn('flex size-10 items-center justify-center rounded-md hover:bg-surface-3', value === e.id && 'bg-surface-3 outline-2 -outline-offset-2 outline-(--ring)')}
+                          className={cn('flex size-10 items-center justify-center blk-sunken hover:bg-surface-2', value === e.id && 'outline-2 -outline-offset-2 outline-(--ring)')}
                           onClick={() => {
                             editor.addRecent(kind, e.id);
                             onPick(e.id);
@@ -182,7 +182,7 @@ function SinglePicker({ kind, value, onChange, label, testId }: { kind: Kind; va
         <PopoverTrigger
           data-testid={testId}
           aria-label={label}
-          className="inline-flex h-7 w-full min-w-0 items-center gap-2 rounded-md border border-input-border bg-surface-3 px-1 text-sm hover:border-border-strong"
+          className="inline-flex h-7 w-full min-w-0 items-center gap-2 blk blk-sunken px-1 text-sm hover:[--blk-c:var(--fg-muted)]"
         >
           <ResourceThumb kind={kind} id={value} size={20} />
           <span className="truncate">{entryName(entry, value, editor.locale)}</span>

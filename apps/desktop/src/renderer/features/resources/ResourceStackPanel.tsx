@@ -72,7 +72,7 @@ export function ResourceStackPanel() {
       {state.brokenPacks.length > 0 && (
         <ul className="flex flex-col gap-0.5">
           {state.brokenPacks.map((b) => (
-            <li key={b.id} data-testid="layer-broken" data-layer-id={b.id} className="flex items-center gap-2 rounded-md py-1.5 pr-1 pl-6">
+            <li key={b.id} data-testid="layer-broken" data-layer-id={b.id} className="flex items-center gap-2 py-1.5 pr-1 pl-6">
               <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{b.name}</p>
@@ -87,17 +87,17 @@ export function ResourceStackPanel() {
       )}
       {state.vanilla.problem && (
         <p role="status" className="flex items-start gap-1 text-xs text-warning">
-          <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           {t('resources.vanillaProblem')}
         </p>
       )}
       {!hasVanilla && (
-        <section className="flex flex-col gap-2 border-t pt-3" data-testid="vanilla-missing">
-          <p className="text-sm font-medium">{t('resources.noVanilla')}</p>
+        <section className="flex flex-col gap-2 border-t-2 pt-3" data-testid="vanilla-missing">
+          <p className="font-px12">{t('resources.noVanilla')}</p>
           <VanillaSourceActions />
         </section>
       )}
-      <section className="flex flex-col gap-1.5 border-t pt-3">
+      <section className="flex flex-col gap-2 border-t-2 pt-3">
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" data-testid="pack-add" onClick={() => void addPack(t, 'zip')}>
             <PackagePlus />

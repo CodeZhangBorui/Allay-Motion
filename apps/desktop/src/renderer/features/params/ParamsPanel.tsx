@@ -69,7 +69,7 @@ export function ParamsPanel() {
   if (!template) {
     return (
       <aside aria-label={t('params.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="params-panel">
-        <div className="flex h-10 items-center border-b px-3 text-sm font-semibold">{t('params.title')}</div>
+        <div className="flex h-10 items-center border-b-2 px-3 font-px12">{t('params.title')}</div>
         <p className="p-3 text-xs text-fg-muted">{t('params.placeholder')}</p>
       </aside>
     );
@@ -94,17 +94,19 @@ export function ParamsPanel() {
 
   return (
     <aside aria-label={t('params.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="params-panel">
-      <header className="flex h-10 shrink-0 items-center gap-1.5 border-b pr-1 pl-3">
-        <h2 className="min-w-0 truncate text-sm font-semibold" title={name} data-testid="params-template-name">
+      <header className="flex h-10 shrink-0 items-center gap-2 border-b-2 pr-1.5 pl-3">
+        <h2 className="max-w-[65%] min-w-0 shrink-0 truncate font-px12 text-foreground" title={name} data-testid="params-template-name">
           {name}
         </h2>
-        <Badge className="shrink-0">{t(`gallery.categories.${template.manifest.category}`)}</Badge>
+        <Badge className="min-w-0 shrink truncate">
+          <span className="truncate">{t(`gallery.categories.${template.manifest.category}`)}</span>
+        </Badge>
         {entry?.source === 'user' && <Badge variant="amethyst">{t('gallery.user')}</Badge>}
         <div className="flex-1" />
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="text-fg-muted" data-testid="preset-menu" />}>
             {t('params.presets.title')}
-            <ChevronDown className="size-3.5" />
+            <ChevronDown className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {presets.length === 0 ? (
@@ -169,7 +171,7 @@ export function ParamsPanel() {
           clipboard={clip}
         />
       </ScrollArea>
-      <footer className="shrink-0 border-t p-2">
+      <footer className="shrink-0 border-t-2 p-2">
         <Button variant="ghost" className="w-full justify-start text-fg-muted" data-testid="save-as-template" onClick={() => useUiStore.getState().openDialog('saveTemplate')}>
           <FilePlus2 />
           {t('params.saveAsTemplate')}

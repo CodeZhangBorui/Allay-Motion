@@ -19,9 +19,3 @@
   height: 100%;
 }
 
-/* 预览画布下面的棋盘格：透明区域一眼看得出来（6.4 背景模式的“棋盘格”；其他模式在 M4） */
-.preview-checker {
-  background-color: #2a2a2a;
-  background-image: conic-gradient(#3a3a3a 25%, transparent 0 50%, #3a3a3a 0 75%, transparent 0);
-  background-size: 16px 16px;
-}

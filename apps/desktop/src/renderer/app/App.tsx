@@ -33,9 +33,9 @@ function DropOverlay() {
   const { t } = useTranslation();
   return (
     <div data-testid="drop-overlay" className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-3">
-      <div className="flex size-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-(--allay)">
-        <Allay clip="hover" size={88} glow />
-        <span className="text-base font-medium text-white">{t('resources.dropOverlay')}</span>
+      <div className="flex size-full flex-col items-center justify-center gap-3 border-4 border-dashed border-(--allay)">
+        <Allay clip="hover" size={88} />
+        <span className="font-px24 text-white">{t('resources.dropOverlay')}</span>
       </div>
     </div>
   );

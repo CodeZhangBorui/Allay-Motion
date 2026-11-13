@@ -21,18 +21,18 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
   const byId = useMemo(() => new Map(editor.blocks.map((b) => [b.id, b])), [editor.blocks]);
   const update = (i: number, patch: Partial<BlockListEntry>) => onChange(value.map((e, j) => (j === i ? { ...e, ...patch } : e)));
   return (
-    <div className="flex min-w-0 flex-col gap-1" role="group" aria-label={label} data-testid={testId}>
+    <div className="flex min-w-0 flex-col gap-2 py-0.5" role="group" aria-label={label} data-testid={testId}>
       {value.map((entry, i) => {
         const name = entryName(byId.get(entry.id), entry.id, editor.locale);
         return (
-          <div key={`${entry.id}-${i}`} className="flex h-7 min-w-0 items-center gap-1 rounded-md bg-surface-3 pr-0.5 pl-1">
+          <div key={`${entry.id}-${i}`} className="flex h-8 min-w-0 items-center gap-1 blk blk-raised pr-0.5 pl-1">
             <ResourcePickerPopover
               kind="block"
               value={entry.id}
               label={editor.t('blockList.replace', { name })}
               onPick={(id) => update(i, { id })}
               trigger={
-                <PopoverTrigger aria-label={editor.t('blockList.replace', { name })} className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm text-left text-xs hover:text-foreground">
+                <PopoverTrigger aria-label={editor.t('blockList.replace', { name })} className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs hover:text-foreground">
                   <ResourceThumb kind="block" id={entry.id} size={20} />
                   <span className="truncate" title={entry.id}>
                     {name}
@@ -48,8 +48,8 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
               step={0.1}
               decimals={1}
               label={editor.t('blockList.weight', { name })}
-              scrubLabel={<span className="text-2xs">×</span>}
-              className="h-6 w-[68px] shrink-0 border-transparent bg-surface-2"
+              scrubLabel={<span className="font-px12">×</span>}
+              className="h-6 w-14 shrink-0"
             />
             <Button
               variant="ghost"
@@ -70,8 +70,8 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
           label={editor.t('blockList.add')}
           onPick={(id) => onChange([...value, { id, weight: 1 }])}
           trigger={
-            <PopoverTrigger className="inline-flex h-6 items-center gap-1 self-start rounded-md px-1.5 text-xs text-fg-muted hover:bg-surface-3 hover:text-foreground" data-testid={testId ? `${testId}-add` : undefined}>
-              <Plus className="size-3.5" />
+            <PopoverTrigger className="inline-flex h-6 items-center gap-1 self-start px-1.5 font-px12 text-fg-muted hover:blk hover:blk-raised hover:text-foreground active:blk-down" data-testid={testId ? `${testId}-add` : undefined}>
+              <Plus className="size-4" />
               {editor.t('blockList.add')}
             </PopoverTrigger>
           }
@@ -93,9 +93,9 @@ function TexturePreview({ value, size = 20 }: { value: string; size?: number }) 
     };
   }, [value, editor, editor.resourceStamp]);
   return url ? (
-    <img src={url} alt="" width={size} height={size} className="pixelated shrink-0 rounded-sm object-contain" />
+    <img src={url} alt="" width={size} height={size} className="pixelated shrink-0 object-contain" />
   ) : (
-    <span className="shrink-0 rounded-sm bg-skeleton" style={{ width: size, height: size }} aria-hidden="true" />
+    <span className="shrink-0 bg-skeleton" style={{ width: size, height: size }} aria-hidden="true" />
   );
 }
 
@@ -131,9 +131,9 @@ export function TextureField({
   return (
     <div className="flex min-w-0 items-center gap-1" data-testid={testId}>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger aria-label={label} className="inline-flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md border border-input-border bg-surface-3 px-1 text-sm hover:border-border-strong">
+        <PopoverTrigger aria-label={label} className="inline-flex h-7 min-w-0 flex-1 items-center gap-2 blk blk-sunken px-1 text-sm hover:[--blk-c:var(--fg-muted)]">
           <TexturePreview value={value} />
-          <span className="truncate font-mono text-xs">{textureLabel(value, fileNames, editor.t('texture.none'))}</span>
+          <span className="truncate font-px12">{textureLabel(value, fileNames, editor.t('texture.none'))}</span>
         </PopoverTrigger>
         <PopoverContent side="left" align="start" className="w-[304px]" aria-label={label}>
           <div className="flex flex-col gap-2">
@@ -147,7 +147,7 @@ export function TextureField({
                   aria-selected={value === id}
                   title={id}
                   aria-label={id}
-                  className={cn('flex size-10 items-center justify-center rounded-md hover:bg-surface-3', value === id && 'bg-surface-3 outline-2 -outline-offset-2 outline-(--ring)')}
+                  className={cn('flex size-10 items-center justify-center blk-sunken hover:bg-surface-2', value === id && 'outline-2 -outline-offset-2 outline-(--ring)')}
                   onClick={() => {
                     onChange(id);
                     setOpen(false);

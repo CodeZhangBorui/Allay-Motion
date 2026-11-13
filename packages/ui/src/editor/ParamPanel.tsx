@@ -15,7 +15,7 @@ import { ScrubNumberField, SliderField } from './ScrubNumberField';
 
 // ParamRow / ParamGroup / ParamPanel（6.4、6.5）：由 manifest 的参数定义自动生成整个属性面板。
 // 15 种参数类型各对应一个控件（4.4）。每一行：左边标签（约 40% 宽，过长截断，悬停显示 hint），右边控件；
-// 值不等于默认值时标签前有一个小圆点，点它恢复默认；右键菜单：重置、复制值、粘贴值。
+// 值不等于默认值时标签前有一个小方块，点它恢复默认；右键菜单：重置、复制值、粘贴值。分组标题是通栏色条加像素字。
 
 export interface ParamGroupDef {
   key: string;
@@ -119,7 +119,7 @@ export const ParamRow = memo(function ParamRow({ def, value, defaultValue, onCha
         render={<div />}
         data-testid={`param-row-${def.key}`}
         data-changed={changed}
-        className={cn('flex min-h-8 gap-2 px-3 hover:bg-surface-2/60', tall ? 'items-start py-1' : 'items-center')}
+        className={cn('flex min-h-9 gap-2 px-3', tall ? 'items-start py-1.5' : 'items-center py-0.5')}
       >
         <div className={cn('flex w-[40%] min-w-0 shrink-0 items-center gap-1', tall && 'h-7')}>
           {changed ? (
@@ -128,10 +128,10 @@ export const ParamRow = memo(function ParamRow({ def, value, defaultValue, onCha
               aria-label={editor.t('param.resetOne', { name: label })}
               title={editor.t('param.resetOne', { name: label })}
               data-testid={`param-reset-${def.key}`}
-              className="-ml-2 inline-flex size-6 shrink-0 items-center justify-center rounded-sm hover:bg-surface-3"
+              className="-ml-2 inline-flex size-6 shrink-0 items-center justify-center hover:bg-surface-2"
               onClick={() => onChange(def.key, defaultValue)}
             >
-              <span className="size-1.5 rounded-full bg-primary-text" />
+              <span className="size-2 bg-primary-text" />
             </button>
           ) : (
             <span className="-ml-2 size-6 shrink-0" aria-hidden="true" />
@@ -171,15 +171,15 @@ export const ParamRow = memo(function ParamRow({ def, value, defaultValue, onCha
 
 export function ParamGroup({ id, title, collapsed, onToggle, children }: { id: string; title: string; collapsed: boolean; onToggle(collapsed: boolean): void; children: ReactNode }) {
   return (
-    <Collapsible open={!collapsed} onOpenChange={(open) => onToggle(!open)} className="border-b last:border-b-0">
+    <Collapsible open={!collapsed} onOpenChange={(open) => onToggle(!open)}>
       <CollapsibleTrigger
         data-testid={`param-group-${id}`}
-        className="group flex h-8 w-full items-center gap-1 px-2 text-left text-xs font-semibold text-foreground hover:bg-surface-2/60"
+        className="group flex h-7 w-full items-center gap-1.5 bg-surface-2 px-2 text-left font-px12 text-foreground shadow-[inset_0_2px_0_0_var(--bevel-hi),inset_0_-2px_0_0_var(--bevel-lo)] hover:bg-surface-3"
       >
-        <ChevronRight className="size-3.5 text-fg-muted transition-transform duration-(--dur-2) group-data-[panel-open]:rotate-90" aria-hidden="true" />
+        <ChevronRight className="size-4 text-fg-muted transition-transform duration-(--dur-2) ease-(--ease-step) group-data-[panel-open]:rotate-90" aria-hidden="true" />
         {title}
       </CollapsibleTrigger>
-      <CollapsibleContent className="pb-1">{children}</CollapsibleContent>
+      <CollapsibleContent className="py-1.5">{children}</CollapsibleContent>
     </Collapsible>
   );
 }
@@ -194,7 +194,7 @@ export function ParamPanel({ defs, groups = [], hidden = [], values, defaults, o
   const loose = shown.filter((d) => !d.group || !known.has(d.group));
   return (
     <div className="flex flex-col" data-testid="param-panel">
-      {loose.length > 0 && <div className="border-b py-1">{loose.map(row)}</div>}
+      {loose.length > 0 && <div className="py-1.5">{loose.map(row)}</div>}
       {groups.map((g) => {
         const rows = shown.filter((d) => d.group === g.key);
         if (rows.length === 0) return null;

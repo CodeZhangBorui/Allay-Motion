@@ -83,7 +83,7 @@ export function TransportBar() {
   }, [template, params, i18n.language]);
 
   return (
-    <div role="toolbar" aria-label={t('transport.region')} className="flex h-12 shrink-0 items-center gap-1 border-t bg-surface-1 px-2" data-testid="transport">
+    <div role="toolbar" aria-label={t('transport.region')} className="@container flex h-12 shrink-0 items-center gap-1 border-t-2 bg-surface-1 px-2" data-testid="transport">
       <Button variant="ghost" size="icon" aria-label={t('transport.toStart')} disabled={!ready} onClick={() => useTransportStore.getState().setTime(0)}>
         <SkipBack />
       </Button>
@@ -101,15 +101,16 @@ export function TransportBar() {
       >
         <Repeat />
       </Button>
-      <div className="ml-1 flex w-[64px] shrink-0 flex-col leading-tight">
-        <span data-testid="transport-time" className="text-sm tabular-nums" aria-label={t('transport.time')}>
+      {/* 时间码平时是 24 的像素字；中间栏很窄时（最小窗口）退成 12 的两行，给时间轴和右侧按钮留位置 */}
+      <div className="ml-1.5 flex shrink-0 items-baseline gap-1.5 @max-[640px]:flex-col @max-[640px]:items-start @max-[640px]:gap-0">
+        <span data-testid="transport-time" className="font-px24 text-foreground @max-[640px]:font-px12" aria-label={t('transport.time')}>
           {formatTimecode(time, output.fps)}
         </span>
-        <span data-testid="transport-frame" className="text-2xs text-fg-muted tabular-nums">
+        <span data-testid="transport-frame" className="min-w-[44px] font-px12 text-fg-muted">
           {timelineFrameLabel(frame, total)}
         </span>
       </div>
-      <div className="mx-2 flex min-w-[120px] flex-1">
+      <div className="mx-2 flex min-w-[80px] flex-1">
         <TimelineTrack
           duration={duration}
           time={time}
@@ -129,12 +130,12 @@ export function TransportBar() {
         <PopoverTrigger
           data-testid="output-badge"
           aria-label={t('output.title')}
-          className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 text-xs whitespace-nowrap text-fg-muted tabular-nums hover:bg-surface-2 hover:text-foreground"
+          className="inline-flex h-6 shrink-0 items-center bg-well px-2 font-px12 whitespace-nowrap text-fg-muted hover:text-foreground aria-expanded:text-primary-text"
         >
           {output.width}×{output.height} · {output.fps}fps
         </PopoverTrigger>
         <PopoverContent side="top" align="end" className="w-80">
-          <PopoverTitle className="mb-3 text-sm font-semibold">{t('output.title')}</PopoverTitle>
+          <PopoverTitle className="mb-3 font-px12 text-foreground">{t('output.title')}</PopoverTitle>
           <OutputSettingsForm />
         </PopoverContent>
       </Popover>

@@ -17,7 +17,7 @@ export function DurationField({ value, onChange, min, max, label, testId }: { va
   return (
     <div className="flex min-w-0 items-center gap-2" data-testid={testId}>
       <ScrubNumberField value={value} onChange={(v) => onChange(snap(v))} min={min} max={max} step={1 / fps} decimals={3} unit="s" label={label} className="min-w-0 flex-1" />
-      <span className="w-12 shrink-0 text-right text-xs text-fg-muted tabular-nums">{editor.t('duration.frames', { n: Math.round(value * fps) })}</span>
+      <span className="w-12 shrink-0 text-right font-px12 text-fg-muted">{editor.t('duration.frames', { n: Math.round(value * fps) })}</span>
     </div>
   );
 }
@@ -71,7 +71,7 @@ export function AngleField({ value, onChange, snap, label, testId }: { value: nu
         aria-valuemax={359}
         aria-valuenow={Math.round(value)}
         title={editor.t('angle.hint')}
-        className="relative size-7 shrink-0 cursor-pointer touch-none rounded-full border border-input-border bg-surface-3"
+        className="relative size-7 shrink-0 cursor-pointer touch-none blk blk-sunken"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
           beginGesture(editor);
@@ -88,8 +88,8 @@ export function AngleField({ value, onChange, snap, label, testId }: { value: nu
           e.preventDefault();
         }}
       >
-        <span className="absolute top-1/2 left-1/2 h-0.5 w-3 origin-left rounded-full bg-primary" style={{ transform: `translateY(-50%) rotate(${value}deg)` }} />
-        <span className="absolute top-1/2 left-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground" />
+        <span className="absolute top-1/2 left-1/2 h-0.5 w-3 origin-left bg-primary-text" style={{ transform: `translateY(-50%) rotate(${value}deg)` }} />
+        <span className="absolute top-1/2 left-1/2 size-1 -translate-x-1/2 -translate-y-1/2 bg-foreground" />
       </div>
       <ScrubNumberField value={value} onChange={(v) => onChange(norm(snap ? Math.round(v / snap) * snap : v))} min={-360} max={720} step={snap ?? 1} unit="°" label={label} className="min-w-0 flex-1" />
     </div>

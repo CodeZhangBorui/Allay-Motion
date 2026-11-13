@@ -128,7 +128,7 @@ function Flyer({ exiting, reduced, label }: { exiting: boolean; reduced: boolean
         <span className="-translate-x-1/4">
           <Allay clip="hover" size={S} />
         </span>
-        <span className="text-xs text-fg-muted">{label}</span>
+        <span className="font-px12 text-fg-muted">{label}</span>
       </div>
     );
   }
@@ -139,24 +139,15 @@ function Flyer({ exiting, reduced, label }: { exiting: boolean; reduced: boolean
       data-testid="allay-flyer"
       style={{ opacity: exiting ? undefined : 1 }}
     >
-      <div
-        ref={glowRef}
-        className="absolute top-0 left-0 rounded-full"
-        style={{
-          width: S * 2.2,
-          height: S * 2.2,
-          background: 'radial-gradient(circle, color-mix(in srgb, var(--allay-glow) 22%, transparent) 0%, transparent 70%)',
-          mixBlendMode: 'plus-lighter',
-          transform: 'translate(-9999px, 0)',
-        }}
-      />
+      {/* 原来的柔光圈：界面重设计后不画发光（docs/decisions.md 界面重设计）；保留空的定位层，飞行逻辑不用改 */}
+      <div ref={glowRef} className="absolute top-0 left-0" style={{ width: S * 2.2, height: S * 2.2, transform: 'translate(-9999px, 0)' }} />
       {Array.from({ length: TRAIL }, (_, i) => (
         <span
           key={i}
           ref={(el) => {
             trailRefs.current[i] = el;
           }}
-          className="absolute top-0 left-0 block size-1 bg-allay-glow"
+          className="absolute top-0 left-0 block size-1 bg-allay-light"
           style={{ opacity: 0 }}
         />
       ))}

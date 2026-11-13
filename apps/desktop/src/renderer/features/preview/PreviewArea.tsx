@@ -52,7 +52,7 @@ function Toolbar() {
   const editor = useUiStore((s) => s.settings.editor);
   const set = useUiStore.getState().setEditor;
   return (
-    <div className="flex items-center gap-1 rounded-lg border bg-surface-1/90 p-0.5 shadow-sm" data-testid="preview-toolbar">
+    <div className="flex items-center gap-1.5" data-testid="preview-toolbar">
       <ToggleGroup
         value={[editor.background]}
         onValueChange={(v) => {
@@ -60,7 +60,6 @@ function Toolbar() {
           if (next && next !== 'sample') set({ background: next });
         }}
         aria-label={t('preview.background')}
-        className="bg-transparent"
       >
         <ToggleGroupItem value="checker" aria-label={t('preview.backgrounds.checker')} title={t('preview.backgrounds.checker')} data-testid="bg-checker">
           <Grid2x2 />
@@ -82,28 +81,27 @@ function Toolbar() {
       </ToggleGroup>
       {editor.background === 'solid' && (
         <Popover>
-          <PopoverTrigger aria-label={t('preview.solidColor')} className="inline-flex size-6 items-center justify-center rounded-md hover:bg-surface-3">
-            <span className="size-3.5 rounded-sm border border-border-strong" style={{ background: editor.solidColor }} />
+          <PopoverTrigger aria-label={t('preview.solidColor')} className="inline-flex size-6 items-center justify-center blk blk-raised hover:bg-surface-3 active:blk-down">
+            <span className="size-3.5 border-2 border-input-border" style={{ background: editor.solidColor }} />
           </PopoverTrigger>
           <PopoverContent side="bottom" align="end" className="allay-colorful w-[200px]">
             <HexColorPicker color={editor.solidColor} onChange={(c) => set({ solidColor: c.toUpperCase() })} />
           </PopoverContent>
         </Popover>
       )}
-      <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-      <Button
-        variant="ghost"
+            <Button
+        variant="secondary"
         size="icon-sm"
         aria-label={t('preview.guides')}
         title={t('preview.guides')}
         aria-pressed={editor.guides}
-        className={editor.guides ? 'text-primary-text' : 'text-fg-muted'}
+        className={editor.guides ? 'blk-sunken text-primary-text' : 'text-fg-muted'}
         data-testid="preview-guides-toggle"
         onClick={() => set({ guides: !editor.guides })}
       >
         <SquareDashed />
       </Button>
-      <ToggleGroup value={[editor.zoom]} onValueChange={(v) => v[0] && set({ zoom: v[0] as 'fit' | '100' })} aria-label={t('preview.zoom')} className="bg-transparent">
+      <ToggleGroup value={[editor.zoom]} onValueChange={(v) => v[0] && set({ zoom: v[0] as 'fit' | '100' })} aria-label={t('preview.zoom')}>
         <ToggleGroupItem value="fit" aria-label={t('preview.zoomFit')} title={t('preview.zoomFit')}>
           <Maximize />
         </ToggleGroupItem>
@@ -145,11 +143,11 @@ function ErrorCard() {
       role="alert"
       data-testid="preview-error"
       data-kind={status.kind}
-      className="absolute inset-x-6 top-1/2 z-20 mx-auto flex max-w-md -translate-y-1/2 items-start gap-3 rounded-lg border bg-surface-2 p-4 text-sm shadow-(--shadow-popover)"
+      className="absolute inset-x-6 top-1/2 z-20 mx-auto flex max-w-md -translate-y-1/2 items-start gap-3 blk-float p-4 text-sm"
     >
       <Allay clip="sad" size={48} />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <p className="font-semibold text-danger">{title}</p>
+        <p className="font-px24 text-danger">{title}</p>
         <p className="line-clamp-4 text-xs break-words text-fg-muted">{detail}</p>
         <div className="mt-1 flex flex-wrap gap-2">
           {status.kind === 'error' ? (
@@ -262,8 +260,8 @@ export function PreviewArea() {
         <AllayLoader loading={loading && !failed} label={t('preview.loading')} className="size-full" testId="preview-loader">
           {loading && !failed ? (
             <div className="flex size-full flex-col items-center justify-center gap-3">
-              <Skeleton className="rounded-sm" style={{ width: size.width * 0.6, height: size.height * 0.6 }} />
-              <span className="text-xs text-fg-muted">{t('preview.loading')}</span>
+              <Skeleton style={{ width: size.width * 0.6, height: size.height * 0.6 }} />
+              <span className="font-px12 text-fg-muted">{t('preview.loading')}</span>
             </div>
           ) : null}
         </AllayLoader>

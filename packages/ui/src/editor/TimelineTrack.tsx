@@ -1,7 +1,8 @@
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 
 // Transport 的时间轴（6.4）：按 timeline.segments 画出色段，段与段之间的分界线可以拖动（改左边那一段的 duration 参数，
-// 受它的 min/max 限制，4.3）；cutTime 处有一个菱形标记，悬停提示“剪辑点”；播放头可拖，悬停显示时间。
+// 受它的 min/max 限制，4.3）；cutTime 处有一个转 45° 的小方块，悬停提示“剪辑点”；播放头（2 px 竖线加方形头）可拖，悬停显示时间。
+// 轨道是一条凹槽，三段平涂色块（进入 = 悦灵青、停留 = 沙色、退出 = 紫水晶）之间留 2 px 间隙。
 // 一次拖动（分界线或播放头）只算一次连续操作：onGesture('start') … onGesture('end')。
 
 export interface TimelineSegment {
@@ -29,7 +30,7 @@ export interface TimelineTrackProps {
   onGesture(phase: 'start' | 'end'): void;
 }
 
-const SEGMENT_COLORS = ['var(--primary)', 'var(--allay-deep)', 'var(--amethyst)', 'var(--success)', 'var(--warning)'];
+const SEGMENT_COLORS = ['var(--stage-enter)', 'var(--stage-hold)', 'var(--stage-exit)', 'var(--success)', 'var(--warning)'];
 
 export function segmentsMatch(segments: readonly TimelineSegment[], duration: number): boolean {
   if (segments.length === 0) return false;
@@ -130,25 +131,30 @@ export function TimelineTrack(props: TimelineTrackProps) {
         aria-valuenow={frame}
         aria-valuetext={formatTime(time)}
         aria-disabled={disabled}
-        className="absolute inset-0 cursor-pointer touch-none outline-none focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)"
+        className="absolute inset-0 cursor-pointer touch-none outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)"
         onPointerDown={onTrackDown}
         onPointerMove={onTrackMove}
         onPointerLeave={() => setHoverX(null)}
         onKeyDown={onTrackKey}
       />
       {/* 底轨与色段 */}
-      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-sm bg-surface-3">
-        {showSegments &&
-          segments.map((s, i) => (
-            <div
-              key={s.key}
-              data-testid={`timeline-segment-${s.key}`}
-              title={s.label}
-              className="absolute inset-y-0"
-              style={{ left: pct(bounds[i]! - s.duration), width: pct(s.duration), background: `color-mix(in srgb, ${SEGMENT_COLORS[i % SEGMENT_COLORS.length]} 38%, transparent)` }}
-            />
-          ))}
-        <div className="absolute inset-y-0 left-0 bg-foreground/10" style={{ width: pct(time) }} />
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-4 -translate-y-1/2 blk blk-sunken">
+        <div className="absolute inset-0.5 overflow-hidden">
+          {showSegments &&
+            segments.map((s, i) => (
+              <div
+                key={s.key}
+                data-testid={`timeline-segment-${s.key}`}
+                title={s.label}
+                className="absolute inset-y-0"
+                style={{
+                  left: i === 0 ? 0 : `calc(${pct(bounds[i]! - s.duration)} + 1px)`,
+                  width: `calc(${pct(s.duration)} - ${i === 0 || i === segments.length - 1 ? 1 : 2}px)`,
+                  background: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+                }}
+              />
+            ))}
+        </div>
       </div>
       {/* 分界线（最后一段的右端就是终点，不能拖） */}
       {showSegments &&
@@ -171,22 +177,24 @@ export function TimelineTrack(props: TimelineTrackProps) {
             onPointerCancel={onBoundaryUp}
             onKeyDown={onBoundaryKey(i)}
           >
-            <span className="h-5 w-0.5 rounded-full bg-fg-muted" />
+            <span className="h-6 w-1 bg-foreground shadow-[0_0_0_2px_var(--well)]" />
           </div>
         ))}
       {/* 剪辑点 */}
       {cutTime !== null && duration > 0 && (
-        <div className="absolute top-0 z-10 -translate-x-1/2" style={{ left: pct(cutTime) }} title={labels.cut} data-testid="timeline-cut">
-          <span className="block size-2 rotate-45 bg-allay shadow-[0_0_0_1px_var(--surface-1)]" />
+        <div className="absolute bottom-0 z-10 -translate-x-1/2" style={{ left: pct(cutTime) }} title={labels.cut} data-testid="timeline-cut">
+          <span className="block size-2 rotate-45 bg-allay shadow-[0_0_0_2px_var(--surface-1)]" />
           <span className="sr-only">{labels.cut}</span>
         </div>
       )}
       {/* 播放头 */}
-      <div className="pointer-events-none absolute inset-y-0.5 z-20 w-0.5 -translate-x-1/2 rounded-full bg-foreground" style={{ left: pct(time) }} data-testid="timeline-playhead" />
+      <div className="pointer-events-none absolute inset-y-0.5 z-20 w-0.5 -translate-x-1/2 bg-foreground" style={{ left: pct(time) }} data-testid="timeline-playhead">
+        <span className="absolute top-0 left-1/2 size-2.5 -translate-x-1/2 bg-foreground shadow-[0_0_0_2px_var(--surface-1)]" />
+      </div>
       {/* 悬停时间 */}
       {hoverTime !== null && !disabled && (
         <div
-          className="pointer-events-none absolute -top-6 z-30 -translate-x-1/2 rounded-sm bg-foreground px-1 text-2xs text-background tabular-nums opacity-0 transition-opacity duration-(--dur-1) group-hover/track:opacity-100"
+          className="pointer-events-none absolute -top-7 z-30 -translate-x-1/2 blk-float px-1.5 font-px12 text-foreground opacity-0 transition-opacity duration-(--dur-1) ease-(--ease-step) group-hover/track:opacity-100"
           style={{ left: hoverX! }}
           aria-hidden="true"
         >

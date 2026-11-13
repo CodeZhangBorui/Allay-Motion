@@ -44,7 +44,7 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
       data-layer-id={row.id}
       data-enabled={row.enabled}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={cn('relative flex items-center gap-2 rounded-md py-1.5 pr-1 pl-0.5 hover:bg-surface-3', isDragging && 'z-10 bg-surface-3 shadow-(--shadow-popover)')}
+      className={cn('relative flex items-center gap-2 py-1.5 pr-1 pl-0.5 hover:bg-surface-2', isDragging && 'z-10 blk-float')}
     >
       {row.sortable ? (
         <button
@@ -52,7 +52,7 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
           type="button"
           aria-label={labels.drag(row.name)}
           data-testid="layer-drag"
-          className="inline-flex h-8 w-5 shrink-0 cursor-grab items-center justify-center rounded-sm text-fg-muted hover:text-foreground"
+          className="inline-flex h-8 w-5 shrink-0 cursor-grab items-center justify-center text-fg-muted hover:text-foreground"
           {...attributes}
           {...listeners}
         >
@@ -61,12 +61,12 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
       ) : (
         <span className="w-5 shrink-0" aria-hidden="true" />
       )}
-      <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-skeleton">
+      <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden blk-sunken">
         {row.iconUrl ? <img src={row.iconUrl} alt="" className="pixelated size-8" /> : <Package className="size-4 text-fg-muted" aria-hidden="true" />}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium" title={row.name}>
+          <span className="truncate text-sm" title={row.name}>
             {row.name}
           </span>
           <Badge className="shrink-0">{row.kindLabel}</Badge>
@@ -78,7 +78,7 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
         )}
         {row.warning && (
           <p className="flex items-center gap-1 text-xs text-warning" data-testid="layer-warning">
-            <TriangleAlert className="size-3 shrink-0" aria-hidden="true" />
+            <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
             <span className="truncate" title={row.warning}>
               {row.warning}
             </span>
@@ -111,7 +111,7 @@ export function ResourceStackList({ rows, onReorder, onToggle, onRemove, labels 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-        <ul className="flex flex-col gap-0.5" data-testid="resource-stack-list">
+        <ul className="flex flex-col gap-1" data-testid="resource-stack-list">
           {rows.map((r) => (
             <Row key={r.id} row={r} labels={labels} onToggle={onToggle} onRemove={onRemove} />
           ))}

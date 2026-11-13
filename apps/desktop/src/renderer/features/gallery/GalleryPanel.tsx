@@ -16,7 +16,7 @@ import { installViaDialog, removeTemplate, selectTemplate } from '../templates/a
 import { COVER_FPS, COVER_H, COVER_W, coverKey, covers, useCoverStore, type Cover } from './covers';
 
 // 左栏：模板库（6.4）。搜索框（Ctrl+F 聚焦），分类标签：全部、转场、叠加、我的。两列卡片，16:9 的封面加一行名称；
-// 悬停时播放预览循环；选中时 --ring 描边加悦灵青辉光；用户模板角上有 --amethyst 的小标记。底部“导入模板…”。
+// 悬停时播放预览循环；选中时 --ring 描边加四角的小方块标记；用户模板角上有 --amethyst 的小标记。底部“导入模板…”。
 // 首次加载、资源栈变化后重建封面时：骨架加悦灵（AllayLoader）。
 
 type Tab = 'all' | 'transition' | 'overlay' | 'mine';
@@ -50,11 +50,11 @@ function HoverPlayer({ cover }: { cover: Cover }) {
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-1 p-2" aria-hidden="true">
+    <div className="grid grid-cols-2 gap-2 p-3" aria-hidden="true">
       {Array.from({ length: 6 }, (_, i) => (
-        <div key={i} className="flex flex-col gap-1.5 p-1">
+        <div key={i} className="flex flex-col gap-1.5 p-1.5">
           <Skeleton className="aspect-video w-full" />
-          <Skeleton className="h-3 w-2/3 rounded-sm" />
+          <Skeleton className="h-3 w-2/3" />
         </div>
       ))}
     </div>
@@ -98,18 +98,18 @@ export function GalleryPanel() {
 
   return (
     <aside aria-label={t('gallery.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="gallery">
-      <div className="flex flex-col gap-2 border-b p-2">
+      <div className="flex flex-col gap-2.5 border-b-2 p-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
-          <Input id="gallery-search" value={query} onChange={(e) => setQuery(e.currentTarget.value)} placeholder={t('gallery.search')} aria-label={t('gallery.search')} className="pr-7 pl-7" data-testid="gallery-search" />
+          <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
+          <Input id="gallery-search" value={query} onChange={(e) => setQuery(e.currentTarget.value)} placeholder={t('gallery.search')} aria-label={t('gallery.search')} className="pr-8 pl-8" data-testid="gallery-search" />
           {query && (
-            <button type="button" aria-label={t('gallery.clearSearch')} className="absolute top-1/2 right-1 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-fg-muted hover:text-foreground" onClick={() => setQuery('')}>
-              <X className="size-3.5" />
+            <button type="button" aria-label={t('gallery.clearSearch')} className="absolute top-1/2 right-1 inline-flex size-6 -translate-y-1/2 items-center justify-center text-fg-muted hover:text-foreground" onClick={() => setQuery('')}>
+              <X className="size-4" />
             </button>
           )}
         </div>
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-          <TabsList className="w-full" aria-label={t('gallery.categoriesLabel')}>
+          <TabsList className="h-8 w-full p-0" aria-label={t('gallery.categoriesLabel')}>
             {(['all', 'transition', 'overlay', 'mine'] as const).map((k) => (
               <TabsTrigger key={k} value={k} data-testid={`gallery-tab-${k}`} className="flex-auto px-1.5">
                 {t(`gallery.tabs.${k}`)}
@@ -125,7 +125,7 @@ export function GalleryPanel() {
           ) : shown.length === 0 ? (
             query ? (
               <div className="flex flex-col items-center gap-2 px-4 py-8 text-center" data-testid="gallery-no-results">
-                <p className="text-sm">{t('gallery.noResults', { query: query.trim() })}</p>
+                <p className="font-px12">{t('gallery.noResults', { query: query.trim() })}</p>
                 <Button variant="secondary" onClick={() => setQuery('')}>
                   {t('gallery.clearSearch')}
                 </Button>
@@ -144,7 +144,7 @@ export function GalleryPanel() {
               <p className="p-4 text-xs text-fg-muted">{t('gallery.empty')}</p>
             )
           ) : (
-            <div className="grid grid-cols-2 gap-1 p-2" data-testid="template-list">
+            <div className="grid grid-cols-2 gap-2 p-3" data-testid="template-list">
               {shown.map((e) => {
                 const key = coverKey(e.id, e.version);
                 const cover = coverMap[key];
@@ -195,7 +195,7 @@ export function GalleryPanel() {
           )}
         </AllayLoader>
       </div>
-      <div className="border-t p-2">
+      <div className="border-t-2 p-2">
         <Button variant="ghost" className="w-full justify-start text-fg-muted" data-testid="template-import" onClick={() => void installViaDialog(t, locale)}>
           <Import />
           {t('gallery.import')}

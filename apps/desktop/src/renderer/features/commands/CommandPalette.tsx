@@ -60,7 +60,7 @@ export function CommandPalette() {
                     <CommandItem key={`${e.id}@${e.version}`} value={`template ${name} ${e.id}`} onSelect={() => run(() => void selectTemplate(e.id, e.version, i18n.language))}>
                       <LayoutTemplate />
                       <span className="flex-1 truncate">{name}</span>
-                      <span className="text-xs text-fg-muted">{e.version}</span>
+                      <span className="font-px12 text-fg-muted">{e.version}</span>
                     </CommandItem>
                   );
                 })}

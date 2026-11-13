@@ -96,20 +96,20 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
                 {t('export.errors.ffmpegMissing')}
               </p>
             )}
-            <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1 text-xs text-fg-muted">{t('export.format')}</legend>
+            <fieldset className="flex flex-col gap-2.5">
+              <legend className="mb-2 font-px12 text-fg-muted">{t('export.format')}</legend>
               {PRESETS.map((p) => (
                 <label
                   key={p}
-                  className="flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm has-checked:border-primary has-checked:bg-surface-3 has-disabled:cursor-default has-disabled:opacity-50"
+                  className="flex h-9 cursor-pointer items-center gap-2.5 blk blk-raised px-3 text-sm hover:bg-surface-3 has-checked:blk-sunken has-checked:blk-edge-ring has-disabled:cursor-default has-disabled:opacity-50"
                 >
-                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="accent-(--primary)" />
+                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="size-4 shrink-0 appearance-none blk-sunken shadow-[0_0_0_2px_var(--input-border)] checked:bg-primary checked:shadow-[0_0_0_2px_var(--ring),inset_0_0_0_3px_var(--well)]" />
                   {t(`export.presets.${p === 'prores4444' ? 'prores' : 'png'}`)}
                 </label>
               ))}
             </fieldset>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs text-fg-muted" id="export-quality-label">
+            <div className="flex flex-col gap-1.5">
+              <span className="font-px12 text-fg-muted" id="export-quality-label">
                 {t('export.quality')}
               </span>
               <ToggleGroup value={[quality]} onValueChange={(v) => v[0] && setQuality(v[0] as QualityLevel)} aria-labelledby="export-quality-label" className="w-full" data-testid="export-quality">
@@ -141,7 +141,7 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
                 label={t('export.progressLabel')}
                 carry={<Clapperboard className="size-4 text-foreground" />}
               />
-              <span data-testid="export-progress" className="text-xs text-fg-muted tabular-nums">
+              <span data-testid="export-progress" className="font-px12 text-fg-muted">
                 {t('export.progress', { written: phase.progress.written, total: phase.progress.total })}
               </span>
             </div>
@@ -187,7 +187,7 @@ function ExportResult({ outcome }: { outcome: ExportOutcome }) {
   }
   return (
     <div data-testid="export-result" data-kind="done" className="flex flex-col gap-1 text-sm">
-      <p className="font-semibold">{t('export.doneTitle')}</p>
+      <p className="font-px24">{t('export.doneTitle')}</p>
       <p>{t('export.done', { frames: outcome.frames, seconds: outcome.seconds.toFixed(1) })}</p>
       <p data-testid="export-path" className="text-xs break-all text-fg-muted select-text">
         {outcome.path}

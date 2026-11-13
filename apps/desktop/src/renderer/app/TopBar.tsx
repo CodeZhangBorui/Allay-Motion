@@ -24,8 +24,8 @@ import { usePreviewStore } from '../stores/previewStore';
 import { isDirty, redo, undo, useProjectStore } from '../stores/projectStore';
 import { useUiStore } from '../stores/uiStore';
 
-// 顶栏（6.4）：40 px。左：悦灵头像（20 px）和字标；工程名按钮，下拉里是新建、打开、保存、另存为、最近的工程。
-// 右：素材按钮（资源栈弹层）；撤销、重做；主按钮“导出”。最右留出系统窗口按钮的位置。
+// 顶栏（6.4）：40 px 的一条平色带，下缘 2 px 线。左：悦灵头像（20 px）和像素字的字标；工程名按钮，下拉里是新建、打开、保存、另存为、最近的工程。
+// 右：素材按钮（资源栈弹层）；撤销、重做；主按钮“导出”（全应用最显眼的一块：青色实心凸块）。最右留出系统窗口按钮的位置。
 // 空白处是窗口拖动区；所有可交互元素标 no-drag。
 
 function ProjectMenu() {
@@ -41,9 +41,9 @@ function ProjectMenu() {
           {display}
         </span>
         {dirty && (
-          <span className="size-1.5 shrink-0 rounded-full bg-fg-muted" data-testid="project-dirty" aria-label={t('project.unsavedMark')} role="img" />
+          <span className="size-2 shrink-0 bg-fg-muted" data-testid="project-dirty" aria-label={t('project.unsavedMark')} role="img" />
         )}
-        <ChevronDown className="size-3.5 text-fg-muted" />
+        <ChevronDown className="size-4 text-fg-muted" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60">
         <DropdownMenuItem onClick={() => void newProject()} data-testid="project-new">
@@ -105,23 +105,23 @@ export function TopBar() {
   return (
     <header
       data-testid="topbar"
-      className="app-drag flex h-10 shrink-0 items-center gap-1 border-b bg-surface-1 pl-2"
+      className="app-drag flex h-10 shrink-0 items-center gap-1.5 border-b-2 bg-surface-1 pl-2"
       style={{
         // 系统窗口按钮（title bar overlay）占用的宽度
         paddingRight: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 8px)',
       }}
     >
-      <div className="flex items-center gap-1.5 pr-1">
+      <div className="flex items-center gap-2 pr-1">
         <AllayHead size={20} className="app-no-drag" onClick={() => undefined} label={t('brand.name')} />
-        <span className="text-sm font-semibold tracking-tight whitespace-nowrap">{t('brand.wordmark')}</span>
+        <span className="font-px12 whitespace-nowrap text-foreground">{t('brand.wordmark')}</span>
       </div>
-      <div className="mx-1 h-5 w-px bg-border" />
+      <div className="mx-1 h-5 w-0.5 bg-border" />
       <ProjectMenu />
 
       <div data-testid="drag-region" className="h-full min-w-4 flex-1" />
 
       <ResourceButton />
-      <div className="mx-1 h-5 w-px bg-border" />
+      <div className="mx-1 h-5 w-0.5 bg-border" />
       <IconButton label={t('topbar.undo')} shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo} data-testid="topbar-undo">
         <Undo2 />
       </IconButton>
@@ -131,7 +131,7 @@ export function TopBar() {
       <IconButton label={t('topbar.settings')} shortcut="Ctrl+," onClick={() => useUiStore.getState().openDialog('settings', 'general')} data-testid="topbar-settings">
         <Settings />
       </IconButton>
-      <Button className="app-no-drag ml-1 px-3" data-testid="topbar-export" disabled={!ready} onClick={() => useUiStore.getState().openDialog('export')}>
+      <Button size="lg" className="app-no-drag mr-1 ml-2 px-4" data-testid="topbar-export" disabled={!ready} onClick={() => useUiStore.getState().openDialog('export')}>
         {t('topbar.export')}
       </Button>
     </header>

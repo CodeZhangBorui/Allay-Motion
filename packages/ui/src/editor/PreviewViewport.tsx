@@ -27,10 +27,10 @@ export interface PreviewViewportProps {
 function Guides() {
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden="true" data-testid="preview-guides">
-      <div className="absolute inset-[3.5%] border border-dashed border-white/45 mix-blend-difference" />
-      <div className="absolute inset-[10%] border border-dashed border-white/30 mix-blend-difference" />
-      <div className="absolute top-1/2 left-1/2 h-4 w-px -translate-1/2 bg-white/45 mix-blend-difference" />
-      <div className="absolute top-1/2 left-1/2 h-px w-4 -translate-1/2 bg-white/45 mix-blend-difference" />
+      <div className="absolute inset-[3.5%] border-2 border-dashed border-white/45 mix-blend-difference" />
+      <div className="absolute inset-[10%] border-2 border-dashed border-white/30 mix-blend-difference" />
+      <div className="absolute top-1/2 left-1/2 h-4 w-0.5 -translate-1/2 bg-white/45 mix-blend-difference" />
+      <div className="absolute top-1/2 left-1/2 h-0.5 w-4 -translate-1/2 bg-white/45 mix-blend-difference" />
     </div>
   );
 }
@@ -41,7 +41,7 @@ export const PreviewViewport = forwardRef(function PreviewViewport(
 ) {
   return (
     <section ref={ref} aria-label={label} className={cn('relative flex min-h-0 flex-1 bg-viewport', scrollable ? 'overflow-auto' : 'items-center justify-center overflow-hidden')}>
-      <div className={cn('relative shrink-0 shadow-md', scrollable && 'm-auto')} style={{ width, height }} data-testid="preview-frame" data-background={background}>
+      <div className={cn('relative shrink-0 blk blk-edge-container', scrollable && 'm-auto')} style={{ width, height }} data-testid="preview-frame" data-background={background}>
         <div
           className={cn('absolute inset-0', background === 'checker' && 'preview-checker')}
           style={background === 'solid' ? { background: solidColor } : undefined}
@@ -50,7 +50,7 @@ export const PreviewViewport = forwardRef(function PreviewViewport(
         <div ref={stageRef} data-testid="preview-stage" className="absolute inset-0" role="img" aria-label={stageLabel} />
         {guides && <Guides />}
       </div>
-      {toolbar && <div className="absolute top-2 right-2 z-20 flex items-center gap-1">{toolbar}</div>}
+      {toolbar && <div className="absolute top-3 right-3 z-20 flex items-center gap-2">{toolbar}</div>}
       {children}
     </section>
   );

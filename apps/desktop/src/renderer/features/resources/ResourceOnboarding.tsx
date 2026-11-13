@@ -14,14 +14,14 @@ export function ResourceOnboarding() {
       role="region"
       aria-labelledby="onboarding-title"
       data-testid="resources-onboarding"
-      className="absolute top-6 left-1/2 z-10 flex w-[min(520px,calc(100%-48px))] -translate-x-1/2 flex-col gap-3 rounded-lg border bg-surface-2 p-4 shadow-lg"
+      className="absolute top-16 left-1/2 z-10 flex w-[min(520px,calc(100%-48px))] -translate-x-1/2 flex-col gap-3 blk-float p-4"
     >
-      <h2 id="onboarding-title" className="text-sm font-semibold">
+      <h2 id="onboarding-title" className="font-px24">
         {t('resources.onboarding.title')}
       </h2>
       <p className="text-sm text-fg-muted">{t('resources.onboarding.body', { name: t('brand.name') })}</p>
       <VanillaSourceActions />
-      <div className="flex flex-col gap-1 border-t pt-3">
+      <div className="flex flex-col gap-2 border-t-2 pt-3">
         <Button variant="secondary" className="self-start" data-testid="onboarding-add-pack" onClick={() => void addPack(t, 'zip')}>
           {t('resources.addPack')}
         </Button>

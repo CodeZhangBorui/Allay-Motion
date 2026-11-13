@@ -52,7 +52,7 @@ export function ScrubNumberField({ value, onChange, min, max, step = 1, decimals
         const clamped = Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v));
         if (clamped !== value) onChange(clamped);
       }}
-      className={cn('flex h-7 min-w-0 items-center rounded-md border border-input-border bg-surface-3 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--ring) hover:border-border-strong', disabled && 'opacity-50', className)}
+      className={cn('flex h-7 min-w-0 items-center blk blk-sunken focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--ring) hover:[--blk-c:var(--fg-muted)]', disabled && 'opacity-50', className)}
       data-testid={testId}
     >
       <NumberField.ScrubArea
@@ -62,14 +62,14 @@ export function ScrubNumberField({ value, onChange, min, max, step = 1, decimals
         onPointerDownCapture={() => beginGesture(editor)}
         aria-hidden="true"
       >
-        {scrubLabel ?? <MoveHorizontal className="size-3" />}
-        <NumberField.ScrubAreaCursor className="drop-shadow-sm">
+        {scrubLabel ?? <MoveHorizontal className="size-4" />}
+        <NumberField.ScrubAreaCursor>
           <MoveHorizontal className="size-4" />
         </NumberField.ScrubAreaCursor>
       </NumberField.ScrubArea>
       <NumberField.Group className="flex h-full min-w-0 flex-1 items-center">
-        <NumberField.Input aria-label={label} className="h-full w-full min-w-0 bg-transparent pr-1.5 text-right text-sm tabular-nums outline-none select-text" />
-        {unit && <span className="shrink-0 pr-1.5 text-xs text-fg-muted">{unit}</span>}
+        <NumberField.Input aria-label={label} className="h-full w-full min-w-0 bg-transparent pr-1.5 text-right font-px12 text-foreground outline-none select-text" />
+        {unit && <span className="shrink-0 pr-2 font-px12 text-fg-muted">{unit}</span>}
       </NumberField.Group>
     </NumberField.Root>
   );

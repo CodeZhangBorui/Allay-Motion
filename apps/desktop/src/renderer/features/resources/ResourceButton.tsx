@@ -25,12 +25,12 @@ export function ResourceButton() {
       <PopoverTrigger
         render={<Button variant="ghost" className="app-no-drag max-w-64 text-fg-muted" data-testid="resources-button" aria-label={`${t('resources.buttonLabel')}: ${label}`} />}
       >
-        {icon ? <img src={icon} alt="" className="pixelated size-4 rounded-[2px]" /> : <Layers />}
+        {icon ? <img src={icon} alt="" className="pixelated size-4" /> : <Layers />}
         <span className="truncate">{label}</span>
-        <ChevronDown className="size-3.5" />
+        <ChevronDown className="size-4" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[400px] max-h-[min(70vh,600px)]" data-testid="resources-popover" aria-label={t('resources.title')}>
-        <PopoverTitle className="mb-1 text-sm font-semibold">{t('resources.title')}</PopoverTitle>
+        <PopoverTitle className="mb-2 font-px24">{t('resources.title')}</PopoverTitle>
         <ResourceStackPanel />
       </PopoverContent>
     </Popover>

@@ -26,7 +26,7 @@ export function VanillaSourceActions() {
           aria-valuemax={100}
           {...(pct !== null ? { 'aria-valuenow': pct } : {})}
           data-testid="download-progress"
-          className="h-1.5 w-full overflow-hidden rounded-full bg-skeleton"
+          className="h-3 w-full overflow-hidden blk blk-sunken p-0.5"
         >
           <div className="h-full bg-primary" style={{ width: pct === null ? '15%' : `${pct}%` }} />
         </div>

@@ -22,7 +22,7 @@ export interface ColorFieldProps {
 
 function Swatch({ hex, className }: { hex: string; className?: string }) {
   return (
-    <span className={cn('relative inline-block overflow-hidden rounded-sm border border-border-strong', className)} aria-hidden="true">
+    <span className={cn('relative inline-block overflow-hidden border-2 border-input-border', className)} aria-hidden="true">
       <span className="preview-checker-sm absolute inset-0" />
       <span className="absolute inset-0" style={{ background: hex }} />
     </span>
@@ -56,10 +56,10 @@ export function ColorField({ value, onChange, alpha, palette, label, testId }: C
       <PopoverTrigger
         data-testid={testId}
         aria-label={label}
-        className="inline-flex h-7 min-w-0 items-center gap-2 rounded-md border border-input-border bg-surface-3 px-1.5 text-sm hover:border-border-strong"
+        className="inline-flex h-7 min-w-0 items-center gap-2 blk blk-sunken px-1.5 text-sm hover:[--blk-c:var(--fg-muted)]"
       >
         <Swatch hex={value} className="size-4 shrink-0" />
-        <span className="truncate font-mono text-xs tabular-nums">{value}</span>
+        <span className="truncate font-px12">{value}</span>
       </PopoverTrigger>
       <PopoverContent side="left" align="start" className="w-[232px]" aria-label={label}>
         <div className="flex flex-col gap-3">
@@ -72,7 +72,7 @@ export function ColorField({ value, onChange, alpha, palette, label, testId }: C
               aria-label={editor.t('color.hex')}
               value={draft}
               maxLength={alpha ? 9 : 7}
-              className="font-mono text-xs"
+              className="font-px12"
               onChange={(e) => setDraft(e.currentTarget.value)}
               onBlur={commitDraft}
               onKeyDown={(e) => {
@@ -82,10 +82,10 @@ export function ColorField({ value, onChange, alpha, palette, label, testId }: C
           </div>
           {recent.length > 0 && (
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-fg-muted">{editor.t('color.recent')}</span>
+              <span className="font-px12 text-fg-muted">{editor.t('color.recent')}</span>
               <div className="flex flex-wrap gap-1">
                 {recent.map((c) => (
-                  <button key={c} type="button" aria-label={c} title={c} className="size-6 rounded-sm" onClick={() => set(c)}>
+                  <button key={c} type="button" aria-label={c} title={c} className="size-6" onClick={() => set(c)}>
                     <Swatch hex={c} className="size-6" />
                   </button>
                 ))}
@@ -94,7 +94,7 @@ export function ColorField({ value, onChange, alpha, palette, label, testId }: C
           )}
           {palette && (
             <div className="flex flex-col gap-1">
-              <span className="text-xs text-fg-muted">{editor.t(`color.palette.${palette}`)}</span>
+              <span className="font-px12 text-fg-muted">{editor.t(`color.palette.${palette}`)}</span>
               <div className="grid grid-cols-8 gap-1">
                 {PALETTES[palette].map((c) => {
                   const name = editor.t(`color.${palette}.${c.key}`);
@@ -104,7 +104,7 @@ export function ColorField({ value, onChange, alpha, palette, label, testId }: C
                       type="button"
                       aria-label={name}
                       title={`${name} ${c.hex}`}
-                      className="size-6 rounded-sm"
+                      className="size-6"
                       onClick={() => {
                         set(alpha && value.length === 9 ? `${c.hex}${value.slice(7)}` : c.hex);
                         editor.addRecent('color', c.hex);
