@@ -635,3 +635,9 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 假资源栈（`fake-resources.ts`）不需要补：它对任何贴图 ID 都返回纯色图，界面贴图、方块面、物品图标都覆盖到了；文字用的是仓库里真实的兜底字体，默认文案（含 “…”）都有字形，T-TPL-3 无警告。
 - T-TPL-5 的基准图由 `pnpm templates:baselines` 用纯色假资源栈渲染，路径已被 `ASSETS_PROVENANCE.json` 里 `tests/fixtures/baselines/**` 的 `rendered` 记录覆盖。
 - 评审联络图 `docs/review/M6a/<模板>.png` 由 `docs/review/M6a/make-sheets.ts` 从基准图拼成（缩小一半、铺在棋盘格上），不含原版贴图。用本机真实游戏截的图放在被忽略的 `docs/review/M6a/out/`，不提交。
+
+## 范围变更：模板开发模式纳入本次交付（2026-11-13，用户确认）
+
+- 用户要求“为动画纯代码编辑做准备”，并要求该功能解耦、可整块砍掉。主控据三路调研给出方案 `docs/code-editing-and-mcp-plan.md`，用户答复“纳入”：把 P0（模板开发模式：外部编辑器改模板文件、应用监视并热重载）纳入本次交付，新增里程碑 MD（`docs/08-milestones.md`），排在 M7 之后、M8 之前。
+- 这改变了 `docs/01-product-architecture.md` 1.2 的范围（原“之后的方向”第 1 条）。内嵌编辑器（P1 及以后）和 MCP 仍不做；MCP 启用前必须另行取得用户同意（H-MCP）。
+- 界面重设计中途定稿的方向见 `docs/design/ui-direction-v4.*`；用户同意引入 IBM Plex Sans、IBM Plex Mono、Noto Sans SC 三种 OFL 字体，图标由 Lucide 换为 Phosphor。
