@@ -53,7 +53,9 @@ const MALFORMED: Record<string, unknown[][]> = {
     [],
     [null],
     [{ preset: 'prores4444' }],
-    [{ preset: 'webm-vp9', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'gif', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'webm-vp9', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: '' }],
+    [{ preset: 'greenscreen-mp4', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x', encoder: 'libx264' }],
     [{ preset: 'prores4444', width: 1001, height: 563, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
     [{ preset: 'prores4444', width: 1920, height: 1080, fps: 61, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
     [{ preset: 'prores4444', width: 1920, height: 1080, fps: 60, totalFrames: 0, cutFrame: null, suggestedName: 'x' }],
@@ -72,6 +74,13 @@ const MALFORMED: Record<string, unknown[][]> = {
   'export.finish': [[], [42], ['C:\\out.mov'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301']],
   'export.cancel': [[], [null], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
   'export.ffmpegInfo': [[1], ['C:\\ffmpeg.exe'], [{ path: 'x' }]],
+  'export.probeEncoders': [[], ['true'], [1], [true, 'h264_mf'], [{ candidates: ['x'] }]],
+  'export.outputFolder': [[1], ['C:\\Windows']],
+  // 合法的 chooseFolder 会弹文件夹对话框，这里只有畸形参数；文件夹只能从对话框来，不接受路径
+  'export.chooseFolder': [['C:\\Windows'], [{ folder: 'C:\\x' }]],
+  // 格式合法但不存在（或没有完成）的任务也拒绝：只能显示这个进程里导出完成的文件
+  'export.reveal': [[], ['C:\\Windows\\win.ini'], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'x']],
+  'export.copyDiagnostics': [[], [''], [42], ['x'.repeat(20_001)], [{ text: 'x' }], ['x', 'y']],
   'resources.layers': [[1], ['all']],
   'resources.stamp': [[1]],
   'resources.read': [
