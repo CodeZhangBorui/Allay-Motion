@@ -43,7 +43,7 @@ function ProjectMenu() {
         {dirty && (
           <span className="size-2 shrink-0 bg-fg-muted" data-testid="project-dirty" aria-label={t('project.unsavedMark')} role="img" />
         )}
-        <ChevronDown className="size-4 text-fg-muted" />
+        <ChevronDown className="size-(--icon-sm) text-fg-muted" />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-60">
         <DropdownMenuItem onClick={() => void newProject()} data-testid="project-new">

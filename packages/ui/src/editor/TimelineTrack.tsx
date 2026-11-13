@@ -177,19 +177,19 @@ export function TimelineTrack(props: TimelineTrackProps) {
             onPointerCancel={onBoundaryUp}
             onKeyDown={onBoundaryKey(i)}
           >
-            <span className="h-6 w-1 bg-foreground shadow-[0_0_0_2px_var(--well)]" />
+            <span className="h-6 w-1 bg-foreground halo-well" />
           </div>
         ))}
       {/* 剪辑点 */}
       {cutTime !== null && duration > 0 && (
         <div className="absolute bottom-0 z-10 -translate-x-1/2" style={{ left: pct(cutTime) }} title={labels.cut} data-testid="timeline-cut">
-          <span className="block size-2 rotate-45 bg-allay shadow-[0_0_0_2px_var(--surface-1)]" />
+          <span className="block size-2 rotate-45 bg-allay halo-panel" />
           <span className="sr-only">{labels.cut}</span>
         </div>
       )}
       {/* 播放头 */}
       <div className="pointer-events-none absolute inset-y-0.5 z-20 w-0.5 -translate-x-1/2 bg-foreground" style={{ left: pct(time) }} data-testid="timeline-playhead">
-        <span className="absolute top-0 left-1/2 size-2.5 -translate-x-1/2 bg-foreground shadow-[0_0_0_2px_var(--surface-1)]" />
+        <span className="absolute top-0 left-1/2 size-2.5 -translate-x-1/2 bg-foreground halo-panel" />
       </div>
       {/* 悬停时间 */}
       {hoverTime !== null && !disabled && (

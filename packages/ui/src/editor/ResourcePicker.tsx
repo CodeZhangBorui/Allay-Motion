@@ -33,7 +33,7 @@ export function ResourceThumb({ kind, id, size = 32, className }: { kind: Kind; 
   if (url === null)
     return (
       <span className={cn('inline-flex shrink-0 items-center justify-center bg-skeleton text-fg-muted', className)} style={{ width: size, height: size }} aria-hidden="true">
-        <ImageOff className="size-4" />
+        <ImageOff className="size-(--icon-sm)" />
       </span>
     );
   return <img src={url} alt="" width={size} height={size} draggable={false} className={cn('pixelated shrink-0', className)} />;
@@ -90,7 +90,7 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
   return (
     <div className="flex flex-col gap-2">
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
+        <Search className="pointer-events-none absolute top-1/2 left-2 size-(--icon-sm) -translate-y-1/2 text-fg-muted" aria-hidden="true" />
         <Input autoFocus value={q} onChange={(e) => setQ(e.currentTarget.value)} placeholder={editor.t('picker.search')} aria-label={editor.t('picker.search')} className="pl-8" />
       </div>
       {!editor.hasAssets && (

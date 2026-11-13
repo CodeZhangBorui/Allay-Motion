@@ -52,13 +52,13 @@ export function TemplateCard({ name, coverUrl, selected, user, userLabel, warnin
           {hover && coverUrl && renderPreview && <div className="absolute inset-0">{renderPreview()}</div>}
         </div>
         {user && (
-          <span className="absolute top-1 left-1 size-2.5 bg-amethyst shadow-[0_0_0_2px_var(--well)]" title={userLabel}>
+          <span className="absolute top-1 left-1 size-2.5 bg-amethyst halo-well" title={userLabel}>
             <span className="sr-only">{userLabel}</span>
           </span>
         )}
         {warning && (
           <span className="absolute top-1 right-1 inline-flex size-5 items-center justify-center bg-well text-warning" aria-hidden="true">
-            <TriangleAlert className="size-4" />
+            <TriangleAlert className="size-(--icon-sm)" />
           </span>
         )}
       </div>

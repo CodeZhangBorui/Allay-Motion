@@ -12,7 +12,7 @@ function Command({ className, ...props }: ComponentProps<typeof CommandPrimitive
 function CommandInput({ className, ...props }: ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div className="m-2 flex h-9 shrink-0 items-center gap-2 blk blk-sunken px-2.5">
-      <Search className="size-4 shrink-0 text-fg-muted" aria-hidden="true" />
+      <Search className="size-(--icon-sm) shrink-0 text-fg-muted" aria-hidden="true" />
       <CommandPrimitive.Input className={cn('h-full w-full bg-transparent outline-none select-text placeholder:text-fg-subtle', className)} {...props} />
     </div>
   );
@@ -34,7 +34,7 @@ function CommandItem({ className, ...props }: ComponentProps<typeof CommandPrimi
   return (
     <CommandPrimitive.Item
       className={cn(
-        'relative flex h-8 cursor-default items-center gap-2 px-2 outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-surface-3 data-[selected=true]:shadow-[inset_2px_0_0_0_var(--ring)] [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-fg-muted',
+        'relative flex h-8 cursor-default items-center gap-2 px-2 outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-surface-3 data-[selected=true]:blk-mark-left [&_svg]:size-(--icon-sm) [&_svg]:shrink-0 [&_svg]:text-fg-muted',
         className,
       )}
       {...props}

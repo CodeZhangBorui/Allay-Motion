@@ -73,7 +73,7 @@ export function ResourceStackPanel() {
         <ul className="flex flex-col gap-0.5">
           {state.brokenPacks.map((b) => (
             <li key={b.id} data-testid="layer-broken" data-layer-id={b.id} className="flex items-center gap-2 py-1.5 pr-1 pl-6">
-              <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden="true" />
+              <TriangleAlert className="size-(--icon-sm) shrink-0 text-warning" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{b.name}</p>
                 <p className="text-xs text-warning">{t(`resources.broken.${b.problem}`)}</p>
@@ -87,7 +87,7 @@ export function ResourceStackPanel() {
       )}
       {state.vanilla.problem && (
         <p role="status" className="flex items-start gap-1 text-xs text-warning">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <TriangleAlert className="mt-0.5 size-(--icon-sm) shrink-0" aria-hidden="true" />
           {t('resources.vanillaProblem')}
         </p>
       )}

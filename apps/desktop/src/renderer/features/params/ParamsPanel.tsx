@@ -106,7 +106,7 @@ export function ParamsPanel() {
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="text-fg-muted" data-testid="preset-menu" />}>
             {t('params.presets.title')}
-            <ChevronDown className="size-4" />
+            <ChevronDown className="size-(--icon-sm)" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {presets.length === 0 ? (

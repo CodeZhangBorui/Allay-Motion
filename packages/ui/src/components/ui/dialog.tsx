@@ -18,7 +18,7 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & { showClose?: boolean; closeLabel?: string; children?: ReactNode }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/50 transition-opacity duration-(--dur-3) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
+      <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-scrim transition-opacity duration-(--dur-3) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0" />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
@@ -34,7 +34,7 @@ function DialogContent({
             aria-label={closeLabel}
             className="absolute top-3 right-3 inline-flex size-7 items-center justify-center text-fg-muted hover:blk hover:blk-raised hover:text-foreground active:blk-down"
           >
-            <X className="size-4" />
+            <X className="size-(--icon-sm)" />
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Popup>

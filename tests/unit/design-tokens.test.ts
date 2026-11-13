@@ -84,7 +84,8 @@ describe('6.2 设计变量', () => {
         const t = part.trim().replace(/^inset\s+/, '');
         if (t.startsWith('var(')) continue;
         // 第三个长度（模糊半径）必须是 0；扩展半径可以有
-        expect(t, part).toMatch(/^-?\d+(px)? -?\d+(px)? 0( -?\d+(px)?)? /);
+        const len = String.raw`(?:-?\d+(?:px)?|var\(--[\w-]+\))`;
+        expect(t, part).toMatch(new RegExp(`^${len} ${len} 0( ${len})? `));
       }
     }
     expect(css).not.toMatch(/(linear|radial)-gradient/);

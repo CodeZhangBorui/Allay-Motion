@@ -42,7 +42,7 @@ function ToggleGroupItem({ className, ...props }: TogglePrimitive.Props<string>)
   return (
     <TogglePrimitive
       className={cn(
-        'inline-flex min-w-6 flex-1 items-center justify-center gap-1 blk blk-raised px-2 font-px12 whitespace-nowrap text-fg-muted transition-colors duration-(--dur-1) ease-(--ease-step) select-none hover:bg-surface-3 hover:text-foreground data-[pressed]:blk-sunken data-[pressed]:text-primary-text [&_svg]:size-4',
+        'inline-flex min-w-6 flex-1 items-center justify-center gap-1 blk blk-raised px-2 font-px12 whitespace-nowrap text-fg-muted transition-colors duration-(--dur-1) ease-(--ease-step) select-none hover:bg-surface-3 hover:text-foreground data-[pressed]:blk-sunken data-[pressed]:text-primary-text [&_svg]:size-(--icon-sm)',
         className,
       )}
       {...props}
@@ -73,7 +73,7 @@ function Kbd({ className, ...props }: ComponentProps<'kbd'>) {
 
 /** 区域很小（按钮内、行内）时的小转圈（6.8） */
 function Spinner({ className, label }: { className?: string; label?: string }) {
-  return <LoaderCircle role={label ? 'status' : undefined} aria-label={label} aria-hidden={label ? undefined : true} className={cn('size-4 animate-spin text-fg-muted [animation-timing-function:steps(8,end)]', className)} />;
+  return <LoaderCircle role={label ? 'status' : undefined} aria-label={label} aria-hidden={label ? undefined : true} className={cn('size-(--icon-sm) animate-spin text-fg-muted [animation-timing-function:steps(8,end)]', className)} />;
 }
 
 /** 骨架块：形状与最终布局一致；只有很轻的呼吸（7.6 A） */

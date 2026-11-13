@@ -8,7 +8,7 @@ import type { ComponentProps } from 'react';
 export const menuPopupClass =
   'z-50 min-w-44 blk-float p-1.5 text-sm outline-none transition-opacity duration-(--dur-2) ease-(--ease-step) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0';
 export const menuItemClass =
-  'relative flex h-7 cursor-default items-center gap-2 px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-3 data-[highlighted]:shadow-[inset_2px_0_0_0_var(--ring)] [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-fg-muted';
+  'relative flex h-7 cursor-default items-center gap-2 px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-3 data-[highlighted]:blk-mark-left [&_svg]:size-(--icon-sm) [&_svg]:shrink-0 [&_svg]:text-fg-muted';
 
 const DropdownMenu = MenuPrimitive.Root;
 const DropdownMenuTrigger = MenuPrimitive.Trigger;

@@ -174,9 +174,9 @@ export function ParamGroup({ id, title, collapsed, onToggle, children }: { id: s
     <Collapsible open={!collapsed} onOpenChange={(open) => onToggle(!open)}>
       <CollapsibleTrigger
         data-testid={`param-group-${id}`}
-        className="group flex h-7 w-full items-center gap-1.5 bg-surface-2 px-2 text-left font-px12 text-foreground shadow-[inset_0_2px_0_0_var(--bevel-hi),inset_0_-2px_0_0_var(--bevel-lo)] hover:bg-surface-3"
+        className="group flex h-7 w-full items-center gap-1.5 bg-surface-2 px-2 text-left font-px12 text-foreground blk-bar hover:bg-surface-3"
       >
-        <ChevronRight className="size-4 text-fg-muted transition-transform duration-(--dur-2) ease-(--ease-step) group-data-[panel-open]:rotate-90" aria-hidden="true" />
+        <ChevronRight className="size-(--icon-sm) text-fg-muted transition-transform duration-(--dur-2) ease-(--ease-step) group-data-[panel-open]:rotate-90" aria-hidden="true" />
         {title}
       </CollapsibleTrigger>
       <CollapsibleContent className="py-1.5">{children}</CollapsibleContent>

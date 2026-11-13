@@ -62,9 +62,9 @@ export function ScrubNumberField({ value, onChange, min, max, step = 1, decimals
         onPointerDownCapture={() => beginGesture(editor)}
         aria-hidden="true"
       >
-        {scrubLabel ?? <MoveHorizontal className="size-4" />}
+        {scrubLabel ?? <MoveHorizontal className="size-(--icon-sm)" />}
         <NumberField.ScrubAreaCursor>
-          <MoveHorizontal className="size-4" />
+          <MoveHorizontal className="size-(--icon-sm)" />
         </NumberField.ScrubAreaCursor>
       </NumberField.ScrubArea>
       <NumberField.Group className="flex h-full min-w-0 flex-1 items-center">

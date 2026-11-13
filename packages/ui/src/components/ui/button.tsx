@@ -6,7 +6,7 @@ import { cn } from "cn"
 // default 是主操作：青色实心块配深色墨字。ghost 平时是平的，悬停时浮出凸块，按下（aria-pressed）时是凹槽。
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center font-px12 whitespace-nowrap transition-[background-color,color,translate] duration-(--dur-1) ease-(--ease-step) select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center font-px12 whitespace-nowrap transition-[background-color,color,translate] duration-(--dur-1) ease-(--ease-step) select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
   {
     variants: {
       variant: {
@@ -21,11 +21,11 @@ const buttonVariants = cva(
       size: {
         // 控件高度：28 默认、24 紧凑、32 对话框底部按钮（6.2 尺寸）
         default: "h-7 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
-        xs: "h-6 gap-1 px-2 [&_svg:not([class*='size-'])]:size-4",
-        sm: "h-6 gap-1 px-2 [&_svg:not([class*='size-'])]:size-4",
+        xs: "h-6 gap-1 px-2 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
+        sm: "h-6 gap-1 px-2 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
         lg: "h-8 gap-1.5 px-3.5",
         icon: "size-7",
-        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-4",
+        "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-(--icon-sm)",
         "icon-sm": "size-6",
         "icon-lg": "size-8",
       },

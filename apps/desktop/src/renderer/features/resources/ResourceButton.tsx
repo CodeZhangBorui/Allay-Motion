@@ -27,7 +27,7 @@ export function ResourceButton() {
       >
         {icon ? <img src={icon} alt="" className="pixelated size-4" /> : <Layers />}
         <span className="truncate">{label}</span>
-        <ChevronDown className="size-4" />
+        <ChevronDown className="size-(--icon-sm)" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[400px] max-h-[min(70vh,600px)]" data-testid="resources-popover" aria-label={t('resources.title')}>
         <PopoverTitle className="mb-2 font-px24">{t('resources.title')}</PopoverTitle>

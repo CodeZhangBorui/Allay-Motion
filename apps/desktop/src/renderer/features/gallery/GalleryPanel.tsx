@@ -100,11 +100,11 @@ export function GalleryPanel() {
     <aside aria-label={t('gallery.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="gallery">
       <div className="flex flex-col gap-2.5 border-b-2 p-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-fg-muted" aria-hidden="true" />
+          <Search className="pointer-events-none absolute top-1/2 left-2 size-(--icon-sm) -translate-y-1/2 text-fg-muted" aria-hidden="true" />
           <Input id="gallery-search" value={query} onChange={(e) => setQuery(e.currentTarget.value)} placeholder={t('gallery.search')} aria-label={t('gallery.search')} className="pr-8 pl-8" data-testid="gallery-search" />
           {query && (
             <button type="button" aria-label={t('gallery.clearSearch')} className="absolute top-1/2 right-1 inline-flex size-6 -translate-y-1/2 items-center justify-center text-fg-muted hover:text-foreground" onClick={() => setQuery('')}>
-              <X className="size-4" />
+              <X className="size-(--icon-sm)" />
             </button>
           )}
         </div>

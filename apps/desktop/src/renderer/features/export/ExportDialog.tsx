@@ -103,7 +103,7 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
                   key={p}
                   className="flex h-9 cursor-pointer items-center gap-2.5 blk blk-raised px-3 text-sm hover:bg-surface-3 has-checked:blk-sunken has-checked:blk-edge-ring has-disabled:cursor-default has-disabled:opacity-50"
                 >
-                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="size-4 shrink-0 appearance-none blk-sunken shadow-[0_0_0_2px_var(--input-border)] checked:bg-primary checked:shadow-[0_0_0_2px_var(--ring),inset_0_0_0_3px_var(--well)]" />
+                  <input type="radio" name="preset" value={p} checked={preset === p} disabled={!presetAvailable(p)} onChange={() => setPreset(p)} className="size-4 shrink-0 blk-radio" />
                   {t(`export.presets.${p === 'prores4444' ? 'prores' : 'png'}`)}
                 </label>
               ))}
@@ -139,7 +139,7 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
                 value={phase.progress.total > 0 ? phase.progress.written / phase.progress.total : 0}
                 phase="rendering"
                 label={t('export.progressLabel')}
-                carry={<Clapperboard className="size-4 text-foreground" />}
+                carry={<Clapperboard className="size-(--icon-sm) text-foreground" />}
               />
               <span data-testid="export-progress" className="font-px12 text-fg-muted">
                 {t('export.progress', { written: phase.progress.written, total: phase.progress.total })}

@@ -16,7 +16,7 @@ function SelectTrigger({ className, children, ...props }: SelectPrimitive.Trigge
     <SelectPrimitive.Trigger className={cn(fieldClass, 'inline-flex min-w-0 items-center justify-between gap-1.5 pr-0.5 text-left', className)} {...props}>
       {children}
       <SelectPrimitive.Icon className="inline-flex size-6 shrink-0 items-center justify-center blk-raised text-fg-muted">
-        <ChevronDown className="size-4" />
+        <ChevronDown className="size-(--icon-sm)" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );

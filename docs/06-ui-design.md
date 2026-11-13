@@ -126,6 +126,21 @@
 
 全应用禁止 `backdrop-filter`、带模糊的阴影、外发光、渐变填充。
 
+**形状、厚度和图标的变量**（与主题无关，放在 `:root`；换风格时先改这些，组件里不写死）
+
+| 变量 | 值 | 用途 |
+|---|---|---|
+| `--edge` | 2px | 描边、斜面、分隔线、标记外圈的粗细（`--edge-neg` 是它的负值） |
+| `--drop` | 4px | 浮层硬投影的偏移（`--drop-near`、`--drop-far` 由它和 `--edge` 算出，画缺角的轮廓） |
+| `--focus-width` / `--focus-offset` | 2px / 2px | 焦点环 |
+| `--icon-sm` / `--icon-md` | 16px / 20px | 图标尺寸（组件里写 `size-(--icon-sm)`） |
+| `--icon-stroke` / `--icon-linecap` / `--icon-linejoin` | 2.5 / square / miter | Lucide 图标的线 |
+| `--scrim`、`--scrim-drop`、`--on-scrim` | 半透明黑、白 | 对话框和拖放的压暗、压暗上的文字 |
+| `--guide-strong`、`--guide-weak` | 半透明白 | 预览的安全框参考线（叠加方式是 difference，与主题无关） |
+| `--picker-pointer` | 白 | 取色区域的取色点内圈 |
+
+组件里原来写成任意值的几种硬边阴影都收成了具名工具类：`blk-mark-left`（菜单高亮项左侧的竖线）、`blk-bar`（分组标题条）、`halo-panel` / `halo-well`（小标记外圈）、`blk-radio`（方形单选框）、`bg-scrim`。
+
 **字体**
 
 - 界面字体：`"Inter Variable", "Segoe UI Variable Text", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif`。只随包带 Inter，中文用系统字体。

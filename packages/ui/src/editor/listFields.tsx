@@ -71,7 +71,7 @@ export function BlockListField({ value, onChange, max = 64, label, testId }: { v
           onPick={(id) => onChange([...value, { id, weight: 1 }])}
           trigger={
             <PopoverTrigger className="inline-flex h-6 items-center gap-1 self-start px-1.5 font-px12 text-fg-muted hover:blk hover:blk-raised hover:text-foreground active:blk-down" data-testid={testId ? `${testId}-add` : undefined}>
-              <Plus className="size-4" />
+              <Plus className="size-(--icon-sm)" />
               {editor.t('blockList.add')}
             </PopoverTrigger>
           }

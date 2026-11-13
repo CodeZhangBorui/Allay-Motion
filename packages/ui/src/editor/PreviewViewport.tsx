@@ -27,10 +27,10 @@ export interface PreviewViewportProps {
 function Guides() {
   return (
     <div className="pointer-events-none absolute inset-0" aria-hidden="true" data-testid="preview-guides">
-      <div className="absolute inset-[3.5%] border-2 border-dashed border-white/45 mix-blend-difference" />
-      <div className="absolute inset-[10%] border-2 border-dashed border-white/30 mix-blend-difference" />
-      <div className="absolute top-1/2 left-1/2 h-4 w-0.5 -translate-1/2 bg-white/45 mix-blend-difference" />
-      <div className="absolute top-1/2 left-1/2 h-0.5 w-4 -translate-1/2 bg-white/45 mix-blend-difference" />
+      <div className="absolute inset-[3.5%] border-2 border-dashed border-(--guide-strong) mix-blend-difference" />
+      <div className="absolute inset-[10%] border-2 border-dashed border-(--guide-weak) mix-blend-difference" />
+      <div className="absolute top-1/2 left-1/2 h-4 w-0.5 -translate-1/2 bg-(--guide-strong) mix-blend-difference" />
+      <div className="absolute top-1/2 left-1/2 h-0.5 w-4 -translate-1/2 bg-(--guide-strong) mix-blend-difference" />
     </div>
   );
 }

@@ -56,13 +56,13 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="size-4" />
+          <GripVertical className="size-(--icon-sm)" />
         </button>
       ) : (
         <span className="w-5 shrink-0" aria-hidden="true" />
       )}
       <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden blk-sunken">
-        {row.iconUrl ? <img src={row.iconUrl} alt="" className="pixelated size-8" /> : <Package className="size-4 text-fg-muted" aria-hidden="true" />}
+        {row.iconUrl ? <img src={row.iconUrl} alt="" className="pixelated size-8" /> : <Package className="size-(--icon-sm) text-fg-muted" aria-hidden="true" />}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
@@ -78,7 +78,7 @@ function Row({ row, labels, onToggle, onRemove }: { row: StackRow } & Pick<Resou
         )}
         {row.warning && (
           <p className="flex items-center gap-1 text-xs text-warning" data-testid="layer-warning">
-            <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+            <TriangleAlert className="size-(--icon-sm) shrink-0" aria-hidden="true" />
             <span className="truncate" title={row.warning}>
               {row.warning}
             </span>
