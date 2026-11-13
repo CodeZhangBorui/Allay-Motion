@@ -1,14 +1,14 @@
 // 模板封面和悬停预览（docs/04-templates.md 4.8 第 5 步、06-ui-design.md 6.4 模板库）：
-// 由杂务引擎 Worker 以 320×180、30 fps 渲染，按 resourceStamp 缓存到 userData/cache/thumbs/。
+// 由杂务引擎 Worker 经统一的静帧接口（engine-host/still.ts，H4）以 320×180、30 fps 渲染，按 resourceStamp 缓存到 userData/cache/thumbs/。
 // 封面是剪辑点那一帧（没有剪辑点取中间一帧）；悬停预览是全部帧排成的网格图，播放时按帧画到一块小画布上。
 // 模板安装后、资源栈变化后重建；重建期间模板库显示骨架和悦灵。
-import { frameCount } from '@allay/engine/frames';
-import { defaultParams, type FrameQuality } from '@allay/template-sdk';
+import { defaultParams } from '@allay/template-sdk';
 import i18next from 'i18next';
 import { create } from 'zustand';
 import type { TemplateEntry } from '../../../shared/templates';
 import { EngineHost } from '../../engine-host/EngineHost';
-import { createResolver, loadStamp } from '../../engine-host/resource-client';
+import { createResolver } from '../../engine-host/resource-client';
+import { openStill, STILL_FAST } from '../../engine-host/still';
 import { currentStamp, useResourceStore } from '../../stores/resourceStore';
 import { readTemplate, type AssetSource } from '../../templates/catalog';
 
@@ -18,8 +18,6 @@ export const COVER_FPS = 30;
 /** 悬停预览最多 4 秒 */
 const MAX_FRAMES = COVER_FPS * 4;
 const SHEET_COLS = 8;
-/** 封面只是缩略图：不加运动模糊，渲染快 */
-const COVER_QUALITY: FrameQuality = { subframes: 1, shutterAngle: 0 };
 const STAMP_RE = /^[0-9a-f]{16}$/;
 const MAX_DISK_BYTES = 8 * 1024 * 1024;
 
@@ -142,17 +140,10 @@ class CoverService {
     const host = await this.getHost();
     try {
       this.assets = source.assets;
-      const output = { width: COVER_W, height: COVER_H, fps: COVER_FPS };
-      const loaded = await host.load({
-        manifest: source.manifest,
-        code: source.code,
-        params: defaultParams(source.params, { locale: i18next.language }),
-        output,
-        resourceStamp: loadStamp(source.assets),
-        locale: i18next.language,
-      });
-      const total = Math.min(MAX_FRAMES, frameCount(loaded.duration, COVER_FPS));
-      const cut = loaded.cutTime === null ? Math.floor(total / 2) : Math.min(total - 1, Math.round(loaded.cutTime * COVER_FPS));
+      const locale = i18next.language;
+      const still = await openStill(host, { source, params: defaultParams(source.params, { locale }), width: COVER_W, height: COVER_H, fps: COVER_FPS, locale });
+      const total = Math.min(MAX_FRAMES, still.frames);
+      const cut = still.cutTime === null ? Math.floor(total / 2) : Math.min(total - 1, Math.round(still.cutTime * COVER_FPS));
       const cols = Math.min(SHEET_COLS, total);
       const rows = Math.ceil(total / cols);
       const sheet = new OffscreenCanvas(cols * COVER_W, rows * COVER_H);
@@ -161,8 +152,8 @@ class CoverService {
       const cg = coverCanvas.getContext('2d');
       if (!g || !cg) throw new Error('2d context unavailable');
       for (let i = 0; i < total; i++) {
-        const px = await host.renderFrame(i, COVER_QUALITY);
-        const img = new ImageData(new Uint8ClampedArray(px.buffer, px.byteOffset, px.byteLength), COVER_W, COVER_H);
+        // 封面只是缩略图：不加运动模糊，渲染快
+        const img = await still.frame(i, STILL_FAST);
         g.putImageData(img, (i % cols) * COVER_W, Math.floor(i / cols) * COVER_H);
         if (i === cut) cg.putImageData(img, 0, 0);
       }
