@@ -1,0 +1,38 @@
+/*
+ * 悦灵编排用到的几个 CSS 动画（docs/07-allay-mascot.md 7.6）。帧动画和飞行由帧循环驱动（ticker.ts），这里只有：
+ * - 退场时内容项依次淡入并上移 8 px（7.6 A）；
+ * - 目标被送到东西时弹一下（7.6 B 的文件图标、7.6 D 的素材按钮和“我的”标签）。
+ * 减少动效时两者都不做（组件本身就不加这两个类，下面的规则是兜底）。
+ */
+@keyframes allay-item-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes allay-target-bounce {
+  0%,
+  100% {
+    transform: none;
+  }
+  35% {
+    transform: scale(1.18);
+  }
+  70% {
+    transform: scale(0.96);
+  }
+}
+.allay-item-rise {
+  animation: allay-item-rise var(--dur-2, 200ms) var(--ease-out, ease-out) both;
+}
+.allay-target-bounce {
+  animation: allay-target-bounce 320ms var(--ease-out, ease-out);
+}
+[data-reduced-motion='true'] .allay-item-rise,
+[data-reduced-motion='true'] .allay-target-bounce {
+  animation: none !important;
+}

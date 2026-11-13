@@ -12,7 +12,8 @@
   "dependencies": {
     "@allay/template-sdk": "workspace:*",
     "@allay/ui": "workspace:*",
-    "react": "^19.3.1"
+    "react": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

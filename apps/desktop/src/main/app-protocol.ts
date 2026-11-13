@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { extname } from 'node:path';
 import { protocol } from 'electron';
 import type { Logger } from './logger';
-import { resolveAppPath } from './app-path';
+import { resolveAppPath, resolveMascotPath } from './app-path';
 import { APP_SCHEME, CONTENT_SECURITY_POLICY } from './security-policy';
 
 // 1.6 第 2 条：渲染进程的页面由 app:// 提供（standard、secure），每个响应都带同一份 CSP。
@@ -44,10 +44,15 @@ function respond(status: number, body: Uint8Array<ArrayBuffer> | null,contentTyp
   });
 }
 
-export function handleAppProtocol(root: string, log: Logger): void {
+/**
+ * root：渲染进程的构建产物。mascotDir：悦灵烘焙产物的目录，在 app://renderer/mascot/ 下提供（只读、扁平、只有 png 和 json）；
+ * 产物不在仓库里（docs/decisions.md M5a），缺了就是 404，界面退回占位实现（M5b）。
+ */
+export function handleAppProtocol(root: string, log: Logger, mascotDir: string): void {
   protocol.handle(APP_SCHEME, async (request) => {
     if (request.method !== 'GET' && request.method !== 'HEAD') return respond(405, null);
-    const file = resolveAppPath(root, request.url);
+    const mascot = resolveMascotPath(mascotDir, request.url);
+    const file = mascot === undefined ? resolveAppPath(root, request.url) : mascot;
     if (!file) {
       log.warn('protocol', 'rejected app:// path', { url: request.url.slice(0, 200) });
       return respond(404, null);

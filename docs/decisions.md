@@ -859,3 +859,63 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 真实 VS Code 里打开复制出的模板文件夹的补全体验（仍只有 MD-a 的编译器检查）。
 - “打开模板文件夹”真的弹出资源管理器（测试里不点）。
 - 中文输入法、真实剪辑软件与本任务无关，未涉及。
+
+## M5b 悦灵接进应用（M5 后半）
+
+范围：`docs/07-allay-mascot.md` 7.4 的五个组件换成读烘焙图集的实现、7.5 的十一个出场位置、7.6 的四段编排、全局协调（T-ALY-3）、减少动效、7.9 的性能预算、启动画面、应用图标进安装包、烘焙产物缺失时的行为。
+
+### 烘焙产物怎么到达界面
+
+- **不在构建产物里，由主进程提供**：`app://renderer/mascot/<文件名>` 由 `app-protocol.ts` 映射到产物目录（只认扁平的小写文件名、只有 `.png` 和 `.json`，`app-path.ts` 的 `resolveMascotPath`）。目录：打包后是安装目录的 `resources/mascot`，未打包时是 `packages/mascot/generated`，测试可以用 `ALLAY_E2E_MASCOT_DIR`（只在未打包时生效，同其他测试开关）换成自己生成的假图集或空目录。这样 `pnpm build` 的产物与本机有没有烘焙过无关，CI 和本机一样。
+- **运行时缺产物就退回占位**：渲染进程先取 `allay.atlas.json`（zod 校验，`assets.ts`），404 或不合格就是“缺产物”，五个组件都用 M4 的 CSS 占位（`placeholder.tsx`，原样保留）。图集按尺寸各解码一次成 `ImageBitmap`，全应用共用。开发服务器上由同一个 Vite 插件提供 `/mascot/`。
+- **e2e 默认走占位**：`tests/e2e/helpers.ts` 把 `ALLAY_E2E_MASCOT_DIR` 默认指向不存在的目录。本机烘焙过的真实产物（原版贴图的派生图像）不进任何测试和截图基线；需要图集的测试（`m5b.spec.ts`）用测试时生成的假图集（`tests/e2e/fake-mascot.ts`：文件名、网格、`atlas.json` 与烘焙约定相同，画面是每个动作一种颜色的纯色色块）。
+- **`pnpm dist`**：新增前置步骤 `scripts/mascot-dist.ts`，把运行时用到的文件（图集、`atlas.json`、头像）复制到 `apps/desktop/build/mascot/`（electron-builder 的 `extraResources` → `resources/mascot`），`icon.ico` 复制到 `apps/desktop/build/icon.ico`（electron-builder 默认从 buildResources 取应用和安装程序的图标）。两处都被 git 忽略，每次先清空再复制。**缺产物时默认失败**，提示先 `pnpm mascot:bake`；只有设了 `ALLAY_DIST_ALLOW_PLACEHOLDER=1` 才用 Electron 默认图标和 CSS 占位继续并打印警告。理由：安装包是给人用的，悄悄换成占位不容易被发现；CI 没有游戏时显式加这个变量。
+
+### 组件（接口按 7.4 不变，多了可选的 `priority`）
+
+- `Allay`：`<canvas>` 按 `size × devicePixelRatio` 在 96 和 288 里选不小于所需的一套，只在帧号变化时 `drawImage`；捧着的东西按 `handAnchor` 每帧摆位。小于 28 px 用头像。朝向水平翻转、转身 140 ms。`glow` 照旧不画。
+- `AllayHead`：烘焙的正面头像，取设备像素不超过所需的最大一张、整数像素显示（`image-rendering: pixelated`）；睁眼、闭眼两张都在 DOM 里只切可见性（眨眼不闪）。减少动效时点击不转圈。头像不参与全局协调（7.2：顶栏头像不算）。
+- **一个帧循环**（`ticker.ts`）：全应用的悦灵（帧动画、飞舞、进度、拖放）共用一个 `requestAnimationFrame`，回调里只写 `transform`、`opacity` 和画布，尺寸来自 `ResizeObserver`。每帧耗时记进定长环形缓冲，T-ALY-6 读它。7.4 说的是“一个区域内一个循环”，全应用一个更严。
+- **全局协调**（`stage.ts`，T-ALY-3）：每个要画全身悦灵的地方在 layout effect 里申请位置，只批准一个：优先级高的，同级先来的。优先级：拖放 > 导出 > 对话框（首次发现、关于）> 方块选择器 > 预览视口 > 模板库 > 错误卡片 > 空状态。没批准的只留同样大小的空位（`data-allay="reserved"`），加载区域只剩骨架。外层已经拿到位置的（飞舞区域、导出进度、拖放）用 `MascotSlotHeld` 让里面的 `<Allay>` 不再另外申请。申请变化时 React 同步重渲染，同一次提交里一只消失另一只出现。
+- **规格没写的取舍**：“我的”空状态和预览错误卡片同时出现时只有错误卡片有悦灵（错误更需要注意）；模板库与预览同时加载时悦灵在预览上（用户在看的地方）。
+
+### 四段编排与出场位置
+
+- A 骨架屏飞舞：M4 的时序与路径不变，换到帧循环上；退场时内容项“淡入并上移 8 px”按悦灵**实际**飞出的那一侧排序（M4 固定按右侧），上移的动画放在 `packages/mascot/src/mascot.css`（ui 的 `allay-item-in` 只有淡入，没有改它）。
+- B 导出进度：弹簧跟随（临界阻尼，不过冲不抖）；进度条前端在动时放拖尾方点；“写完全部帧、等 FFmpeg 收尾”算封装：飞到进度条右端的文件图标，东西放进去，图标弹一下；完成 `dance` 2 秒后 `hover`；失败 `sad`、东西掉下淡出；取消向上飞出。导出对话框把进度和结果页做成同一个 `AllayProgress`（不重新挂载），结果页上悦灵接着演。捧着的方块：模板第一个 `block` 参数，或第一个 `blockList` 的第一项（缩略图）；都没有时捧胶片图标。标题的“像素字”不做（界面不用像素字，6.2）。
+- C 启动画面：见下。
+- D 拖放：拖进来时沿用 M4 的压暗、虚线框和 hover。放下后（`AllayDelivery`）：按文件名判断去向（`.allaytpl` → “我的”标签，`.zip` 和文件夹 → 顶栏素材按钮，其余无效 → `sad`），600 ms 内飞到目标、目标弹一下、退场；真正的安装和通知仍由 `useDropPacks` 做，没有改它。判断只看文件名，所以“文件名有效但内容坏了”时悦灵照样送过去，随后出错误通知。
+- 第 4 项（方块/物品选择器）：`packages/ui` 不能依赖 mascot，所以 `EditorServices` 加了可选的 `pickerLoader(loading)`，网格里每格的缩略图报告“还没取到”的计数，应用据此在网格上盖一层 `AllayLoader`（整层不接收指针）。
+- 其余位置（模板库、预览、空状态、首次发现、顶栏头像、错误卡片、关于页）M4 已经放了，这次只加优先级。
+
+### 启动画面
+
+- 页面是构建时由 `apps/desktop/src/splash/generate.ts` 生成的静态 HTML 和 CSS（Vite 插件放进 `out/renderer/splash/`），没有脚本：CSS `steps()` 按图集网格播 `fly`（飞入时）和 `hover`，捧着的方块按同一份模型代码算出的手部锚点逐帧摆位（不读烘焙产物，所以产物缺失时构建照常）。方块是三块中性灰的面（界面色），不是贴图。
+- 文字不写死：产品名、字标、非官方声明取自 `packages/ui/src/brand`，状态字是新文案 `splash.starting`（两种语言）。颜色从 `globals.css` 的两套主题变量读出来。字体用系统字体兜底（启动画面不加载应用的字体文件）。
+- 每种语言 × 主题一个页面，主进程按设置挑；地址片段用 `:target` 选状态（`#p` 缺产物用 CSS 占位，`#s` 设置里开了减少动效，`#ps` 两者都是），系统的减少动效由 `@media (prefers-reduced-motion)` 直接生效。
+- 窗口：420×260、无边框、透明底、圆角 12、不进任务栏、可拖动。`webPreferences` 与主窗口逐项相同，只是没有 preload（不需要 IPC）；CSP、网络拦截、导航拦截照常（同一个 `app://` 处理与全局加固）。设置读完就创建。
+- 时序：主窗口 `ready-to-show` 后等启动画面显示满 600 ms，再显示主窗口（保存过“最大化”的，最大化挪到这一刻：`maximize` 在 Windows 上会顺带显示窗口），然后启动画面 `moveTop` 后 180 ms 淡出并销毁。主窗口 20 秒都没就绪时启动画面自己关掉。这是对 `window.ts` 的最小改动（`beforeShow`、`onShown` 两个可选回调）。
+- 后台测试默认不建启动画面（其余 e2e 依赖“第一个窗口就是主窗口”）；`ALLAY_E2E_SPLASH=1`（只在未打包时生效）时建一个不显示的，供启动画面的测试检查。
+
+### 减少动效
+
+- 组件在减少动效时都不订阅帧循环：没有飞行、拖尾、掉落、弹跳、内容上移；帧动画停在当前动作的第一帧；加载区域里悦灵静止在中央偏左，旁边是状态字；导出时静止在进度条前端（位置随进度跳变，不做位移动画），取消时直接隐藏；拖放时原地停 300 ms 后消失。
+- `useThemeSync` 原来只在设置变化时读一次系统的 `prefers-reduced-motion`，现在“跟随系统”时也监听它的变化（T-ALY-4 用 `emulateMedia` 开启，正好依赖这一点）。
+
+### 测试
+
+- T-ALY-1、T-ALY-7：M5a 的 `tests/unit/T-ALY.mascot-bake.test.ts`（T-ALY-7 按 M5a 改过的判定），没有改。另在 `tests/unit/M5b.mascot.test.ts` 核对 `apps/desktop/build/mascot`、`build/icon.ico` 被 git 忽略。
+- T-ALY-2：M4 的单元测试与 e2e（占位实现），时序代码没有改。
+- T-ALY-3：`tests/e2e/m5b.spec.ts`，假图集。一个 MutationObserver 在每次 DOM 变化时数 `[data-allay="body"]`，脚本依次走：资源栈变化（模板库重建封面）与预览装载同时、方块选择器叠在上面、关于页、完整导出（含封装与舞蹈）、“我的”空状态与预览错误卡片同时、拖放有效与无效的文件。判定：最大值为 1，且出现过的位置包含飞舞、关于、导出、空状态、拖放（确认不是因为悦灵没出现才不超过一只）。协调的纯逻辑另有单元测试。
+- T-ALY-4：设置为“跟随系统”，`emulateMedia({ reducedMotion: 'reduce' })`，走飞舞、拖放、导出、点头像；每 30 ms 采样：悦灵帧循环的订阅数始终为 0（没有脚本驱动的 transform 动画），悦灵相关元素上没有改 `transform`/`translate`/`rotate`/`scale` 的 CSS 动画或过渡。
+- T-ALY-5：M4 的占位版保留；新增图集版，并核对悦灵各层的计算样式都是 `pointer-events: none`。
+- T-ALY-6：飞舞 3 秒，读帧循环的耗时统计（p95 ≤ 1 ms）；同时用 DevTools 协议录性能跟踪，`FireAnimationFrame` 执行期间同一线程上的 `Layout` 事件必须为零。窗口不显示（帧率限制已关），测的是这台机器上的数值；跟踪里数的是所有 rAF 回调，不只是悦灵的，比规格更严。
+- 启动画面：URL 选对了页面、没有脚本和 Node、帧来自图集且取得到、`webPreferences` 与 1.6 第 1 条一致、非官方声明逐字相同、从显示到关闭 ≥ 600 ms、关闭后窗口没了；缺产物 + 减少动效时是 `#ps`、CSS 占位、没有任何动画。
+
+### 没做的、没验证的
+
+- **没在可见窗口里看过启动画面和主窗口的衔接**（淡出、最大化的时机）：测试窗口不显示。评审录屏里的启动画面是在同一应用里另开一个同样设置的窗口录的。
+- 7.2“用户拖滑块、拖时间轴时悦灵不出现”：加载编排本来不会在拖动时触发（M4：只改参数时走 `setParams`，不进入装载状态），没有另加抑制。
+- 7.2“预览正在播放时不进入预览画布区域”：其他区域的飞舞都限制在自己的区域里（`overflow: hidden`），拖放的送达路线可能从预览上方飞过（600 ms 内结束）。
+- 拖放的去向只按文件名判断（见上）。
+- `icon.icns`（v1 只做 Windows）。打包后的应用图标只核对了文件被放进去，没有在资源管理器、任务栏里人工看过。

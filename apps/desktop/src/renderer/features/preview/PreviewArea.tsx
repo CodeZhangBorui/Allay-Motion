@@ -169,7 +169,7 @@ function ErrorCard() {
       data-kind={status.kind}
       className="absolute inset-x-6 top-1/2 z-20 mx-auto flex max-w-md -translate-y-1/2 items-start gap-3 rounded-xl bg-surface-2 p-4 text-sm shadow-float"
     >
-      <Allay clip="sad" size={48} />
+      <Allay clip="sad" size={48} priority="error" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="text-base font-semibold text-danger">{title}</p>
         <p className="line-clamp-4 num text-xs break-words text-fg-muted">{detail}</p>
@@ -296,7 +296,7 @@ export function PreviewArea() {
     >
       {/* 加载编排：视口中央的骨架块 + 飞舞，下方一行状态字（7.5 第 3 项）。整层不接收指针（T-ALY-5） */}
       <div className="pointer-events-none absolute inset-0 z-10" data-testid="preview-loading-layer">
-        <AllayLoader loading={loading && !failed} label={t('preview.loading')} className="size-full" testId="preview-loader">
+        <AllayLoader loading={loading && !failed} label={t('preview.loading')} priority="preview" className="size-full" testId="preview-loader">
           {loading && !failed ? (
             <div className="flex size-full flex-col items-center justify-center gap-3">
               <Skeleton style={{ width: size.width * 0.6, height: size.height * 0.6 }} />

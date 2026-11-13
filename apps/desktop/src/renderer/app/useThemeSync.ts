@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import type { UiSettings } from '../../shared/settings';
 
 /**
@@ -39,5 +39,13 @@ export function useThemeSync(settings: Pick<UiSettings, 'theme' | 'reducedMotion
         console.error('failed to update title bar colors', error);
       });
     }
+  }, [theme, reducedMotion]);
+  // “跟随系统”时，系统的减少动效开关变了也要跟着变（悦灵的编排据此切换静止表现，docs/07-allay-mascot.md 7.9）
+  useEffect(() => {
+    if (reducedMotion !== 'system') return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => applyThemeToDocument({ theme, reducedMotion });
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
   }, [theme, reducedMotion]);
 }

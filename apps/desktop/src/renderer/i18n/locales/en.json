@@ -539,7 +539,8 @@
         "concrete": "Concrete",
         "terracotta": "Terracotta",
         "items": "Items"
-      }
+      },
+      "loading": "Fetching thumbnails…"
     },
     "blockList": {
       "replace": "Replace “{{name}}”",
@@ -654,5 +655,8 @@
   "history": {
     "params": "Change parameters",
     "template": "Change template"
+  },
+  "splash": {
+    "starting": "Starting…"
   }
 }

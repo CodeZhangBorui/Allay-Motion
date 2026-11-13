@@ -2,6 +2,7 @@
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
 import { TemplateManifestSchema, type ParamValues, type TemplateDiagnostic } from '@allay/template-sdk';
+import { mascotFrameStats, resetMascotFrameStats, type MascotFrameStats } from '@allay/mascot';
 import type { CopyBuiltinRequest, PresetEntry, TemplateDevChange, TemplateDevResult, TemplateEntry } from '../shared/templates';
 import { applyPresetEntry, saveCurrentPreset } from './features/templates/presets';
 import { installDroppedTemplate, removeTemplate, selectTemplate } from './features/templates/actions';
@@ -92,6 +93,9 @@ export interface AllayTestHooks {
   renderStill(t: number, maxEdge?: number): Promise<{ width: number; height: number; pngBase64: string }>;
   /** 可选模块：这次构建发现的、启用中的 */
   optionalModules(): { available: string[]; active: string[]; failures: Record<string, string> };
+  // ---- 悦灵（M5b）----
+  /** 悦灵帧循环每帧耗时的统计（T-ALY-6）；reset 为真时读完清零 */
+  mascotStats(reset?: boolean): MascotFrameStats;
 }
 
 declare global {
@@ -253,6 +257,11 @@ export function installTestHooks(): void {
       const out = [...templateChanges];
       if (clear) templateChanges.length = 0;
       return out;
+    },
+    mascotStats(reset = false) {
+      const s = mascotFrameStats();
+      if (reset) resetMascotFrameStats();
+      return s;
     },
   };
   Object.defineProperty(window, '__allayTest', { value: Object.freeze(hooks), configurable: false, writable: false });

@@ -33,6 +33,14 @@ extraResources:
     to: templates
     filter:
       - "*.allaytpl"
+  # 悦灵的烘焙产物（图集、atlas.json、头像）：原版贴图的派生图像，不在仓库里，按用户决定进安装包（docs/decisions.md M5a、M5b）。
+  # 由 scripts/mascot-dist.ts 从 packages/mascot/generated 放到 build/mascot（缺产物时默认让 pnpm dist 失败）。
+  # 主进程在 app://renderer/mascot/ 下提供它们；目录是空的时界面用 CSS 占位
+  - from: build/mascot
+    to: mascot
+    filter:
+      - "allay.atlas.json"
+      - "allay-*.png"
 # 直接用工作区里已安装的 Electron（相对本目录；node_modules/electron 是 pnpm 的链接，不写哈希目录），
 # 打包时不再联网下载或校验 Electron。根目录的 pnpm dist 会先跑 scripts/ensure-electron-dist.ts 确认它在。
 electronDist: node_modules/electron/dist
@@ -49,6 +57,8 @@ electronFuses:
   loadBrowserProcessSpecificV8Snapshot: false
   grantFileProtocolExtraPrivileges: false
 win:
+  # 应用图标：build/icon.ico（electron-builder 默认从 buildResources 取，安装程序也用它），
+  # 是烘焙出的悦灵头像图标，由 scripts/mascot-dist.ts 放进去；不在仓库里
   target:
     - target: nsis
       arch: [x64]

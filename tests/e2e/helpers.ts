@@ -44,6 +44,9 @@ export async function launchApp(userDataDir: string, extraEnv: Record<string, st
   env.ALLAY_E2E_GAME_APPDATA = join(userDataDir, 'no-game');
   // 下载原版资源时连一个没人监听的本机端口：测试里误点“下载”也不会访问真实网络；下载测试自己覆盖成假服务器
   env.ALLAY_E2E_MOJANG_ORIGIN = 'http://127.0.0.1:9';
+  // 悦灵的烘焙产物：默认指向一个不存在的目录，界面用 CSS 占位。这台机器上烘焙过的真实产物（原版贴图的派生图像）
+  // 不进任何测试和截图基线；需要图集的测试（m5b.spec.ts）自己生成假图集并覆盖这个变量
+  env.ALLAY_E2E_MASCOT_DIR = join(userDataDir, 'no-mascot');
   Object.assign(env, extraEnv);
   const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR], env, cwd: DESKTOP_DIR });
   const page = await app.firstWindow();

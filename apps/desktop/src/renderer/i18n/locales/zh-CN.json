@@ -539,7 +539,8 @@
         "concrete": "混凝土",
         "terracotta": "陶瓦",
         "items": "物品"
-      }
+      },
+      "loading": "正在取缩略图…"
     },
     "blockList": {
       "replace": "更换“{{name}}”",
@@ -654,5 +655,8 @@
   "history": {
     "params": "修改参数",
     "template": "更换模板"
+  },
+  "splash": {
+    "starting": "正在启动…"
   }
 }
