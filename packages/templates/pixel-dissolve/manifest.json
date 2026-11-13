@@ -1,0 +1,76 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.pixel-dissolve",
+  "version": "1.0.0",
+  "name": { "zh-CN": "像素溶解", "en": "Pixel dissolve" },
+  "description": {
+    "zh-CN": "画面被一格格像素块按图案盖住，再一格格消失。",
+    "en": "Pixel cells cover the screen one by one in a pattern, then vanish one by one."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["pixel", "dissolve"],
+  "groups": [
+    { "key": "cells", "label": { "zh-CN": "格子", "en": "Cells" } },
+    { "key": "look", "label": { "zh-CN": "外观", "en": "Look" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } }
+  ],
+  "params": [
+    { "key": "cellSize", "type": "integer", "label": { "zh-CN": "格子大小", "en": "Cell size" }, "group": "cells", "default": 60, "min": 8, "max": 240, "ui": "slider" },
+    {
+      "key": "pattern",
+      "type": "enum",
+      "label": { "zh-CN": "图案", "en": "Pattern" },
+      "group": "cells",
+      "default": "noise",
+      "options": [
+        { "value": "noise", "label": { "zh-CN": "噪声", "en": "Noise" } },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" } },
+        { "value": "sweep", "label": { "zh-CN": "扫过", "en": "Sweep" } },
+        { "value": "radial", "label": { "zh-CN": "径向", "en": "Radial" } }
+      ]
+    },
+    { "key": "angle", "type": "angle", "label": { "zh-CN": "方向", "en": "Direction" }, "hint": { "zh-CN": "0° 为从左到右", "en": "0° sweeps left to right" }, "group": "cells", "default": 0, "visibleWhen": { "key": "pattern", "equals": "sweep" } },
+    {
+      "key": "spread",
+      "type": "number",
+      "label": { "zh-CN": "错落", "en": "Spread" },
+      "hint": { "zh-CN": "扫过和径向图案上叠加的噪声", "en": "Noise added on top of the sweep and radial patterns" },
+      "group": "cells",
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "ui": "slider"
+    },
+    { "key": "outReverse", "type": "boolean", "label": { "zh-CN": "反向退出", "en": "Reverse out" }, "hint": { "zh-CN": "最后出现的格子最先消失", "en": "The last cells to appear vanish first" }, "group": "cells", "default": false },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "cells", "default": 1 },
+    {
+      "key": "fill",
+      "type": "enum",
+      "label": { "zh-CN": "填充", "en": "Fill" },
+      "group": "look",
+      "default": "color",
+      "options": [
+        { "value": "color", "label": { "zh-CN": "纯色", "en": "Color" } },
+        { "value": "block", "label": { "zh-CN": "方块", "en": "Block" } }
+      ]
+    },
+    { "key": "color", "type": "color", "label": { "zh-CN": "颜色", "en": "Color" }, "group": "look", "default": "#0B0F13", "visibleWhen": { "key": "fill", "equals": "color" } },
+    { "key": "block", "type": "block", "label": { "zh-CN": "方块", "en": "Block" }, "hint": { "zh-CN": "每格贴一张方块贴图", "en": "Each cell shows one block texture" }, "group": "look", "default": "minecraft:obsidian", "visibleWhen": { "key": "fill", "equals": "block" } },
+    { "key": "accentColor", "type": "color", "label": { "zh-CN": "边缘颜色", "en": "Accent color" }, "hint": { "zh-CN": "刚出现或即将消失的格子用这个颜色", "en": "Color of cells that just appeared or are about to vanish" }, "group": "look", "default": "#52CFF3" },
+    { "key": "accentWidth", "type": "number", "label": { "zh-CN": "边缘宽度", "en": "Accent width" }, "group": "look", "default": 0.06, "min": 0, "max": 0.3, "step": 0.01, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.4, "min": 0.1, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.1, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.4, "min": 0.1, "max": 2 },
+    { "key": "easing", "type": "easing", "label": { "zh-CN": "缓动", "en": "Easing" }, "group": "timing", "default": "quadInOut" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
