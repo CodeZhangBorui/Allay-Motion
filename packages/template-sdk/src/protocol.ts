@@ -33,12 +33,25 @@ export const LoadRequestSchema = z.strictObject({
 });
 export type LoadRequest = z.infer<typeof LoadRequestSchema>;
 
+/**
+ * 引擎替一个 cue 选定的音效变体（02-engine.md 2.10）：file 是带命名空间的音效名（sounds.json 里的 name），
+ * volume、pitch 是 sounds.json 给这个变体的系数（播放时分别乘到 gain、rate 上）。
+ */
+export const AudioCueVariantSchema = z.strictObject({
+  file: z.string().min(1).max(256),
+  volume: z.number().min(0).max(16),
+  pitch: z.number().min(0).max(16),
+});
+export type AudioCueVariant = z.infer<typeof AudioCueVariantSchema>;
+
 export const AudioCueSchema = z.strictObject({
   sound: z.string(),
   at: z.number(),
   gain: z.number(),
   rate: z.number(),
   pan: z.number(),
+  /** 选定的变体；资源栈里没有这个音效事件时为 null（宿主静音并给警告） */
+  variant: AudioCueVariantSchema.nullable(),
 });
 export type AudioCue = z.infer<typeof AudioCueSchema>;
 
@@ -199,7 +212,22 @@ export const BitmapFontPayloadSchema = z
   .refine((p) => p.metrics.length === p.codepoints.length * 5 && p.offsets.length === p.codepoints.length, { message: 'table lengths mismatch' });
 export type BitmapFontPayload = z.infer<typeof BitmapFontPayloadSchema>;
 
-export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema]);
+/** 音效事件的全部变体（resolveResource('sound-meta', 事件 ID)）：资源栈里合并后的 sounds.json 展开 event 引用之后 */
+export const SoundMetaVariantSchema = z.strictObject({
+  file: z.string().min(1).max(256),
+  volume: z.number().min(0).max(16),
+  pitch: z.number().min(0).max(16),
+  weight: z.number().min(0).max(1_000_000),
+});
+export type SoundMetaVariant = z.infer<typeof SoundMetaVariantSchema>;
+
+export const SoundMetaPayloadSchema = z.strictObject({
+  kind: z.literal('sound'),
+  variants: z.array(SoundMetaVariantSchema).max(1024),
+});
+export type SoundMetaPayload = z.infer<typeof SoundMetaPayloadSchema>;
+
+export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema, SoundMetaPayloadSchema]);
 export type ResourcePayload = z.infer<typeof ResourcePayloadSchema>;
 
 /** 资源栈里的默认字体，和兜底字体的 ID（resolveResource('font', id)） */

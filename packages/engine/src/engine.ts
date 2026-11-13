@@ -29,6 +29,7 @@ import {
   type TemplateManifest,
   type TemplateDiagnostic,
 } from '@allay/template-sdk';
+import { pickSoundVariant } from '@allay/assets';
 import { createBlockHandle } from './blocks';
 import { describeThrown, diagnosticFromError } from './diagnostics';
 import { ease, math, segment } from './ease';
@@ -500,7 +501,7 @@ export class Engine implements EngineApi {
           }
           if (sound === null) return;
           if (typeof sound !== 'string' || typeof at !== 'number' || !Number.isFinite(at)) throw new TypeError('invalid audio cue');
-          cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0 });
+          cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0, variant: null });
         },
       },
       warn,
@@ -528,6 +529,25 @@ export class Engine implements EngineApi {
     } finally {
       this.shaderWarn = null;
     }
-    return { duration: instance.duration, cutTime, audioCues: cues, warnings };
+    const audioCues = await this.pickVariants(cues, seed);
+    return { duration: instance.duration, cutTime, audioCues, warnings };
+  }
+
+  /**
+   * 给每个 cue 选定音效变体（02-engine.md 2.10）：同一事件的第 n 个 cue 用 random('sound:' + 事件 + ':' + n)，
+   * 和模板的 ctx.random 是同一个生成器，所以预览和导出（以及两次装载）选到同一个。资源栈里没有这个事件时 variant 为 null。
+   */
+  private async pickVariants(cues: readonly AudioCue[], seed: number): Promise<AudioCue[]> {
+    const resources = this.resources!;
+    const ordinal = new Map<string, number>();
+    const out: AudioCue[] = [];
+    for (const cue of cues) {
+      const n = ordinal.get(cue.sound) ?? 0;
+      ordinal.set(cue.sound, n + 1);
+      const variants = await resources.soundVariants(cue.sound);
+      const picked = pickSoundVariant(variants, createRng(seed, `sound:${cue.sound}:${n}`).next());
+      out.push({ ...cue, variant: picked ? { file: picked.file, volume: picked.volume, pitch: picked.pitch } : null });
+    }
+    return out;
   }
 }

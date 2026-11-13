@@ -6,7 +6,9 @@ import {
   DEFAULT_FONT_ID,
   FALLBACK_FONT_ID,
   FontPayloadSchema,
+  SoundMetaPayloadSchema,
   TexturePayloadSchema,
+  type SoundMetaVariant,
   type BitmapFontPayload,
   type FontPayload,
   type ResourceKind,
@@ -116,6 +118,34 @@ export class EngineResources {
     this.textures.clear();
     this.animated.clear();
     this.vanillaFont = null;
+    this.sounds.clear();
+  }
+
+  private readonly sounds = new Map<string, Promise<readonly SoundMetaVariant[]>>();
+
+  /**
+   * 音效事件的全部变体（资源栈里合并后的 sounds.json，展开 event 引用之后），按 stamp 缓存。
+   * 宿主没有这个事件时是空数组；取不到（宿主出错）也当作空数组，不让模板装载失败。
+   */
+  soundVariants(eventId: string): Promise<readonly SoundMetaVariant[]> {
+    let p = this.sounds.get(eventId);
+    if (!p) {
+      p = this.resolve('sound-meta', eventId).then(
+        (raw) => {
+          if (!raw) return [];
+          const parsed = SoundMetaPayloadSchema.safeParse(raw);
+          if (parsed.success) return parsed.data.variants;
+          this.log('warn', `invalid sound-meta payload for ${eventId}`);
+          return [];
+        },
+        (error: unknown) => {
+          this.log('warn', `sound-meta ${eventId} failed: ${error instanceof Error ? error.message : String(error)}`);
+          return [];
+        },
+      );
+      this.sounds.set(eventId, p);
+    }
+    return p;
   }
 
   dispose(): void {
