@@ -1,0 +1,19 @@
+{
+  "name": "@allay/template-m1-block-wipe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "M1 的临时方块擦除模板（写死参数），M3 重写成正式的 T1",
+  "exports": {
+    "./template.js": "./template.js",
+    "./manifest.json": "./manifest.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@types/three": "0.187.0",
+    "typescript": "~6.0.3"
+  }
+}
