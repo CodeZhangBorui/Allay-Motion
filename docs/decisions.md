@@ -143,3 +143,93 @@
 - **T-ARC-5**：在应用里装载 `update` 死循环的测试模板，用真实的 5 秒预览单帧时限；主线程卡顿用页面里的 longtask 观察器，加上测试每 20 ms 经 CDP 往页面主线程发一次 evaluate 量往返时间。最初用的页面内 10 ms `setInterval` 心跳不可靠：窗口不显示时 Chromium 会把隐藏页面的计时器压到约每秒一次（实测一次 1007 ms 的间隔，同期没有任何长任务），量出来的是节流不是卡顿。引擎层另有一个用 2 秒时限的测试（test:engine）。
 - **T-EXP-5/6** 在 test:export 里直接驱动主进程的 `ExportJob`（Node，不需要 Electron）：中途取消（ProRes 和 PNG 各一次，查 `.partial`、目标、FFmpeg 进程）、不可写路径、伪造的坏二进制、不存在的二进制、帧与设置不符。界面部分在 e2e 里：取消后没有残留文件和进程；不可写路径给出对应文案；坏二进制在打开导出对话框时就被 `ffmpegInfo` 探测出来，对话框显示“FFmpeg 缺失”的文案并禁用“导出”（坏二进制在 `start` 时失败的路径由 test:export 覆盖）。**T-EXP-7** 在 e2e 里经真实界面、真实 IPC 导出。
 - 其他会话把 git worktree 放在仓库里的 `.claude/worktrees/`（本地 `.git/info/exclude` 已排除），ESLint 会扫进去，所以 `eslint.config.js` 忽略 `.claude/**`。
+
+## M2a 目录与资源栈的非引擎部分
+
+M2 拆成两半并行：M2a 不依赖引擎（本节），M2b 在 M1 合入后做资源到 Worker 的通路、网格、位图字、缩略图和界面。
+
+### 范围变更：取消自制内置贴图（用户决定，经主控转达，2026-11-13）
+
+- 用户决定**不自己画材质**，方块、物品、界面贴图直接用 Minecraft 原版资源；合成音效也先不做。主控定的落实方式：**应用在运行时只读用户本机已装游戏的 jar**（3.4 的原版层）。仓库和安装包里仍然没有任何 Mojang 文件（硬性规则第 1 条不变）。
+- 本分支早先写好的程序化贴图/音效生成器、`resources/builtin-pack/` 的产物、H-ART 联络图，已经用新提交删除。`pnpm assets:gen` 恢复为“尚未实现”。`ASSETS_PROVENANCE.json` 和根 `package.json` 与 main 相同；为生成器引入的 fflate 和 `.gitattributes` 也一并去掉。
+- 内置层保留为通用的“从一个目录读”（`openBuiltinLayer(root)`），不假设里面有什么。目录不存在时是空层，`revision` 为 `empty`。内置层的素材来源待用户决定。
+- **由此产生的规格偏离，待主控和用户确认**：
+  - `01` 1.1 第 4 条和 `03` 3.1 的“开箱即用、没装游戏也能完整预览和导出”不再成立。没有原版层也没有资源包时，所有贴图都会走占位图。**这时界面怎么表现，待主控和用户确认。**后来加上的运行时下载（见下一小节）让没装游戏的用户在同意并联网下载后也能用，但离线且从未下载过时仍然没有素材。
+  - `03` 3.3（内置层由脚本生成、内置合成音效）不做。
+  - T-AST-2（只有内置层时加载内置模板，`warnings` 为空）在没有素材时做不到，需要改判定或改前提。
+  - T-AST-7（生成脚本的确定性）不再适用。H-ART 不再需要。
+  - 3.3 的覆盖率检查改成“某一层能提供目录里的多少贴图”（`requiredTextures()` + `findMissing()`）。单元测试对夹具做检查；对本机真实 jar 的检查做成手动冒烟脚本 `scripts/smoke-vanilla.ts`，不进 `pnpm check`。
+
+### 对“应用不联网”的例外：运行时从 Mojang 下载客户端 jar（用户批准）
+
+用户在主控会话里的原话是：“工具在运行时从mojang服务器下载jar，然后提取assets”。主控把这句话作为对硬性规则第 10 条的明确授权转达过来。这是**唯一的例外**，边界全部写死在 `apps/desktop/src/main/resources/download.ts` 里：
+
+- **在哪里联网**：只在主进程，用 Node 的 https。渲染进程会话级的网络拦截、CSP 以及 1.6 的其余各条都不动。
+- **访问哪里**：主机白名单只有 `piston-meta.mojang.com`、`piston-data.mojang.com`、`resources.download.minecraft.net`，只用 https、默认端口。URL 里不能带用户信息。任何重定向一律拒绝，不跟随。版本清单返回的 URL 也要过白名单。
+- **发什么**：请求不带任何自定义头（没有 User-Agent，也没有任何标识或用户信息）。
+- **何时联网**：只在调用方显式调用 `downloadLatest()` 或 `fetchObject()` 时，调用方负责先取得用户同意。`findCached()` 和 `chooseVanillaSource()` 完全离线。不做后台自动更新，不做遥测。
+- **流程**：版本清单 → `latest.release` → 版本 JSON（用清单给的 sha1 校验）→ 客户端 jar 和资源索引（用版本 JSON 给的 sha1 和 size 校验）。音效等资源对象在读取时按需从 `resources.download.minecraft.net/<前两位>/<哈希>` 取，同样校验 sha1 和大小。
+- **存放**：放在调用方传入的缓存目录（应为 `userData/vanilla-cache`），结构如下。jar 整体保留，按需读取其中的条目，不全量解压。
+  - `versions/<id>/client.jar`
+  - `versions/<id>/version.json`
+  - `indexes/<id>.json`
+  - `objects/<前两位>/<哈希>`
+- **校验与清理**：先写 `.part` 临时文件，大小和 sha1 校验通过后才改名。超过大小上限（JSON 16 MB、jar 256 MB、单个对象 64 MB）、空闲超时 30 秒、取消（AbortSignal）、校验失败，都不留半成品。版本 JSON 最后写，作为“这一版完整”的标记；`findCached()` 仍会重新校验 jar 和资源索引。
+- **测试替身**：可替换的只有 `testOrigins`（把白名单主机映射到本机的假服务器），而且必须同时传 `packaged: false`；传 `packaged: true` 时构造函数直接报错。白名单检查对替换之前的逻辑 URL 做。M2b 接线时只能在 `!app.isPackaged` 且设了测试环境变量的情况下传入。
+- **原版层的来源**：本机已装游戏的 jar 和下载缓存的 jar 二选一，由 `chooseVanillaSource(local, cached, prefer)` 决定。默认取版本较新的那个，可以指定偏好 `local` 或 `downloaded`；两者都没有时返回 `needs-download`，交给调用方征求同意。资源栈里用户资源包仍在原版层之上。
+- **测试**：T-AST-DL-1 到 T-AST-DL-9 全部对着测试里起的本机假 HTTP 服务器跑，用脚本生成的假清单、假 jar（纯色测试色块），`pnpm check` 不访问真实网络。真实下载只做成手动冒烟脚本 `scripts/smoke-download.ts`，下载到仓库外的临时目录，下载物不进仓库。
+- **实测偏差**：真实的版本清单里有 `"3D Shareware v1.34"` 这种带空格的老版本 id。所以清单里的 id 只要求是字符串，选中的那一版再按“只含字母数字、`.`、`_`、`-`”校验（它要用作目录名）。
+- **发布前需人确认（H-DOWNLOAD，请主控写进发布清单）**：运行时从 Mojang 服务器下载客户端 jar 是否符合其最终用户许可协议和使用准则。下载只发生在用户机器上，仓库和安装包里仍然没有任何 Mojang 文件，但“由第三方工具替用户下载游戏文件”这一点没有经过条款核对。
+
+### 目录与着色
+
+- 方块目录实际 112 个（规格写“约 110”）；物品 42 个，与清单逐项一致（单元测试核对）。贴图 ID 按原版的文件名写，本机 1.21.1 的 jar 上全部能解析（见 `docs/review/M2a/README.md`）。
+- 指南针和时钟在原版里是一组帧贴图（`compass_00`…、`clock_00`…，由物品模型按状态切换，不是 `.mcmeta` 动画）。目录里取第一帧 `compass_00`、`clock_00`。
+- 界面贴图清单（`packages/assets/src/gui.ts`）用 1.20.2 起的 `gui/sprites/` 路径：提示框 `advancement`、`system`（九宫格边框 4），boss 条和经验条的底与进度各一张。
+- 着色常量：云杉 `#619961`、白桦 `#80A755`。来源是游戏代码里 `FoliageColor` 的固定值（公开资料），**按记忆填写，没有联网复核**。草、树叶、水用规格给的值。
+- `orientable` 的正面朝北、底面与顶面相同；`cube` 的六个面分别写 `up/down/north/south/east/west`；所有形状都可以带 `sideOverlay`（叠在四个侧面上）。工作台用 `cube`（底面 `oak_planks`），唱片机用 `cube_bottom_top`（底面用侧面贴图），书架用 `cube_column`（端面 `oak_planks`）。
+
+### 资源栈
+
+- **`ResourceLayer` 比规格多一个必需字段 `revision`**，表示这一层内容的版本，参与 `resourceStamp`（规格只说“文件修改时间”，接口里没地方放）。另有可选的 `legacyFormat`、`warnings`。层是普通对象（方法写成闭包），开关时用展开语法复制。资源栈是从下到上的数组，下标 0 是 builtin。
+- `revision` 的取法：
+  - 文件夹层和内置层：文件数:最大修改时间:总大小。
+  - zip：大小:修改时间。
+  - 原版层：版本 id:jar 大小:jar 修改时间:索引修改时间。
+- `resourceStamp` 是对 `[id, revision, enabled]` 有序列表的 FNV-1a 64 位哈希。`packages/assets` 不能用 Node 的 crypto，这里也不需要密码学强度。
+- sounds.json 的跨层合并与游戏一致：上层追加变体，`replace: true` 时替换。例外是只来自 builtin 层的定义：被任何上层定义时整个替换，避免将来的兜底音效和游戏音效混在一起随机出现。
+- 音效名解析到文件时先找 `.ogg` 再找 `.wav`（3.8 两种都支持）。
+- `readResource` 在胜出的层读不出来时（扫描后文件被删、zip 条目损坏）继续往下找。
+- 设置里的资源栈配置先写成 `packages/assets` 的 `ResourceStackSettingsSchema` 和 `buildStack()`，由 M2b 接进 `settings.json`（本次不改 `shared/settings.ts`）。zip 包在设置里只记 `<sha256>.zip` 文件名，`packZipPath()` 只接受这个格式，防止设置文件被改成指向任意路径。
+
+### zip、文件夹与原版层
+
+- **只要有一个不安全的条目名（`..`、绝对路径、盘符、反斜杠），整个压缩包就被拒绝**，而不是只跳过该条目：这样的包本身就可疑，游戏也不认反斜杠路径。yauzl 用 `strictFileNames: true`（不把反斜杠改成正斜杠）和 `validateEntrySizes: true`，我们再用 `isSafeRelativePath` 查一遍。
+- 解压炸弹：
+  - 中央目录声明解压后超过 64 MB 的条目不收录，并记一条警告。
+  - 读取时按实际解压出的字节数截断，因为声明的大小可以造假。
+  - 条目数上限 200 000。加密条目和不认识的压缩方法跳过。
+- **导入 zip 时先复制到 `packs/` 下的临时文件，再对这份副本做校验、算哈希**，通过后改名为 `<sha256>.zip`；被拒绝时删除临时文件。这样校验的正是最终保存的那份，不怕校验之后源文件被换掉。被拒绝后可能留下一个空的 `packs/` 目录，它在应用数据目录内。
+- 文件夹扫描跳过符号链接和超过 64 MB 的文件，读取前再确认一次。
+- 原版层：
+  - jar 里只收录 `assets/` 下的条目。
+  - 资源索引里的对象映射成 `assets/<键>` 的虚拟路径，索引里不安全的键忽略。这样 sounds.json 和 .ogg 的路径写法与资源包一致。
+  - 资源索引缺失时，原版层只有贴图、没有音效。本机正是这种情况：`.minecraft` 下没有 `assets/` 目录。
+  - 只读，不复制到任何地方。
+- **探测顺序：用户上次手动选的目录优先，其次是官方启动器的默认目录**。规格把默认目录列在前面，但用户手动选过，说明想用那一个。
+- 其他启动器不自动探测：Prism、MultiMC 的目录结构不同；PCL、HMCL 的“版本隔离”把每个版本放在 `versions/<id>/` 下自成一套，但版本 JSON 和 jar 的位置与标准结构相同，用户手动选 `.minecraft` 目录即可。带 `inheritsFrom` 而没有自己 jar 的版本（例如本机的 `fabric-loader-0.20.1-1.21.1`）因为没有 jar 被自然排除。
+- 版本 JSON 只用到 `type`、`releaseTime`、`assetIndex.id` 三个字段。
+
+### 测试夹具
+
+- 夹具由 `tests/unit/helpers/resource-fixtures.ts` 在测试时写进临时目录：三个资源包、充当内置层的目录、恶意 zip、解压炸弹、含假 jar 和假资源索引的 `.minecraft`。
+- 夹具里的 PNG 是**纯色色块，只是测试数据**，用颜色区分“这张来自哪一层”，不是产品素材。不提交任何二进制，`.jar` 也不允许提交，所以 `tests/fixtures/` 下没有新增文件。
+- 恶意 zip 用手写的 zip 生成器造，因为正常的压缩工具不肯写出 `../` 条目。
+- T-AST-6 的夹具场景（较新的版本没有 jar，选中较旧且有 jar 的正式版）与本机实际情况一致：`26.3` 没有 jar，`1.21.1` 有。
+
+### 没做的
+
+- 因范围变更不做：内置贴图和音效的生成、H-ART 联络图、T-AST-7、针对内置层的覆盖率检查。
+- 运行时下载留给 M2b 的部分：IPC 接线、征求同意的对话框、进度界面；把 `app.getPath('userData')/vanilla-cache` 和 `app.isPackaged` 传给 `createVanillaDownloader`。
+- 留给 M2b：T-AST-2、T-AST-3；资源到 Worker 的通路和缓存；网格；位图字的栅格化和文字对象（本次只做了字体提供器 JSON 的解析和字形宽度规则）；缩略图；IPC 的 `resources` 命名空间；首次发现游戏时的对话框；资源栈弹层；拖入资源包。
+- 没有引入任何字体。

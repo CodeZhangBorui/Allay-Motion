@@ -1,0 +1,128 @@
+{
+  "minecraft:diamond_sword": {
+    "tex": "item/diamond_sword"
+  },
+  "minecraft:iron_sword": {
+    "tex": "item/iron_sword"
+  },
+  "minecraft:netherite_sword": {
+    "tex": "item/netherite_sword"
+  },
+  "minecraft:golden_sword": {
+    "tex": "item/golden_sword"
+  },
+  "minecraft:diamond_pickaxe": {
+    "tex": "item/diamond_pickaxe"
+  },
+  "minecraft:iron_pickaxe": {
+    "tex": "item/iron_pickaxe"
+  },
+  "minecraft:netherite_pickaxe": {
+    "tex": "item/netherite_pickaxe"
+  },
+  "minecraft:diamond_axe": {
+    "tex": "item/diamond_axe"
+  },
+  "minecraft:diamond_shovel": {
+    "tex": "item/diamond_shovel"
+  },
+  "minecraft:bow": {
+    "tex": "item/bow"
+  },
+  "minecraft:arrow": {
+    "tex": "item/arrow"
+  },
+  "minecraft:diamond": {
+    "tex": "item/diamond"
+  },
+  "minecraft:emerald": {
+    "tex": "item/emerald"
+  },
+  "minecraft:gold_ingot": {
+    "tex": "item/gold_ingot"
+  },
+  "minecraft:iron_ingot": {
+    "tex": "item/iron_ingot"
+  },
+  "minecraft:netherite_ingot": {
+    "tex": "item/netherite_ingot"
+  },
+  "minecraft:copper_ingot": {
+    "tex": "item/copper_ingot"
+  },
+  "minecraft:redstone": {
+    "tex": "item/redstone"
+  },
+  "minecraft:lapis_lazuli": {
+    "tex": "item/lapis_lazuli"
+  },
+  "minecraft:coal": {
+    "tex": "item/coal"
+  },
+  "minecraft:amethyst_shard": {
+    "tex": "item/amethyst_shard"
+  },
+  "minecraft:apple": {
+    "tex": "item/apple"
+  },
+  "minecraft:golden_apple": {
+    "tex": "item/golden_apple"
+  },
+  "minecraft:bread": {
+    "tex": "item/bread"
+  },
+  "minecraft:cooked_beef": {
+    "tex": "item/cooked_beef"
+  },
+  "minecraft:ender_pearl": {
+    "tex": "item/ender_pearl"
+  },
+  "minecraft:ender_eye": {
+    "tex": "item/ender_eye"
+  },
+  "minecraft:blaze_rod": {
+    "tex": "item/blaze_rod"
+  },
+  "minecraft:nether_star": {
+    "tex": "item/nether_star"
+  },
+  "minecraft:totem_of_undying": {
+    "tex": "item/totem_of_undying"
+  },
+  "minecraft:firework_rocket": {
+    "tex": "item/firework_rocket"
+  },
+  "minecraft:book": {
+    "tex": "item/book"
+  },
+  "minecraft:enchanted_book": {
+    "tex": "item/enchanted_book"
+  },
+  "minecraft:compass": {
+    "tex": "item/compass_00"
+  },
+  "minecraft:clock": {
+    "tex": "item/clock_00"
+  },
+  "minecraft:bucket": {
+    "tex": "item/bucket"
+  },
+  "minecraft:water_bucket": {
+    "tex": "item/water_bucket"
+  },
+  "minecraft:lava_bucket": {
+    "tex": "item/lava_bucket"
+  },
+  "minecraft:experience_bottle": {
+    "tex": "item/experience_bottle"
+  },
+  "minecraft:snowball": {
+    "tex": "item/snowball"
+  },
+  "minecraft:stick": {
+    "tex": "item/stick"
+  },
+  "minecraft:music_disc_13": {
+    "tex": "item/music_disc_13"
+  }
+}

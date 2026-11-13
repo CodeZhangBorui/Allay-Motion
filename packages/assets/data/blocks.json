@@ -1,0 +1,720 @@
+{
+  "minecraft:stone": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/stone"
+    }
+  },
+  "minecraft:cobblestone": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/cobblestone"
+    }
+  },
+  "minecraft:deepslate": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/deepslate_top",
+      "side": "block/deepslate"
+    }
+  },
+  "minecraft:dirt": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/dirt"
+    }
+  },
+  "minecraft:grass_block": {
+    "shape": "cube_bottom_top",
+    "tex": {
+      "top": "block/grass_block_top",
+      "side": "block/grass_block_side",
+      "bottom": "block/dirt",
+      "sideOverlay": "block/grass_block_side_overlay"
+    },
+    "tint": {
+      "top": "grass",
+      "sideOverlay": "grass"
+    }
+  },
+  "minecraft:sand": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/sand"
+    }
+  },
+  "minecraft:gravel": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/gravel"
+    }
+  },
+  "minecraft:snow_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/snow"
+    }
+  },
+  "minecraft:ice": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/ice"
+    },
+    "render": "translucent"
+  },
+  "minecraft:packed_ice": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/packed_ice"
+    }
+  },
+  "minecraft:netherrack": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/netherrack"
+    }
+  },
+  "minecraft:end_stone": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/end_stone"
+    }
+  },
+  "minecraft:bedrock": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/bedrock"
+    }
+  },
+  "minecraft:obsidian": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/obsidian"
+    }
+  },
+  "minecraft:crying_obsidian": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/crying_obsidian"
+    }
+  },
+  "minecraft:magma_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/magma"
+    }
+  },
+  "minecraft:oak_planks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/oak_planks"
+    }
+  },
+  "minecraft:spruce_planks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/spruce_planks"
+    }
+  },
+  "minecraft:birch_planks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/birch_planks"
+    }
+  },
+  "minecraft:dark_oak_planks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/dark_oak_planks"
+    }
+  },
+  "minecraft:oak_log": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/oak_log_top",
+      "side": "block/oak_log"
+    }
+  },
+  "minecraft:spruce_log": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/spruce_log_top",
+      "side": "block/spruce_log"
+    }
+  },
+  "minecraft:birch_log": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/birch_log_top",
+      "side": "block/birch_log"
+    }
+  },
+  "minecraft:oak_leaves": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/oak_leaves"
+    },
+    "render": "cutout",
+    "tint": {
+      "all": "foliage"
+    }
+  },
+  "minecraft:spruce_leaves": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/spruce_leaves"
+    },
+    "render": "cutout",
+    "tint": {
+      "all": "foliage_spruce"
+    }
+  },
+  "minecraft:birch_leaves": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/birch_leaves"
+    },
+    "render": "cutout",
+    "tint": {
+      "all": "foliage_birch"
+    }
+  },
+  "minecraft:bricks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/bricks"
+    }
+  },
+  "minecraft:stone_bricks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/stone_bricks"
+    }
+  },
+  "minecraft:deepslate_bricks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/deepslate_bricks"
+    }
+  },
+  "minecraft:nether_bricks": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/nether_bricks"
+    }
+  },
+  "minecraft:quartz_block": {
+    "shape": "cube_bottom_top",
+    "tex": {
+      "top": "block/quartz_block_top",
+      "side": "block/quartz_block_side",
+      "bottom": "block/quartz_block_bottom"
+    }
+  },
+  "minecraft:smooth_stone": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/smooth_stone"
+    }
+  },
+  "minecraft:glass": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/glass"
+    },
+    "render": "cutout"
+  },
+  "minecraft:bookshelf": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/oak_planks",
+      "side": "block/bookshelf"
+    }
+  },
+  "minecraft:hay_block": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/hay_block_top",
+      "side": "block/hay_block_side"
+    }
+  },
+  "minecraft:coal_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/coal_ore"
+    }
+  },
+  "minecraft:iron_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/iron_ore"
+    }
+  },
+  "minecraft:copper_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/copper_ore"
+    }
+  },
+  "minecraft:gold_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/gold_ore"
+    }
+  },
+  "minecraft:redstone_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/redstone_ore"
+    }
+  },
+  "minecraft:lapis_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/lapis_ore"
+    }
+  },
+  "minecraft:diamond_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/diamond_ore"
+    }
+  },
+  "minecraft:emerald_ore": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/emerald_ore"
+    }
+  },
+  "minecraft:coal_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/coal_block"
+    }
+  },
+  "minecraft:iron_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/iron_block"
+    }
+  },
+  "minecraft:copper_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/copper_block"
+    }
+  },
+  "minecraft:gold_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/gold_block"
+    }
+  },
+  "minecraft:redstone_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/redstone_block"
+    }
+  },
+  "minecraft:lapis_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/lapis_block"
+    }
+  },
+  "minecraft:diamond_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/diamond_block"
+    }
+  },
+  "minecraft:emerald_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/emerald_block"
+    }
+  },
+  "minecraft:netherite_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/netherite_block"
+    }
+  },
+  "minecraft:amethyst_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/amethyst_block"
+    }
+  },
+  "minecraft:crafting_table": {
+    "shape": "cube",
+    "tex": {
+      "up": "block/crafting_table_top",
+      "down": "block/oak_planks",
+      "north": "block/crafting_table_front",
+      "south": "block/crafting_table_side",
+      "east": "block/crafting_table_side",
+      "west": "block/crafting_table_front"
+    }
+  },
+  "minecraft:furnace": {
+    "shape": "orientable",
+    "tex": {
+      "front": "block/furnace_front",
+      "side": "block/furnace_side",
+      "top": "block/furnace_top"
+    }
+  },
+  "minecraft:tnt": {
+    "shape": "cube_bottom_top",
+    "tex": {
+      "top": "block/tnt_top",
+      "side": "block/tnt_side",
+      "bottom": "block/tnt_bottom"
+    }
+  },
+  "minecraft:note_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/note_block"
+    }
+  },
+  "minecraft:jukebox": {
+    "shape": "cube_bottom_top",
+    "tex": {
+      "top": "block/jukebox_top",
+      "side": "block/jukebox_side",
+      "bottom": "block/jukebox_side"
+    }
+  },
+  "minecraft:glowstone": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/glowstone"
+    }
+  },
+  "minecraft:sea_lantern": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/sea_lantern"
+    }
+  },
+  "minecraft:pumpkin": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/pumpkin_top",
+      "side": "block/pumpkin_side"
+    }
+  },
+  "minecraft:melon": {
+    "shape": "cube_column",
+    "tex": {
+      "end": "block/melon_top",
+      "side": "block/melon_side"
+    }
+  },
+  "minecraft:slime_block": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/slime_block"
+    },
+    "render": "translucent"
+  },
+  "minecraft:honey_block": {
+    "shape": "cube_bottom_top",
+    "tex": {
+      "top": "block/honey_block_top",
+      "side": "block/honey_block_side",
+      "bottom": "block/honey_block_bottom"
+    },
+    "render": "translucent"
+  },
+  "minecraft:white_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/white_wool"
+    }
+  },
+  "minecraft:orange_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/orange_wool"
+    }
+  },
+  "minecraft:magenta_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/magenta_wool"
+    }
+  },
+  "minecraft:light_blue_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/light_blue_wool"
+    }
+  },
+  "minecraft:yellow_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/yellow_wool"
+    }
+  },
+  "minecraft:lime_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/lime_wool"
+    }
+  },
+  "minecraft:pink_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/pink_wool"
+    }
+  },
+  "minecraft:gray_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/gray_wool"
+    }
+  },
+  "minecraft:light_gray_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/light_gray_wool"
+    }
+  },
+  "minecraft:cyan_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/cyan_wool"
+    }
+  },
+  "minecraft:purple_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/purple_wool"
+    }
+  },
+  "minecraft:blue_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/blue_wool"
+    }
+  },
+  "minecraft:brown_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/brown_wool"
+    }
+  },
+  "minecraft:green_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/green_wool"
+    }
+  },
+  "minecraft:red_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/red_wool"
+    }
+  },
+  "minecraft:black_wool": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/black_wool"
+    }
+  },
+  "minecraft:white_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/white_concrete"
+    }
+  },
+  "minecraft:orange_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/orange_concrete"
+    }
+  },
+  "minecraft:magenta_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/magenta_concrete"
+    }
+  },
+  "minecraft:light_blue_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/light_blue_concrete"
+    }
+  },
+  "minecraft:yellow_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/yellow_concrete"
+    }
+  },
+  "minecraft:lime_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/lime_concrete"
+    }
+  },
+  "minecraft:pink_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/pink_concrete"
+    }
+  },
+  "minecraft:gray_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/gray_concrete"
+    }
+  },
+  "minecraft:light_gray_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/light_gray_concrete"
+    }
+  },
+  "minecraft:cyan_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/cyan_concrete"
+    }
+  },
+  "minecraft:purple_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/purple_concrete"
+    }
+  },
+  "minecraft:blue_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/blue_concrete"
+    }
+  },
+  "minecraft:brown_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/brown_concrete"
+    }
+  },
+  "minecraft:green_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/green_concrete"
+    }
+  },
+  "minecraft:red_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/red_concrete"
+    }
+  },
+  "minecraft:black_concrete": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/black_concrete"
+    }
+  },
+  "minecraft:white_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/white_terracotta"
+    }
+  },
+  "minecraft:orange_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/orange_terracotta"
+    }
+  },
+  "minecraft:magenta_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/magenta_terracotta"
+    }
+  },
+  "minecraft:light_blue_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/light_blue_terracotta"
+    }
+  },
+  "minecraft:yellow_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/yellow_terracotta"
+    }
+  },
+  "minecraft:lime_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/lime_terracotta"
+    }
+  },
+  "minecraft:pink_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/pink_terracotta"
+    }
+  },
+  "minecraft:gray_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/gray_terracotta"
+    }
+  },
+  "minecraft:light_gray_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/light_gray_terracotta"
+    }
+  },
+  "minecraft:cyan_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/cyan_terracotta"
+    }
+  },
+  "minecraft:purple_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/purple_terracotta"
+    }
+  },
+  "minecraft:blue_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/blue_terracotta"
+    }
+  },
+  "minecraft:brown_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/brown_terracotta"
+    }
+  },
+  "minecraft:green_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/green_terracotta"
+    }
+  },
+  "minecraft:red_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/red_terracotta"
+    }
+  },
+  "minecraft:black_terracotta": {
+    "shape": "cube_all",
+    "tex": {
+      "all": "block/black_terracotta"
+    }
+  }
+}
