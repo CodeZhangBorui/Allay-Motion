@@ -32,6 +32,10 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
+      # 固定版本的 FFmpeg（校验 SHA-256），test:export、e2e 和安装包都要用
+      - name: pnpm ffmpeg:fetch
+        run: pnpm ffmpeg:fetch
+
       - name: pnpm check
         run: pnpm check
 

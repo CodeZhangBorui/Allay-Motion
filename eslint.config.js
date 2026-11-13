@@ -122,6 +122,8 @@ export default tseslint.config(
       'docs/**',
       'test-results/**',
       'playwright-report/**',
+      // 其他会话放在仓库目录里的 git worktree（.git/info/exclude 已排除），不属于这份代码
+      '.claude/**',
       // 故意违规的夹具，只由 T-ARC-1 的测试以虚拟路径检查
       'tests/fixtures/lint/**',
     ],
