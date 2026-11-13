@@ -144,7 +144,6 @@ export function registerCore(): void {
   if (registered) return;
   registered = true;
   for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS]) registerCommand(c);
-  for (const c of CORE_COMMANDS) registerCommand(c);
   for (const c of EXPORT_TASK_COMMANDS) registerCommand(c);
   registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
   registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });
