@@ -802,3 +802,41 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - T-DEV-4：`tests/unit/T-DEV-4.optional-modules.test.ts`。
 - 监视和开发模式方法：`tests/unit/template-dev.test.ts`，用真实的文件系统事件（临时目录、测试时生成的模板），含“自己写入不触发”“原子保存只触发一次”“目录外的路径被拒绝”（目录联接），以及复制出的六个内置模板按 jsconfig 做 checkJs。
 - T-DEV-1 和 T-DEV-2 的界面部分（错误浮层显示位置、保留上一帧、修好后恢复）属于 MD-b，没有做。
+
+## M6b 音频与两处引擎补强
+
+### 音效从哪里来（用户决定：不做合成音效，用原版资源）
+
+- 有原版层（本机游戏，资源索引在）时直接读：`sounds.json` 和 `.ogg` 都是资源索引里的对象，映射成 `assets/<键>`（M2a）。资源包照常叠在上面。
+- **下载缓存的原版层：在“下载原版资源”的同一次下载里取回音效对象，之后不再联网**（M2b 留下的决定）。`downloadLatest()` 之后紧接着 `fetchSoundObjects(版本, SOUND_EVENTS)`：先取 `minecraft/sounds.json`，按它展开事件表里每个事件的全部变体，再取这些 `.ogg`。每个对象都经 `fetchObject`，白名单（`resources.download.minecraft.net`）、sha1 和大小校验、`.part` 临时文件、取消都和 M2a 相同。打开下载缓存的原版层仍然不传 `fetchObject`：没取回的对象读出来是空，不会在后台联网。
+- **事件表用 `SOUND_EVENTS`（音效选择器里的 11 个事件），不是只取内置模板的默认值**：选择器里能选的每个原版事件在离线时都能响；它是默认值的超集（单元测试核对内置模板 `sound` 参数的默认值都在表里）。`allay:whoosh` 不是原版事件，资源索引里没有，T3 默认静音并提示，除非资源包提供了它（不自己做音效）。
+- 下载说明文案（两种语言）改了：多了 `resources.download.minecraft.net`，写明会下载模板用到的几十个声音文件、“估计不到 2 MB”。**这个大小没联网核实**，是按事件数和原版音效文件的一般大小估的。
+- 音效里任何一步取不到（事件没定义、文件缺失、解码失败）：这个 cue 静音，界面给一条 info 提示（列出前 4 个事件的显示名），同一组缺失在同一个资源栈下只提示一次；不报错、不影响装载和导出。引擎不把它记进模板警告（那是模板的问题，这是资源的问题），T-TPL-3 的“无警告”因此不受影响。
+
+### 变体选择（02-engine.md 2.10）
+
+- 规格说引擎选变体，但 M3 的引擎只记了 cue。现在：`setup` 结束后，引擎对每个不同的事件经 `resolveResource('sound-meta', 事件)` 取变体表（宿主经新的 IPC `resources.soundVariants` 从资源栈合并各层的 `sounds.json`，按 M2a 的合并规则，按 stamp 和命名空间缓存），同一事件的第 n 个 cue 用 `createRng(种子, 'sound:' + 事件 + ':' + n)` 的第一个数（就是 `ctx.random(...)` 的那个生成器）按权重选，写进 cue 的 `variant: { file, volume, pitch }`；没有这个事件时 `variant: null`。
+- 预览和导出各自装载，种子、参数、资源栈相同，选到的相同（test:engine 核对两次装载、改参数再改回）。
+- 变体的 `volume`、`pitch` 分别乘到模板给的 `gain`、`rate` 上；`rate` 钳制在 1/16–16，`pan` 在 ±1（`voiceParams`，预览和导出共用）。
+
+### 调度、预览播放、试听
+
+- `apps/desktop/src/renderer/audio/`：`schedule.ts`（唯一的调度函数，5.5 的 buffer → gain → pan 链）、`sound-bank.ts`（按音效名取文件，`.ogg` 优先，**一律在 48 kHz 的离线上下文里解码**，预览和导出用同一份样本，导出与声卡采样率无关）、`mix.ts`（离线混音）、`wav.ts`、`app-audio.ts`（应用里的接线）。
+- 预览：`AudioContext({ sampleRate: 48000 })`，第一次需要时才建。时间轴的时钟仍是 rAF；按下播放时排所有 `at ≥ t` 的 cue（声音截在时间轴终点）。每个播放段有自己的 GainNode，停止时 8 ms 淡出后停掉全部音源。暂停、播放结束、静音立刻停；循环回到开头、跳转（时间轴与 AudioContext 时钟相差超过 0.2 s）、cue 变了（sound 参数改了）都先停再从当前时刻重排，所以不叠音、不拖到下一轮。拖动时间轴本来就会暂停，不出声。
+- **静音时不调度**（而不是排了再把增益设成 0）；播放中取消静音从当前时刻接着排。
+- 试听：放所选事件的一个变体，多个变体时每点一次换下一个（轮流，不随机）。**试听不受时间轴静音开关的影响**：这是用户明确要听的。缺失时只提示。
+- 自动化测试不能出声：测试用的隐藏窗口在主进程里 `webContents.setAudioMuted(true)`（只在 `ALLAY_E2E_HIDDEN` 生效时，打包后恒为假），test:engine 的测试页也静音且只用离线上下文。e2e 断言调度状态（测试钩子 `audioState`），不听声音。
+
+### 导出（5.5、T-EXP-4）
+
+- **音频样本数 = round(帧数 / 帧率 × 48000)**，与视频长度严格相等；规格写的 `ceil(duration × 48000)` 比视频短（视频有 `frameCount` 个帧，末帧在 `duration`，播放长度是 `帧数 / 帧率`）。
+- **离线混音逐个声音渲染**：每个 cue 在自己的 `OfflineAudioContext` 里走同一个 `scheduleCues`，再按 cue 的顺序在 JS 里相加。最初把所有声音接到同一个 destination，T1（约 24 个重叠的 cue）在应用里两次混音的哈希不同：Chromium 对一个节点多路输入的求和顺序不固定，浮点加法不满足结合律。逐个渲染后 e2e 和 test:engine 都逐字节相同。预览的实时播放仍然接在同一个节点上（听不出最低位的差别）。
+- 淡出和峰值处理在渲染之后对样本做：末尾 480 个样本线性降到 0；峰值超过 1 时整体乘到 −1 dBFS，并给一条 info 提示（导出对话框的形态留给 M7，没加新的界面位置）。混出来全是 0 也当作没有音轨。
+- 流程：渲染进程装载导出引擎 → 离线混音 → `export.start({…, audio})` → 有音轨时 `export.writeAudio(jobId, wav)` → 逐帧。WAV 是 FFmpeg 的输入，要先落盘，所以**有音轨的任务在 `writeAudio` 之后才启动 FFmpeg**；先写帧会被拒绝。主进程核对 WAV 头（PCM、48 kHz、立体声、16 位），不合格式时任务失败并清理。
+- ProRes：WAV 写到系统临时目录 `allay-mix-<uuid>.wav`，作为第二个输入，`-map 0:v:0 -map 1:a:0 -c:a pcm_s16le`；任何结局都删掉。PNG 序列：WAV 直接写进 `.partial` 目录，名为 `<name>.wav`，随目录改名（5.3 ②）。
+- `ExportStartSchema` 的 `audio` 是可选字段（缺省为没有音轨），旧的调用方不受影响。T-ARC-6 的畸形参数表补了 `export.writeAudio`、`resources.soundVariants`。
+
+### 引擎补强
+
+- **`BlockHandle.faceTexture(face)`**：返回方块目录里那一面的贴图（不含草方块侧面叠加层、不带面明暗和着色），是引擎缓存里的那张，模板不释放、不改属性；面名不合法时抛 `TypeError`；目录里没有的方块返回占位图（`block()` 已经记过警告）。T3、T5 的 `util.ts` 换成一行调用（取 `south`，和原来找 +z 面的结果是同一张），`runtime.ts`、04 的接口块、`pnpm templates:api` 的产物同步。T-TPL-5 的基准图没有变化（同一张贴图）。
+- **着色器编译失败的警告**：引擎在 `init` 里设 `renderer.debug.onShaderError`；`setup` 结束时按场景渲染时的目标（半浮点的 sceneRT，程序的缓存键与真正渲染时一致）`renderer.compile(scene, camera)`，再对 `renderer.info.programs` 逐个 `getUniforms()` 触发 Three 的链接检查。失败记成 `LoadResult.warnings` 里的 `shader failed to compile: …`（带着色器的编译日志，限长）；之后渲染时才出现的（模板在 update 里换材质）经 `host.log` 报出。代价：每次 setup 多一次预编译，同一程序 Three 有缓存。
