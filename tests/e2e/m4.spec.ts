@@ -69,30 +69,32 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
       await expect.poll(() => page.evaluate(() => window.__allayTest!.project().ref?.id)).toBe(e.id);
       await upToDate(page);
       const tr = await page.evaluate(() => window.__allayTest!.transport());
-      const t = tr.cutTime ?? tr.duration / 2;
-      const stats = await page.evaluate((x) => window.__allayTest!.previewStats(x), t);
-      expect(stats.maxAlpha, `${e.id} 的预览画布非空`).toBeGreaterThan(0);
-      // 剪辑点上转场通常正好盖满整个画面，换参数后那一帧可能逐像素相同（取决于画布尺寸的取整），
-      // 所以同时比剪辑点之前一半处的那一帧：任何一帧变了就算画面变化（docs/decisions.md 界面重设计）
-      const times = [t, t / 2];
-      const hashes = () => Promise.all(times.map((x) => page.evaluate((y) => window.__allayTest!.previewHash(y), x)));
-      const before = (await hashes()).join();
+      // 取样时刻：整段里均匀的几帧加剪辑点。只看剪辑点不够——转场在剪辑点“完全盖住画面”，
+      // 平涂填充时很多参数（节奏、图案、方向）不改变这一帧，变化出现在进入、退出阶段（decisions.md M4）
+      const times = [0.2, 0.35, 0.5, 0.65, 0.8].map((k) => k * tr.duration).concat(tr.cutTime ?? []);
+      const sample = () => page.evaluate(async (ts) => (await Promise.all(ts.map((x) => window.__allayTest!.previewHash(x)))).join(','), times);
+      let maxAlpha = 0;
+      for (const t of times) maxAlpha = Math.max(maxAlpha, (await page.evaluate((x) => window.__allayTest!.previewStats(x), t)).maxAlpha);
+      expect(maxAlpha, `${e.id} 的预览画布非空`).toBeGreaterThan(0);
+      const before = await sample();
       // 经属性面板改一个数字参数（上方向键步进）：从第一个数字框起，找到能改变画面的那一个
       const inputs = page.locator('[data-testid="param-panel"] input[inputmode]');
       const count = await inputs.count();
       expect(count, `${e.id} 的属性面板里有数字参数`).toBeGreaterThan(0);
       let changed = false;
+      let which = '';
       for (let i = 0; i < Math.min(count, 6) && !changed; i++) {
         const input = inputs.nth(i);
+        which = (await input.getAttribute('aria-label')) ?? String(i);
         await input.focus();
         const rev = await page.evaluate(() => window.__allayTest!.project().revision);
         for (let k = 0; k < 3; k++) await page.keyboard.press('ArrowUp');
         await expect.poll(() => page.evaluate(() => window.__allayTest!.project().revision)).toBeGreaterThan(rev);
         await upToDate(page);
-        const after = (await hashes()).join();
-        changed = after !== before;
+        changed = (await sample()) !== before;
       }
       expect(changed, `${e.id} 改参数后画面变化`).toBe(true);
+      test.info().annotations.push({ type: 'T-UI-1', description: `${e.id}：改“${which}”后画面变化（${builtins.length} 个内置模板）` });
     }
   } finally {
     await stop(ctx);
@@ -219,6 +221,25 @@ for (const language of ['zh-CN', 'en'] as const) {
         expect(text.match(RAW_KEY)?.[0] ?? null, `${where}：界面上出现了文案键`).toBeNull();
       };
       await check('主界面');
+      // 每个内置模板：卡片有封面、悬停时播放预览，选中后属性面板（各模板用到的参数类型）不溢出
+      await coversReady(page);
+      const builtins = (await page.evaluate(() => window.__allayTest!.templates())).filter((e) => e.source === 'builtin' && !e.baseMissing);
+      for (const e of builtins) {
+        const card = page.getByTestId(`template-${e.id}`);
+        await expect(card.locator('img'), `${e.id} 的封面`).toBeVisible({ timeout: 30_000 });
+        await card.hover();
+        await expect(card.locator('canvas'), `${e.id} 的悬停预览`).toBeVisible();
+        await card.click();
+        await expect.poll(() => page.evaluate(() => window.__allayTest!.project().ref?.id)).toBe(e.id);
+        await upToDate(page);
+        // 把属性面板的分组全部展开再查
+        for (const g of await page.locator('[data-testid^="param-group-"][aria-expanded="false"]').all()) await g.click();
+        await check(`属性面板/${e.id}`);
+      }
+      await page.mouse.move(0, 0);
+      // 后面的方块选择器用 T1 的“方块”参数
+      await page.getByTestId(`template-${FLAGSHIP}`).click();
+      await upToDate(page);
       // 设置对话框的每一页
       await page.keyboard.press('Control+Comma');
       for (const p of ['general', 'assets', 'export', 'shortcuts', 'about']) {
