@@ -3,7 +3,9 @@
 //
 //   --shots=<目录>   只截图，把每个场景的 PNG 写进这个目录（改前用旧代码跑一次，改后再跑一次）
 //   --compose=<改前目录>,<改后目录>   把两组截图左右并排拼成 docs/review/ui-redesign/<场景>.png（左改前、右改后）
+//   --design=<定稿图>,<截图>   把定稿图（按截图的高度放大）和实际界面左右并排，写成 docs/review/ui-redesign/design-vs-app.png
 //   --only=<名字片段>   只处理名字含这个片段的场景
+// 新界面独有的场景（菜单、预设页、输出页）在旧界面上用最接近的东西代替：工程菜单、预设下拉、输出规格弹层。
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -146,6 +148,35 @@ const SCENES: Scene[] = [
     },
   },
   {
+    name: 'menu-dark-zh',
+    theme: 'dark',
+    language: 'zh-CN',
+    act: async (p) => {
+      await p.getByTestId('project-menu').click();
+      await p.waitForTimeout(400);
+    },
+  },
+  {
+    name: 'presets-dark-en',
+    theme: 'dark',
+    language: 'en',
+    act: async (p) => {
+      if (await p.getByTestId('left-tab-presets').count()) await p.getByTestId('left-tab-presets').click();
+      else await p.getByTestId('preset-menu').click();
+      await p.waitForTimeout(400);
+    },
+  },
+  {
+    name: 'output-light-zh',
+    theme: 'light',
+    language: 'zh-CN',
+    act: async (p) => {
+      if (await p.getByTestId('right-tab-output').count()) await p.getByTestId('right-tab-output').click();
+      else await p.getByTestId('output-badge').click();
+      await p.waitForTimeout(400);
+    },
+  },
+  {
     name: 'export-light-en',
     theme: 'light',
     language: 'en',
@@ -245,13 +276,52 @@ async function compose(beforeDir: string, afterDir: string): Promise<void> {
   }
 }
 
+/** 定稿图与实际界面并排：定稿图按最近邻放大到截图的高度 */
+async function designVsApp(designFile: string, appFile: string): Promise<void> {
+  const d = await readPng(designFile);
+  const a = await readPng(appFile);
+  const k = a.height / d.height;
+  const dw = Math.round(d.width * k);
+  const scaled = new Uint8Array(dw * a.height * 4);
+  for (let y = 0; y < a.height; y++) {
+    const sy = Math.min(d.height - 1, Math.floor(y / k));
+    for (let x = 0; x < dw; x++) {
+      const sx = Math.min(d.width - 1, Math.floor(x / k));
+      scaled.set(d.data.subarray((sy * d.width + sx) * 4, (sy * d.width + sx) * 4 + 4), (y * dw + x) * 4);
+    }
+  }
+  const GAP = 16;
+  const BAR = 8;
+  const width = dw + GAP + a.width;
+  const height = BAR + a.height;
+  const out = new Uint8Array(width * height * 4);
+  for (let i = 0; i < out.length; i += 4) out.set([24, 24, 24, 255], i);
+  for (let y = 0; y < BAR; y++) {
+    for (let x = 0; x < dw; x++) out.set([242, 169, 59, 255], (y * width + x) * 4);
+    for (let x = dw + GAP; x < width; x++) out.set([67, 211, 234, 255], (y * width + x) * 4);
+  }
+  for (let y = 0; y < a.height; y++) {
+    out.set(scaled.subarray(y * dw * 4, (y + 1) * dw * 4), ((y + BAR) * width) * 4);
+    out.set(a.data.subarray(y * a.width * 4, (y + 1) * a.width * 4), ((y + BAR) * width + dw + GAP) * 4);
+  }
+  mkdirSync(REVIEW, { recursive: true });
+  const file = join(REVIEW, 'design-vs-app.png');
+  writeFileSync(file, encodePng({ width, height, data: out }));
+  console.log(`[review:ui-redesign] ${file}`);
+}
+
 const shots = arg('shots');
 const comp = arg('compose');
+const design = arg('design');
 if (shots) await shoot(resolve(shots));
+else if (design) {
+  const [d, a] = design.split(',');
+  await designVsApp(resolve(d!), resolve(a!));
+}
 else if (comp) {
   const [before, after] = comp.split(',');
   await compose(resolve(before!), resolve(after!));
 } else {
-  console.error('用法：--shots=<目录> 或 --compose=<改前目录>,<改后目录>');
+  console.error('用法：--shots=<目录>、--compose=<改前目录>,<改后目录> 或 --design=<定稿图>,<截图>');
   process.exit(1);
 }
