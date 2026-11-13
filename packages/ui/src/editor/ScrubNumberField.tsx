@@ -59,7 +59,7 @@ export function ScrubNumberField({ value, onChange, min, max, step = 1, decimals
         direction="horizontal"
         pixelSensitivity={2}
         className="flex h-full shrink-0 cursor-ew-resize items-center px-1.5 text-fg-muted hover:text-foreground"
-        onPointerDown={() => beginGesture(editor)}
+        onPointerDownCapture={() => beginGesture(editor)}
         aria-hidden="true"
       >
         {scrubLabel ?? <MoveHorizontal className="size-3" />}
@@ -89,7 +89,7 @@ export function SliderField(props: ScrubNumberFieldProps & { min: number; max: n
         disabled={disabled}
         thumbLabel={label}
         className="min-w-0 flex-1"
-        onPointerDown={() => beginGesture(editor)}
+        onPointerDownCapture={() => beginGesture(editor)}
         onValueChange={(v) => {
           const n = Array.isArray(v) ? (v[0] as number) : (v as number);
           if (Number.isFinite(n) && n !== value) onChange(n);

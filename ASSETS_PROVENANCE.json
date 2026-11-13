@@ -20,5 +20,12 @@
     "author": "TakWolf",
     "license": "OFL-1.1",
     "note": "方舟像素字体 12px 比例宽度 zh_hans 的 BDF，取自发布包 ark-pixel-font-12px-proportional-bdf-v2026.11.10.zip（sha256 f8f2880a…db7dfd），未做任何修改；许可全文 resources/fonts/ark-pixel/OFL.txt 同包附带。没有原版层时文字的兜底字形（docs/decisions.md M2b）"
+  },
+  {
+    "path": "tests/fixtures/ui-baselines/*.png",
+    "origin": "rendered",
+    "generator": "pnpm test:e2e:baselines",
+    "license": "项目自有",
+    "note": "T-UI-5 的界面截图基线（深色、浅色）：资源栈里只有测试脚本生成的纯色假原版层，引擎画出来的部分（预览画布、封面、缩略图）和悦灵头像在截图里被蒙住，不含任何原版贴图；只给测试用，不进安装包（docs/decisions.md M4）"
   }
 ]

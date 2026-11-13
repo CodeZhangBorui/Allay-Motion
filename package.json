@@ -27,7 +27,8 @@
     "review:m1": "tsx scripts/review-m1.ts",
     "review:m2b": "tsx scripts/review-m2b.ts",
     "review:m3": "tsx scripts/review-m3.ts",
-    "review:m4": "tsx scripts/review-m4.ts"
+    "review:m4": "tsx scripts/review-m4.ts",
+    "test:e2e:baselines": "pnpm build && playwright test tests/e2e/m4.spec.ts -g T-UI-5 --update-snapshots"
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",

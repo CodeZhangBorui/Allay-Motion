@@ -67,7 +67,8 @@ export function beginGesture(services: EditorServices): void {
   const end = () => {
     window.removeEventListener('pointerup', end, true);
     window.removeEventListener('pointercancel', end, true);
-    services.gesture('end');
+    // 控件自己可能在松开时再提交一次最终值（滑块的 pointerup 在 window 的捕获阶段之后才处理）：等这一轮事件处理完再结束
+    setTimeout(() => services.gesture('end'), 0);
   };
   window.addEventListener('pointerup', end, true);
   window.addEventListener('pointercancel', end, true);

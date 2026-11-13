@@ -111,7 +111,7 @@ export function GalleryPanel() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
           <TabsList className="w-full" aria-label={t('gallery.categoriesLabel')}>
             {(['all', 'transition', 'overlay', 'mine'] as const).map((k) => (
-              <TabsTrigger key={k} value={k} data-testid={`gallery-tab-${k}`}>
+              <TabsTrigger key={k} value={k} data-testid={`gallery-tab-${k}`} className="flex-auto px-1.5">
                 {t(`gallery.tabs.${k}`)}
               </TabsTrigger>
             ))}

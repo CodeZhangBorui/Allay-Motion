@@ -63,7 +63,7 @@ export function ColorField({ value, onChange, alpha, palette, label, testId }: C
       </PopoverTrigger>
       <PopoverContent side="left" align="start" className="w-[232px]" aria-label={label}>
         <div className="flex flex-col gap-3">
-          <div className="allay-colorful" onPointerDown={() => beginGesture(editor)}>
+          <div className="allay-colorful" onPointerDownCapture={() => beginGesture(editor)}>
             <Picker color={value.toLowerCase()} onChange={set} />
           </div>
           <div className="flex items-center gap-2">

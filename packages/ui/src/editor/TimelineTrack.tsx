@@ -117,25 +117,27 @@ export function TimelineTrack(props: TimelineTrackProps) {
   const hoverTime = hoverX !== null && trackRef.current ? Math.min(duration, snap((hoverX / trackRef.current.getBoundingClientRect().width) * duration)) : null;
 
   return (
-    <div
-      ref={trackRef}
-      data-testid="transport-track"
-      role="slider"
-      tabIndex={disabled ? -1 : 0}
-      aria-label={labels.scrub}
-      aria-valuemin={0}
-      aria-valuemax={Math.max(0, frameCount - 1)}
-      aria-valuenow={frame}
-      aria-valuetext={formatTime(time)}
-      aria-disabled={disabled}
-      className="group/track relative h-8 min-w-0 flex-1 cursor-pointer touch-none outline-none focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)"
-      onPointerDown={onTrackDown}
-      onPointerMove={onTrackMove}
-      onPointerLeave={() => setHoverX(null)}
-      onKeyDown={onTrackKey}
-    >
+    // 外层只负责定位；时间轴本身（可拖、可聚焦的 slider）和分界线是兄弟元素，不互相嵌套（axe 的 nested-interactive）
+    <div className="group/track relative h-8 min-w-0 flex-1">
+      <div
+        ref={trackRef}
+        data-testid="transport-track"
+        role="slider"
+        tabIndex={disabled ? -1 : 0}
+        aria-label={labels.scrub}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, frameCount - 1)}
+        aria-valuenow={frame}
+        aria-valuetext={formatTime(time)}
+        aria-disabled={disabled}
+        className="absolute inset-0 cursor-pointer touch-none outline-none focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)"
+        onPointerDown={onTrackDown}
+        onPointerMove={onTrackMove}
+        onPointerLeave={() => setHoverX(null)}
+        onKeyDown={onTrackKey}
+      />
       {/* 底轨与色段 */}
-      <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-sm bg-surface-3">
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-sm bg-surface-3">
         {showSegments &&
           segments.map((s, i) => (
             <div
