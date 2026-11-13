@@ -211,11 +211,21 @@ test('资源栈弹层：拖入资源包，叠加顺序、开关、重排都会�
     await expectSpot(page, 'red');
     await row('Blue').getByTestId('layer-toggle').click();
     await expectSpot(page, 'blue');
-    // Blue 下移（到 Red 下面）→ Red。dnd-kit 的键盘拖拽：聚焦手柄，空格拿起，下移一格，空格放下
-    await row('Blue').getByTestId('layer-drag').focus();
+    // Blue 下移（到 Red 下面）→ Red。dnd-kit 的键盘拖拽：聚焦手柄，空格拿起，下移一格，空格放下。
+    // dnd-kit 在拿起之后才异步量各行的位置，量好之前的方向键不起作用：等拿起生效、等这一行真的移动了再放下（不靠时序假设）
+    const handle = row('Blue').getByTestId('layer-drag');
+    await handle.focus();
     await page.keyboard.press('Space');
-    await page.keyboard.press('ArrowDown');
+    await expect(handle).toHaveAttribute('aria-pressed', 'true');
+    const movedDown = () => row('Blue').evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42 > 0);
+    await expect
+      .poll(async () => {
+        if (!(await movedDown())) await page.keyboard.press('ArrowDown');
+        return movedDown();
+      })
+      .toBe(true);
     await page.keyboard.press('Space');
+    await expect(handle).not.toHaveAttribute('aria-pressed', 'true');
     await expectSpot(page, 'red');
     await expect(popover.getByTestId('layer-row').first()).toContainText('Red');
     // 关掉 Red → Blue
