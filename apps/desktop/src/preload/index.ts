@@ -70,6 +70,29 @@ const api = {
     },
     onChanged: subscribe<ResourceState>(IPC.resources.changed),
   },
+  templates: {
+    list: invoke(IPC.templates.list),
+    read: invoke(IPC.templates.read),
+    readAsset: invoke(IPC.templates.readAsset),
+    install: invoke(IPC.templates.install),
+    // 1.6 第 6 条：同 addDroppedPack，只接受 File，路径由 webUtils 取
+    installDropped: (file: unknown): Promise<unknown> => {
+      if (!(file instanceof File)) return Promise.reject(new TypeError('expected a File'));
+      return ipcRenderer.invoke(IPC.templates.installDropped, webUtils.getPathForFile(file));
+    },
+    commitInstall: invoke(IPC.templates.commitInstall),
+    cancelInstall: invoke(IPC.templates.cancelInstall),
+    remove: invoke(IPC.templates.remove),
+    exportPackage: invoke(IPC.templates.exportPackage),
+    saveDerived: invoke(IPC.templates.saveDerived),
+  },
+  presets: {
+    list: invoke(IPC.presets.list),
+    save: invoke(IPC.presets.save),
+    remove: invoke(IPC.presets.remove),
+    importFile: invoke(IPC.presets.importFile),
+    exportFile: invoke(IPC.presets.exportFile),
+  },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),
     putThumb: invoke(IPC.cache.putThumb),

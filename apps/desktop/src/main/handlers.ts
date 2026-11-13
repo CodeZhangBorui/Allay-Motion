@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute } from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
 import type { AppInfo, PickedFile } from '../shared/ipc-contract';
@@ -11,6 +11,9 @@ import { IpcRejected, type createIpcRegistrar } from './ipc';
 import type { ResourceService } from './resources/service';
 import type { SettingsStore } from './settings-store';
 import type { ThumbCache } from './thumb-cache';
+import type { ExportFileResult, StageResult } from '../shared/templates';
+import type { PresetStore } from './templates/preset-store';
+import type { TemplateService } from './templates/service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -21,8 +24,17 @@ export interface HandlerDeps {
   exports: ExportService;
   resources: ResourceService;
   thumbs: ThumbCache;
+  templates: TemplateService;
+  presets: PresetStore;
   testHooks: boolean;
   getMainWindow(): BrowserWindow | null;
+}
+
+/** 主进程的保存对话框；取消时为 null */
+async function pickSavePath(win: BrowserWindow | null, defaultName: string, ext: string): Promise<string | null> {
+  if (!win) return null;
+  const result = await dialog.showSaveDialog(win, { defaultPath: defaultName, filters: [{ name: ext, extensions: [ext] }] });
+  return result.canceled || !result.filePath ? null : result.filePath;
 }
 
 /** 未知的任务 ID 是调用方的错，拒绝这次调用，不当成主进程内部错误 */
@@ -35,7 +47,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, presets, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -120,6 +132,57 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.removeLayer, (_event, id) => resources.removeLayer(id));
   handle(IPC.resources.reorder, (_event, ids) => resources.reorder(ids));
   handle(IPC.resources.setEnabled, (_event, id, enabled) => resources.setEnabled(id, enabled));
+
+  // ---- templates（04-templates.md 4.7–4.9）----
+  handle(IPC.templates.list, () => templates.list());
+  handle(IPC.templates.read, (_event, id, version) => templates.read(id, version));
+  handle(IPC.templates.readAsset, (_event, source, path) => templates.readAsset(source, path));
+  handle(IPC.templates.install, async (): Promise<StageResult> => {
+    const win = getMainWindow();
+    if (!win) return { canceled: true };
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Template', extensions: ['allaytpl'] }] });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return { canceled: true };
+    return templates.stage(path);
+  });
+  // 拖放：路径由 preload 用 webUtils.getPathForFile 从真实的 File 取得（1.6 第 6 条）
+  handle(IPC.templates.installDropped, (_event, path) => {
+    if (!isAbsolute(path)) throw new IpcRejected('dropped file has no path');
+    return templates.stage(path);
+  });
+  handle(IPC.templates.commitInstall, (_event, stagingId, report) => templates.commit(stagingId, report));
+  handle(IPC.templates.cancelInstall, (_event, stagingId) => templates.cancel(stagingId));
+  handle(IPC.templates.remove, (_event, id, version) => templates.remove(id, version));
+  handle(IPC.templates.exportPackage, async (_event, id, version): Promise<ExportFileResult> => {
+    const bytes = await templates.exportPackage(id, version);
+    if (!bytes) throw new IpcRejected('unknown template');
+    const path = await pickSavePath(getMainWindow(), `${id}-${version}.allaytpl`, 'allaytpl');
+    if (!path) return { canceled: true };
+    await writeFile(path, bytes);
+    return { ok: true, path };
+  });
+  handle(IPC.templates.saveDerived, (_event, req) => templates.saveDerived(req));
+
+  // ---- presets（4.7）----
+  handle(IPC.presets.list, () => presets.list());
+  handle(IPC.presets.save, (_event, req) => presets.save(req));
+  handle(IPC.presets.remove, (_event, id) => presets.remove(id));
+  handle(IPC.presets.importFile, async () => {
+    const win = getMainWindow();
+    if (!win) return { canceled: true } as const;
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Preset', extensions: ['allaypreset'] }] });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return { canceled: true } as const;
+    return presets.importFrom(path);
+  });
+  handle(IPC.presets.exportFile, async (_event, id): Promise<ExportFileResult> => {
+    const text = await presets.contents(id);
+    if (text === null) throw new IpcRejected('unknown preset');
+    const path = await pickSavePath(getMainWindow(), 'preset.allaypreset', 'allaypreset');
+    if (!path) return { canceled: true };
+    await writeFile(path, text, 'utf8');
+    return { ok: true, path };
+  });
 
   // ---- cache（缩略图，3.10）----
   handle(IPC.cache.getThumb, (_event, stamp, key) => thumbs.get(stamp, key));

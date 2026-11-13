@@ -15,6 +15,8 @@ import { hardenSession, installGlobalHardening } from './security';
 import { SettingsStore } from './settings-store';
 import { readTestSwitches } from './test-switches';
 import { ThumbCache } from './thumb-cache';
+import { PresetStore } from './templates/preset-store';
+import { TemplateService } from './templates/service';
 import { createMainWindow } from './window';
 
 // ---- 必须在 ready 之前完成的事 ----
@@ -76,6 +78,10 @@ if (!app.requestSingleInstanceLock()) {
     },
   });
   const thumbs = new ThumbCache(userData);
+  // 模板：内置的来自 resources/templates/（pnpm templates:build 的产物），用户的在 userData/templates/（4.8、4.9）
+  const templates = new TemplateService({ builtinDir: join(bundledResources, 'templates'), userDataDir: userData, appVersion: app.getVersion(), log });
+  const presets = new PresetStore(userData, log);
+  const templatesReady = templates.init().catch((error: unknown) => log.error('templates', 'init failed', { error }));
 
   app.on('second-instance', () => {
     if (!mainWindow) return;
@@ -106,7 +112,9 @@ if (!app.requestSingleInstanceLock()) {
     await settings.load();
 
     const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
-    registerHandlers({ registrar, settings, grants: new FileGrants(), exports, resources, thumbs, testHooks: testSwitches.testHooks, getMainWindow: () => mainWindow });
+    // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
+    await templatesReady;
+    registerHandlers({ registrar, settings, grants: new FileGrants(), exports, resources, thumbs, templates, presets, testHooks: testSwitches.testHooks, getMainWindow: () => mainWindow });
     // 资源栈：内置层和资源包先打开，原版层在后台离线探测（3.4），结果经 resources:changed 推给渲染进程
     void resources.init();
     // 启动时跑一次 ffmpeg -version 并记进日志（5.6），不阻塞窗口

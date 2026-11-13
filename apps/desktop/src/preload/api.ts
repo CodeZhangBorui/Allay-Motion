@@ -9,6 +9,18 @@ import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
 import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState } from '../shared/resources';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
+import type {
+  CommitResult,
+  ExportFileResult,
+  InstallReport,
+  PresetEntry,
+  PresetImportResult,
+  SaveDerivedRequest,
+  SavePresetRequest,
+  StageResult,
+  TemplateBundle,
+  TemplateEntry,
+} from '../shared/templates';
 
 /** 渲染进程能看到的唯一接口：window.allay（docs/01-product-architecture.md 1.8） */
 export interface AllayApi {
@@ -68,6 +80,36 @@ export interface AllayApi {
     reorder(ids: string[]): Promise<ResourceState>;
     setEnabled(id: string, enabled: boolean): Promise<ResourceState>;
     onChanged(callback: (state: ResourceState) => void): () => void;
+  };
+  templates: {
+    /** 内置和已安装的全部模板 */
+    list(): Promise<TemplateEntry[]>;
+    /** 装载需要的 manifest（派生模板已套上 overrides）和代码；不存在或基模板缺失时为 null */
+    read(id: string, version: string): Promise<TemplateBundle | null>;
+    /** 模板包 assets/ 里的文件（asset: 引用） */
+    readAsset(source: { id: string; version: string } | { stagingId: string }, path: string): Promise<Uint8Array | null>;
+    /** 弹出主进程的对话框选 .allaytpl，做 4.8 的第 1–3 步并解压到暂存区 */
+    install(): Promise<StageResult>;
+    /** 拖进窗口的模板包：只接收 File 对象，路径由 preload 取 */
+    installDropped(file: File): Promise<StageResult>;
+    /** 试运行之后：把暂存的包装上，记下试运行的警告 */
+    commitInstall(stagingId: string, report: InstallReport): Promise<CommitResult>;
+    cancelInstall(stagingId: string): Promise<void>;
+    /** 只能删用户模板 */
+    remove(id: string, version: string): Promise<boolean>;
+    /** 弹出主进程的保存对话框，导出成 .allaytpl */
+    exportPackage(id: string, version: string): Promise<ExportFileResult>;
+    /** 另存为派生模板（4.7） */
+    saveDerived(req: SaveDerivedRequest): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: string }>;
+  };
+  presets: {
+    list(): Promise<PresetEntry[]>;
+    save(req: SavePresetRequest): Promise<PresetEntry>;
+    remove(id: string): Promise<boolean>;
+    /** 弹出主进程的对话框导入 .allaypreset */
+    importFile(): Promise<PresetImportResult>;
+    /** 弹出主进程的保存对话框导出 */
+    exportFile(id: string): Promise<ExportFileResult>;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

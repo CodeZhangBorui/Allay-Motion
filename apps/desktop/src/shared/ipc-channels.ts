@@ -1,7 +1,8 @@
 // IPC 通道名。preload 和主进程共用；这里不放 zod，preload 保持最薄。
 // 命名空间与 docs/01-product-architecture.md 1.8 一致；M0 实现了 app、settings、window、files，
 // M1 加上 export 的 start、writeFrame、finish、cancel、ffmpegInfo（writeAudio、probeEncoders 在 M6、M7）；
-// M2 加上 resources 和 cache（规格之外多出的几个方法见 docs/decisions.md M2b）。
+// M2 加上 resources 和 cache（规格之外多出的几个方法见 docs/decisions.md M2b）；
+// M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）。
 
 export const IPC = {
   app: {
@@ -48,6 +49,25 @@ export const IPC = {
     /** 主进程 → 渲染进程的事件 */
     changed: 'resources:changed',
   },
+  templates: {
+    list: 'templates:list',
+    read: 'templates:read',
+    readAsset: 'templates:readAsset',
+    install: 'templates:install',
+    installDropped: 'templates:installDropped',
+    commitInstall: 'templates:commitInstall',
+    cancelInstall: 'templates:cancelInstall',
+    remove: 'templates:remove',
+    exportPackage: 'templates:exportPackage',
+    saveDerived: 'templates:saveDerived',
+  },
+  presets: {
+    list: 'presets:list',
+    save: 'presets:save',
+    remove: 'presets:remove',
+    importFile: 'presets:importFile',
+    exportFile: 'presets:exportFile',
+  },
   cache: {
     getThumb: 'cache:getThumb',
     putThumb: 'cache:putThumb',
@@ -91,6 +111,21 @@ export const INVOKE_CHANNELS = [
   IPC.resources.removeLayer,
   IPC.resources.reorder,
   IPC.resources.setEnabled,
+  IPC.templates.list,
+  IPC.templates.read,
+  IPC.templates.readAsset,
+  IPC.templates.install,
+  IPC.templates.installDropped,
+  IPC.templates.commitInstall,
+  IPC.templates.cancelInstall,
+  IPC.templates.remove,
+  IPC.templates.exportPackage,
+  IPC.templates.saveDerived,
+  IPC.presets.list,
+  IPC.presets.save,
+  IPC.presets.remove,
+  IPC.presets.importFile,
+  IPC.presets.exportFile,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,
