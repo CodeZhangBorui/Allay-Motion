@@ -1,7 +1,6 @@
 // test:engine 的测试页：用应用里同一份 EngineHost（Worker、Comlink、看门狗）驱动引擎，
 // 在页面里算好统计量再交给 Playwright，避免把整帧像素序列化回 Node。
-import blockWipe from '../../../packages/templates/m1-block-wipe/template.js?raw';
-import manifestJson from '../../../packages/templates/m1-block-wipe/manifest.json';
+import builtins from 'virtual:builtin-templates';
 import alphaRects from '../../fixtures/templates/alpha-rects.js?raw';
 import movingRect from '../../fixtures/templates/moving-rect.js?raw';
 import randomInUpdate from '../../fixtures/templates/random-in-update.js?raw';
@@ -12,17 +11,63 @@ import m2Features from '../../fixtures/templates/m2-features.js?raw';
 import { EngineHost, type WatchdogTimeouts } from '../../../apps/desktop/src/renderer/engine-host/EngineHost';
 import { ANIM_COLORS, FAKE_STAMP, fakeColor, fakeResolveResource, setFakeVanillaFont } from './fake-resources';
 import { frameCount } from '../../../packages/engine/src/frames';
-import { TemplateManifestSchema, type FrameQuality, type OutputSettings, type ParamValues } from '../../../packages/template-sdk/src/index';
+import { TemplateManifestSchema, type FrameQuality, type OutputSettings, type ParamValues, type TemplateManifest } from '../../../packages/template-sdk/src/index';
 
-export const TEMPLATES = { blockWipe, alphaRects, movingRect, randomInUpdate, hangUpdate, usesImport, escapeAttempts, m2Features } as const;
-export type TemplateName = keyof typeof TEMPLATES;
+const fixture = (params: unknown[] = []) =>
+  TemplateManifestSchema.parse({ formatVersion: 1, id: 'test.engine.fixture', version: '0.0.0', name: 'fixture', category: 'transition', params });
 
-const manifest = TemplateManifestSchema.parse({ ...manifestJson, id: 'test.engine.fixture' });
+const T1_ID = 'allay.builtin.block-wipe';
 
-async function exportEngine(name: TemplateName, output: OutputSettings, params: ParamValues = {}, timeouts?: Partial<WatchdogTimeouts>) {
+/** 测试模板（源码 + manifest）。blockWipe 是内置的 T1，代码来自 pnpm templates:build 同一份打包函数 */
+const SOURCES = {
+  blockWipe: { code: builtins[T1_ID]!.code, manifest: TemplateManifestSchema.parse(builtins[T1_ID]!.manifest) },
+  alphaRects: { code: alphaRects, manifest: fixture() },
+  movingRect: { code: movingRect, manifest: fixture() },
+  randomInUpdate: { code: randomInUpdate, manifest: fixture() },
+  hangUpdate: { code: hangUpdate, manifest: fixture() },
+  usesImport: { code: usesImport, manifest: fixture() },
+  escapeAttempts: { code: escapeAttempts, manifest: fixture() },
+  m2Features: {
+    code: m2Features,
+    manifest: fixture([
+      { key: 'scenario', type: 'text', label: 'scenario', default: '' },
+      { key: 'text', type: 'text', label: 'text', default: 'AB' },
+    ]),
+  },
+} satisfies Record<string, { code: string; manifest: TemplateManifest }>;
+export type TemplateName = keyof typeof SOURCES;
+
+/** 测试模板的名字，或内置模板的 id */
+export type TemplateKey = TemplateName | (string & {});
+
+function sourceOf(key: TemplateKey): { code: string; manifest: TemplateManifest } {
+  if (Object.hasOwn(SOURCES, key)) return SOURCES[key as TemplateName];
+  const b = builtins[key];
+  if (!b) throw new Error(`unknown template ${key}`);
+  return { code: b.code, manifest: TemplateManifestSchema.parse(b.manifest) };
+}
+
+async function exportEngine(name: TemplateKey, output: OutputSettings, params: ParamValues = {}, timeouts?: Partial<WatchdogTimeouts>) {
+  const { code, manifest } = sourceOf(name);
   const host = await EngineHost.create({ mode: 'export', resolveResource: fakeResolveResource, strictDeterminism: true, timeouts });
-  const loaded = await host.load({ manifest, code: TEMPLATES[name], params, output, resourceStamp: FAKE_STAMP });
+  const loaded = await host.load({ manifest, code, params, output, resourceStamp: FAKE_STAMP });
   return { host, loaded };
+}
+
+function alphaOf(buf: Uint8Array): { min: number; max: number } {
+  let min = 255;
+  let max = 0;
+  for (let k = 3; k < buf.length; k += 4) {
+    if (buf[k]! < min) min = buf[k]!;
+    if (buf[k]! > max) max = buf[k]!;
+  }
+  return { min, max };
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
 }
 
 async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
@@ -49,6 +94,84 @@ function shuffled(n: number): number[] {
 
 const harness = {
   frameCount,
+  /** 内置模板的 id 与 manifest */
+  builtins: () => Object.fromEntries(Object.entries(builtins).map(([id, b]) => [id, b.manifest])),
+
+  /** 渲染器的名字（判断是不是软件渲染，T-TPL-5 的放宽，4.11） */
+  gpu() {
+    const gl = new OffscreenCanvas(1, 1).getContext('webgl2');
+    if (!gl) return 'none';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+  },
+
+  /**
+   * T-TPL-3/4：装载一个模板，返回 warnings、时长、剪辑点，首帧、剪辑点那一帧（round(cutTime × fps)）、末帧的 alpha 极值。
+   * hashes 为真时另做 T-ENG-1：全部帧顺序渲染一遍、在另一个 Worker 里乱序渲染一遍，逐帧比较 SHA-256。
+   */
+  async tplCheck(name: TemplateKey, output: OutputSettings, quality: FrameQuality, params: ParamValues, hashes: boolean) {
+    const { host, loaded } = await exportEngine(name, output, params);
+    try {
+      const total = frameCount(loaded.duration, output.fps);
+      const cutIndex = loaded.cutTime === null ? null : Math.round(loaded.cutTime * output.fps);
+      const first = alphaOf(await host.renderFrame(0, quality));
+      const last = alphaOf(await host.renderFrame(total - 1, quality));
+      const cut = cutIndex === null ? null : alphaOf(await host.renderFrame(cutIndex, quality));
+      let deterministic: boolean | null = null;
+      let distinct = 0;
+      let mismatched: number[] = [];
+      // 不一致时的诊断：两个 Worker 各重渲染一次，看是哪一边、差多少（docs/decisions.md M3“引擎里两处确定性问题”）
+      const debug: unknown[] = [];
+      if (hashes) {
+        const seq: string[] = [];
+        for (let i = 0; i < total; i++) seq.push(await sha256(await host.renderFrame(i, quality)));
+        const other = await exportEngine(name, output, params);
+        try {
+          const shuf: string[] = new Array<string>(total);
+          for (const i of shuffled(total)) shuf[i] = await sha256(await other.host.renderFrame(i, quality));
+          mismatched = seq.flatMap((h, i) => (h === shuf[i] ? [] : [i]));
+          for (const i of mismatched) {
+            const a = await host.renderFrame(i, quality);
+            const b = await other.host.renderFrame(i, quality);
+            let diff = 0;
+            let maxd = 0;
+            let first = -1;
+            for (let k = 0; k < a.length; k++) {
+              const d = Math.abs(a[k]! - b[k]!);
+              if (d) {
+                diff++;
+                if (first < 0) first = k;
+              }
+              if (d > maxd) maxd = d;
+            }
+            debug.push({ i, seq: seq[i]!.slice(0, 8), shuf: shuf[i]!.slice(0, 8), again1: (await sha256(a)).slice(0, 8), again2: (await sha256(b)).slice(0, 8), diff, maxd, firstPixel: first >> 2 });
+          }
+          deterministic = mismatched.length === 0;
+        } finally {
+          other.host.dispose();
+        }
+        distinct = new Set(seq).size;
+      }
+      return { warnings: loaded.warnings, duration: loaded.duration, cutTime: loaded.cutTime, cues: loaded.audioCues.length, total, cutIndex, first, last, cut, deterministic, mismatched, distinct, debug };
+    } finally {
+      host.dispose();
+    }
+  },
+
+  /** T-TPL-5：0%、25%、cutTime、75%、100% 五帧（直通 alpha 的 RGBA8，base64） */
+  async tplKeyFrames(name: TemplateKey, output: OutputSettings, quality: FrameQuality) {
+    const { host, loaded } = await exportEngine(name, output);
+    try {
+      const last = frameCount(loaded.duration, output.fps) - 1;
+      const cut = loaded.cutTime === null ? Math.round(last / 2) : Math.round(loaded.cutTime * output.fps);
+      const indices = { p0: 0, p25: Math.round(last * 0.25), cut, p75: Math.round(last * 0.75), p100: last };
+      const frames: Record<string, string> = {};
+      for (const [k, i] of Object.entries(indices)) frames[k] = toBase64(await host.renderFrame(i, quality));
+      return { indices, frames, warnings: loaded.warnings };
+    } finally {
+      host.dispose();
+    }
+  },
   fakeColor,
   animColors: () => ANIM_COLORS,
   setFakeVanillaFont,
@@ -87,8 +210,8 @@ const harness = {
   },
 
   /** T-ENG-1：每帧的 SHA-256；order 是渲染顺序，结果按帧号排列 */
-  async frameHashes(name: TemplateName, output: OutputSettings, quality: FrameQuality, shuffle: boolean) {
-    const { host, loaded } = await exportEngine(name, output);
+  async frameHashes(name: TemplateKey, output: OutputSettings, quality: FrameQuality, shuffle: boolean, params: ParamValues = {}) {
+    const { host, loaded } = await exportEngine(name, output, params);
     try {
       const total = frameCount(loaded.duration, output.fps);
       const order = shuffle ? shuffled(total) : Array.from({ length: total }, (_, i) => i);
@@ -101,7 +224,7 @@ const harness = {
   },
 
   /** 取一帧里若干像素 */
-  async samplePixels(name: TemplateName, output: OutputSettings, index: number, quality: FrameQuality, points: [number, number][]) {
+  async samplePixels(name: TemplateKey, output: OutputSettings, index: number, quality: FrameQuality, points: [number, number][]) {
     const { host } = await exportEngine(name, output);
     try {
       const buf = await host.renderFrame(index, quality);
@@ -112,7 +235,7 @@ const harness = {
   },
 
   /** 一行的 alpha（T-ENG-3） */
-  async rowAlpha(name: TemplateName, output: OutputSettings, index: number, quality: FrameQuality, y: number) {
+  async rowAlpha(name: TemplateKey, output: OutputSettings, index: number, quality: FrameQuality, y: number) {
     const { host } = await exportEngine(name, output);
     try {
       const buf = await host.renderFrame(index, quality);
@@ -123,7 +246,7 @@ const harness = {
   },
 
   /** 帧的 alpha 极值（首末帧透明、剪辑点不透明） */
-  async alphaRange(name: TemplateName, output: OutputSettings, indices: number[], quality: FrameQuality) {
+  async alphaRange(name: TemplateKey, output: OutputSettings, indices: number[], quality: FrameQuality) {
     const { host, loaded } = await exportEngine(name, output);
     try {
       const out: { index: number; min: number; max: number }[] = [];
@@ -148,14 +271,15 @@ const harness = {
    * T-ENG-4：同一 t、同一分辨率、N = 1，预览画布读回（预乘 alpha）换算成直通 alpha，与 renderFrame 比较。
    * 返回 alpha 的最大差、按 alpha 分档的颜色最大差，以及预乘域里的最大差。
    */
-  async previewVsExport(name: TemplateName, output: OutputSettings, indices: number[]) {
+  async previewVsExport(name: TemplateKey, output: OutputSettings, indices: number[]) {
     const canvas = document.createElement('canvas');
     document.body.append(canvas);
     const preview = await EngineHost.create({ mode: 'preview', canvas, resolveResource: fakeResolveResource, strictDeterminism: true });
     const { host } = await exportEngine(name, output);
     try {
       await preview.resize(output.width, output.height);
-      await preview.load({ manifest, code: TEMPLATES[name], params: {}, output, resourceStamp: FAKE_STAMP });
+      const src = sourceOf(name);
+      await preview.load({ manifest: src.manifest, code: src.code, params: {}, output, resourceStamp: FAKE_STAMP });
       const results = [];
       for (const index of indices) {
         const t = index / output.fps;
@@ -195,7 +319,7 @@ const harness = {
   },
 
   /** T-ENG-5：同一帧按 1× 和 2× 分辨率渲染，后者 2×2 平均缩小一半（预乘域），比较平均绝对误差 */
-  async resolutionIndependence(name: TemplateName, base: OutputSettings, index: number, quality: FrameQuality) {
+  async resolutionIndependence(name: TemplateKey, base: OutputSettings, index: number, quality: FrameQuality) {
     const big: OutputSettings = { ...base, width: base.width * 2, height: base.height * 2 };
     const a = await exportEngine(name, base);
     const b = await exportEngine(name, big);
@@ -228,7 +352,7 @@ const harness = {
   },
 
   /** 装载或渲染应当失败的模板：返回错误信息 */
-  async expectFailure(name: TemplateName, output: OutputSettings, timeouts?: Partial<WatchdogTimeouts>) {
+  async expectFailure(name: TemplateKey, output: OutputSettings, timeouts?: Partial<WatchdogTimeouts>) {
     const started = performance.now();
     try {
       const { host } = await exportEngine(name, output, {}, timeouts);
@@ -246,14 +370,14 @@ const harness = {
   },
 
   /** 装载模板，返回 warnings（escape-attempts 用它报告结果） */
-  async loadWarnings(name: TemplateName, output: OutputSettings) {
+  async loadWarnings(name: TemplateKey, output: OutputSettings) {
     const { host, loaded } = await exportEngine(name, output);
     host.dispose();
     return loaded.warnings;
   },
 
   /** 一个 Worker 实例重复用：渲染两次同一帧，中间穿插别的帧（2.4 的确定性自检） */
-  async selfCheck(name: TemplateName, output: OutputSettings, index: number, other: number[]) {
+  async selfCheck(name: TemplateKey, output: OutputSettings, index: number, other: number[]) {
     const { host } = await exportEngine(name, output);
     try {
       const q = { subframes: 8, shutterAngle: 180 };

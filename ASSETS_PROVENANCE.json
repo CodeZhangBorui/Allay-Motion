@@ -7,6 +7,13 @@
     "note": "评审用截图，不进安装包"
   },
   {
+    "path": "tests/fixtures/baselines/**/*.png",
+    "origin": "rendered",
+    "generator": "pnpm templates:baselines",
+    "license": "项目自有",
+    "note": "T-TPL-5 的渲染基准图：内置模板用测试脚本生成的纯色假资源栈渲染（不含任何原版贴图），只给测试用，不进安装包。基准图在真实显卡上生成，不同显卡的输出不逐字节相同，所以不做逐字节比对（docs/decisions.md M3）"
+  },
+  {
     "path": "resources/fonts/ark-pixel/*.bdf",
     "origin": "third-party",
     "source": "https://github.com/TakWolf/ark-pixel-font/releases/tag/2026.11.10",
