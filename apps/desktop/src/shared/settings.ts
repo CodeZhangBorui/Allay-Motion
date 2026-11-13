@@ -1,3 +1,4 @@
+import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type ResourceStackSettings } from '@allay/assets';
 import { z } from 'zod';
 
 // 设置文件 settings.json 的 schema（docs/01-product-architecture.md 1.9）。
@@ -74,15 +75,21 @@ export const WindowStateSchema = z.strictObject({
 });
 export type WindowState = z.infer<typeof WindowStateSchema>;
 
+export function defaultResourceSettings(): ResourceStackSettings {
+  return structuredClone(DEFAULT_RESOURCE_STACK_SETTINGS);
+}
+
 export const SettingsFileSchema = z.object({
   formatVersion: z.literal(SETTINGS_FORMAT_VERSION),
   ui: UiSettingsSchema.catch(defaultUiSettings),
   window: WindowStateSchema.optional().catch(undefined),
+  /** 资源栈（应用级设置，1.9），只有主进程读写 */
+  resources: ResourceStackSettingsSchema.catch(defaultResourceSettings).default(defaultResourceSettings),
 });
 export type SettingsFile = z.infer<typeof SettingsFileSchema>;
 
 export function defaultSettingsFile(): SettingsFile {
-  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings() };
+  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings(), resources: defaultResourceSettings() };
 }
 
 export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSettings {

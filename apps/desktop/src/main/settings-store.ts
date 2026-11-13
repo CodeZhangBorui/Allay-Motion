@@ -11,6 +11,7 @@ import {
   type UiSettingsPatch,
   type WindowState,
 } from '../shared/settings';
+import type { ResourceStackSettings } from '@allay/assets';
 import type { Logger } from './logger';
 
 // settings.json 的读写（docs/01-product-architecture.md 1.9）：
@@ -94,6 +95,15 @@ export class SettingsStore {
     for (const listener of this.listeners) listener(ui);
     await this.persist();
     return ui;
+  }
+
+  get resources(): ResourceStackSettings {
+    return this.current.resources;
+  }
+
+  async updateResources(next: ResourceStackSettings): Promise<void> {
+    this.current = { ...this.current, resources: next };
+    await this.persist();
   }
 
   async updateWindow(state: WindowState): Promise<void> {
