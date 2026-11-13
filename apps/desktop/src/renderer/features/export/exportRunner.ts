@@ -32,8 +32,23 @@ export type ExportOutcome =
   | { kind: 'canceled' }
   | { kind: 'failed'; error: ExportFailure; frame: number | null };
 
+/**
+ * 每写完一帧后调用的闸门，只给自动化测试用（test-hooks 里的 pauseExportAfter）：让导出停在确定的一帧上，
+ * 测试就不必假设“导出慢到来得及点取消”。正式运行时为 null，导出不等待任何东西。
+ */
+export type ExportGate = (written: number) => Promise<void>;
+let exportGate: ExportGate | null = null;
+export function setExportGate(gate: ExportGate | null): void {
+  exportGate = gate;
+}
+
 export class ExportRun {
   private canceled = false;
+  private resolveCanceled!: () => void;
+  /** 取消时兑现：等待闸门时也要能被取消打断 */
+  private readonly canceledSignal = new Promise<void>((resolve) => {
+    this.resolveCanceled = resolve;
+  });
   private host: EngineHost | null = null;
   private jobId: string | null = null;
 
@@ -45,6 +60,7 @@ export class ExportRun {
   /** 用户点了“取消”：终止导出 Worker，主进程杀掉 FFmpeg 并删掉临时文件 */
   async cancel(): Promise<void> {
     this.canceled = true;
+    this.resolveCanceled();
     this.host?.dispose();
     if (this.jobId) await window.allay.export.cancel(this.jobId);
   }
@@ -90,6 +106,8 @@ export class ExportRun {
         const step = await window.allay.export.writeFrame(start.job.jobId, pixels);
         if (!step.ok) return { kind: 'failed', error: step.error, frame: i };
         this.onProgress({ written: i + 1, total });
+        if (exportGate) await Promise.race([exportGate(i + 1), this.canceledSignal]);
+        if (this.canceled) return { kind: 'canceled' };
       }
       frame = null;
 

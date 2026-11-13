@@ -2,6 +2,7 @@
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
 import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
+import { setExportGate } from './features/export/exportRunner';
 import { previewEngine } from './features/preview/previewEngine';
 import { usePreviewStore, type PreviewStatus } from './stores/previewStore';
 import { useProjectStore } from './stores/projectStore';
@@ -21,6 +22,11 @@ export interface AllayTestHooks {
   previewStats(t: number): Promise<{ width: number; height: number; maxAlpha: number; minAlpha: number }>;
   /** 预览看门狗的时限（毫秒），测试可以调短 */
   setPreviewTimeouts(t: { load?: number; previewFrame?: number }): void;
+  /** 下一次导出写完第 n 帧后停住（FFmpeg 仍在运行），直到 resumeExport 或取消；null 取消这个设置 */
+  pauseExportAfter(n: number | null): void;
+  /** 导出当前停在第几帧（已写入的帧数）；没有停住时为 null */
+  exportPausedAt(): number | null;
+  resumeExport(): void;
 }
 
 declare global {
@@ -30,6 +36,8 @@ declare global {
 }
 
 export function installTestHooks(): void {
+  let pausedAt: number | null = null;
+  let release: () => void = () => undefined;
   const hooks: AllayTestHooks = {
     loadTemplate(code, params = {}) {
       const manifest = TemplateManifestSchema.parse({ formatVersion: 1, id: 'test.e2e.template', version: '0.0.0', name: 'test', category: 'transition' });
@@ -61,6 +69,27 @@ export function installTestHooks(): void {
     },
     setPreviewTimeouts(t) {
       previewEngine.timeouts = { ...previewEngine.timeouts, ...t };
+    },
+    pauseExportAfter(n) {
+      pausedAt = null;
+      setExportGate(
+        n === null
+          ? null
+          : (written) => {
+              if (written !== n) return Promise.resolve();
+              pausedAt = written;
+              return new Promise<void>((resolve) => {
+                release = () => {
+                  pausedAt = null;
+                  resolve();
+                };
+              });
+            },
+      );
+    },
+    exportPausedAt: () => pausedAt,
+    resumeExport() {
+      release();
     },
   };
   Object.defineProperty(window, '__allayTest', { value: Object.freeze(hooks), configurable: false, writable: false });

@@ -291,8 +291,12 @@ test.describe('导出', () => {
     mkdirSync(out);
     const { app, page } = await launchApp(dir, { ALLAY_E2E_EXPORT_TARGET: out, ALLAY_FFMPEG: requirePinnedFfmpeg() });
     try {
-      await exportViaUi(page, 'ultra');
-      await expect.poll(async () => Number(/(\d+)/.exec((await page.getByTestId('export-progress').textContent()) ?? '')?.[1] ?? 0), { timeout: 30_000 }).toBeGreaterThan(3);
+      // 让导出确定地停在第 5 帧（FFmpeg 仍在运行、.partial 已经有内容），不依赖“导出慢到来得及点取消”
+      await page.evaluate(() => window.__allayTest!.pauseExportAfter(5));
+      await exportViaUi(page);
+      await expect.poll(() => page.evaluate(() => window.__allayTest!.exportPausedAt()), { timeout: 30_000 }).toBe(5);
+      await expect(page.getByTestId('export-progress')).toContainText('5');
+      expect(readdirSync(out).filter((f) => f.endsWith('.partial'))).toHaveLength(1);
       const pid = Number(/job started .*"pid":(\d+)/.exec(readMainLog(dir))?.[1]);
       expect(pid).toBeGreaterThan(0);
       expect(processAlive(pid)).toBe(true);
@@ -302,6 +306,7 @@ test.describe('导出', () => {
       const log = readMainLog(dir);
       expect(log).toContain('job canceled');
       expect(processAlive(pid)).toBe(false);
+      await page.evaluate(() => window.__allayTest!.pauseExportAfter(null));
     } finally {
       await app.close();
       removeUserDataDir(dir);

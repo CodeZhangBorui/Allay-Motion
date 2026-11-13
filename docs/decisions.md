@@ -144,6 +144,12 @@
 - **T-EXP-5/6** 在 test:export 里直接驱动主进程的 `ExportJob`（Node，不需要 Electron）：中途取消（ProRes 和 PNG 各一次，查 `.partial`、目标、FFmpeg 进程）、不可写路径、伪造的坏二进制、不存在的二进制、帧与设置不符。界面部分在 e2e 里：取消后没有残留文件和进程；不可写路径给出对应文案；坏二进制在打开导出对话框时就被 `ffmpegInfo` 探测出来，对话框显示“FFmpeg 缺失”的文案并禁用“导出”（坏二进制在 `start` 时失败的路径由 test:export 覆盖）。**T-EXP-7** 在 e2e 里经真实界面、真实 IPC 导出。
 - 其他会话把 git worktree 放在仓库里的 `.claude/worktrees/`（本地 `.git/info/exclude` 已排除），ESLint 会扫进去，所以 `eslint.config.js` 忽略 `.claude/**`。
 
+### 修复：T-EXP-5（界面）的不稳定（合入 main 之后）
+
+- **现象**：主控在 main 上复跑时，“导出到一半取消”的 `export-cancel` 点击 30 秒超时，日志是 element is not stable … detached from the DOM；单独跑时通过。
+- **根因**：不是界面的问题。实测导出期间取消按钮始终是同一个 DOM 节点、位置和大小不变；但这个不显示的窗口里 `requestAnimationFrame` 大约每秒只来一次（`backgroundThrottling: false` 也一样），Playwright 判断“稳定”要等连续两帧 rAF，点击前的可操作性检查因此要好几秒。旧测试用“极致”画质，指望导出慢到来得及点；这台机器上 67 帧约 3 秒就导完，导完按钮被卸载，就成了 detached。
+- **修法**：测试不再依赖导出的快慢。导出流程里加了一个只给测试用的“闸门”（`exportRunner.ts` 的 `setExportGate`，正式运行时为 null，不等待任何东西）；测试钩子 `pauseExportAfter(n)` 让导出写完第 n 帧后停住（FFmpeg 仍在运行、`.partial` 已存在），测试正常点击“取消”。等闸门时也会被取消打断，所以取消总能生效。没有加长超时、没有 `force`、没有重试。
+
 ## M2a 目录与资源栈的非引擎部分
 
 M2 拆成两半并行：M2a 不依赖引擎（本节），M2b 在 M1 合入后做资源到 Worker 的通路、网格、位图字、缩略图和界面。
