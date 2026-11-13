@@ -19,7 +19,7 @@ function data(params: ProjectData['params'] = {}): ProjectData {
     template: { id: 'allay.builtin.block-wipe', version: '1.0.0' },
     params,
     output: { width: 1920, height: 1080, fps: 60 },
-    export: { preset: 'prores4444', quality: 'standard', shutterAngle: 180 },
+    export: { preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: '#00FF00' },
     preview: { background: 'checker' },
     resourceHint: ['vanilla'],
   };

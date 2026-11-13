@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RecentProject } from '../../shared/project';
 import { CORE_COMMANDS } from '../features/commands/commands';
+import { EXPORT_TASK_COMMANDS } from '../features/export/exportTasks';
 import { PresetsTab, TemplatesActions, TemplatesTab } from '../features/gallery/GalleryPanel';
 import { OutputTab, PropsActions, PropsTab } from '../features/params/ParamsPanel';
 import { openRecent } from '../features/project/actions';
@@ -131,6 +132,7 @@ export function registerCore(): void {
   if (registered) return;
   registered = true;
   for (const c of CORE_COMMANDS) registerCommand(c);
+  for (const c of EXPORT_TASK_COMMANDS) registerCommand(c);
   registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
   registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });
   registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions });
