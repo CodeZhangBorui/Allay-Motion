@@ -68,6 +68,42 @@ const MALFORMED: Record<string, unknown[][]> = {
   'export.finish': [[], [42], ['C:\\out.mov'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301']],
   'export.cancel': [[], [null], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
   'export.ffmpegInfo': [[1], ['C:\\ffmpeg.exe'], [{ path: 'x' }]],
+  'resources.layers': [[1], ['all']],
+  'resources.stamp': [[1]],
+  'resources.read': [
+    [],
+    [42],
+    [null],
+    ['../../../../Windows/win.ini'],
+    ['C:\\Windows\\win.ini'],
+    ['C:/Windows/win.ini'],
+    ['/etc/passwd'],
+    ['assets\\minecraft\\x.png'],
+    ['assets//x.png'],
+    ['x'.repeat(2000)],
+    ['assets/minecraft/textures/block/stone.png', 'extra'],
+  ],
+  'resources.readTexture': [[], [42], [null], ['x'.repeat(600)]],
+  'resources.list': [[42], ['../'], ['C:\\'], [null]],
+  'resources.fontProviders': [[], [42], ['x'.repeat(600)]],
+  'resources.fallbackFont': [[1]],
+  'resources.detectMinecraft': [[1], ['C:\\Games']],
+  'resources.setVanilla': [[], [null], [{ consent: 'yes' }], [{ dir: 'C:\\Games' }], [{ enabled: true }, 'x']],
+  // 合法的 chooseGameDir、addPack 会弹对话框，这里只有畸形参数
+  'resources.chooseGameDir': [[1], ['C:\\Games']],
+  // 合法的 downloadVanilla 会联网，这里只有畸形参数
+  'resources.downloadVanilla': [[1], [{ url: 'https://evil.example/x.jar' }]],
+  'resources.cancelDownload': [[1]],
+  'resources.addPack': [[], ['exe'], [{ path: 'C:\\x.zip' }], ['zip', 'C:\\x.zip']],
+  // 不是 File 对象：preload 就拒绝了（页面自己构造的 File 没有路径，另外测）
+  'resources.addDroppedPack': [[], [null], ['C:\\Windows\\win.ini'], [{ path: 'C:\\x.zip', name: 'x.zip' }]],
+  'resources.removeLayer': [[], [42], ['x'.repeat(200)]],
+  'resources.reorder': [['x'], [[1, 2]], [null], [Array.from({ length: 300 }, (_, i) => `p${i}`)]],
+  'resources.setEnabled': [['vanilla'], ['vanilla', 'yes'], [42, true]],
+  'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
+  'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
+  'cache.clear': [[1]],
+  'cache.usage': [[1]],
 };
 
 test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不到，主进程不崩溃', async () => {
@@ -103,9 +139,20 @@ test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不�
           },
           { method, args },
         );
-        expect(outcome, `${method}(${JSON.stringify(args).slice(0, 80)})`).toMatch(/^rejected: .*(invalid arguments|unknown file reference|unknown export job)/);
+        expect(outcome, `${method}(${JSON.stringify(args).slice(0, 80)})`).toMatch(/^rejected: .*(invalid arguments|unknown file reference|unknown export job|expected a File)/);
       }
     }
+
+    // 页面自己构造的 File 没有本机路径：主进程拿到空串，拒绝
+    const fakeFile = await page.evaluate(async () => {
+      try {
+        await window.allay.resources.addDroppedPack(new File(['PK'], 'pack.zip', { type: 'application/zip' }));
+        return 'resolved';
+      } catch (e) {
+        return `rejected: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    });
+    expect(fakeFile).toMatch(/^rejected: .*invalid arguments/);
 
     // 订阅函数只接受函数
     const badSubscribe = await page.evaluate(() => {

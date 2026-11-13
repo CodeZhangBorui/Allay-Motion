@@ -40,6 +40,10 @@ export async function launchApp(userDataDir: string, extraEnv: Record<string, st
   env.ALLAY_E2E_HIDDEN = '1';
   // 渲染进程装上测试钩子（只在未打包时生效）
   env.ALLAY_E2E_HOOKS = '1';
+  // 探测本机游戏时看这个（空）目录，绝不碰这台机器上真装的游戏；需要假游戏的测试自己覆盖
+  env.ALLAY_E2E_GAME_APPDATA = join(userDataDir, 'no-game');
+  // 下载原版资源时连一个没人监听的本机端口：测试里误点“下载”也不会访问真实网络；下载测试自己覆盖成假服务器
+  env.ALLAY_E2E_MOJANG_ORIGIN = 'http://127.0.0.1:9';
   Object.assign(env, extraEnv);
   const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR], env, cwd: DESKTOP_DIR });
   const page = await app.firstWindow();

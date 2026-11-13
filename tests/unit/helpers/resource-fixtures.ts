@@ -149,3 +149,32 @@ export function makeFakeMinecraft(root: string, versions: readonly FakeVersion[]
     [`bb/${'b'.repeat(40)}`]: ogg,
   });
 }
+
+/** 由 ID 散列出的纯色（#rrggbb），让每张假贴图都不一样 */
+export function idColor(id: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `#${((h >>> 0) & 0xffffff).toString(16).padStart(6, '0')}`;
+}
+
+/**
+ * 假原版 jar 的条目：覆盖方块目录、物品目录、界面贴图引用的全部贴图（纯色色块，只是测试数据）。
+ * overrides 可以给某些贴图 ID 指定颜色（例如让钻石块是醒目的绿色）。
+ */
+export function catalogJarEntries(paths: readonly { id: string; path: string }[], overrides: Readonly<Record<string, string>> = {}): ZipEntrySpec[] {
+  return [
+    { name: 'META-INF/MANIFEST.MF', data: 'Manifest-Version: 1.0\n' },
+    { name: 'net/fake/Main.class', data: 'not a class' },
+    ...paths.map((p) => ({ name: p.path, data: solidPng(overrides[p.id] ?? idColor(p.id)), method: 'deflate' as const })),
+  ];
+}
+
+/** 假 .minecraft：一个正式版，jar 里是 catalogJarEntries（没有资源索引，也就没有音效） */
+export function makeCatalogGame(gameDir: string, versionId: string, releaseTime: string, entries: readonly ZipEntrySpec[]): void {
+  const dir = join(gameDir, 'versions', versionId);
+  writeFiles(dir, { [`${versionId}.json`]: JSON.stringify({ id: versionId, type: 'release', releaseTime }) });
+  writeZip(join(dir, `${versionId}.jar`), entries);
+}

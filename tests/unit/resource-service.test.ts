@@ -128,6 +128,7 @@ describe('ResourceService', () => {
     expect((await svc.readTexture(STONE))!.mcmeta).toContain('frametime');
     // 关掉红色：回到蓝色
     s = await svc.setEnabled(ids[0]!, false);
+    expect(s.layers.find((l) => l.id === ids[0])?.enabled).toBe(false);
     expect(Buffer.from((await svc.readTexture(STONE))!.png).equals(Buffer.from(solidPng('#0000ff')))).toBe(true);
     // 删除红色：应用数据目录里的 zip 副本一起删
     expect(readdirSync(join(userData, 'packs')).filter((f) => f.endsWith('.zip'))).toHaveLength(1);
