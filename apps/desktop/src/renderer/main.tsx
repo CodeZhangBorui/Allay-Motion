@@ -4,7 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import './app.css';
 import { App } from './app/App';
 import { applyThemeToDocument } from './app/useThemeSync';
-import { initI18n, resolveLanguage } from './i18n';
+import { initI18n, resolveLanguage, setSystemLocale } from './i18n';
 import { loadInitialTemplate } from './features/templates/actions';
 import { installTestHooks } from './test-hooks';
 import { useResourceStore } from './stores/resourceStore';
@@ -19,10 +19,10 @@ async function bootstrap(): Promise<void> {
   if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
 
+  setSystemLocale(info.systemLocale);
   const language = resolveLanguage(settings.language, info.systemLocale);
   const i18n = await initI18n(language);
   document.documentElement.lang = language;
-  document.title = i18n.t('brand.name');
 
   // 模板列表与默认模板（内置的旗舰模板）。预览引擎等 projectStore 里有了模板再装载
   void loadInitialTemplate(language).catch((error: unknown) => console.error('[templates] initial load failed', error));

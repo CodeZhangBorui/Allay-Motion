@@ -180,7 +180,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   };
   const pickProjectToSave = async (name: string): Promise<string | null> => {
     if (projectPathForTests) return projectPathForTests;
-    return pickSavePath(getMainWindow(), `${name.replace(/[\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`, PROJECT_EXTENSION);
+    return pickSavePath(getMainWindow(), `${name.replace(/[\\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`, PROJECT_EXTENSION);
   };
   handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
     const path = await pickProjectToOpen();

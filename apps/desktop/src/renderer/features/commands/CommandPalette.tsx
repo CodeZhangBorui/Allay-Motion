@@ -1,0 +1,84 @@
+import { localize } from '@allay/template-sdk';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@allay/ui/components/command';
+import { Dialog, DialogContent, DialogTitle } from '@allay/ui/components/dialog';
+import { Kbd } from '@allay/ui/components/misc';
+import { LayoutTemplate, SlidersHorizontal, Zap } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { PresetEntry } from '../../../shared/templates';
+import { useTemplateStore } from '../../stores/templateStore';
+import { useUiStore } from '../../stores/uiStore';
+import { selectTemplate } from '../templates/actions';
+import { applyPresetEntry } from '../templates/presets';
+import { COMMANDS, shortcutLabel } from './commands';
+
+// 命令面板（6.4，Ctrl+K）：搜索操作、模板、预设。
+
+export function CommandPalette() {
+  const { t, i18n } = useTranslation();
+  const entries = useTemplateStore((s) => s.entries);
+  const [presets, setPresets] = useState<PresetEntry[]>([]);
+  useEffect(() => {
+    void window.allay.presets.list().then(setPresets);
+  }, []);
+  const close = () => useUiStore.getState().openDialog(null);
+  const run = (fn: () => void) => {
+    close();
+    // 等对话框关掉（焦点回到原处）再执行
+    requestAnimationFrame(fn);
+  };
+  const templateName = (id: string) => {
+    const e = entries.find((x) => x.id === id);
+    return e ? localize(e.manifest.name, i18n.language) : id;
+  };
+  return (
+    <Dialog open onOpenChange={(open) => !open && close()}>
+      <DialogContent showClose={false} className="top-[18%] w-[560px] translate-y-0 gap-0 p-0" data-testid="command-palette">
+        <DialogTitle className="sr-only">{t('command.title')}</DialogTitle>
+        <Command loop>
+          <CommandInput autoFocus placeholder={t('command.placeholder')} aria-label={t('command.placeholder')} />
+          <CommandList>
+            <CommandEmpty>{t('command.empty')}</CommandEmpty>
+            <CommandGroup heading={t('command.groups.actions')}>
+              {COMMANDS.filter((c) => c.id !== 'palette').map((c) => {
+                const enabled = !c.enabled || c.enabled();
+                return (
+                  <CommandItem key={c.id} value={`action ${t(`command.items.${c.id}`)} ${c.id}`} disabled={!enabled} onSelect={() => run(c.run)} data-testid={`command-${c.id}`}>
+                    <Zap />
+                    <span className="flex-1 truncate">{t(`command.items.${c.id}`)}</span>
+                    {c.shortcut && <Kbd>{shortcutLabel(c.shortcut)}</Kbd>}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+            <CommandGroup heading={t('command.groups.templates')}>
+              {entries
+                .filter((e) => !e.baseMissing)
+                .map((e) => {
+                  const name = localize(e.manifest.name, i18n.language);
+                  return (
+                    <CommandItem key={`${e.id}@${e.version}`} value={`template ${name} ${e.id}`} onSelect={() => run(() => void selectTemplate(e.id, e.version, i18n.language))}>
+                      <LayoutTemplate />
+                      <span className="flex-1 truncate">{name}</span>
+                      <span className="text-xs text-fg-muted">{e.version}</span>
+                    </CommandItem>
+                  );
+                })}
+            </CommandGroup>
+            {presets.length > 0 && (
+              <CommandGroup heading={t('command.groups.presets')}>
+                {presets.map((p) => (
+                  <CommandItem key={p.id} value={`preset ${p.name} ${p.id}`} onSelect={() => run(() => void applyPresetEntry(p, i18n.language))}>
+                    <SlidersHorizontal />
+                    <span className="flex-1 truncate">{p.name}</span>
+                    <span className="truncate text-xs text-fg-muted">{templateName(p.template.id)}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,19 +1,27 @@
 import { frameCount } from '@allay/engine/frames';
+import { localize } from '@allay/template-sdk';
 import { Button } from '@allay/ui/components/button';
-import { Pause, Play, Repeat, SkipBack } from 'lucide-react';
-import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@allay/ui/components/popover';
+import { TimelineTrack, timelineFrameLabel, type TimelineSegment } from '@allay/ui/editor';
+import { Pause, Play, Repeat, SkipBack, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePreviewStore } from '../../stores/previewStore';
-import { useProjectStore } from '../../stores/projectStore';
+import { beginGesture, endGesture, useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
+import { useUiStore } from '../../stores/uiStore';
+import { togglePlay } from '../commands/commands';
+import { OutputSettingsForm } from '../settings/OutputSettingsForm';
 
-// 播放条（6.4）：48 px。M1：播放、暂停、回到开头、循环、拖动时间轴、时间码与帧号。
-// 色段、可拖的分界线、剪辑点标记在 M4。
+// 播放条（6.4，48 px）：回到开头、播放/暂停、循环开关；时间码“秒.帧”和 F当前帧/总帧数；
+// 时间轴（色段、可拖的分界线、剪辑点菱形标记、可拖的播放头）；右侧输出规格徽标（点开是输出设置）、高质量预览、静音。
 
-function formatTime(t: number): string {
-  const cs = Math.floor(t * 100 + 1e-6);
-  const s = Math.floor(cs / 100);
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
+/** 时间码：秒.帧（6.4），例如 00:00.36 是第 0 秒第 36 帧 */
+export function formatTimecode(t: number, fps: number): string {
+  const totalFrames = Math.round(t * fps);
+  const s = Math.floor(totalFrames / fps);
+  const f = totalFrames - s * fps;
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${String(f).padStart(2, '0')}`;
 }
 
 /** 播放：按真实时间推进当前时间（这是界面的时钟，模板的 update 只依赖传进去的 t） */
@@ -46,62 +54,36 @@ function usePlayback() {
 }
 
 export function TransportBar() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const time = useTransportStore((s) => s.time);
   const duration = useTransportStore((s) => s.duration);
+  const cutTime = useTransportStore((s) => s.cutTime);
   const playing = useTransportStore((s) => s.playing);
   const loop = useTransportStore((s) => s.loop);
   const output = useProjectStore((s) => s.output);
+  const template = useProjectStore((s) => s.template);
+  const params = useProjectStore((s) => s.params);
   const ready = usePreviewStore((s) => s.status.kind === 'ready');
-  const trackRef = useRef<HTMLDivElement>(null);
+  const hq = useUiStore((s) => s.settings.editor.hqPreview);
+  const muted = useUiStore((s) => s.settings.editor.muted);
   usePlayback();
 
   const total = duration > 0 ? frameCount(duration, output.fps) : 0;
   const frame = duration > 0 ? Math.min(total - 1, Math.round(time * output.fps)) : 0;
-  const progress = duration > 0 ? time / duration : 0;
 
-  const togglePlay = () => {
-    const s = useTransportStore.getState();
-    if (!s.playing && s.time >= s.duration) s.setTime(0);
-    s.setPlaying(!s.playing);
-  };
-
-  // 拖动时间轴：按下即暂停，吸附到帧；拖动时不出声（5.5）
-  const seekTo = useCallback(
-    (clientX: number) => {
-      const track = trackRef.current;
-      const s = useTransportStore.getState();
-      if (!track || s.duration <= 0) return;
-      const rect = track.getBoundingClientRect();
-      const x = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-      const fps = useProjectStore.getState().output.fps;
-      s.setTime(Math.min(s.duration, Math.round(x * s.duration * fps) / fps));
-    },
-    [],
-  );
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!ready) return;
-    useTransportStore.getState().setPlaying(false);
-    e.currentTarget.setPointerCapture(e.pointerId);
-    seekTo(e.clientX);
-  };
-  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) seekTo(e.clientX);
-  };
-  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    const s = useTransportStore.getState();
-    const step = (e.shiftKey ? 10 : 1) / output.fps;
-    if (e.key === 'ArrowRight') s.setTime(s.time + step);
-    else if (e.key === 'ArrowLeft') s.setTime(s.time - step);
-    else if (e.key === 'Home') s.setTime(0);
-    else if (e.key === 'End') s.setTime(s.duration);
-    else return;
-    e.preventDefault();
-    s.setPlaying(false);
-  };
+  // timeline.segments：把几个 duration 参数画成首尾相接的色段（4.3）
+  const segments = useMemo<TimelineSegment[]>(() => {
+    const segs = template?.manifest.timeline?.segments ?? [];
+    return segs.flatMap((s) => {
+      const def = template!.params.find((p) => p.key === s.param);
+      if (!def || def.type !== 'duration') return [];
+      const v = params[s.param];
+      return [{ key: s.param, label: localize(s.label ?? def.label, i18n.language), duration: typeof v === 'number' ? v : def.default, min: def.min, max: def.max }];
+    });
+  }, [template, params, i18n.language]);
 
   return (
-    <div role="toolbar" aria-label={t('transport.region')} className="flex h-12 shrink-0 items-center gap-1 border-t bg-surface-1 px-3">
+    <div role="toolbar" aria-label={t('transport.region')} className="flex h-12 shrink-0 items-center gap-1 border-t bg-surface-1 px-2" data-testid="transport">
       <Button variant="ghost" size="icon" aria-label={t('transport.toStart')} disabled={!ready} onClick={() => useTransportStore.getState().setTime(0)}>
         <SkipBack />
       </Button>
@@ -113,39 +95,72 @@ export function TransportBar() {
         size="icon"
         aria-label={t('transport.loop')}
         aria-pressed={loop}
-        className={loop ? 'text-primary' : 'text-fg-muted'}
+        className={loop ? 'text-primary-text' : 'text-fg-muted'}
         onClick={() => useTransportStore.getState().setLoop(!loop)}
+        data-testid="transport-loop"
       >
         <Repeat />
       </Button>
-      <span data-testid="transport-time" className="tabular-nums ml-2 text-sm">
-        {formatTime(time)}
-      </span>
-      <span data-testid="transport-frame" className="tabular-nums ml-2 text-xs text-fg-muted">
-        F{frame}/{Math.max(0, total - 1)}
-      </span>
-      <div
-        ref={trackRef}
-        data-testid="transport-track"
-        role="slider"
-        tabIndex={ready ? 0 : -1}
-        aria-label={t('transport.scrub')}
-        aria-valuemin={0}
-        aria-valuemax={Math.max(0, total - 1)}
-        aria-valuenow={frame}
-        aria-disabled={!ready}
-        className="relative mx-3 h-6 flex-1 cursor-pointer touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onKeyDown={onKeyDown}
-      >
-        <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-surface-3" />
-        <div className="absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary" style={{ width: `${progress * 100}%` }} />
-        <div className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-surface-1" style={{ left: `${progress * 100}%` }} />
+      <div className="ml-1 flex w-[64px] shrink-0 flex-col leading-tight">
+        <span data-testid="transport-time" className="text-sm tabular-nums" aria-label={t('transport.time')}>
+          {formatTimecode(time, output.fps)}
+        </span>
+        <span data-testid="transport-frame" className="text-2xs text-fg-muted tabular-nums">
+          {timelineFrameLabel(frame, total)}
+        </span>
       </div>
-      <span className="tabular-nums rounded-md border px-2 py-0.5 text-xs text-fg-muted">
-        {output.width}×{output.height} · {output.fps}fps
-      </span>
+      <div className="mx-2 flex min-w-[120px] flex-1">
+        <TimelineTrack
+          duration={duration}
+          time={time}
+          fps={output.fps}
+          segments={segments}
+          cutTime={cutTime}
+          disabled={!ready}
+          labels={{ scrub: t('transport.scrub'), cut: t('transport.cut'), boundary: (a, b) => t('transport.boundary', { left: a, right: b }) }}
+          formatTime={(x) => formatTimecode(x, output.fps)}
+          onSeekStart={() => useTransportStore.getState().setPlaying(false)}
+          onSeek={(x) => useTransportStore.getState().setTime(x)}
+          onSegmentChange={(key, d) => useProjectStore.getState().setParams({ [key]: d }, i18n.language)}
+          onGesture={(phase) => (phase === 'start' ? beginGesture() : endGesture())}
+        />
+      </div>
+      <Popover>
+        <PopoverTrigger
+          data-testid="output-badge"
+          aria-label={t('output.title')}
+          className="inline-flex h-6 shrink-0 items-center rounded-md border px-2 text-xs whitespace-nowrap text-fg-muted tabular-nums hover:bg-surface-2 hover:text-foreground"
+        >
+          {output.width}×{output.height} · {output.fps}fps
+        </PopoverTrigger>
+        <PopoverContent side="top" align="end" className="w-80">
+          <PopoverTitle className="mb-3 text-sm font-semibold">{t('output.title')}</PopoverTitle>
+          <OutputSettingsForm />
+        </PopoverContent>
+      </Popover>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t('transport.hq')}
+        title={t('transport.hqHint')}
+        aria-pressed={hq}
+        className={hq ? 'text-primary-text' : 'text-fg-muted'}
+        data-testid="transport-hq"
+        onClick={() => useUiStore.getState().setEditor({ hqPreview: !hq })}
+      >
+        <Sparkles />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={muted ? t('transport.unmute') : t('transport.mute')}
+        aria-pressed={muted}
+        className="text-fg-muted"
+        data-testid="transport-mute"
+        onClick={() => useUiStore.getState().setEditor({ muted: !muted })}
+      >
+        {muted ? <VolumeX /> : <Volume2 />}
+      </Button>
     </div>
   );
 }

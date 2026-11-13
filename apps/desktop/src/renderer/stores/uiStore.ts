@@ -1,22 +1,47 @@
 import { create } from 'zustand';
-import type { PanelState, Theme, UiSettings, UiSettingsPatch } from '../../shared/settings';
+import {
+  defaultEditorPrefs,
+  defaultUiSettings,
+  MAX_GROUP_TEMPLATES,
+  RECENT_MAX,
+  type EditorPrefs,
+  type PanelState,
+  type RecentKind,
+  type Theme,
+  type UiSettings,
+  type UiSettingsPatch,
+} from '../../shared/settings';
 
-// uiStore（1.7）：面板宽度、折叠状态、主题、语言。
+// uiStore（1.7）：面板宽度、折叠状态、主题、语言，以及编辑器偏好（预览背景、参考线、分组折叠、最近使用）。
 // 真正的持久化在主进程的 settings.json（1.6 第 10 条：不用 localStorage）。
+// 另外放几个不持久化的界面状态：哪个对话框开着。
 
 export type Side = 'left' | 'right';
+export type DialogName = 'export' | 'settings' | 'palette' | 'saveTemplate' | 'savePreset' | null;
 
 interface UiState {
   settings: UiSettings;
+  dialog: DialogName;
+  resourcesOpen: boolean;
+  /** 设置对话框打开时的页 */
+  settingsPage: 'general' | 'assets' | 'export' | 'shortcuts' | 'about';
   /** 主进程推来的完整设置（启动、或其他地方改了设置） */
   replace(settings: UiSettings): void;
   setTheme(theme: Theme): void;
+  update(patch: Omit<UiSettingsPatch, 'layout' | 'editor'>): void;
   setPanel(side: Side, state: PanelState): void;
+  setEditor(patch: Partial<Omit<EditorPrefs, 'groups' | 'recent'>>): void;
+  setGroupCollapsed(templateId: string, group: string, collapsed: boolean): void;
+  addRecent(kind: RecentKind, value: string): void;
+  openDialog(dialog: DialogName, page?: UiState['settingsPage']): void;
+  setResourcesOpen(open: boolean): void;
 }
 
-const LAYOUT_SAVE_DELAY = 150;
+const SAVE_DELAY = 150;
 let layoutTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingLayout: NonNullable<UiSettingsPatch['layout']> = {};
+let editorTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingEditor: NonNullable<UiSettingsPatch['editor']> = {};
 
 function persist(patch: UiSettingsPatch): void {
   window.allay.settings.set(patch).catch((error: unknown) => {
@@ -24,17 +49,30 @@ function persist(patch: UiSettingsPatch): void {
   });
 }
 
+/** 编辑器偏好会连续变（最近使用、折叠），合并后再写 */
+function persistEditor(patch: NonNullable<UiSettingsPatch['editor']>): void {
+  pendingEditor = { ...pendingEditor, ...patch };
+  clearTimeout(editorTimer);
+  editorTimer = setTimeout(() => {
+    const editor = pendingEditor;
+    pendingEditor = {};
+    persist({ editor });
+  }, SAVE_DELAY);
+}
+
 export const useUiStore = create<UiState>((set, get) => ({
-  settings: {
-    theme: 'dark',
-    language: 'system',
-    reducedMotion: 'system',
-    layout: { left: { size: 280, collapsed: false }, right: { size: 320, collapsed: false } },
-  },
-  replace: (settings) => set({ settings }),
+  settings: defaultUiSettings(),
+  dialog: null,
+  resourcesOpen: false,
+  settingsPage: 'general',
+  replace: (settings) => set({ settings: { ...settings, editor: settings.editor ?? defaultEditorPrefs() } }),
   setTheme: (theme) => {
     set({ settings: { ...get().settings, theme } });
     persist({ theme });
+  },
+  update: (patch) => {
+    set({ settings: { ...get().settings, ...patch } });
+    persist(patch);
   },
   setPanel: (side, state) => {
     const current = get().settings;
@@ -48,6 +86,30 @@ export const useUiStore = create<UiState>((set, get) => ({
       const layout = pendingLayout;
       pendingLayout = {};
       persist({ layout });
-    }, LAYOUT_SAVE_DELAY);
+    }, SAVE_DELAY);
   },
+  setEditor: (patch) => {
+    const current = get().settings;
+    set({ settings: { ...current, editor: { ...current.editor, ...patch } } });
+    persistEditor(patch);
+  },
+  setGroupCollapsed: (templateId, group, collapsed) => {
+    const current = get().settings;
+    const groups = { ...current.editor.groups, [templateId]: { ...current.editor.groups[templateId], [group]: collapsed } };
+    // 记录的模板太多时丢掉最早的
+    const ids = Object.keys(groups);
+    if (ids.length > MAX_GROUP_TEMPLATES) for (const id of ids.slice(0, ids.length - MAX_GROUP_TEMPLATES)) delete groups[id];
+    set({ settings: { ...current, editor: { ...current.editor, groups } } });
+    persistEditor({ groups });
+  },
+  addRecent: (kind, value) => {
+    const current = get().settings;
+    const list = [value, ...current.editor.recent[kind].filter((v) => v !== value)].slice(0, RECENT_MAX);
+    if (list.join('\n') === current.editor.recent[kind].join('\n')) return;
+    const recent = { ...current.editor.recent, [kind]: list };
+    set({ settings: { ...current, editor: { ...current.editor, recent } } });
+    persistEditor({ recent });
+  },
+  openDialog: (dialog, page) => set((s) => ({ dialog, settingsPage: page ?? s.settingsPage })),
+  setResourcesOpen: (resourcesOpen) => set({ resourcesOpen }),
 }));

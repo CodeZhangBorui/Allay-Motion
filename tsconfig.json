@@ -4,7 +4,8 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"],
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+    "jsx": "react-jsx"
   },
   "include": ["scripts", "tests", "vitest.config.ts", "vitest.dist.config.ts", "playwright.config.ts"],
   "exclude": ["tests/fixtures"]

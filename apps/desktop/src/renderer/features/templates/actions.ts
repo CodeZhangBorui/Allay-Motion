@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import type { StageResult, TemplateEntry } from '../../../shared/templates';
 import { previewEngine } from '../preview/previewEngine';
 import { useNoticeStore } from '../../stores/noticeStore';
-import { useProjectStore } from '../../stores/projectStore';
+import { clearHistory, useProjectStore } from '../../stores/projectStore';
 import { useTemplateStore } from '../../stores/templateStore';
 import { DEFAULT_TEMPLATE_ID, readTemplate } from '../../templates/catalog';
 import { trialRun, type TrialResult } from './trial';
@@ -22,7 +22,15 @@ export async function loadInitialTemplate(locale: string): Promise<void> {
   const entries = await useTemplateStore.getState().refresh();
   const flagship = entries.filter((e) => e.id === DEFAULT_TEMPLATE_ID).reverse();
   const others = entries.filter((e) => e.id !== DEFAULT_TEMPLATE_ID && !e.baseMissing);
-  for (const e of [...flagship, ...others]) if (await selectTemplate(e.id, e.version, locale)) return;
+  for (const e of [...flagship, ...others]) {
+    const source = await readTemplate(e.id, e.version);
+    if (!source) continue;
+    // 启动时的默认工程：不算改动，也不进撤销历史
+    useProjectStore.getState().reset({ template: source, name: null, handle: null, locale });
+    clearHistory();
+    previewEngine.retry();
+    return;
+  }
 }
 
 export type InstallOutcome =

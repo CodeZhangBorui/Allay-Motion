@@ -1,26 +1,41 @@
-import { create } from 'zustand';
+import { createElement } from 'react';
+import { toast } from 'sonner';
 
-// 窗口底部的一条临时提示（拖入资源包的结果等）。完整的通知（Sonner）在 M4。
+// 通知（Sonner，6.5）。同一时刻只保留一条：新的替换旧的（同一个 toast id），
+// 结果一眼能看清，测试也不用猜是第几条。错误通知用 role="alert"。
 
 export interface Notice {
-  id: number;
   kind: 'info' | 'error';
   /** 已经翻译好的文字 */
   text: string;
 }
 
-interface NoticeState {
-  notice: Notice | null;
-  show(kind: Notice['kind'], text: string): void;
-  dismiss(id: number): void;
+const NOTICE_ID = 'notice';
+
+function NoticeToast({ kind, text }: Notice) {
+  return createElement(
+    'div',
+    {
+      role: kind === 'error' ? 'alert' : 'status',
+      'data-testid': 'notice',
+      'data-kind': kind,
+      className: `w-[min(420px,calc(100vw-32px))] rounded-lg border bg-surface-2 px-3 py-2 text-sm shadow-(--shadow-popover) ${kind === 'error' ? 'text-danger' : ''}`,
+    },
+    text,
+  );
 }
 
-let seq = 0;
+export const useNoticeStore = {
+  getState: () => ({
+    show(kind: Notice['kind'], text: string): void {
+      toast.custom(() => createElement(NoticeToast, { kind, text }), { id: NOTICE_ID, duration: 6000 });
+    },
+    dismiss(): void {
+      toast.dismiss(NOTICE_ID);
+    },
+  }),
+};
 
-export const useNoticeStore = create<NoticeState>((set, get) => ({
-  notice: null,
-  show: (kind, text) => set({ notice: { id: ++seq, kind, text } }),
-  dismiss: (id) => {
-    if (get().notice?.id === id) set({ notice: null });
-  },
-}));
+export function notify(kind: Notice['kind'], text: string): void {
+  useNoticeStore.getState().show(kind, text);
+}

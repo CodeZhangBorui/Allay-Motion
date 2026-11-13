@@ -30,7 +30,7 @@ export function TemplateCard({ name, coverUrl, selected, user, userLabel, warnin
       type="button"
       data-testid={testId}
       aria-pressed={selected}
-      aria-description={[description, warning].filter(Boolean).join(' · ') || undefined}
+      aria-description={description}
       disabled={disabled}
       title={warning ? `${name}\n${warning}` : name}
       onClick={onSelect}
@@ -39,7 +39,7 @@ export function TemplateCard({ name, coverUrl, selected, user, userLabel, warnin
       onFocus={() => setHover(true)}
       onBlur={() => setHover(false)}
       className={cn(
-        'group flex min-w-0 flex-col gap-1.5 rounded-lg p-1 text-left transition-colors duration-(--dur-1) hover:bg-surface-2 disabled:opacity-50',
+        'group flex w-full min-w-0 flex-col gap-1.5 rounded-lg p-1 text-left transition-colors duration-(--dur-1) hover:bg-surface-2 disabled:opacity-50',
         selected && 'bg-surface-2',
       )}
     >
@@ -62,7 +62,10 @@ export function TemplateCard({ name, coverUrl, selected, user, userLabel, warnin
           </span>
         )}
       </div>
-      <span className={cn('truncate px-0.5 text-xs', selected ? 'font-medium text-foreground' : 'text-fg-muted group-hover:text-foreground')}>{name}</span>
+      <span className={cn('truncate px-0.5 text-xs', selected ? 'font-medium text-foreground' : 'text-fg-muted group-hover:text-foreground')}>
+        {name}
+        {warning && <span className="sr-only"> · {warning}</span>}
+      </span>
     </button>
   );
 }

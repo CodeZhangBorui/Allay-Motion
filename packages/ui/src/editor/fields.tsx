@@ -138,9 +138,20 @@ export function BooleanField({ value, onChange, label, testId }: { value: boolea
   );
 }
 
-/** enum：4 项以内用分段控件，否则下拉（4.4） */
+/** 选项文字的显示宽度（中日韩字符按 2 计） */
+function textWidth(s: string): number {
+  let n = 0;
+  for (const ch of s) n += /[⺀-￿]/.test(ch) ? 2 : 1;
+  return n;
+}
+
+/**
+ * enum：4 项以内用分段控件，否则下拉（4.4）。分段控件放不下选项文字（总宽超过约 24 个半角字符）时也用下拉，
+ * 不把选项截成“Fli…”（decisions.md M4）。
+ */
 export function EnumField({ value, onChange, options, label, testId }: { value: string; onChange(v: string): void; options: { value: string; label: string }[]; label: string; testId?: string }) {
-  if (options.length <= 4) {
+  const fits = options.reduce((a, o) => a + textWidth(o.label) + 2, 0) <= 24;
+  if (options.length <= 4 && fits) {
     return (
       <ToggleGroup
         value={[value]}
