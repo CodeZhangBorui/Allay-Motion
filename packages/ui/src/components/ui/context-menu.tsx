@@ -22,7 +22,7 @@ function ContextMenuItem({ className, ...props }: ContextMenuPrimitive.Item.Prop
 }
 
 function ContextMenuSeparator({ className, ...props }: ContextMenuPrimitive.Separator.Props) {
-  return <ContextMenuPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+  return <ContextMenuPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-divider', className)} {...props} />;
 }
 
 export { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger };

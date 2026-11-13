@@ -1,6 +1,7 @@
 import { Button } from '@allay/ui/components/button';
 import { ResourceStackList, type StackRow } from '@allay/ui/editor';
-import { FolderPlus, PackagePlus, Trash2, TriangleAlert } from 'lucide-react';
+import { ICON } from '@allay/ui/lib/icons';
+import { FolderPlus, Package, Trash, Warning } from '@phosphor-icons/react';
 import type { TFunction } from 'i18next';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -72,14 +73,14 @@ export function ResourceStackPanel() {
       {state.brokenPacks.length > 0 && (
         <ul className="flex flex-col gap-0.5">
           {state.brokenPacks.map((b) => (
-            <li key={b.id} data-testid="layer-broken" data-layer-id={b.id} className="flex items-center gap-2 rounded-md py-1.5 pr-1 pl-6">
-              <TriangleAlert className="size-4 shrink-0 text-warning" aria-hidden="true" />
+            <li key={b.id} data-testid="layer-broken" data-layer-id={b.id} className="flex items-center gap-2 py-1.5 pr-1 pl-6">
+              <Warning size={ICON.md} className="shrink-0 text-warning" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{b.name}</p>
                 <p className="text-xs text-warning">{t(`resources.broken.${b.problem}`)}</p>
               </div>
               <Button variant="ghost" size="icon-sm" aria-label={t('resources.remove', { name: b.name })} onClick={() => replace(window.allay.resources.removeLayer(b.id))}>
-                <Trash2 />
+                <Trash size={ICON.md} />
               </Button>
             </li>
           ))}
@@ -87,24 +88,24 @@ export function ResourceStackPanel() {
       )}
       {state.vanilla.problem && (
         <p role="status" className="flex items-start gap-1 text-xs text-warning">
-          <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
+          <Warning size={ICON.sm} className="mt-0.5 shrink-0" aria-hidden="true" />
           {t('resources.vanillaProblem')}
         </p>
       )}
       {!hasVanilla && (
-        <section className="flex flex-col gap-2 border-t pt-3" data-testid="vanilla-missing">
-          <p className="text-sm font-medium">{t('resources.noVanilla')}</p>
+        <section className="flex flex-col gap-2 border-t border-divider pt-3" data-testid="vanilla-missing">
+          <p className="font-medium">{t('resources.noVanilla')}</p>
           <VanillaSourceActions />
         </section>
       )}
-      <section className="flex flex-col gap-1.5 border-t pt-3">
+      <section className="flex flex-col gap-2 border-t border-divider pt-3">
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" data-testid="pack-add" onClick={() => void addPack(t, 'zip')}>
-            <PackagePlus />
+            <Package size={ICON.md} />
             {t('resources.addPack')}
           </Button>
           <Button variant="ghost" data-testid="pack-add-folder" onClick={() => void addPack(t, 'folder')}>
-            <FolderPlus />
+            <FolderPlus size={ICON.md} />
             {t('resources.addFolder')}
           </Button>
         </div>

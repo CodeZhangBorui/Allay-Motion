@@ -33,8 +33,9 @@ test('T-UI-6 调整分栏、折叠左栏、重启后布局恢复', async () => {
     // 左栏加宽（左分隔条右移），右栏加宽（右分隔条左移）
     await resizeWithKeyboard(page, 'left', 'ArrowRight', 3);
     await resizeWithKeyboard(page, 'right', 'ArrowLeft', 3);
-    const leftAfterDrag = await panelWidth(page, 'left');
-    const rightAfterDrag = await panelWidth(page, 'right');
+    // 分栏宽度按像素给，150% 缩放下布局会有 0.01 px 级的取整误差（分隔条变成 2 px 后出现），按整像素比
+    const leftAfterDrag = Math.round(await panelWidth(page, 'left'));
+    const rightAfterDrag = Math.round(await panelWidth(page, 'right'));
     expect(leftAfterDrag, 'left panel width after resize').toBeGreaterThan(300);
     expect(leftAfterDrag).toBeLessThanOrEqual(360);
     expect(rightAfterDrag, 'right panel width after resize').toBeGreaterThan(340);

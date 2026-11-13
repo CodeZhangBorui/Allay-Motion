@@ -19,7 +19,7 @@ function NoticeToast({ kind, text }: Notice) {
       role: kind === 'error' ? 'alert' : 'status',
       'data-testid': 'notice',
       'data-kind': kind,
-      className: `w-[min(420px,calc(100vw-32px))] rounded-lg border bg-surface-2 px-3 py-2 text-sm shadow-(--shadow-popover) ${kind === 'error' ? 'text-danger' : ''}`,
+      className: `w-[min(420px,calc(100vw-32px))] rounded-xl bg-surface-2 px-3.5 py-2.5 text-sm shadow-float ${kind === 'error' ? 'text-danger' : ''}`,
     },
     text,
   );

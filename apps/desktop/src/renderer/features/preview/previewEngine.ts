@@ -119,6 +119,25 @@ export class PreviewEngine {
     return this.generation;
   }
 
+  /** 实测预览帧率：播放时记下每一帧画完的时刻，取最近约 1 秒的滑动平均（状态栏用）；暂停时清空 */
+  private frameTimes: number[] = [];
+  private countFrame(): void {
+    if (!useTransportStore.getState().playing) {
+      if (this.frameTimes.length > 0) {
+        this.frameTimes = [];
+        usePreviewStore.getState().setMeasuredFps(null);
+      }
+      return;
+    }
+    const now = performance.now();
+    this.frameTimes.push(now);
+    while (this.frameTimes.length > 0 && now - this.frameTimes[0]! > 1000) this.frameTimes.shift();
+    if (this.frameTimes.length >= 2) {
+      const span = (now - this.frameTimes[0]!) / 1000;
+      usePreviewStore.getState().setMeasuredFps(span > 0 ? (this.frameTimes.length - 1) / span : null);
+    }
+  }
+
   private async drain(): Promise<void> {
     this.rendering = true;
     try {
@@ -129,6 +148,7 @@ export class PreviewEngine {
         if (!host || this.loadedRevision < 0) break;
         try {
           await host.render(t, this.quality);
+          this.countFrame();
         } catch (error) {
           this.handleError(error);
           break;
@@ -274,6 +294,7 @@ export class PreviewEngine {
     // 装载期间资源栈又变了：再装一次
     if (stamp !== loadStamp(useProjectStore.getState().template?.assets ?? null)) queueMicrotask(() => this.reload());
     useTransportStore.getState().setTimeline(result.duration, result.cutTime);
+    usePreviewStore.getState().setAudioCues(result.audioCues);
     usePreviewStore.getState().setStatus({ kind: 'ready', warnings: result.warnings });
     this.requestRender(useTransportStore.getState().time);
   }

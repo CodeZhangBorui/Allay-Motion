@@ -31,7 +31,8 @@ export function useThemeSync(settings: Pick<UiSettings, 'theme' | 'reducedMotion
   const { theme, reducedMotion } = settings;
   useLayoutEffect(() => {
     applyThemeToDocument({ theme, reducedMotion });
-    const color = resolveColorVar('--surface-1');
+    // 顶栏坐在底色上，按钮区跟底色一致
+    const color = resolveColorVar('--background');
     const symbolColor = resolveColorVar('--foreground');
     if (color && symbolColor) {
       window.allay.window.setTitleBarColors({ color, symbolColor }).catch((error: unknown) => {

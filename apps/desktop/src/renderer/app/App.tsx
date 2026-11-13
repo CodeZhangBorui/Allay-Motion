@@ -1,4 +1,6 @@
 import { Allay } from '@allay/mascot';
+import { ICON_DEFAULTS } from '@allay/ui/lib/icons';
+import { IconContext } from '@phosphor-icons/react';
 import { Toaster } from '@allay/ui/components/sonner';
 import { TooltipProvider } from '@allay/ui/components/tooltip';
 import { useEffect } from 'react';
@@ -6,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { CommandPalette } from '../features/commands/CommandPalette';
 import { useShortcuts } from '../features/commands/useShortcuts';
 import { ExportDialog } from '../features/export/ExportDialog';
+import { SavePresetDialog, SaveTemplateDialog } from '../features/params/dialogs';
 import { EditorServicesProvider } from '../features/params/editorServices';
 import { ConfirmHost } from '../features/project/confirm';
 import { DiscoveryDialog, useShowDiscovery } from '../features/resources/DiscoveryDialog';
@@ -14,6 +17,7 @@ import { SettingsDialog } from '../features/settings/SettingsDialog';
 import { resolveLanguage, systemLocale } from '../i18n';
 import { isDirty, useProjectStore } from '../stores/projectStore';
 import { useUiStore } from '../stores/uiStore';
+import { StatusBar } from './StatusBar';
 import { TopBar } from './TopBar';
 import { useThemeSync } from './useThemeSync';
 import { Workspace } from './Workspace';
@@ -32,10 +36,10 @@ function useWindowTitle() {
 function DropOverlay() {
   const { t } = useTranslation();
   return (
-    <div data-testid="drop-overlay" className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-3">
-      <div className="flex size-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-(--allay)">
-        <Allay clip="hover" size={88} glow />
-        <span className="text-base font-medium text-white">{t('resources.dropOverlay')}</span>
+    <div data-testid="drop-overlay" className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-scrim p-3">
+      <div className="flex size-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary">
+        <Allay clip="hover" size={88} />
+        <span className="text-lg font-semibold text-foreground">{t('resources.dropOverlay')}</span>
       </div>
     </div>
   );
@@ -62,14 +66,18 @@ export function App() {
   }, [settings.language, i18n]);
 
   return (
+    <IconContext.Provider value={ICON_DEFAULTS}>
     <TooltipProvider delay={400}>
       <EditorServicesProvider>
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col bg-background">
           <TopBar />
           <Workspace />
+          <StatusBar />
           {dialog === 'export' && <ExportDialog onClose={() => useUiStore.getState().openDialog(null)} />}
           {dialog === 'settings' && <SettingsDialog />}
           {dialog === 'palette' && <CommandPalette />}
+          {dialog === 'savePreset' && <SavePresetDialog onSaved={() => useUiStore.getState().bumpPresets()} />}
+          {dialog === 'saveTemplate' && <SaveTemplateDialog />}
           {showDiscovery && dialog !== 'export' && <DiscoveryDialog />}
           <ConfirmHost />
           <Toaster />
@@ -77,5 +85,6 @@ export function App() {
         </div>
       </EditorServicesProvider>
     </TooltipProvider>
+    </IconContext.Provider>
   );
 }

@@ -1,14 +1,14 @@
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
+import { CaretRight, Check } from '@phosphor-icons/react';
 import { cn } from 'cn';
-import { Check, ChevronRight } from 'lucide-react';
 import type { ComponentProps } from 'react';
 
-// shadcn 的 DropdownMenu（Base UI Menu）。弹层：surface-2、圆角 8、弹层阴影加 1 px 边框（6.2）。
+// shadcn 的 DropdownMenu（Base UI Menu）。弹层：浮起的面板（圆角、弹层阴影、无描边，6.2）；高亮项是控件色的圆角块。
 
 export const menuPopupClass =
-  'z-50 min-w-44 origin-(--transform-origin) rounded-lg border bg-surface-2 p-1 text-sm shadow-(--shadow-popover) outline-none transition-[opacity,scale] duration-(--dur-2) data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0';
+  'z-50 min-w-44 float p-1 text-sm outline-none transition-opacity duration-(--dur-2) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0';
 export const menuItemClass =
-  'relative flex h-7 cursor-default items-center gap-2 rounded-md px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-surface-3 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-fg-muted';
+  'relative flex h-7 cursor-default items-center gap-2 rounded-md px-2 outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-45 data-[highlighted]:bg-control [&_svg]:size-3.5 [&_svg]:shrink-0 [&_svg]:text-fg-subtle';
 
 const DropdownMenu = MenuPrimitive.Root;
 const DropdownMenuTrigger = MenuPrimitive.Trigger;
@@ -59,22 +59,22 @@ function DropdownMenuRadioItem({ className, children, ...props }: MenuPrimitive.
 }
 
 function DropdownMenuLabel({ className, ...props }: MenuPrimitive.GroupLabel.Props) {
-  return <MenuPrimitive.GroupLabel className={cn('px-2 py-1 text-xs text-fg-muted', className)} {...props} />;
+  return <MenuPrimitive.GroupLabel className={cn('px-2 py-1 text-xs text-fg-subtle', className)} {...props} />;
 }
 
 function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
-  return <MenuPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-border', className)} {...props} />;
+  return <MenuPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-divider', className)} {...props} />;
 }
 
 function DropdownMenuShortcut({ className, ...props }: ComponentProps<'span'>) {
-  return <span className={cn('ml-auto pl-4 text-xs text-fg-muted tabular-nums', className)} {...props} />;
+  return <span className={cn('ml-auto pl-4 num text-xs text-fg-subtle', className)} {...props} />;
 }
 
 function DropdownMenuSubTrigger({ className, children, ...props }: MenuPrimitive.SubmenuTrigger.Props) {
   return (
-    <MenuPrimitive.SubmenuTrigger className={cn(menuItemClass, 'data-[popup-open]:bg-surface-3', className)} {...props}>
+    <MenuPrimitive.SubmenuTrigger className={cn(menuItemClass, 'data-[popup-open]:bg-control', className)} {...props}>
       {children}
-      <ChevronRight className="ml-auto" />
+      <CaretRight className="ml-auto" />
     </MenuPrimitive.SubmenuTrigger>
   );
 }

@@ -94,12 +94,24 @@ const resourceId = z.string().max(256).refine(isResourceId, 'must be a resource 
 const NumberParam = z.looseObject({ ...base, type: z.literal('number'), default: finite, min: finite, max: finite, step: finite.optional(), unit: z.string().max(16).optional(), ui: uiMode });
 const IntegerParam = z.looseObject({ ...base, type: z.literal('integer'), default: z.int(), min: z.int(), max: z.int(), ui: uiMode });
 const BooleanParam = z.looseObject({ ...base, type: z.literal('boolean'), default: z.boolean() });
-const EnumParam = z.looseObject({
-  ...base,
-  type: z.literal('enum'),
-  default: z.string().max(64),
-  options: z.array(z.strictObject({ value: z.string().min(1).max(64), label: LocalizedStringSchema })).min(1).max(64),
-});
+/** 图案预览：4×4 格，按行从左上到右下，每格 0–1 表示这一格出现的先后（0 最先）。只给界面画小格用（4.4） */
+export const ENUM_PATTERN_CELLS = 16;
+const EnumPattern = z.array(z.number().min(0).max(1)).length(ENUM_PATTERN_CELLS);
+const EnumParam = z
+  .looseObject({
+    ...base,
+    type: z.literal('enum'),
+    default: z.string().max(64),
+    options: z.array(z.strictObject({ value: z.string().min(1).max(64), label: LocalizedStringSchema, pattern: EnumPattern.optional() })).min(1).max(64),
+    /** 界面提示：'pattern' 用图案小格选择器（每个选项都要带 pattern）；不写时按选项数走分段控件或下拉 */
+    ui: z.literal('pattern').optional(),
+  })
+  .superRefine((p, ctx) => {
+    if (p.ui !== 'pattern') return;
+    p.options.forEach((o, i) => {
+      if (!o.pattern) ctx.addIssue({ code: 'custom', path: ['options', i, 'pattern'], message: "ui: 'pattern' needs a pattern on every option" });
+    });
+  });
 const ColorParam = z.looseObject({
   ...base,
   type: z.literal('color'),

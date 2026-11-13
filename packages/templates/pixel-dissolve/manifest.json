@@ -23,11 +23,12 @@
       "label": { "zh-CN": "图案", "en": "Pattern" },
       "group": "cells",
       "default": "noise",
+      "ui": "pattern",
       "options": [
-        { "value": "noise", "label": { "zh-CN": "噪声", "en": "Noise" } },
-        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" } },
-        { "value": "sweep", "label": { "zh-CN": "扫过", "en": "Sweep" } },
-        { "value": "radial", "label": { "zh-CN": "径向", "en": "Radial" } }
+        { "value": "noise", "label": { "zh-CN": "噪声", "en": "Noise" }, "pattern": [0.53, 1, 0.72, 0.39, 0.68, 0.9, 0.45, 0, 0.22, 0.48, 0.46, 0.29, 0.07, 0.66, 0.95, 0.6] },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.47, 0.93, 0.13, 0.67, 0.27, 0.8, 0.53, 0.07, 0.87, 0.33, 1, 0.4, 0.6, 0.2, 0.73, 0] },
+        { "value": "sweep", "label": { "zh-CN": "扫过", "en": "Sweep" }, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] },
+        { "value": "radial", "label": { "zh-CN": "径向", "en": "Radial" }, "pattern": [1, 0.62, 0.62, 1, 0.62, 0, 0, 0.62, 0.62, 0, 0, 0.62, 1, 0.62, 0.62, 1] }
       ]
     },
     { "key": "angle", "type": "angle", "label": { "zh-CN": "方向", "en": "Direction" }, "hint": { "zh-CN": "0° 为从左到右", "en": "0° sweeps left to right" }, "group": "cells", "default": 0, "visibleWhen": { "key": "pattern", "equals": "sweep" } },

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { ClipName } from '../model/allay.motions';
 
 // 悦灵组件的占位实现（M4）。接口已经是最终的（docs/07-allay-mascot.md 7.4）；外形只用 CSS 几何形状，
-// 不读烘焙产物、不画新图。M5 后半把内部换成图集的 <canvas> 绘制，调用方不用改。
+// 不读烘焙产物、不画新图。配色跟随界面的设计变量；界面禁止外发光，所以不画辉光。
+// M5 后半把内部换成图集的 <canvas> 绘制，调用方不用改。
 
 export interface AllayProps {
   clip?: ClipName;
@@ -11,14 +12,14 @@ export interface AllayProps {
   facing?: 'left' | 'right';
   /** 捧着的东西（物品图标等），画在手部锚点上 */
   carry?: ReactNode;
-  /** 悦灵青的 drop-shadow 辉光（不烘进图集） */
+  /** 悦灵青的 drop-shadow 辉光（不烘进图集）。界面禁止外发光（6.1），占位实现忽略这个参数 */
   glow?: boolean;
   className?: string;
   style?: CSSProperties;
 }
 
 /** 一只悦灵。只负责画当前帧，不负责移动。显示尺寸小于 28 px 时一律用头像（7.3）。 */
-export function Allay({ clip = 'hover', size = 72, facing = 'right', carry, glow, className, style }: AllayProps) {
+export function Allay({ clip = 'hover', size = 72, facing = 'right', carry, className, style }: AllayProps) {
   if (size < 28) return <AllayHead size={size} className={className} />;
   const s = size;
   return (
@@ -33,14 +34,13 @@ export function Allay({ clip = 'hover', size = 72, facing = 'right', carry, glow
         // 朝向用水平翻转，转身 140 ms
         transform: facing === 'left' ? 'scaleX(-1)' : undefined,
         transition: 'transform 140ms var(--ease-out)',
-        filter: glow ? 'drop-shadow(0 0 6px var(--allay-glow))' : undefined,
         ...style,
       }}
     >
       <span className="allay-ph-bob absolute inset-0 block">
         {/* 翅膀 */}
-        <span className="allay-ph-wing absolute block rounded-[50%] bg-allay-glow/70" style={{ left: s * 0.1, top: s * 0.28, width: s * 0.36, height: s * 0.22 }} />
-        <span className="allay-ph-wing absolute block rounded-[50%] bg-allay-glow/50" style={{ left: s * 0.02, top: s * 0.36, width: s * 0.3, height: s * 0.18 }} />
+        <span className="allay-ph-wing absolute block rounded-[50%] bg-allay-light/70" style={{ left: s * 0.1, top: s * 0.28, width: s * 0.36, height: s * 0.22 }} />
+        <span className="allay-ph-wing absolute block rounded-[50%] bg-allay-light/50" style={{ left: s * 0.02, top: s * 0.36, width: s * 0.3, height: s * 0.18 }} />
         {/* 头 */}
         <span className="absolute block rounded-[22%] bg-allay" style={{ left: s * 0.36, top: s * 0.14, width: s * 0.36, height: s * 0.36 }}>
           <span className="absolute block rounded-[1px] bg-background" style={{ left: s * 0.15, top: s * 0.13, width: s * 0.05, height: s * 0.09 }} />

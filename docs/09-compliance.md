@@ -111,8 +111,11 @@
 | 方舟像素字体（Ark Pixel Font）、缝合像素字体（Fusion Pixel Font） | 字体 OFL 1.1 | **推荐作为内置像素字体**，自带中文，画风通用 |
 | GNU Unifont | OFL 1.1 与 GPLv2+（带字体嵌入例外）双许可 | 可选。游戏里的中日韩字形用的就是它，想让模板里的中文更像游戏时可以用 |
 | Monocraft | OFL 1.1 | 不用。它模仿的是 Minecraft 的字体 |
-| Inter | OFL 1.1 | 界面字体 |
+| IBM Plex Sans、IBM Plex Mono | OFL 1.1 | 界面字体（英文与数字、等宽数字与时间码）。用 `@fontsource/ibm-plex-sans`、`@fontsource/ibm-plex-mono`，只引用 400/500/600 与 400/500。用户于 2026-11-13 同意引入 |
+| Noto Sans SC（思源黑体） | OFL 1.1 | 界面的中文字体。用 `@fontsource/noto-sans-sc`（按 unicode-range 分片），只引用 400/500/600。用户于 2026-11-13 同意引入 |
+| Inter | OFL 1.1 | 第四版界面起不再使用（换成 IBM Plex） |
 
+- 界面图标用 Phosphor（`@phosphor-icons/react`，MIT），代码依赖，走 9.8 的许可检查；不自绘图标。
 - 内置层默认是项目自制的程序化贴图，**不依赖上表中的任何资源包**。并入开放许可的资源包只是提升画质的可选项。
 - 采用 CC BY-SA 的素材意味着：署名；对这些贴图的改动版本要以相同许可发布。通常的理解是，把它们作为素材集合打进应用不会改变应用代码的许可。
 - 所有第三方素材的署名和许可全文显示在“关于 → 第三方许可”，并随安装包附带。

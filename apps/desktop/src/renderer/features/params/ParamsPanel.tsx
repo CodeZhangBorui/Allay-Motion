@@ -11,50 +11,114 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@allay/ui/components/dropdown-menu';
-import { Badge, ScrollArea } from '@allay/ui/components/misc';
+import { ScrollArea } from '@allay/ui/components/misc';
 import { ParamPanel } from '@allay/ui/editor';
-import { ChevronDown, Ellipsis, FilePlus2 } from 'lucide-react';
+import { ICON } from '@allay/ui/lib/icons';
+import { ArrowCounterClockwise, CaretUpDown, DotsThree, FloppyDisk } from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PresetEntry } from '../../../shared/templates';
 import { notify } from '../../stores/noticeStore';
 import { setParam, useProjectStore } from '../../stores/projectStore';
 import { useTemplateStore } from '../../stores/templateStore';
+import { useTransportStore } from '../../stores/transportStore';
 import { useUiStore } from '../../stores/uiStore';
+import { OutputSettingsForm } from '../settings/OutputSettingsForm';
 import { applyPresetEntry } from '../templates/presets';
-import { SavePresetDialog, SaveTemplateDialog } from './dialogs';
 
-// 右栏：属性（6.4）。头部：模板名、分类徽标、预设下拉、更多菜单（保存为预设、另存为模板、重置全部参数、导入/导出预设）。
-// 主体：按 groups 分组的可折叠区块（ParamPanel，由参数定义自动生成），折叠状态按模板记忆。底部：“另存为模板”（4.7）。
+// 右面板（6.4）的两个标签页（经注册表挂到 TabbedPanel 上，见 app/core.tsx）：
+// 属性页：模板名（15 px）和“类别 · 时长”，右侧预设下拉；主体是按 groups 分组的参数（ParamPanel，由参数定义自动生成），
+// 折叠状态按模板记忆；底部一行“另存为模板 / 全部重置”。属性页的标题行右侧是更多菜单
+// （保存为预设、另存为模板、重置全部参数、导入/导出预设）。
+// 输出页：分辨率、帧率等输出设置。
 
 /** 应用内的“剪贴板”：复制值、粘贴值只在参数之间用，不经系统剪贴板（权限请求一律被拒，1.6 第 4 条） */
 let clipboard: { type: ParamDef['type']; value: ParamValue } | null = null;
 
-export function usePresets(templateId: string | undefined): [PresetEntry[], () => void] {
+/** 当前模板的预设；保存、导入预设后（uiStore.presetsVersion 变了）重新取 */
+export function usePresets(templateId: string | undefined): PresetEntry[] {
   const [presets, setPresets] = useState<PresetEntry[]>([]);
-  const [tick, setTick] = useState(0);
+  const version = useUiStore((s) => s.presetsVersion);
   useEffect(() => {
     let alive = true;
     void window.allay.presets.list().then((all) => alive && setPresets(all.filter((p) => p.template.id === templateId)));
     return () => {
       alive = false;
     };
-  }, [templateId, tick]);
-  return [presets, () => setTick((n) => n + 1)];
+  }, [templateId, version]);
+  return presets;
 }
 
-export function ParamsPanel() {
+function useDefaults() {
+  const template = useProjectStore((s) => s.template);
+  const { i18n } = useTranslation();
+  return useMemo(() => (template ? defaultParams(template.params, { locale: i18n.language }) : {}), [template, i18n.language]);
+}
+
+/** 属性页标题行右侧：更多菜单 */
+export function PropsActions() {
+  const { t, i18n } = useTranslation();
+  const template = useProjectStore((s) => s.template);
+  const params = useProjectStore((s) => s.params);
+  const presets = usePresets(template?.ref.id);
+  const defaults = useDefaults();
+  const locale = i18n.language;
+  if (!template) return null;
+  const changedCount = Object.keys(diffFromDefaults(template.params, params, { locale })).length;
+  const exportPreset = async (p: PresetEntry) => {
+    const r = await window.allay.presets.exportFile(p.id);
+    if (!r.canceled) notify('info', t('params.presets.exported'));
+  };
+  const importPreset = async () => {
+    const r = await window.allay.presets.importFile();
+    if (r.canceled) return;
+    if (!r.ok) notify('error', t('params.presets.importFailed'));
+    else {
+      notify('info', t('params.presets.imported', { name: r.entry.name }));
+      useUiStore.getState().bumpPresets();
+    }
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-fg-subtle" aria-label={t('params.more')} data-testid="params-more" />}>
+        <DotsThree size={ICON.md} weight="bold" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onClick={() => useUiStore.getState().openDialog('savePreset')}>{t('params.presets.save')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => useUiStore.getState().openDialog('saveTemplate')}>{t('params.saveAsTemplate')}</DropdownMenuItem>
+        <DropdownMenuItem disabled={changedCount === 0} onClick={() => useProjectStore.getState().setParams(defaults, locale)}>
+          {t('params.resetAll')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void importPreset()}>{t('params.presets.import')}</DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger disabled={presets.length === 0}>{t('params.presets.export')}</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {presets.map((p) => (
+              <DropdownMenuItem key={p.id} onClick={() => void exportPreset(p)}>
+                <span className="truncate">{p.name}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** 属性页 */
+export function PropsTab() {
   const { t, i18n } = useTranslation();
   const template = useProjectStore((s) => s.template);
   const params = useProjectStore((s) => s.params);
   const fileNames = useProjectStore((s) => s.fileNames);
+  const duration = useTransportStore((s) => s.duration);
   const groupState = useUiStore((s) => (template ? s.settings.editor.groups[template.ref.id] : undefined));
-  const dialog = useUiStore((s) => s.dialog);
   const entries = useTemplateStore((s) => s.entries);
-  const [presets, refreshPresets] = usePresets(template?.ref.id);
+  const presets = usePresets(template?.ref.id);
+  const defaults = useDefaults();
   const locale = i18n.language;
 
-  const defaults = useMemo(() => (template ? defaultParams(template.params, { locale }) : {}), [template, locale]);
   const onChange = useCallback((key: string, value: ParamValue) => setParam(key, value, locale), [locale]);
   const clip = useMemo(
     () => ({
@@ -66,45 +130,31 @@ export function ParamsPanel() {
     [locale],
   );
 
-  if (!template) {
-    return (
-      <aside aria-label={t('params.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="params-panel">
-        <div className="flex h-10 items-center border-b px-3 text-sm font-semibold">{t('params.title')}</div>
-        <p className="p-3 text-xs text-fg-muted">{t('params.placeholder')}</p>
-      </aside>
-    );
-  }
+  if (!template) return <p className="px-3.5 py-3 text-xs text-fg-subtle">{t('params.placeholder')}</p>;
+
   const entry = entries.find((e) => e.id === template.ref.id && e.version === template.ref.version);
   const name = localize(template.manifest.name, locale);
   const changedCount = Object.keys(diffFromDefaults(template.params, params, { locale })).length;
-
-  const exportPreset = async (p: PresetEntry) => {
-    const r = await window.allay.presets.exportFile(p.id);
-    if (!r.canceled) notify('info', t('params.presets.exported'));
-  };
-  const importPreset = async () => {
-    const r = await window.allay.presets.importFile();
-    if (r.canceled) return;
-    if (!r.ok) notify('error', t('params.presets.importFailed'));
-    else {
-      notify('info', t('params.presets.imported', { name: r.entry.name }));
-      refreshPresets();
-    }
-  };
+  const resetAll = () => useProjectStore.getState().setParams(defaults, locale);
 
   return (
-    <aside aria-label={t('params.title')} className="flex h-full min-w-0 flex-col bg-surface-1" data-testid="params-panel">
-      <header className="flex h-10 shrink-0 items-center gap-1.5 border-b pr-1 pl-3">
-        <h2 className="min-w-0 truncate text-sm font-semibold" title={name} data-testid="params-template-name">
-          {name}
-        </h2>
-        <Badge className="shrink-0">{t(`gallery.categories.${template.manifest.category}`)}</Badge>
-        {entry?.source === 'user' && <Badge variant="amethyst">{t('gallery.user')}</Badge>}
-        <div className="flex-1" />
+    <>
+      <div className="flex shrink-0 items-center gap-2.5 px-3.5 pt-0.5 pb-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-semibold" title={name} data-testid="params-template-name">
+            {name}
+          </h2>
+          <p className="truncate text-xs text-fg-subtle" data-testid="params-template-meta">
+            {duration > 0
+              ? t('params.meta', { category: t(`gallery.categories.${template.manifest.category}`), duration: duration.toFixed(2) })
+              : t(`gallery.categories.${template.manifest.category}`)}
+            {entry?.source === 'user' && <span className="text-amethyst"> · {t('gallery.user')}</span>}
+          </p>
+        </div>
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="text-fg-muted" data-testid="preset-menu" />}>
-            {t('params.presets.title')}
-            <ChevronDown className="size-3.5" />
+          <DropdownMenuTrigger render={<Button variant="secondary" className="w-[118px] shrink-0 justify-between pr-2 pl-2.5 font-normal" data-testid="preset-menu" />}>
+            <span className="truncate">{t('params.presets.title')}</span>
+            <CaretUpDown size={ICON.xs} className="text-fg-subtle" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {presets.length === 0 ? (
@@ -130,31 +180,7 @@ export function ParamsPanel() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={t('params.more')} data-testid="params-more" />}>
-            <Ellipsis />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => useUiStore.getState().openDialog('savePreset')}>{t('params.presets.save')}</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => useUiStore.getState().openDialog('saveTemplate')}>{t('params.saveAsTemplate')}</DropdownMenuItem>
-            <DropdownMenuItem disabled={changedCount === 0} data-testid="params-reset-all" onClick={() => useProjectStore.getState().setParams(defaults, locale)}>
-              {t('params.resetAll')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void importPreset()}>{t('params.presets.import')}</DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger disabled={presets.length === 0}>{t('params.presets.export')}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {presets.map((p) => (
-                  <DropdownMenuItem key={p.id} onClick={() => void exportPreset(p)}>
-                    <span className="truncate">{p.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
+      </div>
       <ScrollArea className="min-h-0 flex-1">
         <ParamPanel
           defs={template.params}
@@ -169,14 +195,26 @@ export function ParamsPanel() {
           clipboard={clip}
         />
       </ScrollArea>
-      <footer className="shrink-0 border-t p-2">
-        <Button variant="ghost" className="w-full justify-start text-fg-muted" data-testid="save-as-template" onClick={() => useUiStore.getState().openDialog('saveTemplate')}>
-          <FilePlus2 />
-          {t('params.saveAsTemplate')}
+      <footer className="flex h-panel-head shrink-0 items-center gap-2 border-t border-divider px-2">
+        <Button variant="ghost" className="min-w-0 gap-2 px-2" data-testid="save-as-template" onClick={() => useUiStore.getState().openDialog('saveTemplate')}>
+          <FloppyDisk size={ICON.md} />
+          <span className="truncate">{t('params.saveAsTemplate')}</span>
+        </Button>
+        <span className="flex-1" />
+        <Button variant="ghost" className="min-w-0 gap-2 px-2" disabled={changedCount === 0} title={t('params.resetAll')} data-testid="params-reset-all" onClick={resetAll}>
+          <ArrowCounterClockwise size={ICON.md} />
+          <span className="truncate">{t('params.resetAllShort')}</span>
         </Button>
       </footer>
-      {dialog === 'savePreset' && <SavePresetDialog onSaved={refreshPresets} />}
-      {dialog === 'saveTemplate' && <SaveTemplateDialog />}
-    </aside>
+    </>
+  );
+}
+
+/** 输出页 */
+export function OutputTab() {
+  return (
+    <div className="px-3.5 pt-1 pb-3">
+      <OutputSettingsForm />
+    </div>
   );
 }

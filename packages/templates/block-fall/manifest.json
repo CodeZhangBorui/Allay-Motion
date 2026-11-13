@@ -37,11 +37,12 @@
       "hint": { "zh-CN": "列与列之间的先后；同一列里下面的行先落", "en": "Which columns drop first; within a column the lower rows land first" },
       "group": "motion",
       "default": "random",
+      "ui": "pattern",
       "options": [
-        { "value": "leftToRight", "label": { "zh-CN": "从左到右", "en": "Left to right" } },
-        { "value": "rightToLeft", "label": { "zh-CN": "从右到左", "en": "Right to left" } },
-        { "value": "centerOut", "label": { "zh-CN": "中间向两边", "en": "Center out" } },
-        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" } }
+        { "value": "leftToRight", "label": { "zh-CN": "从左到右", "en": "Left to right" }, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] },
+        { "value": "rightToLeft", "label": { "zh-CN": "从右到左", "en": "Right to left" }, "pattern": [1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0] },
+        { "value": "centerOut", "label": { "zh-CN": "中间向两边", "en": "Center out" }, "pattern": [1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1] },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.67, 0, 1, 0.33, 0.67, 0, 1, 0.33, 0.67, 0, 1, 0.33, 0.67, 0, 1, 0.33] }
       ]
     },
     {

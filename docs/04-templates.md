@@ -75,7 +75,7 @@ interface ParamBase {
 | `number` | 数字 | `default` `min` `max` `step?` `unit?` `ui?: 'slider' \| 'field'` | 可拖拽数字框，可带滑块 |
 | `integer` | 整数 | `default` `min` `max` `ui?` | 同上 |
 | `boolean` | 布尔 | `default` | 开关 |
-| `enum` | 字符串 | `default` `options: { value, label }[]` | 4 项以内用分段控件，否则下拉 |
+| `enum` | 字符串 | `default` `options: { value, label, pattern? }[]`，可选 `ui: 'pattern'` | 声明了 `ui: 'pattern'` 时用图案小格选择器（见下）；否则 4 项以内用分段控件，否则下拉 |
 | `color` | `#RRGGBB` 或 `#RRGGBBAA` | `default` `alpha?` `palette?: 'dye' \| 'chat'` | 色块 + 取色弹层 |
 | `text` | 字符串 | `default: LocalizedString` `maxLength?` `multiline?` | 文本框 |
 | `block` | 方块 ID | `default` | 方块选择器 |
@@ -87,6 +87,8 @@ interface ParamBase {
 | `duration` | 秒 | `default` `min` `max` | 数字框，同时显示帧数，吸附到帧 |
 | `angle` | 度 | `default` `snap?` | 方向盘 |
 | `seed` | 整数 | `default` | 数字框 + 骰子按钮 |
+
+**enum 的图案选择器**（可选的界面提示，只影响属性面板的画法，不影响参数的值和校验）：在 enum 参数上写 `ui: 'pattern'`，并给每个选项一个 `pattern`——16 个 0–1 之间的数，按行从左上到右下对应一个 4×4 的小格，表示这一格出现的先后（0 最先）。控件把每个选项画成一个小方格图，越早出现越亮，当前项的名称显示在右上。`pattern` 必须正好 16 个、每个在 0–1 之间；声明了 `ui: 'pattern'` 却有选项缺 `pattern` 时 manifest 不合法（T-TPL-1 有夹具）。适合“顺序”“图案”这类能画成一张小图的选项；没声明的照旧走分段控件或下拉。
 
 规则：
 

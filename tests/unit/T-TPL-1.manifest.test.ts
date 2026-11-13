@@ -57,6 +57,7 @@ const VALID: [string, unknown][] = [
   ['预发布版本号', { ...base, version: '2.0.0-beta.1' }],
   ['未知字段保留但忽略', { ...base, futureField: { anything: true }, params: [num({ futureParamField: 1 })] }],
   ['叠加层与标签', { ...base, category: 'overlay', tags: ['toast', 'ui'], author: 'someone', license: 'MIT' }],
+  ['enum 的图案选择器', { ...base, params: [{ key: 'order', type: 'enum', label: 'order', default: 'lr', ui: 'pattern', options: [{ value: 'lr', label: 'L→R', pattern: [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] }, { value: 'rl', label: 'R→L', pattern: [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1].slice().reverse() }] }] }],
   ['内置 T1 的 manifest', JSON.parse(readFileSync(join(ROOT, 'packages/templates/block-wipe/manifest.json'), 'utf8'))],
 ];
 
@@ -74,6 +75,9 @@ const INVALID: [string, unknown, string][] = [
   ['参数类型不认识', { ...base, params: [{ key: 'x', type: 'vector', label: 'x', default: 1 }] }, 'params.0.type'],
   ['number 默认值越界', { ...base, params: [num({ default: 5 })] }, 'params.0.default'],
   ['number 缺 max', { ...base, params: [num({ max: undefined })] }, 'params.0.max'],
+  ['enum 图案格数不是 16', { ...base, params: [{ key: 'o', type: 'enum', label: 'o', default: 'a', ui: 'pattern', options: [{ value: 'a', label: 'A', pattern: [0, 1] }] }] }, 'params.0.options.0.pattern'],
+  ['enum 图案取值越界', { ...base, params: [{ key: 'o', type: 'enum', label: 'o', default: 'a', options: [{ value: 'a', label: 'A', pattern: [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 2] }] }] }, 'params.0.options.0.pattern.15'],
+  ['enum 声明了图案选择器却缺图案', { ...base, params: [{ key: 'o', type: 'enum', label: 'o', default: 'a', ui: 'pattern', options: [{ value: 'a', label: 'A' }] }] }, 'params.0.options.0.pattern'],
   ['enum 默认值不在选项里', { ...base, params: [{ key: 'm', type: 'enum', label: 'm', default: 'z', options: [{ value: 'a', label: 'A' }] }] }, 'params.0.default'],
   ['color 格式不对', { ...base, params: [{ key: 'c', type: 'color', label: 'c', default: 'red' }] }, 'params.0.default'],
   ['color 带 alpha 却没开 alpha', { ...base, params: [{ key: 'c', type: 'color', label: 'c', default: '#FFFFFF80' }] }, 'params.0.default'],

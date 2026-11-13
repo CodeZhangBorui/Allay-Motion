@@ -1,9 +1,11 @@
-import { Dices, Play } from 'lucide-react';
+import { DiceFive, Play } from '@phosphor-icons/react';
+import { cn } from 'cn';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../components/ui/button';
 import { Input, Textarea, ToggleGroup, ToggleGroupItem } from '../components/ui/misc';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Switch } from '../components/ui/switch';
+import { ICON } from '../lib/icons';
 import { beginGesture, useEditor } from './context';
 import { ScrubNumberField } from './ScrubNumberField';
 
@@ -16,8 +18,8 @@ export function DurationField({ value, onChange, min, max, label, testId }: { va
   const snap = (v: number) => Math.min(max, Math.max(min, Math.round(v * fps) / fps));
   return (
     <div className="flex min-w-0 items-center gap-2" data-testid={testId}>
-      <ScrubNumberField value={value} onChange={(v) => onChange(snap(v))} min={min} max={max} step={1 / fps} decimals={3} unit="s" label={label} className="min-w-0 flex-1" />
-      <span className="w-12 shrink-0 text-right text-xs text-fg-muted tabular-nums">{editor.t('duration.frames', { n: Math.round(value * fps) })}</span>
+      <ScrubNumberField value={value} onChange={(v) => onChange(snap(v))} min={min} max={max} step={1 / fps} decimals={3} minDecimals={2} unit="s" label={label} fill className="min-w-0 flex-1" />
+      <span className="w-12 shrink-0 text-right num text-xs text-fg-subtle">{editor.t('duration.frames', { n: Math.round(value * fps) })}</span>
     </div>
   );
 }
@@ -37,8 +39,8 @@ export function SeedField({ value, onChange, label, testId }: { value: number; o
   return (
     <div className="flex min-w-0 items-center gap-1" data-testid={testId}>
       <ScrubNumberField value={value} onChange={(v) => onChange(Math.round(v))} min={0} max={SEED_MAX} step={1} label={label} className="min-w-0 flex-1" />
-      <Button variant="ghost" size="icon" aria-label={editor.t('seed.roll')} title={editor.t('seed.rollHint')} onClick={() => onChange(randomSeed())}>
-        <Dices />
+      <Button variant="secondary" size="icon-sm" className="text-fg-muted" aria-label={editor.t('seed.roll')} title={editor.t('seed.rollHint')} onClick={() => onChange(randomSeed())}>
+        <DiceFive size={ICON.md} />
       </Button>
     </div>
   );
@@ -71,7 +73,7 @@ export function AngleField({ value, onChange, snap, label, testId }: { value: nu
         aria-valuemax={359}
         aria-valuenow={Math.round(value)}
         title={editor.t('angle.hint')}
-        className="relative size-7 shrink-0 cursor-pointer touch-none rounded-full border border-input-border bg-surface-3"
+        className="relative size-control shrink-0 cursor-pointer touch-none rounded-full bg-control"
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
           beginGesture(editor);
@@ -88,7 +90,7 @@ export function AngleField({ value, onChange, snap, label, testId }: { value: nu
           e.preventDefault();
         }}
       >
-        <span className="absolute top-1/2 left-1/2 h-0.5 w-3 origin-left rounded-full bg-primary" style={{ transform: `translateY(-50%) rotate(${value}deg)` }} />
+        <span className="absolute top-1/2 left-1/2 h-0.5 w-2.5 origin-left rounded-full bg-primary-text" style={{ transform: `translateY(-50%) rotate(${value}deg)` }} />
         <span className="absolute top-1/2 left-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground" />
       </div>
       <ScrubNumberField value={value} onChange={(v) => onChange(norm(snap ? Math.round(v / snap) * snap : v))} min={-360} max={720} step={snap ?? 1} unit="°" label={label} className="min-w-0 flex-1" />
@@ -117,14 +119,15 @@ export function SoundField({ value, onChange, label, testId }: { value: string |
         </SelectContent>
       </Select>
       <Button
-        variant="ghost"
-        size="icon"
+        variant="secondary"
+        size="icon-sm"
+        className="text-fg-muted"
         aria-label={editor.t('sound.preview')}
         title={editor.previewSound ? editor.t('sound.preview') : editor.t('sound.previewLater')}
         disabled={!editor.previewSound || value === null}
         onClick={() => value && editor.previewSound?.(value)}
       >
-        <Play />
+        <Play size={ICON.sm} weight="fill" />
       </Button>
     </div>
   );
@@ -145,11 +148,78 @@ function textWidth(s: string): number {
   return n;
 }
 
+export interface EnumOption {
+  value: string;
+  label: string;
+  /** 4×4 的顺序值（0–1）；manifest 声明了 ui: 'pattern' 时才有 */
+  pattern?: readonly number[];
+}
+
+/** 一格图案：4×4 的小方格，越早出现越亮 */
+function PatternTile({ pattern }: { pattern: readonly number[] }) {
+  return (
+    <span className="grid size-full grid-cols-4 gap-[1.5px] p-[22%]" aria-hidden="true">
+      {pattern.map((p, i) => (
+        <span key={i} className="rounded-[1px] bg-current" style={{ opacity: 1 - Math.min(1, Math.max(0, p)) * 0.85 }} />
+      ))}
+    </span>
+  );
+}
+
 /**
- * enum：4 项以内用分段控件，否则下拉（4.4）。分段控件放不下选项文字（总宽超过约 24 个半角字符）时也用下拉，
- * 不把选项截成“Fli…”（decisions.md M4）。
+ * 图案小格选择器（manifest 的 enum 声明了 ui: 'pattern'）：一排方格，每格画出这个选项的出现顺序；
+ * 当前项的名称由 ParamRow 显示在右上。键盘：方向键在选项间移动（radiogroup）。
  */
-export function EnumField({ value, onChange, options, label, testId }: { value: string; onChange(v: string): void; options: { value: string; label: string }[]; label: string; testId?: string }) {
+export function PatternField({ value, onChange, options, label, testId }: { value: string; onChange(v: string): void; options: EnumOption[]; label: string; testId?: string }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const index = Math.max(0, options.findIndex((o) => o.value === value));
+  const move = (to: number) => {
+    const i = (to + options.length) % options.length;
+    onChange(options[i]!.value);
+    refs.current[i]?.focus();
+  };
+  return (
+    <div role="radiogroup" aria-label={label} data-testid={testId} className="grid grid-cols-6 gap-[5px]">
+      {options.map((o, i) => {
+        const on = o.value === value;
+        return (
+          <button
+            key={o.value}
+            ref={(el) => {
+              refs.current[i] = el;
+            }}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={o.label}
+            title={o.label}
+            tabIndex={i === index ? 0 : -1}
+            onClick={() => !on && onChange(o.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight' || e.key === 'ArrowDown') move(i + 1);
+              else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move(i - 1);
+              else return;
+              e.preventDefault();
+            }}
+            className={cn(
+              'aspect-square rounded-lg transition-colors duration-(--dur-1)',
+              on ? 'bg-primary-soft text-primary-text shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-control text-fg-muted hover:bg-control-hi',
+            )}
+          >
+            {o.pattern && <PatternTile pattern={o.pattern} />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * enum：manifest 声明了 ui: 'pattern' 时用图案小格选择器；否则 4 项以内用分段控件，其余用下拉（4.4）。
+ * 分段控件放不下选项文字（总宽超过约 24 个半角字符）时也用下拉，不把选项截成“Fli…”（decisions.md M4）。
+ */
+export function EnumField({ value, onChange, options, label, testId, ui }: { value: string; onChange(v: string): void; options: EnumOption[]; label: string; testId?: string; ui?: 'pattern' }) {
+  if (ui === 'pattern' && options.every((o) => o.pattern)) return <PatternField value={value} onChange={onChange} options={options} label={label} testId={testId} />;
   const fits = options.reduce((a, o) => a + textWidth(o.label) + 2, 0) <= 24;
   if (options.length <= 4 && fits) {
     return (

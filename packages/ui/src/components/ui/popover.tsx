@@ -1,7 +1,7 @@
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import { cn } from 'cn';
 
-// shadcn 的 Popover（Base UI）：surface-2、圆角 8、弹层阴影加 1 px 边框（6.2），--dur-2 淡入。
+// shadcn 的 Popover（Base UI）：浮起的面板（圆角、弹层阴影、无描边，6.2），--dur-2 淡入。
 
 const Popover = PopoverPrimitive.Root;
 const PopoverTrigger = PopoverPrimitive.Trigger;
@@ -23,8 +23,8 @@ function PopoverContent({
           data-slot="popover-content"
           initialFocus={initialFocus}
           className={cn(
-            'z-50 max-h-(--available-height) w-72 origin-(--transform-origin) overflow-y-auto rounded-lg border bg-surface-2 p-3 text-sm shadow-(--shadow-popover) outline-none',
-            'transition-[opacity,scale] duration-(--dur-2) data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
+            'z-50 max-h-(--available-height) w-72 overflow-y-auto float p-3 text-sm outline-none',
+            'transition-opacity duration-(--dur-2) data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
             className,
           )}
           {...props}

@@ -167,6 +167,8 @@ test('T-UI-3 只用键盘：选模板、改参数、打开导出对话框、取�
   const ctx = await start();
   const { page } = ctx;
   try {
+    // 等模板库装载完（卡片出现）再开始按 Tab：装载期间卡片还不可聚焦
+    await coversReady(page);
     await page.locator('body').focus();
     // 选模板
     await tabTo(page, (x) => x.testid === `template-${FLAGSHIP}`);

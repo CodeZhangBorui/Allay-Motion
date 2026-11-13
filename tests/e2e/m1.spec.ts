@@ -68,9 +68,11 @@ test.describe('预览', () => {
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('ArrowRight');
     expect(await page.evaluate(() => window.__allayTest!.transport().time)).toBeCloseTo(11 / 60, 6);
-    await expect(page.getByTestId('transport-frame')).toHaveText('F11/66');
+    // 当前帧号在播放头的小牌上，总时长在时间码旁（第四版界面）
+    await expect(page.getByTestId('timeline-playhead-frame')).toHaveText('11');
+    await expect(page.getByTestId('transport-duration')).toHaveText('/ 00:01:06');
     await page.keyboard.press('End');
-    await expect(page.getByTestId('transport-frame')).toHaveText('F66/66');
+    await expect(page.getByTestId('timeline-playhead-frame')).toHaveText('66');
   });
 
   test('拖动（指针）：按下即暂停，时间吸附到帧', async () => {

@@ -17,8 +17,8 @@ export function AllayEmpty({ title, description, action, className, clip = 'hove
   return (
     <div className={`flex flex-col items-center gap-2 px-4 py-6 text-center ${className ?? ''}`} data-testid="allay-empty">
       <Allay clip={clip} size={size} />
-      <p className="text-sm font-semibold">{title}</p>
-      {description && <p className="max-w-64 text-xs text-fg-muted">{description}</p>}
+      <p className="text-base font-semibold">{title}</p>
+      {description && <p className="max-w-64 text-xs text-fg-subtle">{description}</p>}
       {action && <div className="mt-1">{action}</div>}
     </div>
   );

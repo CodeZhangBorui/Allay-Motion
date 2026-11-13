@@ -3,7 +3,9 @@
     "undo": "撤销",
     "redo": "重做",
     "export": "导出",
-    "settings": "设置"
+    "settings": "设置",
+    "exportFormat": "选择导出格式",
+    "exportAs": "导出为"
   },
   "gallery": {
     "title": "模板",
@@ -34,7 +36,10 @@
     "mineEmpty": "把模板包拖到这里，或者从任何模板“另存为模板”。",
     "exportPackage": "导出模板包…",
     "exported": "模板包已导出。",
-    "remove": "删除模板"
+    "remove": "删除模板",
+    "tabsLabel": "模板库",
+    "searchToggle": "搜索模板",
+    "presetsEmpty": "当前模板还没有预设。可以在属性面板的“预设”里保存。"
   },
   "templates": {
     "installed": "模板已安装。",
@@ -94,7 +99,10 @@
     "resetParams": "重置参数",
     "copyDiagnostics": "复制诊断信息",
     "diagnosticsCopied": "诊断信息已复制。",
-    "diagnosticsFailed": "无法复制诊断信息。"
+    "diagnosticsFailed": "无法复制诊断信息。",
+    "title": "预览",
+    "toolbar": "预览工具",
+    "hqShort": "高质量"
   },
   "transport": {
     "region": "播放条",
@@ -141,7 +149,13 @@
       "failed": "无法另存为模板：{{reason}}",
       "imageUnreadable": "选的图片读不出来了",
       "saved": "已保存为模板“{{name}}”。"
-    }
+    },
+    "tabs": {
+      "props": "属性",
+      "output": "输出"
+    },
+    "meta": "{{category}} · {{duration}} s",
+    "resetAllShort": "全部重置"
   },
   "layout": {
     "resizeHandle": "拖动调整宽度"
@@ -297,7 +311,8 @@
       "templateMissing": "打不开：需要模板 {{id}}（{{version}}），但它没有安装。",
       "not-writable": "无法写入这个位置，请换一个文件夹。",
       "unknown-handle": "找不到原来的工程文件，请用“另存为”。"
-    }
+    },
+    "modified": "已修改"
   },
   "output": {
     "title": "输出设置",
@@ -352,7 +367,9 @@
     "licenses": {
       "ffmpeg": "FFmpeg：LGPL 3.0，以独立进程调用，许可全文随安装包附带。",
       "ark": "方舟像素字体：SIL Open Font License 1.1。",
-      "inter": "Inter 字体：SIL Open Font License 1.1。",
+      "plex": "IBM Plex Sans、IBM Plex Mono 字体：SIL Open Font License 1.1。",
+      "noto": "Noto Sans SC（思源黑体）字体：SIL Open Font License 1.1。",
+      "phosphor": "Phosphor 图标：MIT。",
       "npm": "其余开源组件使用 MIT、BSD、ISC、Apache-2.0 等许可。"
     }
   },
@@ -471,7 +488,8 @@
       }
     },
     "duration": {
-      "frames": "{{n}} 帧"
+      "frames": "{{n}} 帧",
+      "total": "共 {{n}} 帧"
     },
     "seed": {
       "roll": "换一个随机种子",
@@ -537,5 +555,36 @@
       "copy": "复制值",
       "paste": "粘贴值"
     }
+  },
+  "menu": {
+    "file": "文件",
+    "edit": "编辑",
+    "view": "视图",
+    "help": "帮助",
+    "commandPalette": "命令面板…",
+    "language": "语言",
+    "theme": "主题",
+    "background": "预览背景",
+    "collapseLeft": "折叠左侧面板"
+  },
+  "status": {
+    "region": "状态栏",
+    "starting": "正在启动",
+    "loading": "装载中",
+    "ready": "就绪",
+    "error": "模板出错",
+    "exporting": "导出中",
+    "assets": "原版素材 {{version}} · {{count}} 个资源包",
+    "assetsNoVanilla": "内置素材 · {{count}} 个资源包",
+    "changed": "已修改 {{count}} 项参数",
+    "previewFps": "预览 {{fps}} fps",
+    "version": "v{{version}}"
+  },
+  "timeline": {
+    "region": "时间轴",
+    "stages": "阶段",
+    "sound": "音效",
+    "cut": "剪辑点",
+    "toEnd": "跳到结尾"
   }
 }

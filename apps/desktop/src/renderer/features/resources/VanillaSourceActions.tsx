@@ -26,9 +26,9 @@ export function VanillaSourceActions() {
           aria-valuemax={100}
           {...(pct !== null ? { 'aria-valuenow': pct } : {})}
           data-testid="download-progress"
-          className="h-1.5 w-full overflow-hidden rounded-full bg-skeleton"
+          className="h-1.5 w-full overflow-hidden rounded-full bg-control-hi"
         >
-          <div className="h-full bg-primary" style={{ width: pct === null ? '15%' : `${pct}%` }} />
+          <div className="h-full rounded-full bg-primary" style={{ width: pct === null ? '15%' : `${pct}%` }} />
         </div>
         <Button variant="secondary" className="self-start" data-testid="download-cancel" onClick={() => void window.allay.resources.cancelDownload()}>
           {t('resources.download.cancel')}
@@ -46,11 +46,11 @@ export function VanillaSourceActions() {
         </p>
       )}
       {vanilla.local && vanilla.consent !== true && (
-        <Button className="self-start" data-testid="vanilla-use-local" onClick={() => void setVanilla({ consent: true, enabled: true })}>
+        <Button variant="secondary" className="self-start" data-testid="vanilla-use-local" onClick={() => void setVanilla({ consent: true, enabled: true })}>
           {t('resources.useLocal', { version: vanilla.local.versionId })}
         </Button>
       )}
-      <Button variant={vanilla.local ? 'secondary' : 'default'} className="h-auto min-h-7 self-start whitespace-normal py-1 text-left" data-testid="vanilla-download" onClick={downloadVanilla}>
+      <Button variant="secondary" className="h-auto min-h-7 self-start whitespace-normal py-1 text-left" data-testid="vanilla-download" onClick={downloadVanilla}>
         {failed ? t('resources.download.retry') : t('resources.download.button')}
       </Button>
       <p className="text-xs leading-relaxed text-fg-muted" data-testid="download-note">

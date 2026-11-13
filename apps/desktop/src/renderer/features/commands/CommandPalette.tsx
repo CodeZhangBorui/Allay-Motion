@@ -2,7 +2,8 @@ import { localize } from '@allay/template-sdk';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@allay/ui/components/command';
 import { Dialog, DialogContent, DialogTitle } from '@allay/ui/components/dialog';
 import { Kbd } from '@allay/ui/components/misc';
-import { LayoutTemplate, SlidersHorizontal, Zap } from 'lucide-react';
+import { ICON } from '@allay/ui/lib/icons';
+import { FilmSlate, Lightning, SlidersHorizontal } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PresetEntry } from '../../../shared/templates';
@@ -10,13 +11,15 @@ import { useTemplateStore } from '../../stores/templateStore';
 import { useUiStore } from '../../stores/uiStore';
 import { selectTemplate } from '../templates/actions';
 import { applyPresetEntry } from '../templates/presets';
-import { COMMANDS, shortcutLabel } from './commands';
+import { commandEnabled, trigger, useCommands } from '../../app/registry';
+import { shortcutLabel } from './commands';
 
-// 命令面板（6.4，Ctrl+K）：搜索操作、模板、预设。
+// 命令面板（6.4，Ctrl+K）：搜索操作（注册表里的命令）、模板、预设。
 
 export function CommandPalette() {
   const { t, i18n } = useTranslation();
   const entries = useTemplateStore((s) => s.entries);
+  const commands = useCommands();
   const [presets, setPresets] = useState<PresetEntry[]>([]);
   useEffect(() => {
     void window.allay.presets.list().then(setPresets);
@@ -40,12 +43,14 @@ export function CommandPalette() {
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
             <CommandGroup heading={t('command.groups.actions')}>
-              {COMMANDS.filter((c) => c.id !== 'palette').map((c) => {
-                const enabled = !c.enabled || c.enabled();
+              {commands
+                .filter((c) => !c.hideInPalette && !c.input)
+                .map((c) => {
+                const enabled = commandEnabled(c);
                 return (
-                  <CommandItem key={c.id} value={`action ${t(`command.items.${c.id}`)} ${c.id}`} disabled={!enabled} onSelect={() => run(c.run)} data-testid={`command-${c.id}`}>
-                    <Zap />
-                    <span className="flex-1 truncate">{t(`command.items.${c.id}`)}</span>
+                  <CommandItem key={c.id} value={`action ${t(c.titleKey)} ${c.id}`} disabled={!enabled} onSelect={() => run(() => trigger(c.id))} data-testid={`command-${c.id}`}>
+                    <Lightning size={ICON.sm} />
+                    <span className="flex-1 truncate">{t(c.titleKey)}</span>
                     {c.shortcut && <Kbd>{shortcutLabel(c.shortcut)}</Kbd>}
                   </CommandItem>
                 );
@@ -58,9 +63,9 @@ export function CommandPalette() {
                   const name = localize(e.manifest.name, i18n.language);
                   return (
                     <CommandItem key={`${e.id}@${e.version}`} value={`template ${name} ${e.id}`} onSelect={() => run(() => void selectTemplate(e.id, e.version, i18n.language))}>
-                      <LayoutTemplate />
+                      <FilmSlate size={ICON.sm} />
                       <span className="flex-1 truncate">{name}</span>
-                      <span className="text-xs text-fg-muted">{e.version}</span>
+                      <span className="num text-xs text-fg-subtle">{e.version}</span>
                     </CommandItem>
                   );
                 })}
@@ -69,7 +74,7 @@ export function CommandPalette() {
               <CommandGroup heading={t('command.groups.presets')}>
                 {presets.map((p) => (
                   <CommandItem key={p.id} value={`preset ${p.name} ${p.id}`} onSelect={() => run(() => void applyPresetEntry(p, i18n.language))}>
-                    <SlidersHorizontal />
+                    <SlidersHorizontal size={ICON.sm} />
                     <span className="flex-1 truncate">{p.name}</span>
                     <span className="truncate text-xs text-fg-muted">{templateName(p.template.id)}</span>
                   </CommandItem>

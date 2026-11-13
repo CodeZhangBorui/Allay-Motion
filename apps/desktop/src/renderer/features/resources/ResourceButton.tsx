@@ -1,6 +1,7 @@
 import { Button } from '@allay/ui/components/button';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@allay/ui/components/popover';
-import { ChevronDown, Layers } from 'lucide-react';
+import { ICON } from '@allay/ui/lib/icons';
+import { Stack } from '@phosphor-icons/react';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useResourceStore } from '../../stores/resourceStore';
@@ -15,6 +16,8 @@ export function ResourceButton() {
   const open = useUiStore((s) => s.resourcesOpen);
   const top = state ? [...state.layers].reverse().find((l) => l.enabled && !(l.kind === 'builtin' && l.empty)) : undefined;
   const label = top ? t('resources.button', { name: layerDisplayName(t, top) }) : t('resources.buttonNone');
+  // 顶栏只显示图标和名称（如“Minecraft 1.21.1”），完整说明放在读屏标签里
+  const short = top ? layerDisplayName(t, top) : t('resources.buttonNone');
   const icon = useMemo(() => (top?.icon ? URL.createObjectURL(new Blob([top.icon as Uint8Array<ArrayBuffer>], { type: 'image/png' })) : null), [top?.icon]);
   useEffect(() => () => {
     if (icon) URL.revokeObjectURL(icon);
@@ -23,14 +26,13 @@ export function ResourceButton() {
   return (
     <Popover open={open} onOpenChange={(o) => useUiStore.getState().setResourcesOpen(o)}>
       <PopoverTrigger
-        render={<Button variant="ghost" className="app-no-drag max-w-64 text-fg-muted" data-testid="resources-button" aria-label={`${t('resources.buttonLabel')}: ${label}`} />}
+        render={<Button variant="ghost" className="app-no-drag h-[30px] max-w-64 gap-[7px] rounded-lg px-2.5 font-normal" data-testid="resources-button" aria-label={`${t('resources.buttonLabel')}: ${label}`} />}
       >
-        {icon ? <img src={icon} alt="" className="pixelated size-4 rounded-[2px]" /> : <Layers />}
-        <span className="truncate">{label}</span>
-        <ChevronDown className="size-3.5" />
+        {icon ? <img src={icon} alt="" className="pixelated size-4 rounded-[3px]" /> : <Stack size={ICON.md} />}
+        <span className="truncate">{short}</span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[400px] max-h-[min(70vh,600px)]" data-testid="resources-popover" aria-label={t('resources.title')}>
-        <PopoverTitle className="mb-1 text-sm font-semibold">{t('resources.title')}</PopoverTitle>
+        <PopoverTitle className="mb-2 text-base font-semibold">{t('resources.title')}</PopoverTitle>
         <ResourceStackPanel />
       </PopoverContent>
     </Popover>

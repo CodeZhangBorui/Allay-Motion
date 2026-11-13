@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import './app.css';
 import { App } from './app/App';
+import { registerCore } from './app/core';
 import { applyThemeToDocument } from './app/useThemeSync';
 import { initI18n, resolveLanguage, setSystemLocale } from './i18n';
 import { loadInitialTemplate } from './features/templates/actions';
@@ -16,6 +17,8 @@ async function bootstrap(): Promise<void> {
   // 先拿到资源栈（和它的 stamp）再装载模板，免得用空栈白装一次
   useResourceStore.getState().replace(resources);
   window.allay.resources.onChanged((next) => useResourceStore.getState().replace(next));
+  // 界面注册表：核心命令、标签页、菜单项（可选模块也经它接入）
+  registerCore();
   if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
 

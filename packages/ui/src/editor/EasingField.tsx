@@ -18,8 +18,8 @@ const CUSTOM = '__custom';
 
 function MiniCurve({ value }: { value: EasingValue }) {
   return (
-    <svg width="28" height="16" viewBox="0 0 28 16" aria-hidden="true" className="shrink-0 text-primary-text">
-      <path d={easingPath(value, 28, 16)} fill="none" stroke="currentColor" strokeWidth="1.5" />
+    <svg width="28" height="16" viewBox="0 0 28 16" aria-hidden="true" className="shrink-0 text-primary">
+      <path d={easingPath(value, 28, 16)} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -76,12 +76,12 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
     const ay = which === 0 ? toY(0) : toY(1);
     return (
       <g key={which}>
-        <line x1={ax} y1={ay} x2={cx} y2={cy} stroke="var(--fg-muted)" strokeWidth="1" />
+        <line x1={ax} y1={ay} x2={cx} y2={cy} stroke="var(--fg-subtle)" strokeWidth="1" />
         <circle
           cx={cx}
           cy={cy}
           r="6"
-          fill="var(--surface-1)"
+          fill="var(--surface-2)"
           stroke="var(--primary)"
           strokeWidth="2"
           className="cursor-grab"
@@ -113,14 +113,14 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
   };
   return (
     <div className="flex flex-col gap-1">
-      <svg ref={svgRef} width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} className="touch-none self-center overflow-visible rounded-md bg-surface-3" onPointerMove={onMove} role="group" aria-label={label}>
-        <rect x="0" y={toY(1)} width={BOX} height={toY(0) - toY(1)} fill="none" stroke="var(--border-strong)" strokeDasharray="3 3" />
-        <path d={easingPath(value, BOX, BOX, PAD, 64)} fill="none" stroke="var(--primary-text)" strokeWidth="2" />
+      <svg ref={svgRef} width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} className="touch-none self-center overflow-visible rounded-lg bg-well" onPointerMove={onMove} role="group" aria-label={label}>
+        <rect x="0" y={toY(1)} width={BOX} height={toY(0) - toY(1)} fill="none" stroke="var(--control-hi)" strokeDasharray="3 3" />
+        <path d={easingPath(value, BOX, BOX, PAD, 64)} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         {handle(0)}
         {handle(1)}
-        <circle ref={dotRef} r="4" fill="var(--allay)" />
+        <circle ref={dotRef} r="4" fill="var(--primary)" />
       </svg>
-      <span className="text-center font-mono text-xs text-fg-muted tabular-nums">[{value.map((n) => n.toFixed(2)).join(', ')}]</span>
+      <span className="text-center num text-xs text-fg-subtle">[{value.map((n) => n.toFixed(2)).join(', ')}]</span>
     </div>
   );
 }
