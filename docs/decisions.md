@@ -77,3 +77,69 @@
 - **来源登记检查**的生成器约定：`origin: generated` 的记录，检查脚本以环境变量 `ALLAY_GEN_OUT=<临时目录>` 运行 `generator`，产物按仓库相对路径写进去，再逐字节比对。比对对所有生成的文件做，而不只是“与原版贴图同名”的，判断更严、也不需要在仓库里放原版文件名表。登记的 `origin` 有三种：`generated`、`third-party`（必须有 `source` 和 `author`）、`original`（项目自己做、无法重新生成的，比如评审截图）。不覆盖任何文件的登记也报错。
 - 空布局里放了静态的占位外形（骨架卡片、禁用的按钮、时间码），让 M0 的截图能看出最终布局；功能在后续里程碑接上。`Ctrl+B` 折叠左栏已经实现（T-UI-6 要用）。
 - 品牌：按 H-BRAND 的方案 A 实现。产品名只在 `packages/ui/src/brand/`（`brand.*` 文案键），单元测试扫描界面源码确认别处没有写死。例外是 `apps/desktop/electron-builder.yml` 的 `productName`（安装包和 exe 的名字），这是构建配置不是界面文字，换品牌时要一起改。
+
+## M1 竖切：从模板到带透明通道的文件
+
+### 版本与依赖
+
+| 项 | 版本 | 许可 | 说明 |
+|---|---|---|---|
+| three / @types/three | 0.187.0（r187） | MIT | 与 1.3 一致；`WebGLRenderer` 没有被弃用，照用 |
+| comlink | 4.4.2 | Apache-2.0 | 只在渲染进程（Worker 入口和宿主）用，引擎包不依赖它 |
+| es-module-lexer | 3.0.4 | MIT | 用它的纯 JS 版本 `es-module-lexer/js`：WebAssembly 版需要 CSP 放行 `wasm-unsafe-eval`，不放宽 |
+| yauzl | 3.4.0 | MIT | 只给 `scripts/fetch-ffmpeg.ts` 解压用（根目录 devDependency） |
+| vite（根目录 devDependency） | 8.3.8 | MIT | 打包 test:engine 的测试页 |
+| FFmpeg | FFmpeg-Builds `autobuild-2026-11-12-15-40`，`ffmpeg-n9.0.2-57-gd838f9f9ae-win64-lgpl-9.0.zip` | LGPLv3 | SHA-256 写死在 `scripts/fetch-ffmpeg.ts`，与发布页的 `checksums.sha256` 一致 |
+
+### FFmpeg
+
+- 固定的构建是 n9.0.2 的 LGPL 变体（9.9）。`-encoders` 实测：`prores_ks`、`png`、`libvpx-vp9`、`aac`、`libopus`、`pcm_s16le`、`h264_nvenc`、`h264_qsv`、`h264_amf`、**`h264_mf`**、`libopenh264` 都在（5.6 要求确认 `h264_mf`）。5.10 里 M1 范围的测试（T-EXP-1 ①②、T-EXP-2、T-EXP-3 ①）在这个构建上重新跑通；ProRes 回读出来的像素格式是 `yuva444p12le`（解码器的输出格式），色彩标记、矩阵、范围与 5.9 的结论一致。
+- autobuild 发布会被定期清理。资源不在了时 `pnpm ffmpeg:fetch --from <本机 zip>` 用本机的同一个文件（仍然校验 SHA-256）；换构建要改标签和哈希并重跑 test:export。
+- 已取回且 `build.json` 与写死的哈希一致时，脚本不联网直接退出。
+- 安装包只带 `ffmpeg.exe`、`LICENSE.txt`、`build.json`（`extraResources`）；`ffprobe.exe` 只给测试用。
+- 查找顺序：`ALLAY_FFMPEG`（只在未打包时生效）→ `resources/ffmpeg/<平台>/` → `PATH`（只在未打包时）。打包后只用随包的那个。test:export 和 e2e 只用 `resources/ffmpeg/` 里固定的构建，缺失时明确失败并提示 `pnpm ffmpeg:fetch`。
+- ProRes 的输出先写到 `<目标>.mov.partial`，扩展名推断不出容器，所以命令行在输出前加了 `-f mov`（PNG 序列加 `-f image2`）；其余与 5.3 逐字一致。剪辑点按 5.8 写进 `-metadata comment=cut_frame=n`。
+- PNG 序列：用户选一个目录，帧写进 `<目录>/<名字>.partial/<名字>_%05d.png`，成功后改名为 `<目录>/<名字>/`，重名加 “ (2)”。
+- 导出失败给出错误码（`ffmpeg-missing`、`output-not-writable`、`disk-full`、`encoder-unavailable`、`ffmpeg-failed`、`frame-mismatch`、`template-failed`、`template-unresponsive`），界面按错误码显示文案。`writeFrame`/`finish` 不抛错而是返回 `{ ok: false, error }`，因为 IPC 的异常只能带 message。“复制诊断信息”在 M7。
+- `export` 命名空间 M1 只实现 `start`、`writeFrame`、`finish`、`cancel`、`ffmpegInfo`；`writeAudio`（M6）、`probeEncoders`（M7）还没有。`powerSaveBlocker` 已接上；应用退出时取消所有进行中的任务。
+
+### 引擎
+
+- **协议 schema 放在 template-sdk**（`packages/template-sdk/src/protocol.ts`）：引擎只能依赖 three、template-sdk、assets（1.4），而线程边界要用 zod 校验。Worker 校验宿主发来的请求，宿主校验 Worker 交回的 `LoadResult`、`FrameStats`。
+- **Worker 入口在渲染进程**（`apps/desktop/src/renderer/engine-host/engine.worker.ts`）：它用 Comlink 暴露引擎，Comlink 不进引擎包。三种 Worker 是同一份入口。
+- `EngineApi` 多了一个 `readPreview(t)`：画一帧预览（N = 1）并在同一个任务里 `readPixels` 读回画布，供 T-ENG-4 和诊断用。`renderThumbnail` 还没做（M2 的缩略图）。
+- **删全局**：WebIDL 的 `fetch`、`indexedDB`、`caches` 等定义在原型链上，只 `delete self.fetch` 无效，所以沿原型链逐层删除，最后确认都是 `undefined`，否则 Worker 启动失败。另外顺手删了 `WebTransport`。
+- **动态 import 的防线**：宿主在交给引擎前用 es-module-lexer 检查源码，出现任何静态或动态 `import` 就拒绝（4.8 第 3 步提前到每次装载）。经 `Function`/`eval` 拼出来的 `import()` 被 CSP（没有 `unsafe-eval`）挡住，T-ARC-4 两种都测了。
+- 不做 resolve 着色器里的 ±0.5 LSB 抖动（规格写的是“可以加”）：抖动会让预览（预乘）和导出（直通）的取整不一样，T-ENG-4 的 ≤ 1 就难保证。辉光出现色带时再议。
+- 模板的 `setup` 结束后，引擎遍历场景释放剩下的几何体和材质（Three 的资源释放后用到会自动重新上传，所以总是安全的）；贴图属于引擎的缓存，`resourceStamp` 变化时清空。
+- 贴图载荷：`{ kind: 'rgba', width, height, data }`，直通 alpha、sRGB、第一行是顶部；引擎在 CPU 上翻一次行再做成 `DataTexture`。缺失时用品红黑棋盘占位并记一条警告。
+- 开发构建的确定性拦截（2.4）由宿主传 `strictDeterminism: import.meta.env.DEV` 打开；test:engine 一律打开。
+
+### 帧管线的测试判定
+
+- **T-ENG-4 的判定**：预览画布是 8 位**预乘** alpha，换算回直通时颜色的量化误差是 ±0.5 × 255 / a，alpha 小的边缘像素（MSAA 的抗锯齿边）理论上就不可能做到 ≤ 1。测试的判定是：alpha 每个像素 ≤ 1；alpha = 255 与 alpha ≥ 128 的像素直通颜色 ≤ 1；**全部像素在预乘域里**（导出的直通值乘回 alpha 后与画布比较）≤ 1。实测这三项都是 0 或 1。
+- T-ENG-5 在预乘域里做 2×2 平均再比较（直通颜色在透明处没有意义）。
+- T-ENG-3 用 1920×1080（1 设计单位 = 1 像素），宽 300 的白色矩形，取中间一行。
+- T-ENG-1 用 1280×720、标准画质（N = 8）：一个新 Worker 顺序渲染全部 67 帧，另一个新 Worker 按确定性的乱序渲染，SHA-256 逐帧相同；另有同一 Worker 里穿插渲染后的自检。
+
+### 临时模板与“首末帧全透明”
+
+- 临时模板在 `packages/templates/m1-block-wipe/`：普通 JS（不含 import 的单文件 ESM），用 JSDoc + `checkJs` 做类型检查；参数写死成 T1 的默认值（centerOut、reverse、backOut、flipY、3d/fov 30、cols 12）。渲染进程用 Vite 的 `?raw` 拿到源码文本，和用户模板一样经 `engine.load` 装载。M3 用 esbuild 和正式的模板包替换它。
+- **发现的规格问题（M3 的 T1 要处理）**：按 4.10 的公式，进入阶段从 `t = 0` 就开始。开了运动模糊（标准画质）时，首帧的子帧有一半落在 `(0, 0.5/fps]`，这时中心的方块已经长出来，首帧最大 alpha 实测是 127，违反 4.6 第 7 条和 T-EXP-7。末帧同理。引擎照 2.6 如实渲染，不在引擎里特殊处理。临时模板的做法：进入阶段从 `1/fps` 开始、退出阶段提前 `1/fps` 结束（首尾各留一帧全透明，快门角最大 360° 时子帧也不超过 ±0.5/fps）。T1 的正式实现需要同样的余量，或者规格改公式。
+
+### 渲染进程
+
+- 预览画布由 `previewEngine` 创建并放进 React 给的容器：一个 `<canvas>` 只能 `transferControlToOffscreen()` 一次，看门狗终止 Worker 后要换一块新画布再建 Worker；交给 React 管会和 StrictMode 的双重挂载冲突。
+- 看门狗触发后：Worker 终止，立即重建一个**空闲的** Worker（不再装载刚才的模板，否则会再次卡死），预览区显示“模板无响应”和“重试”。
+- 播放的时钟是界面的 `requestAnimationFrame`（真实时间），只决定传给引擎的 `t`；模板的 `update` 只看 `t`。拖动吸附到帧。播放条用引擎的 `frameCount`（`@allay/engine/frames` 子路径，不把 three 拉进主线程的包）。
+- M1 的最小导出对话框：格式（ProRes 4444、PNG 序列）、画质（草稿/标准/高/极致，快门角固定 180°）、进度、取消、结果。完整界面在 M7。
+- 资源桩 `stubResolveResource` 只认 `minecraft:block/*` 的贴图，按 ID 生成 16×16 的占位方块图（纯函数，不读文件，不需要登记来源）。
+
+### 测试的做法
+
+- **test:engine 在 Electron 自带的 Chromium 里跑**，而不是 Playwright 下载的 Chromium：不用额外下载浏览器（`pnpm check` 在依赖装好后不联网），测的就是要发布的那个渲染内核。Electron 在 Windows 上没有真正的 headless 模式，这里用不显示的窗口（`show: false`、`skipTaskbar`），不弹窗、不抢焦点。测试页用 Vite 打包到 `tests/engine/out/`，由 `harness://` 协议提供，响应带与应用相同的 CSP（从 `security-policy.ts` 读），会话级拦截同样只放行本地协议。Playwright 的 `NODE_OPTIONS` 不传给 Electron（它的加载器会让 ESM 主进程脚本装载失败）。
+- **测试钩子**：e2e 需要在应用里装载测试模板（T-ARC-4、T-ARC-5）。主进程在未打包且设置了 `ALLAY_E2E_HOOKS=1` 时，`app.info()` 返回 `testHooks: true`，渲染进程据此装上 `window.__allayTest`（换模板、读状态、设时间、读预览像素统计）。打包后的应用忽略这个变量；钩子只调用界面本身的路径，1.6 的任何设置不变。另有两个同样只在未打包时生效的开关：`ALLAY_E2E_EXPORT_TARGET`（导出不弹保存对话框，直接写到这个目录）和 `ALLAY_FFMPEG`（5.6 的开发用 FFmpeg）。
+- **T-ARC-3（Worker 部分）**：和 M0 一样分两层验证。第一层：Worker 里联网的全局已经不在，动态 `import('https://…')` 被 CSP 挡在渲染进程里（主进程日志里没有它）。第二层（真正的保证）：Worker 脚本的 CSP 来自它自己的 `app://` 响应头，`Page.setBypassCSP` 和 `webRequest.onHeadersReceived` 都管不到（实测），所以这个测试**单独启动一个应用**，在主进程里把 `app://` 换成提供同样文件、但不带 CSP 头的处理函数，重新加载后在新的引擎 Worker 里（Playwright 的 `worker.evaluate`）发动态 import 和 `FontFace` 请求：都失败，且主进程日志有 `blocked request`。会话级拦截没有任何改动；换处理函数只发生在这个测试自己的进程里，不影响其他测试。
+- **T-ARC-5**：在应用里装载 `update` 死循环的测试模板，用真实的 5 秒预览单帧时限；主线程卡顿用 longtask 观察器加 10 ms 心跳的最大间隔衡量。引擎层另有一个用 2 秒时限的测试（test:engine）。
+- **T-EXP-5/6** 在 test:export 里直接驱动主进程的 `ExportJob`（Node，不需要 Electron）：中途取消（ProRes 和 PNG 各一次，查 `.partial`、目标、FFmpeg 进程）、不可写路径、伪造的坏二进制、不存在的二进制、帧与设置不符。界面部分在 e2e 里：取消后没有残留文件和进程；不可写路径给出对应文案；坏二进制在打开导出对话框时就被 `ffmpegInfo` 探测出来，对话框显示“FFmpeg 缺失”的文案并禁用“导出”（坏二进制在 `start` 时失败的路径由 test:export 覆盖）。**T-EXP-7** 在 e2e 里经真实界面、真实 IPC 导出。
+- 其他会话把 git worktree 放在仓库里的 `.claude/worktrees/`（本地 `.git/info/exclude` 已排除），ESLint 会扫进去，所以 `eslint.config.js` 忽略 `.claude/**`。
