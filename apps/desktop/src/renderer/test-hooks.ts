@@ -2,7 +2,7 @@
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
 import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
-import type { PresetEntry, TemplateEntry } from '../shared/templates';
+import type { CopyBuiltinRequest, PresetEntry, TemplateDevChange, TemplateDevResult, TemplateEntry } from '../shared/templates';
 import { applyPresetEntry, saveCurrentPreset } from './features/templates/presets';
 import { installDroppedTemplate, removeTemplate, selectTemplate } from './features/templates/actions';
 import { trialTimeouts } from './features/templates/trial';
@@ -69,6 +69,13 @@ export interface AllayTestHooks {
   history(): { past: number; future: number };
   /** 界面用到但文案里没有的键（T-UI-4） */
   missingKeys(): string[];
+  // ---- 模板开发模式（MD-a 只有主进程部分，这些钩子直接走 window.allay，界面接线在 MD-b）----
+  /** 把内置模板复制成可编辑的用户模板 */
+  copyBuiltinTemplate(req: CopyBuiltinRequest): Promise<TemplateDevResult<{ entry: TemplateEntry }>>;
+  /** 往用户模板的文件夹写类型定义和 jsconfig.json */
+  writeTemplateDevFiles(id: string, version: string): Promise<TemplateDevResult>;
+  /** 装上钩子以来收到的 templates.onChanged 事件（最多 100 条），clear 为真时读完清空 */
+  templateChanges(clear?: boolean): TemplateDevChange[];
 }
 
 declare global {
@@ -78,6 +85,11 @@ declare global {
 }
 
 export function installTestHooks(): void {
+  const templateChanges: TemplateDevChange[] = [];
+  window.allay.templates.onChanged((change) => {
+    if (templateChanges.length >= 100) templateChanges.shift();
+    templateChanges.push(change);
+  });
   let pausedAt: number | null = null;
   let release: () => void = () => undefined;
   const hooks: AllayTestHooks = {
@@ -197,6 +209,13 @@ export function installTestHooks(): void {
       return { past: s.pastStates.length, future: s.futureStates.length };
     },
     missingKeys: () => [...missingKeys],
+    copyBuiltinTemplate: (req) => window.allay.templates.copyBuiltin(req),
+    writeTemplateDevFiles: (id, version) => window.allay.templates.writeDevFiles(id, version),
+    templateChanges(clear = false) {
+      const out = [...templateChanges];
+      if (clear) templateChanges.length = 0;
+      return out;
+    },
   };
   Object.defineProperty(window, '__allayTest', { value: Object.freeze(hooks), configurable: false, writable: false });
 }

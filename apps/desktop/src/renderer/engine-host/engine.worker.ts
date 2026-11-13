@@ -2,8 +2,11 @@
 // 启动后、装载任何模板之前先删掉联网和存储相关的全局，然后用 Comlink 暴露引擎。
 import { Engine, removeNetworkGlobals, type EngineApi } from '@allay/engine';
 import * as Comlink from 'comlink';
+import { installDiagnosticErrorTransfer } from './error-transfer';
 
 removeNetworkGlobals(self);
+// 模板错误的结构化诊断随错误一起交给宿主（H5）
+installDiagnosticErrorTransfer();
 
 const engine = new Engine();
 
@@ -26,6 +29,7 @@ const api: EngineApi = {
     const buf = await engine.readPreview(t);
     return Comlink.transfer(buf, [buf]);
   },
+  checkDeterminism: (probe, others, quality) => engine.checkDeterminism(probe, others, quality),
   dispose: () => engine.dispose(),
 };
 

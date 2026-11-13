@@ -4,6 +4,9 @@ import type { EngineApi, HostCallbacks } from '@allay/engine';
 import {
   FrameStatsSchema,
   LoadResultSchema,
+  TemplateDiagnosticSchema,
+  diagnosticOf,
+  type TemplateDiagnostic,
   type EngineMode,
   type FrameQuality,
   type FrameStats,
@@ -17,16 +20,23 @@ import {
 } from '@allay/template-sdk';
 import * as Comlink from 'comlink';
 import { createEngineWorker } from './create-worker';
-import { assertTemplateCode } from '../../shared/template-code';
+import { analyzeTemplateCode } from '../../shared/template-code';
 
 export const WATCHDOG_MS = { load: 10_000, previewFrame: 5_000, exportFrame: 30_000 } as const;
 export type WatchdogTimeouts = { [K in keyof typeof WATCHDOG_MS]: number };
 
 /** 模板在时限内没有返回：Worker 已被终止 */
 export class EngineUnresponsiveError extends Error {
-  constructor(readonly operation: string) {
+  /** watchdog 类诊断（H5）。Worker 已被终止，拿不到卡在哪一行 */
+  readonly diagnostic: TemplateDiagnostic;
+
+  constructor(
+    readonly operation: string,
+    timeoutMs = 0,
+  ) {
     super(`engine did not respond to ${operation} in time`);
     this.name = 'EngineUnresponsiveError';
+    this.diagnostic = { kind: 'watchdog', severity: 'error', code: 'unresponsive', message: this.message, operation, timeoutMs };
   }
 }
 
@@ -119,11 +129,14 @@ export class EngineHost {
     return this.deadError !== null;
   }
 
-  /** 检查源码不含 import，再装载模板并完成 setup */
+  /**
+   * 预检源码（语法、不含 import），再装载模板并完成 setup。
+   * 预检不过时抛 TemplateCodeError（带 compile 类诊断）；静态规则的提示附在结果的 diagnostics 里（H12）。
+   */
   async load(req: LoadRequest): Promise<LoadResult> {
-    await assertTemplateCode(req.code);
-    const result = await this.call('load', this.timeouts.load, () => this.api.load(req));
-    return LoadResultSchema.parse(result);
+    const rules = await analyzeTemplateCode(req.code);
+    const result = LoadResultSchema.parse(await this.call('load', this.timeouts.load, () => this.api.load(req)));
+    return { ...result, diagnostics: rules };
   }
 
   async setParams(params: ParamValues): Promise<LoadResult> {
@@ -159,6 +172,16 @@ export class EngineHost {
     return new Uint8Array(buf);
   }
 
+  /**
+   * 确定性自检（2.4）：probe 帧渲染两次，中间穿插渲染 others。一致时为 null，否则是 determinism 类诊断。
+   * 杂务或导出引擎；时限按每帧的导出时限累计。
+   */
+  async checkDeterminism(probe: number, others: number[], quality: FrameQuality): Promise<TemplateDiagnostic | null> {
+    const budget = this.timeouts.exportFrame * (others.length + 2);
+    const result: unknown = await this.call('checkDeterminism', budget, async (): Promise<unknown> => this.api.checkDeterminism(probe, others, quality));
+    return result === null ? null : TemplateDiagnosticSchema.parse(result);
+  }
+
   /** 释放 GPU 资源并终止 Worker。可以重复调用 */
   dispose(): void {
     if (!this.deadError) {
@@ -187,9 +210,17 @@ export class EngineHost {
   /** 带看门狗的调用：超时就终止 Worker */
   private async call<T>(operation: string, timeoutMs: number, fn: () => Promise<T>): Promise<T> {
     if (this.deadError) throw this.deadError;
-    const timer = setTimeout(() => this.die(new EngineUnresponsiveError(operation)), timeoutMs);
+    const timer = setTimeout(() => this.die(new EngineUnresponsiveError(operation, timeoutMs)), timeoutMs);
     try {
       return await Promise.race([fn(), this.death]);
+    } catch (error) {
+      // Worker 交来的诊断是线程边界外的数据：不合 schema 就去掉（2.3 的校验约定）
+      if (error && typeof error === 'object' && 'diagnostic' in error && !(error instanceof EngineUnresponsiveError)) {
+        const valid = diagnosticOf(error);
+        if (valid) (error as { diagnostic: unknown }).diagnostic = valid;
+        else delete (error as { diagnostic?: unknown }).diagnostic;
+      }
+      throw error;
     } finally {
       clearTimeout(timer);
     }

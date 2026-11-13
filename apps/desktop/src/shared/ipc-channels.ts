@@ -3,7 +3,8 @@
 // M1 加上 export 的 start、writeFrame、finish、cancel、ffmpegInfo（writeAudio、probeEncoders 在 M6、M7）；
 // M2 加上 resources 和 cache（规格之外多出的几个方法见 docs/decisions.md M2b）；
 // M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）；
-// M4 加上 project（没有 create：新建工程只是渲染进程里的状态，见 docs/decisions.md M4）。
+// M4 加上 project（没有 create：新建工程只是渲染进程里的状态，见 docs/decisions.md M4）；
+// MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）。
 
 export const IPC = {
   app: {
@@ -61,6 +62,11 @@ export const IPC = {
     remove: 'templates:remove',
     exportPackage: 'templates:exportPackage',
     saveDerived: 'templates:saveDerived',
+    copyBuiltin: 'templates:copyBuiltin',
+    writeDevFiles: 'templates:writeDevFiles',
+    openFolder: 'templates:openFolder',
+    /** 主进程 → 渲染进程的事件：用户模板文件夹在应用之外被改动 */
+    changed: 'templates:changed',
   },
   presets: {
     list: 'presets:list',
@@ -129,6 +135,9 @@ export const INVOKE_CHANNELS = [
   IPC.templates.remove,
   IPC.templates.exportPackage,
   IPC.templates.saveDerived,
+  IPC.templates.copyBuiltin,
+  IPC.templates.writeDevFiles,
+  IPC.templates.openFolder,
   IPC.presets.list,
   IPC.presets.save,
   IPC.presets.remove,

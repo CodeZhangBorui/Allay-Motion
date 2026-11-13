@@ -1,0 +1,606 @@
+{
+  "formatVersion": 1,
+  "source": "packages/template-sdk/src/runtime.ts",
+  "ctx": [
+    {
+      "name": "THREE",
+      "kind": "property",
+      "optional": false,
+      "signature": "THREE: typeof THREE;",
+      "doc": "three.js（r187）。只声明了常用的类和成员，见本文件末尾的 THREE 命名空间；没列出的成员运行时照样可用"
+    },
+    {
+      "name": "params",
+      "kind": "property",
+      "optional": false,
+      "signature": "params: Readonly<ParamValues>;",
+      "doc": "参数值（manifest 的 params 声明）。已经清洗过：类型不对的回到默认值，越界的钳制，缺的补默认值"
+    },
+    {
+      "name": "stage",
+      "kind": "property",
+      "optional": false,
+      "signature": "stage: Readonly<StageInfo>;",
+      "doc": "舞台：设计单位下的宽高（短边恒为 1080，原点在中心，+y 向上）、宽高比、帧率、像素比例"
+    },
+    {
+      "name": "scene",
+      "kind": "property",
+      "optional": false,
+      "signature": "scene: THREE.Scene;",
+      "doc": "往里加东西的场景。setup 结束后引擎回收场景里剩下的几何体和材质"
+    },
+    {
+      "name": "camera",
+      "kind": "property",
+      "optional": false,
+      "signature": "camera: THREE.Camera;",
+      "doc": "当前相机。默认是正交相机，刚好覆盖整个舞台"
+    },
+    {
+      "name": "setCamera",
+      "kind": "method",
+      "optional": false,
+      "signature": "setCamera(camera: THREE.Camera): void;",
+      "doc": "换相机（比如换成 createStageCamera 建的透视相机）"
+    },
+    {
+      "name": "createStageCamera",
+      "kind": "method",
+      "optional": false,
+      "signature": "createStageCamera(opts: { fov: number }): THREE.PerspectiveCamera;",
+      "doc": "建一台透视相机（fov 是垂直视角，度），位置已算好，z = 0 平面恰好填满舞台"
+    },
+    {
+      "name": "resources",
+      "kind": "property",
+      "optional": false,
+      "signature": "resources: { … };",
+      "doc": "贴图、方块、物品。都在 setup 里 await 完，update 里不要再取",
+      "members": [
+        {
+          "name": "texture",
+          "kind": "method",
+          "optional": false,
+          "signature": "texture(id: string): Promise<THREE.Texture>;",
+          "doc": "已设好过滤和色彩空间的贴图；缺失时返回占位图并记一条警告。.mcmeta 动画由引擎按 t 自动播放"
+        },
+        {
+          "name": "block",
+          "kind": "method",
+          "optional": false,
+          "signature": "block(id: string, opts?: { shading?: boolean }): Promise<BlockHandle>;",
+          "doc": "方块目录里的方块；不认识的 ID 用占位贴图的立方体并记一条警告"
+        },
+        {
+          "name": "item",
+          "kind": "method",
+          "optional": false,
+          "signature": "item(id: string): Promise<ItemHandle>;",
+          "doc": "物品目录里的物品（方块 ID 按方块渲染）；不认识的 ID 用占位贴图并记一条警告"
+        }
+      ]
+    },
+    {
+      "name": "text",
+      "kind": "property",
+      "optional": false,
+      "signature": "text: { … };",
+      "doc": "用资源栈里的字体排一段文字",
+      "members": [
+        {
+          "name": "create",
+          "kind": "method",
+          "optional": false,
+          "signature": "create(opts: TextOptions): TextObject",
+          "doc": "建一个文字对象；字体已在 setup 之前载好，所以是同步的"
+        }
+      ]
+    },
+    {
+      "name": "sprite",
+      "kind": "property",
+      "optional": false,
+      "signature": "sprite: { … };",
+      "doc": "贴图四边形，可带九宫格",
+      "members": [
+        {
+          "name": "create",
+          "kind": "method",
+          "optional": false,
+          "signature": "create(texture: THREE.Texture, opts?: SpriteOptions): SpriteObject",
+          "doc": "用一张贴图建精灵；中心在原点"
+        }
+      ]
+    },
+    {
+      "name": "random",
+      "kind": "method",
+      "optional": false,
+      "signature": "random(key?: string): Rng;",
+      "doc": "带种子的随机数（种子取模板的 seed 参数）。同一个 key 总是给出同一串数，不同 key 互不影响。在 setup 里预先算好，update 里只查表"
+    },
+    {
+      "name": "noise2D",
+      "kind": "method",
+      "optional": false,
+      "signature": "noise2D(x: number, y: number, key?: string): number;",
+      "doc": "带种子的连续二维噪声（simplex），值约在 [-1, 1]；同样的输入总是同样的输出"
+    },
+    {
+      "name": "ease",
+      "kind": "property",
+      "optional": false,
+      "signature": "ease: EaseLibrary;",
+      "doc": "缓动函数：预设名（如 ease.cubicInOut）、bezier(x1, y1, x2, y2)、from(easing 参数的值)"
+    },
+    {
+      "name": "math",
+      "kind": "property",
+      "optional": false,
+      "signature": "math: MathHelpers;",
+      "doc": "常用的数学小工具"
+    },
+    {
+      "name": "time",
+      "kind": "property",
+      "optional": false,
+      "signature": "time: { … };",
+      "doc": "时间工具",
+      "members": [
+        {
+          "name": "segment",
+          "kind": "method",
+          "optional": false,
+          "signature": "segment(t: number, start: number, duration: number): number",
+          "doc": "t 在 [start, start + duration] 里的进度，钳制到 [0, 1]"
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "kind": "property",
+      "optional": false,
+      "signature": "audio: { … };",
+      "doc": "音频提示",
+      "members": [
+        {
+          "name": "cue",
+          "kind": "method",
+          "optional": false,
+          "signature": "cue(sound: string | null, at: number, opts?: { gain?: number; rate?: number; pan?: number }): void",
+          "doc": "在时刻 at（秒）播放音效事件；只能在 setup 里调用。sound 为 null 时什么也不做"
+        }
+      ]
+    },
+    {
+      "name": "warn",
+      "kind": "method",
+      "optional": false,
+      "signature": "warn(message: string): void;",
+      "doc": "记一条警告，显示在应用里（一次装载最多 50 条）"
+    }
+  ],
+  "types": {
+    "StageInfo": {
+      "doc": "",
+      "members": [
+        {
+          "name": "width",
+          "kind": "property",
+          "optional": false,
+          "signature": "width: number;",
+          "doc": "设计单位：短边恒为 1080（02-engine.md 2.5）"
+        },
+        {
+          "name": "height",
+          "kind": "property",
+          "optional": false,
+          "signature": "height: number;",
+          "doc": ""
+        },
+        {
+          "name": "aspect",
+          "kind": "property",
+          "optional": false,
+          "signature": "aspect: number;",
+          "doc": ""
+        },
+        {
+          "name": "fps",
+          "kind": "property",
+          "optional": false,
+          "signature": "fps: number;",
+          "doc": ""
+        },
+        {
+          "name": "pixelScale",
+          "kind": "property",
+          "optional": false,
+          "signature": "pixelScale: number;",
+          "doc": "输出短边像素 / 1080"
+        }
+      ]
+    },
+    "Rng": {
+      "doc": "",
+      "members": [
+        {
+          "name": "next",
+          "kind": "method",
+          "optional": false,
+          "signature": "next(): number;",
+          "doc": "[0, 1)"
+        },
+        {
+          "name": "range",
+          "kind": "method",
+          "optional": false,
+          "signature": "range(a: number, b: number): number;",
+          "doc": "[a, b)"
+        },
+        {
+          "name": "int",
+          "kind": "method",
+          "optional": false,
+          "signature": "int(a: number, b: number): number;",
+          "doc": "[a, b] 内的整数"
+        },
+        {
+          "name": "pick",
+          "kind": "method",
+          "optional": false,
+          "signature": "pick<T>(items: readonly T[]): T;",
+          "doc": "从数组里等概率取一个"
+        },
+        {
+          "name": "shuffle",
+          "kind": "method",
+          "optional": false,
+          "signature": "shuffle<T>(items: T[]): T[];",
+          "doc": "原地打乱并返回同一个数组"
+        }
+      ]
+    },
+    "MathHelpers": {
+      "doc": "",
+      "members": [
+        {
+          "name": "clamp",
+          "kind": "method",
+          "optional": false,
+          "signature": "clamp(x: number, min: number, max: number): number;",
+          "doc": "把 x 钳制到 [min, max]"
+        },
+        {
+          "name": "lerp",
+          "kind": "method",
+          "optional": false,
+          "signature": "lerp(a: number, b: number, t: number): number;",
+          "doc": "a + (b − a) × t"
+        },
+        {
+          "name": "invLerp",
+          "kind": "method",
+          "optional": false,
+          "signature": "invLerp(a: number, b: number, x: number): number;",
+          "doc": "lerp 的反函数：(x − a) / (b − a)"
+        },
+        {
+          "name": "remap",
+          "kind": "method",
+          "optional": false,
+          "signature": "remap(x: number, inMin: number, inMax: number, outMin: number, outMax: number): number;",
+          "doc": "把 x 从 [inMin, inMax] 线性映射到 [outMin, outMax]"
+        },
+        {
+          "name": "smoothstep",
+          "kind": "method",
+          "optional": false,
+          "signature": "smoothstep(edge0: number, edge1: number, x: number): number;",
+          "doc": "x 在 [edge0, edge1] 之间的平滑过渡（三次 Hermite），两端钳制到 0 和 1"
+        }
+      ]
+    },
+    "BlockHandle": {
+      "doc": "",
+      "members": [
+        {
+          "name": "single",
+          "kind": "method",
+          "optional": false,
+          "signature": "single(): THREE.Object3D;",
+          "doc": "边长为 1 的方块，中心在原点，模板自己缩放"
+        },
+        {
+          "name": "instanced",
+          "kind": "method",
+          "optional": false,
+          "signature": "instanced(count: number): BlockInstances;",
+          "doc": "建 count 个实例（一次绘制）；用 setMatrix 等摆放，每帧改完调用一次 commit()"
+        }
+      ]
+    },
+    "BlockInstances": {
+      "doc": "",
+      "members": [
+        {
+          "name": "object",
+          "kind": "property",
+          "optional": false,
+          "signature": "object: THREE.Object3D;",
+          "doc": "加到场景里"
+        },
+        {
+          "name": "count",
+          "kind": "property",
+          "optional": false,
+          "signature": "count: number;",
+          "doc": "实例个数"
+        },
+        {
+          "name": "setMatrix",
+          "kind": "method",
+          "optional": false,
+          "signature": "setMatrix(index: number, matrix: THREE.Matrix4): void;",
+          "doc": "第 index 个实例的变换"
+        },
+        {
+          "name": "setOpacity",
+          "kind": "method",
+          "optional": false,
+          "signature": "setOpacity(index: number, opacity: number): void;",
+          "doc": "0–1"
+        },
+        {
+          "name": "setTint",
+          "kind": "method",
+          "optional": false,
+          "signature": "setTint(index: number, color: THREE.ColorRepresentation): void;",
+          "doc": "第 index 个实例的染色（与贴图相乘）"
+        },
+        {
+          "name": "commit",
+          "kind": "method",
+          "optional": false,
+          "signature": "commit(): void;",
+          "doc": "一帧里改完所有实例后调用一次"
+        }
+      ]
+    },
+    "ItemHandle": {
+      "doc": "物品：高度为 1，厚度为 1/16，中心在原点",
+      "members": [
+        {
+          "name": "single",
+          "kind": "method",
+          "optional": false,
+          "signature": "single(): THREE.Object3D;",
+          "doc": "一个物品的 3D 模型（有厚度的贴图）"
+        }
+      ]
+    },
+    "TextOptions": {
+      "doc": "",
+      "members": [
+        {
+          "name": "text",
+          "kind": "property",
+          "optional": false,
+          "signature": "text: string;",
+          "doc": ""
+        },
+        {
+          "name": "size",
+          "kind": "property",
+          "optional": false,
+          "signature": "size: number;",
+          "doc": "一个字体像素对应多少设计单位"
+        },
+        {
+          "name": "color",
+          "kind": "property",
+          "optional": true,
+          "signature": "color?: string;",
+          "doc": "#RRGGBB，默认白色"
+        },
+        {
+          "name": "shadow",
+          "kind": "property",
+          "optional": true,
+          "signature": "shadow?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "align",
+          "kind": "property",
+          "optional": true,
+          "signature": "align?: 'left' | 'center' | 'right';",
+          "doc": ""
+        },
+        {
+          "name": "maxWidth",
+          "kind": "property",
+          "optional": true,
+          "signature": "maxWidth?: number;",
+          "doc": "设计单位；超过时按空格（中日韩字符逐字）换行"
+        }
+      ]
+    },
+    "TextObject": {
+      "doc": "文字对象。原点：水平方向按 align（左边、中点、右边），垂直方向在整段文字的中线",
+      "members": [
+        {
+          "name": "object",
+          "kind": "property",
+          "optional": false,
+          "signature": "object: THREE.Object3D;",
+          "doc": "加到场景里"
+        },
+        {
+          "name": "width",
+          "kind": "property",
+          "optional": false,
+          "signature": "width: number;",
+          "doc": "设计单位"
+        },
+        {
+          "name": "height",
+          "kind": "property",
+          "optional": false,
+          "signature": "height: number;",
+          "doc": ""
+        },
+        {
+          "name": "setOpacity",
+          "kind": "method",
+          "optional": false,
+          "signature": "setOpacity(opacity: number): void;",
+          "doc": "0–1"
+        }
+      ]
+    },
+    "SpriteOptions": {
+      "doc": "",
+      "members": [
+        {
+          "name": "nineSlice",
+          "kind": "property",
+          "optional": true,
+          "signature": "nineSlice?: [number, number, number, number];",
+          "doc": "九宫格边框 [左, 上, 右, 下]，单位是贴图像素。不给时用贴图 .mcmeta 里的 gui.scaling（若有）"
+        },
+        {
+          "name": "pixelSize",
+          "kind": "property",
+          "optional": true,
+          "signature": "pixelSize?: number;",
+          "doc": "一个贴图像素对应多少设计单位，默认 1"
+        }
+      ]
+    },
+    "SpriteObject": {
+      "doc": "精灵：中心在原点的贴图四边形",
+      "members": [
+        {
+          "name": "object",
+          "kind": "property",
+          "optional": false,
+          "signature": "object: THREE.Object3D;",
+          "doc": "加到场景里"
+        },
+        {
+          "name": "setSize",
+          "kind": "method",
+          "optional": false,
+          "signature": "setSize(width: number, height: number): void;",
+          "doc": "设计单位"
+        },
+        {
+          "name": "setOpacity",
+          "kind": "method",
+          "optional": false,
+          "signature": "setOpacity(opacity: number): void;",
+          "doc": "0–1"
+        }
+      ]
+    },
+    "TemplateInstance": {
+      "doc": "",
+      "members": [
+        {
+          "name": "duration",
+          "kind": "property",
+          "optional": false,
+          "signature": "duration: number;",
+          "doc": "秒，0.1–30"
+        },
+        {
+          "name": "cutTime",
+          "kind": "property",
+          "optional": true,
+          "signature": "cutTime?: number | null;",
+          "doc": "转场类必填"
+        },
+        {
+          "name": "update",
+          "kind": "method",
+          "optional": false,
+          "signature": "update(t: number): void;",
+          "doc": "把画面摆到时刻 t（秒）。只能依赖 t 和 setup 时建立的状态；引擎可能按任意顺序、多次调用"
+        },
+        {
+          "name": "dispose",
+          "kind": "method",
+          "optional": true,
+          "signature": "dispose?(): void;",
+          "doc": "释放 setup 里自己创建的几何体、材质、贴图"
+        }
+      ]
+    },
+    "TemplateModule": {
+      "doc": "模板文件的默认导出",
+      "members": [
+        {
+          "name": "setup",
+          "kind": "method",
+          "optional": false,
+          "signature": "setup(ctx: SetupContext): TemplateInstance | Promise<TemplateInstance>;",
+          "doc": "建场景、取资源、预先算好随机数，返回实例。可以是 async 的"
+        }
+      ]
+    }
+  },
+  "aliases": {
+    "ParamValue": {
+      "doc": "参数值。具体类型由 manifest 的参数定义决定（4.4）",
+      "text": "number | string | boolean | null | ParamValue[] | { [key: string]: ParamValue }"
+    },
+    "ParamValues": {
+      "doc": "",
+      "text": "Record<string, ParamValue>"
+    },
+    "EaseFn": {
+      "doc": "",
+      "text": "(x: number) => number"
+    },
+    "EasingName": {
+      "doc": "",
+      "text": "| 'linear' | 'quadIn' | 'quadOut' | 'quadInOut' | 'cubicIn' | 'cubicOut' | 'cubicInOut' | 'quartIn' | 'quartOut' | 'quartInOut' | 'quintIn' | 'quintOut' | 'quintInOut' | 'expoIn' | 'expoOut' | 'expoInOut' | 'circIn' | 'circOut' | 'circInOut' | 'backIn' | 'backOut' | 'backInOut' | 'elasticOut' | 'bounceOut'"
+    },
+    "EasingValue": {
+      "doc": "easing 参数的值：预设名或三次贝塞尔控制点",
+      "text": "EasingName | readonly [number, number, number, number]"
+    },
+    "EaseLibrary": {
+      "doc": "",
+      "text": "Readonly<Record<EasingName, EaseFn>> & { bezier(x1: number, y1: number, x2: number, y2: number): EaseFn; /** 把 easing 参数的值变成函数；认不出的值退回 linear */ from(value: unknown): EaseFn; }"
+    }
+  },
+  "easings": [
+    "linear",
+    "quadIn",
+    "quadOut",
+    "quadInOut",
+    "cubicIn",
+    "cubicOut",
+    "cubicInOut",
+    "quartIn",
+    "quartOut",
+    "quartInOut",
+    "quintIn",
+    "quintOut",
+    "quintInOut",
+    "expoIn",
+    "expoOut",
+    "expoInOut",
+    "circIn",
+    "circOut",
+    "circInOut",
+    "backIn",
+    "backOut",
+    "backInOut",
+    "elasticOut",
+    "bounceOut"
+  ]
+}

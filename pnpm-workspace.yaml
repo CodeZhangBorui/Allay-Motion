@@ -2,6 +2,8 @@ packages:
   - apps/*
   - packages/*
   - packages/templates/*
+  # 可选模块（docs/code-editing-and-mcp-plan.md 3.2）：目录为空或不存在都可以
+  - packages/optional/*
 allowBuilds:
   esbuild: true
   electron-winstaller: false

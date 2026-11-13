@@ -21,6 +21,7 @@
     "assets:gen": "tsx scripts/not-implemented.ts assets:gen M2",
     "templates:build": "tsx scripts/build-templates.ts",
     "templates:baselines": "tsx scripts/gen-template-baselines.ts",
+    "templates:api": "tsx scripts/gen-template-api.ts",
     "mascot:bake": "tsx scripts/mascot-bake.ts",
     "ffmpeg:fetch": "tsx scripts/fetch-ffmpeg.ts",
     "dist": "tsx scripts/ensure-electron-dist.ts && pnpm templates:build && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts",

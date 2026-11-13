@@ -17,6 +17,7 @@ import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
 import {
   AssetPathSchema,
+  CopyBuiltinSchema,
   InstallReportSchema,
   PresetIdSchema,
   SaveDerivedSchema,
@@ -85,6 +86,9 @@ export const IPC_ARGS = {
   [IPC.templates.remove]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
   [IPC.templates.exportPackage]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
   [IPC.templates.saveDerived]: z.tuple([SaveDerivedSchema]),
+  [IPC.templates.copyBuiltin]: z.tuple([CopyBuiltinSchema]),
+  [IPC.templates.writeDevFiles]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
+  [IPC.templates.openFolder]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
   [IPC.presets.list]: z.tuple([]),
   [IPC.presets.save]: z.tuple([SavePresetSchema]),
   [IPC.presets.remove]: z.tuple([PresetIdSchema]),

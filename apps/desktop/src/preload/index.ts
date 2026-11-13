@@ -3,6 +3,7 @@ import { IPC, type InvokeChannel } from '../shared/ipc-channels';
 import type { AllayApi } from './api';
 import type { ResourceState } from '../shared/resources';
 import type { UiSettings } from '../shared/settings';
+import type { TemplateDevChange } from '../shared/templates';
 
 // preload 只做转发，不做判断：所有参数原样交给主进程，由主进程的 zod schema 校验。
 // 不暴露 ipcRenderer 本身，也不暴露任何通用的“发消息”函数。
@@ -85,6 +86,10 @@ const api = {
     remove: invoke(IPC.templates.remove),
     exportPackage: invoke(IPC.templates.exportPackage),
     saveDerived: invoke(IPC.templates.saveDerived),
+    copyBuiltin: invoke(IPC.templates.copyBuiltin),
+    writeDevFiles: invoke(IPC.templates.writeDevFiles),
+    openFolder: invoke(IPC.templates.openFolder),
+    onChanged: subscribe<TemplateDevChange>(IPC.templates.changed),
   },
   presets: {
     list: invoke(IPC.presets.list),

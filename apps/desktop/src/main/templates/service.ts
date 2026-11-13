@@ -15,8 +15,10 @@ import {
   TEMPLATE_ID_RE,
   compareVersionStrings,
   isSafeAssetPath,
+  isReservedId,
   isValidVersion,
   parseManifest,
+  type TemplateDiagnostic,
   pickVersion,
   resolveDerived,
   resolveScript,
@@ -58,6 +60,8 @@ interface Staged {
   manifest: TemplateManifest;
   code: string | null;
   expires: number;
+  /** 确定性静态规则的提示（H12），提交时并进警告 */
+  ruleDiagnostics: TemplateDiagnostic[];
 }
 
 const MetaSchema = z.looseObject({ formatVersion: z.literal(1), installedAt: z.string(), trialWarnings: z.array(z.string()) });
@@ -76,6 +80,10 @@ export interface TemplateServiceOptions {
 
 const key = (id: string, version: string) => `${id}@${version}`;
 
+/** 包住对用户模板目录的写入（模板开发模式的监视服务用它认出应用自己的写入，H10） */
+export type TemplateWriteGuard = <T>(id: string, version: string, fn: () => Promise<T>) => Promise<T>;
+const passthrough: TemplateWriteGuard = (_id, _version, fn) => fn();
+
 export class TemplateService {
   private readonly templates = new Map<string, Stored>();
   private readonly staged = new Map<string, Staged>();
@@ -84,11 +92,23 @@ export class TemplateService {
   private readonly now: () => number;
   /** 写操作串行：安装、删除、派生不交错 */
   private queue: Promise<unknown> = Promise.resolve();
+  private guard: TemplateWriteGuard = passthrough;
 
   constructor(private readonly opts: TemplateServiceOptions) {
     this.userDir = join(opts.userDataDir, 'templates');
     this.stagingDir = join(this.userDir, '.staging');
     this.now = opts.now ?? Date.now;
+  }
+
+  /** 之后对用户模板目录的写入都经过它 */
+  setWriteGuard(guard: TemplateWriteGuard | null): void {
+    this.guard = guard ?? passthrough;
+  }
+
+  /** 用户模板的文件夹（不检查是否存在）；内置模板没有文件夹 */
+  userTemplateDir(id: string, version: string): string | null {
+    const s = this.templates.get(key(id, version));
+    return s?.source === 'user' ? s.dir : null;
   }
 
   async init(): Promise<void> {
@@ -184,9 +204,15 @@ export class TemplateService {
         await mkdir(dirname(target), { recursive: true });
         await writeFile(target, data);
       }
-      this.staged.set(stagingId, { dir, manifest, code: pkg.code, expires: this.now() + STAGING_TTL_MS });
+      this.staged.set(stagingId, { dir, manifest, code: pkg.code, expires: this.now() + STAGING_TTL_MS, ruleDiagnostics: pkg.ruleDiagnostics });
       const entry: TemplateEntry = { id: manifest.id, version: manifest.version, source: 'user', kind: manifest.extends ? 'derived' : 'script', manifest, baseMissing: false, trialWarnings: [] };
-      return { ok: true, stagingId, bundle: { entry, resolved, code }, replaces: this.templates.has(key(manifest.id, manifest.version)) };
+      return {
+        ok: true,
+        stagingId,
+        bundle: { entry, resolved, code },
+        replaces: this.templates.has(key(manifest.id, manifest.version)),
+        ruleDiagnostics: pkg.ruleDiagnostics,
+      };
     });
   }
 
@@ -201,11 +227,21 @@ export class TemplateService {
       }
       const { id, version } = st.manifest;
       const dir = this.versionDir(id, version);
-      await rm(dir, { recursive: true, force: true });
-      await mkdir(dirname(dir), { recursive: true });
-      await rename(st.dir, dir);
+      await this.guard(id, version, async () => {
+        await rm(dir, { recursive: true, force: true });
+        await mkdir(dirname(dir), { recursive: true });
+        await rename(st.dir, dir);
+      });
       const warnings = InstallReportSchema.parse(report).warnings;
-      await writeJsonAtomic(this.metaFile(id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: warnings });
+      // 静态规则发现了 Math.random 之类（H12）：和试运行的确定性自检一样记为“预览与导出可能不一致”。
+      // 只是提示，不拒绝安装；具体位置记进元数据
+      if (st.ruleDiagnostics.length > 0 && !warnings.includes('nondeterministic')) warnings.push('nondeterministic');
+      await writeJsonAtomic(this.metaFile(id, version), {
+        formatVersion: 1,
+        installedAt: new Date(this.now()).toISOString(),
+        trialWarnings: warnings,
+        ...(st.ruleDiagnostics.length > 0 ? { ruleDiagnostics: st.ruleDiagnostics } : {}),
+      });
       const stored: Stored = { source: 'user', manifest: st.manifest, files: null, dir, trialWarnings: warnings };
       this.templates.set(key(id, version), stored);
       this.opts.log.info('templates', 'installed', { id, version, warnings });
@@ -227,7 +263,7 @@ export class TemplateService {
       const s = this.templates.get(key(id, version));
       if (!s || s.source !== 'user') return false;
       this.templates.delete(key(id, version));
-      await rm(this.versionDir(id, version), { recursive: true, force: true });
+      await this.guard(id, version, () => rm(this.versionDir(id, version), { recursive: true, force: true }));
       await rm(this.metaFile(id, version), { force: true });
       // 这个 id 的最后一个版本：把空目录也删掉
       const idDir = join(this.userDir, id);
@@ -296,16 +332,77 @@ export class TemplateService {
       const parsed = parseManifest(raw);
       if (!parsed.ok) return { ok: false, error: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ') };
       const dir = this.versionDir(id, '1.0.0');
-      await mkdir(dir, { recursive: true });
-      if (assets.length > 0) {
-        await mkdir(join(dir, 'assets'), { recursive: true });
-        for (const a of assets) await writeFile(join(dir, 'assets', a.name), a.bytes);
-      }
-      await writeJsonAtomic(join(dir, 'manifest.json'), raw);
+      await this.guard(id, '1.0.0', async () => {
+        await mkdir(dir, { recursive: true });
+        if (assets.length > 0) {
+          await mkdir(join(dir, 'assets'), { recursive: true });
+          for (const a of assets) await writeFile(join(dir, 'assets', a.name), a.bytes);
+        }
+        await writeJsonAtomic(join(dir, 'manifest.json'), raw);
+      });
       await writeJsonAtomic(this.metaFile(id, '1.0.0'), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [] });
       const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
       this.templates.set(key(id, '1.0.0'), stored);
       return { ok: true, entry: this.entryOf(stored) };
+    });
+  }
+
+  // ---- 模板开发模式（docs/08-milestones.md MD）----
+
+  /**
+   * 把内置的脚本模板复制成一份可编辑的用户模板（解压后的文件夹）。新的 id 由调用方给（不得以 allay. 开头），
+   * 版本 1.0.0；name 不给时沿用原名。annotate 可以改写 template.js（加类型注解）。
+   */
+  copyBuiltin(
+    source: { id: string; version: string },
+    target: { id: string; name?: string },
+    annotate: (code: string) => string = (c) => c,
+  ): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: 'not-found' | 'not-builtin' | 'not-script' | 'bad-id' }> {
+    return this.serial(async () => {
+      const s = this.templates.get(key(source.id, source.version));
+      if (!s) return { ok: false, error: 'not-found' };
+      if (s.source !== 'builtin' || !s.files) return { ok: false, error: 'not-builtin' };
+      if (s.manifest.extends) return { ok: false, error: 'not-script' };
+      if (isReservedId(target.id) || !TEMPLATE_ID_RE.test(target.id) || [...this.templates.values()].some((t) => t.manifest.id === target.id)) {
+        return { ok: false, error: 'bad-id' };
+      }
+      const version = '1.0.0';
+      const raw = JSON.parse(new TextDecoder().decode(s.files.get('manifest.json')!)) as Record<string, unknown>;
+      const manifestJson = { ...raw, id: target.id, version, ...(target.name ? { name: target.name } : {}) };
+      const parsed = parseManifest(manifestJson);
+      if (!parsed.ok) throw new Error(`copied manifest is invalid: ${parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`);
+      const dir = this.versionDir(target.id, version);
+      await this.guard(target.id, version, async () => {
+        await mkdir(dir, { recursive: true });
+        for (const [path, data] of s.files!) {
+          if (path === 'manifest.json') continue;
+          const file = join(dir, ...path.split('/'));
+          await mkdir(dirname(file), { recursive: true });
+          await writeFile(file, path === 'template.js' ? annotate(new TextDecoder().decode(data)) : data);
+        }
+        await writeJsonAtomic(join(dir, 'manifest.json'), manifestJson);
+      });
+      await writeJsonAtomic(this.metaFile(target.id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [], copiedFrom: source });
+      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
+      this.templates.set(key(target.id, version), stored);
+      this.opts.log.info('templates', 'copied built-in template', { from: source, id: target.id });
+      return { ok: true, entry: this.entryOf(stored) };
+    });
+  }
+
+  /**
+   * 文件夹在外面被改了（监视服务报来的）：重新读 manifest.json，更新或移除这个用户模板。
+   * 返回新的条目；文件夹不在了或 manifest 不合法时为 null（不合法的原因记进日志）。
+   */
+  refreshUser(id: string, version: string): Promise<TemplateEntry | null> {
+    return this.serial(async () => {
+      const existing = this.templates.get(key(id, version));
+      if (existing && existing.source !== 'user') return null;
+      this.templates.delete(key(id, version));
+      const stored = await this.loadUserVersion(id, version);
+      if (!stored) return null;
+      this.templates.set(key(id, version), stored);
+      return this.entryOf(stored);
     });
   }
 
@@ -397,27 +494,34 @@ export class TemplateService {
       if (!TEMPLATE_ID_RE.test(id)) continue;
       const versions = await readdir(join(this.userDir, id)).catch(() => [] as string[]);
       for (const version of versions) {
-        const dir = this.versionDir(id, version);
-        if (!isValidVersion(version) || !(await stat(dir).catch(() => null))?.isDirectory()) continue;
-        try {
-          const parsed = parseManifest(JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8')));
-          if (!parsed.ok) throw new Error(parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; '));
-          const m = parsed.manifest;
-          if (m.id !== id || m.version !== version) throw new Error('manifest id/version does not match its folder');
-          if (!m.extends && !existsSync(join(dir, 'template.js'))) throw new Error('template.js is missing');
-          if (this.templates.has(key(id, version))) throw new Error('shadows a built-in template');
-          let trialWarnings: TrialWarning[] = [];
-          try {
-            const meta = MetaSchema.parse(JSON.parse(await readFile(this.metaFile(id, version), 'utf8')));
-            trialWarnings = InstallReportSchema.parse({ warnings: meta.trialWarnings }).warnings;
-          } catch {
-            // 元数据丢了不影响装载
-          }
-          this.templates.set(key(id, version), { source: 'user', manifest: m, files: null, dir, trialWarnings });
-        } catch (error) {
-          this.opts.log.warn('templates', 'skipped installed template', { id, version, error: error instanceof Error ? error.message : String(error) });
-        }
+        const stored = await this.loadUserVersion(id, version);
+        if (stored) this.templates.set(key(id, version), stored);
       }
+    }
+  }
+
+  /** 读一个已安装的用户模板（扫描和刷新共用）；不在、不合法时为 null */
+  private async loadUserVersion(id: string, version: string): Promise<Stored | null> {
+    const dir = this.versionDir(id, version);
+    if (!TEMPLATE_ID_RE.test(id) || !isValidVersion(version) || !(await stat(dir).catch(() => null))?.isDirectory()) return null;
+    try {
+      const parsed = parseManifest(JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8')));
+      if (!parsed.ok) throw new Error(parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; '));
+      const m = parsed.manifest;
+      if (m.id !== id || m.version !== version) throw new Error('manifest id/version does not match its folder');
+      if (!m.extends && !existsSync(join(dir, 'template.js'))) throw new Error('template.js is missing');
+      if (this.templates.has(key(id, version))) throw new Error('shadows a built-in template');
+      let trialWarnings: TrialWarning[] = [];
+      try {
+        const meta = MetaSchema.parse(JSON.parse(await readFile(this.metaFile(id, version), 'utf8')));
+        trialWarnings = InstallReportSchema.parse({ warnings: meta.trialWarnings }).warnings;
+      } catch {
+        // 元数据丢了不影响装载
+      }
+      return { source: 'user', manifest: m, files: null, dir, trialWarnings };
+    } catch (error) {
+      this.opts.log.warn('templates', 'skipped installed template', { id, version, error: error instanceof Error ? error.message : String(error) });
+      return null;
     }
   }
 }

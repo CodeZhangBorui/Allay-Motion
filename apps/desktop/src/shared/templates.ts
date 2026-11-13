@@ -1,5 +1,5 @@
 // 模板与预设在主进程和渲染进程之间传的数据（docs/04-templates.md 4.7、4.8；01-product-architecture.md 1.8）。
-import { TemplateIdSchema, type ParamValues, type ResolvedTemplate, type TemplateManifest } from '@allay/template-sdk';
+import { TemplateIdSchema, type ParamValues, type ResolvedTemplate, type TemplateDiagnostic, type TemplateManifest } from '@allay/template-sdk';
 import { z } from 'zod';
 
 /** 模板包大小上限（4.8 第 1 步） */
@@ -44,6 +44,8 @@ export interface InstallError {
   code: InstallErrorCode;
   /** 给人看的细节（出错的字段、条目名），英文，界面放在错误码对应文案的后面 */
   detail: string;
+  /** 源码预检失败（code-syntax、code-has-import、code-too-large）时的 compile 类诊断，能定位时带行列 */
+  diagnostic?: TemplateDiagnostic;
 }
 
 /** 试运行（4.8 第 4 步）发现的问题：只是警告，仍允许安装 */
@@ -82,7 +84,18 @@ export interface TemplateBundle {
 export type StageResult =
   | { canceled: true }
   | { canceled?: false; ok: false; error: InstallError }
-  | { canceled?: false; ok: true; stagingId: string; bundle: TemplateBundle; replaces: boolean };
+  | {
+      canceled?: false;
+      ok: true;
+      stagingId: string;
+      bundle: TemplateBundle;
+      replaces: boolean;
+      /**
+       * 确定性静态规则的提示（H12）。只是提示：提交安装时主进程自己把它并进 nondeterministic 警告，
+       * 渲染进程不用转交；附在这里供将来显示位置。
+       */
+      ruleDiagnostics: TemplateDiagnostic[];
+    };
 
 export type CommitResult = { ok: true; entry: TemplateEntry } | { ok: false; error: InstallError };
 
@@ -123,3 +136,31 @@ export interface PresetEntry {
 
 export type PresetImportResult = { canceled: true } | { canceled?: false; ok: true; entry: PresetEntry } | { canceled?: false; ok: false; error: string };
 export type ExportFileResult = { canceled: true } | { canceled?: false; ok: true; path: string };
+
+// ---- 模板开发模式（docs/08-milestones.md MD）----
+
+/** templates.copyBuiltin 的入参：要复制的内置模板，以及可选的新名字（不给时沿用原名） */
+export const CopyBuiltinSchema = z.strictObject({
+  id: TemplateIdSchema,
+  version: TemplateVersionArgSchema,
+  name: z.string().trim().min(1).max(60).optional(),
+});
+export type CopyBuiltinRequest = z.infer<typeof CopyBuiltinSchema>;
+
+/** 开发模式各方法的失败原因（枚举值，界面按它显示文案） */
+export type TemplateDevError = 'not-found' | 'not-builtin' | 'not-script' | 'bad-id' | 'not-user' | 'outside' | 'open-failed';
+export type TemplateDevResult<T extends object = object> = ({ ok: true } & T) | { ok: false; error: TemplateDevError };
+
+/**
+ * 用户模板文件夹在应用之外被改动（templates.onChanged，主进程 → 渲染进程）。
+ * 应用自己的写入（安装、复制、写类型定义等）不会触发。
+ */
+export interface TemplateDevChange {
+  id: string;
+  version: string;
+  change: 'added' | 'changed' | 'removed';
+  /** 新的内容哈希（manifest.json、template.js、assets/** 的 SHA-256）；removed 时为 null */
+  hash: string | null;
+  /** 改动之后这个模板还能装载（manifest 合法、template.js 在）；为 false 时它已从模板列表里移除 */
+  valid: boolean;
+}

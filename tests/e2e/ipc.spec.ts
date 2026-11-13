@@ -137,6 +137,20 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', defaults: {}, hidden: [], id: 'allay.builtin.evil' }],
     [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', defaults: {}, hidden: [], files: { logo: 'C:\\Windows\\win.ini' } }],
   ],
+  // 模板开发模式（MD-a）。合法的 openFolder 会打开资源管理器，这里只有畸形参数；路径一律不收
+  'templates.copyBuiltin': [
+    [],
+    [null],
+    ['allay.builtin.block-wipe', '1.0.0'],
+    [{ id: 'allay.builtin.block-wipe' }],
+    [{ id: '../x', version: '1.0.0' }],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0', name: '' }],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0', path: 'C:\\Windows' }],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0', newId: 'allay.builtin.evil' }],
+    [{ id: 'allay.builtin.block-wipe', version: '1.0.0' }, 'extra'],
+  ],
+  'templates.writeDevFiles': [[], ['user.abc.x'], ['C:\\Windows', '1.0.0'], [{ path: 'C:\\x' }, '1.0.0'], ['user.abc.x', '1.0.0', 'C:\\x']],
+  'templates.openFolder': [[], ['C:\\Windows'], ['C:\\Windows', '1.0.0'], ['..', '..'], ['user.abc.x', { path: 'C:\\x' }], ['user.abc.x', '1.0.0', 'template.js']],
   'presets.list': [[1]],
   'presets.save': [
     [],

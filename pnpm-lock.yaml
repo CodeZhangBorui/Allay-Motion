@@ -247,6 +247,9 @@ importers:
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      acorn:
+        specifier: 8.19.0
+        version: 8.19.0
       comlink:
         specifier: 4.4.2
         version: 4.4.2
@@ -349,6 +352,16 @@ importers:
       '@types/three':
         specifier: 0.187.0
         version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/host-api:
+    dependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../template-sdk
+    devDependencies:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3

@@ -27,11 +27,13 @@ import {
   sanitizeParams,
   seedOf,
   type TemplateManifest,
+  type TemplateDiagnostic,
 } from '@allay/template-sdk';
 import { createBlockHandle } from './blocks';
+import { describeThrown, diagnosticFromError } from './diagnostics';
 import { ease, math, segment } from './ease';
 import { frameTime, subframeTimes } from './frames';
-import { DeterminismGuard } from './harden';
+import { DeterminismGuard, DeterminismViolation } from './harden';
 import { createNoise2D, type Noise2D } from './noise';
 import { createItemHandle } from './items';
 import { FramePipeline } from './pipeline';
@@ -68,14 +70,37 @@ export interface EngineApi {
   renderThumbnail(req: ThumbRequest): Promise<ImageBitmap>;
   /** 诊断与测试用：按 t 画一帧预览（N = 1），并读回 canvas 上的像素（预乘 alpha，第一行是顶部） */
   readPreview(t: number): Promise<ArrayBuffer>;
+  /**
+   * 确定性自检（2.4）：渲染 probe 帧，再依次渲染 others，再渲染一次 probe，逐字节比较。
+   * 一致时返回 null，不一致时返回 determinism 类诊断。杂务和导出引擎可用；像素不出 Worker。
+   */
+  checkDeterminism(probe: number, others: number[], quality: FrameQuality): Promise<TemplateDiagnostic | null>;
   dispose(): void;
 }
 
+/**
+ * 模板的问题（装载、setup、update）。diagnostic 是结构化的诊断（H5），
+ * 经 Worker 入口的 Comlink 错误序列化带给宿主；message 保留原来的文字，旧的调用方照常显示。
+ */
 export class TemplateError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
+  constructor(
+    message: string,
+    readonly diagnostic: TemplateDiagnostic,
+    options?: ErrorOptions,
+  ) {
     super(message, options);
     this.name = 'TemplateError';
   }
+}
+
+/** 由诊断生成错误；message 沿用原来的写法（前缀 + 抛出的内容） */
+function templateError(prefix: string, diagnostic: TemplateDiagnostic, cause: unknown): TemplateError {
+  return new TemplateError(`${prefix}: ${diagnostic.message}`, diagnostic, { cause });
+}
+
+/** 契约不符（导出、返回值不对）：没有对应的源码位置 */
+function contractError(kind: 'load' | 'setup', code: string, message: string): TemplateError {
+  return new TemplateError(message, { kind, severity: 'error', code, message });
 }
 
 const DEFAULT_QUALITY: FrameQuality = { subframes: 1, shutterAngle: 180 };
@@ -83,6 +108,8 @@ const MAX_WARNINGS = 50;
 
 interface Loaded {
   module: TemplateModule;
+  /** 装载时用的 Blob URL（已撤销），用来在调用栈里认出模板自己的栈帧 */
+  moduleUrl: string;
   code: string;
   manifest: TemplateManifest;
   locale: string;
@@ -108,36 +135,44 @@ function hexToLinear(hex: string): [number, number, number] {
   return [c.r, c.g, c.b];
 }
 
-/** 把模板源码当作 ESM 装载（2.4）：Blob URL + 动态 import */
-async function importTemplate(code: string): Promise<TemplateModule> {
+/**
+ * 把模板源码当作 ESM 装载（2.4）：Blob URL + 动态 import。
+ * 语法错误在宿主交来之前已经用解析器预检过（带位置）；动态 import 报的 SyntaxError 拿不到可用位置，不带。
+ */
+async function importTemplate(code: string): Promise<{ module: TemplateModule; moduleUrl: string }> {
   const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
   let mod: unknown;
   try {
     mod = await import(/* @vite-ignore */ url);
   } catch (error) {
-    throw new TemplateError(`template failed to load: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    const diagnostic: TemplateDiagnostic =
+      error instanceof SyntaxError
+        ? { kind: 'compile', severity: 'error', code: 'syntax-error', message: describeThrown(error) }
+        : diagnosticFromError('load', 'evaluate-failed', error, url);
+    throw templateError('template failed to load', diagnostic, error);
   } finally {
     URL.revokeObjectURL(url);
   }
   const def = (mod as { default?: unknown }).default;
   if (!def || typeof (def as { setup?: unknown }).setup !== 'function') {
-    throw new TemplateError('template must default-export an object with a setup(ctx) function');
+    throw contractError('load', 'bad-export', 'template must default-export an object with a setup(ctx) function');
   }
-  return def as TemplateModule;
+  return { module: def as TemplateModule, moduleUrl: url };
 }
 
 function validateInstance(value: unknown): Active['instance'] {
-  if (!value || typeof value !== 'object') throw new TemplateError('setup() must return an object');
+  const bad = (message: string) => contractError('setup', 'bad-instance', message);
+  if (!value || typeof value !== 'object') throw bad('setup() must return an object');
   const inst = value as Partial<TemplateInstance>;
-  if (typeof inst.update !== 'function') throw new TemplateError('instance.update must be a function');
+  if (typeof inst.update !== 'function') throw bad('instance.update must be a function');
   if (typeof inst.duration !== 'number' || !Number.isFinite(inst.duration) || inst.duration < 0.1 || inst.duration > 30) {
-    throw new TemplateError(`instance.duration must be between 0.1 and 30 seconds, got ${String(inst.duration)}`);
+    throw bad(`instance.duration must be between 0.1 and 30 seconds, got ${String(inst.duration)}`);
   }
   const cut = inst.cutTime;
   if (cut !== undefined && cut !== null && (typeof cut !== 'number' || !Number.isFinite(cut) || cut < 0 || cut > inst.duration)) {
-    throw new TemplateError(`instance.cutTime must be within [0, duration], got ${String(cut)}`);
+    throw bad(`instance.cutTime must be within [0, duration], got ${String(cut)}`);
   }
-  if (inst.dispose !== undefined && typeof inst.dispose !== 'function') throw new TemplateError('instance.dispose must be a function');
+  if (inst.dispose !== undefined && typeof inst.dispose !== 'function') throw bad('instance.dispose must be a function');
   return inst as TemplateInstance;
 }
 
@@ -216,12 +251,13 @@ export class Engine implements EngineApi {
     const parsed = LoadRequestSchema.parse(req);
     this.requireInit();
     this.resources!.setStamp(parsed.resourceStamp);
-    const module = this.loaded && this.loaded.code === parsed.code ? this.loaded.module : await importTemplate(parsed.code);
+    const { module, moduleUrl } =
+      this.loaded && this.loaded.code === parsed.code ? { module: this.loaded.module, moduleUrl: this.loaded.moduleUrl } : await importTemplate(parsed.code);
     const stage = computeStage(parsed.output);
     const locale = parsed.locale ?? 'en';
     // 参数经 template-sdk 的校验函数清洗（4.4）：缺的补默认值，多的丢弃，类型不对的回到默认值，越界的钳制
     const params = cleanParams(parsed.manifest, parsed.params, locale);
-    this.loaded = { module, code: parsed.code, manifest: parsed.manifest, locale, output: parsed.output, stage, params };
+    this.loaded = { module, moduleUrl, code: parsed.code, manifest: parsed.manifest, locale, output: parsed.output, stage, params };
     if (this.mode !== 'preview') this.pipeline!.setSize(parsed.output.width, parsed.output.height);
     return this.setup();
   }
@@ -281,6 +317,30 @@ export class Engine implements EngineApi {
     return out.buffer;
   }
 
+  async checkDeterminism(probe: number, others: number[], quality: FrameQuality): Promise<TemplateDiagnostic | null> {
+    const q = FrameQualitySchema.parse(quality);
+    if (others.length > 64 || [probe, ...others].some((i) => !Number.isInteger(i) || i < 0)) throw new Error('frame indices must be non-negative integers (at most 64 others)');
+    if (this.mode === 'preview') throw new Error('checkDeterminism() is for export and utility engines');
+    const active = this.requireActive();
+    const fps = this.loaded!.output.fps;
+    const render = (index: number) => this.pipeline!.renderToPixels(this.passOptions(active, frameTime(index, fps, active.duration), q), 'straight', [0, 0, 0]);
+    // 第一次的结果复制出来：读回缓冲可能被后面的渲染复用
+    const first = new Uint8Array(render(probe));
+    for (const i of others) render(i);
+    const second = render(probe);
+    let differing = first.length === second.length ? 0 : Math.max(first.length, second.length);
+    for (let k = 0; k < Math.min(first.length, second.length); k++) if (first[k] !== second[k]) differing++;
+    if (differing === 0) return null;
+    const t = frameTime(probe, fps, active.duration);
+    return {
+      kind: 'determinism',
+      severity: 'warning',
+      code: 'render-mismatch',
+      message: `frame ${probe} (t = ${t.toFixed(4)} s) changed after rendering frames ${others.join(', ')} in between (${differing} of ${first.length} bytes differ); update(t) must depend only on t`,
+      t,
+    };
+  }
+
   async renderThumbnail(req: ThumbRequest): Promise<ImageBitmap> {
     const r = ThumbRequestSchema.parse(req);
     if (this.mode === 'preview') throw new Error('renderThumbnail() is for utility and export engines');
@@ -321,9 +381,25 @@ export class Engine implements EngineApi {
       update: (tk: number) => {
         // 动画贴图的帧是 t 的函数，每个子帧更新（2.8）
         this.resources!.applyAnimations(tk);
-        this.guard.run(() => active.instance.update(tk));
+        try {
+          this.guard.run(() => active.instance.update(tk));
+        } catch (error) {
+          // 只在出错时分配：正常路径的零分配预算不变
+          throw this.updateFailure(error, tk);
+        }
       },
     };
+  }
+
+  /** update(t) 抛出的东西 → 带诊断的 TemplateError */
+  private updateFailure(error: unknown, t: number): TemplateError {
+    if (error instanceof TemplateError) return error;
+    const url = this.loaded?.moduleUrl ?? null;
+    const diagnostic =
+      error instanceof DeterminismViolation
+        ? diagnosticFromError('determinism', 'forbidden-api', error, url, { t })
+        : diagnosticFromError('update', 'update-threw', error, url, { t });
+    return templateError(`template update(${t}) failed`, diagnostic, error);
   }
 
   private requireInit(): void {
@@ -406,7 +482,11 @@ export class Engine implements EngineApi {
       time: { segment },
       audio: {
         cue(sound, at, opts = {}) {
-          if (setupDone) throw new TemplateError('ctx.audio.cue() may only be called during setup()');
+          if (setupDone) {
+            const message = 'ctx.audio.cue() may only be called during setup()';
+            // 这个 Error 的调用栈里有模板调用它的那一行
+            throw new TemplateError(message, diagnosticFromError('update', 'audio-cue-outside-setup', new Error(message), loaded.moduleUrl, { message }));
+          }
           if (sound === null) return;
           if (typeof sound !== 'string' || typeof at !== 'number' || !Number.isFinite(at)) throw new TypeError('invalid audio cue');
           cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0 });
@@ -422,7 +502,7 @@ export class Engine implements EngineApi {
       disposeScene(scene);
       for (const t of owned) t.dispose();
       if (error instanceof TemplateError) throw error;
-      throw new TemplateError(`template setup() failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+      throw templateError('template setup() failed', diagnosticFromError('setup', 'setup-threw', error, loaded.moduleUrl), error);
     } finally {
       setupDone = true;
     }

@@ -30,6 +30,7 @@
     "@allay/template-sdk": "workspace:*",
     "@allay/ui": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
+    "acorn": "8.19.0",
     "comlink": "4.4.2",
     "es-module-lexer": "3.0.4",
     "i18next": "^27.1.1",
