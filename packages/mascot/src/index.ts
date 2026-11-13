@@ -1,2 +1,2 @@
-// M0：空包，只占位以确立仓库结构与依赖方向。实际内容见 docs/08-milestones.md 对应里程碑。
-export {};
+// 悦灵（docs/07-allay-mascot.md）。M5a：模型、动作和烘焙的约定；React 组件在 M4/M5 后半加入。
+export * from './atlas';

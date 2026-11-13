@@ -10,3 +10,5 @@ playwright-report/
 apps/desktop/release/
 docs/review/*/out/
 tests/engine/out/
+# 悦灵的烘焙产物：原版贴图的派生图像，由 pnpm mascot:bake 重新生成，不提交（docs/decisions.md M5a）
+packages/mascot/generated/

@@ -20,7 +20,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:engine && pnpm test:export && pnpm check:provenance && pnpm check:licenses && pnpm test:e2e",
     "assets:gen": "tsx scripts/not-implemented.ts assets:gen M2",
     "templates:build": "tsx scripts/not-implemented.ts templates:build M3",
-    "mascot:bake": "tsx scripts/not-implemented.ts mascot:bake M5",
+    "mascot:bake": "tsx scripts/mascot-bake.ts",
     "ffmpeg:fetch": "tsx scripts/fetch-ffmpeg.ts",
     "dist": "tsx scripts/ensure-electron-dist.ts && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts",
     "review:m1": "tsx scripts/review-m1.ts",
