@@ -11,13 +11,15 @@ import { useTemplateStore } from '../../stores/templateStore';
 import { useUiStore } from '../../stores/uiStore';
 import { selectTemplate } from '../templates/actions';
 import { applyPresetEntry } from '../templates/presets';
-import { COMMANDS, shortcutLabel } from './commands';
+import { commandEnabled, trigger, useCommands } from '../../app/registry';
+import { shortcutLabel } from './commands';
 
-// 命令面板（6.4，Ctrl+K）：搜索操作、模板、预设。
+// 命令面板（6.4，Ctrl+K）：搜索操作（注册表里的命令）、模板、预设。
 
 export function CommandPalette() {
   const { t, i18n } = useTranslation();
   const entries = useTemplateStore((s) => s.entries);
+  const commands = useCommands();
   const [presets, setPresets] = useState<PresetEntry[]>([]);
   useEffect(() => {
     void window.allay.presets.list().then(setPresets);
@@ -41,12 +43,14 @@ export function CommandPalette() {
           <CommandList>
             <CommandEmpty>{t('command.empty')}</CommandEmpty>
             <CommandGroup heading={t('command.groups.actions')}>
-              {COMMANDS.filter((c) => c.id !== 'palette').map((c) => {
-                const enabled = !c.enabled || c.enabled();
+              {commands
+                .filter((c) => !c.hideInPalette && !c.input)
+                .map((c) => {
+                const enabled = commandEnabled(c);
                 return (
-                  <CommandItem key={c.id} value={`action ${t(`command.items.${c.id}`)} ${c.id}`} disabled={!enabled} onSelect={() => run(c.run)} data-testid={`command-${c.id}`}>
+                  <CommandItem key={c.id} value={`action ${t(c.titleKey)} ${c.id}`} disabled={!enabled} onSelect={() => run(() => trigger(c.id))} data-testid={`command-${c.id}`}>
                     <Lightning size={ICON.sm} />
-                    <span className="flex-1 truncate">{t(`command.items.${c.id}`)}</span>
+                    <span className="flex-1 truncate">{t(c.titleKey)}</span>
                     {c.shortcut && <Kbd>{shortcutLabel(c.shortcut)}</Kbd>}
                   </CommandItem>
                 );

@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { CommandPalette } from '../features/commands/CommandPalette';
 import { useShortcuts } from '../features/commands/useShortcuts';
 import { ExportDialog } from '../features/export/ExportDialog';
+import { SavePresetDialog, SaveTemplateDialog } from '../features/params/dialogs';
 import { EditorServicesProvider } from '../features/params/editorServices';
 import { ConfirmHost } from '../features/project/confirm';
 import { DiscoveryDialog, useShowDiscovery } from '../features/resources/DiscoveryDialog';
@@ -75,6 +76,8 @@ export function App() {
           {dialog === 'export' && <ExportDialog onClose={() => useUiStore.getState().openDialog(null)} />}
           {dialog === 'settings' && <SettingsDialog />}
           {dialog === 'palette' && <CommandPalette />}
+          {dialog === 'savePreset' && <SavePresetDialog onSaved={() => useUiStore.getState().bumpPresets()} />}
+          {dialog === 'saveTemplate' && <SaveTemplateDialog />}
           {showDiscovery && dialog !== 'export' && <DiscoveryDialog />}
           <ConfirmHost />
           <Toaster />

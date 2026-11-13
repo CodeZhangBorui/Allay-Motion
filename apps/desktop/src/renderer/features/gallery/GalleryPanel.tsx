@@ -3,7 +3,7 @@ import { localize, type TemplateManifest } from '@allay/template-sdk';
 import { Button } from '@allay/ui/components/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@allay/ui/components/context-menu';
 import { Input, Skeleton } from '@allay/ui/components/misc';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@allay/ui/components/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@allay/ui/components/tabs';
 import { TemplateCard } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
 import { MagnifyingGlass, Plus, X } from '@phosphor-icons/react';
@@ -14,13 +14,13 @@ import { notify } from '../../stores/noticeStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTemplateStore } from '../../stores/templateStore';
 import { useTransportStore } from '../../stores/transportStore';
-import { useUiStore, type LeftTab } from '../../stores/uiStore';
+import { useUiStore } from '../../stores/uiStore';
 import { usePresets } from '../params/ParamsPanel';
 import { applyPresetEntry } from '../templates/presets';
 import { installViaDialog, removeTemplate, selectTemplate } from '../templates/actions';
 import { COVER_FPS, COVER_H, COVER_W, coverKey, covers, useCoverStore, type Cover } from './covers';
 
-// 左面板（6.4）：标题行是标签页“模板 | 预设”，右侧是搜索和导入图标。
+// 左面板（6.4）的两个标签页（经注册表挂到 TabbedPanel 上，见 app/core.tsx）：“模板 | 预设”；模板页的标题行右侧是搜索和导入图标。
 // 模板页：分类“全部/转场/叠加/我的”是安静的文字切换（选中项有控件底色）；两列缩略图，名称在下、时长（等宽）在右；
 // 悬停时播放预览循环；选中 = 面板色 2 px 间隙 + 2 px 强调色外框。首次加载、资源栈变化后重建封面时：骨架加悦灵。
 // 预设页：当前模板的预设（沿用已有的预设存取），点一下应用。
@@ -213,7 +213,7 @@ function TemplatesPage({ query, setQuery }: { query: string; setQuery(q: string)
 function PresetsPage() {
   const { t, i18n } = useTranslation();
   const template = useProjectStore((s) => s.template);
-  const [presets] = usePresets(template?.ref.id);
+  const presets = usePresets(template?.ref.id);
   if (presets.length === 0) return <p className="px-3.5 py-3 text-xs leading-relaxed text-fg-subtle" data-testid="gallery-presets-empty">{t('gallery.presetsEmpty')}</p>;
   return (
     <ul className="flex flex-col gap-0.5 overflow-y-auto px-2 pb-3" data-testid="gallery-presets">
@@ -236,79 +236,75 @@ function PresetsPage() {
   );
 }
 
-export function GalleryPanel() {
+/** 模板页标题行右侧：搜索（展开搜索框，Ctrl+F 同）和导入 */
+export function TemplatesActions() {
   const { t, i18n } = useTranslation();
-  const leftTab = useUiStore((s) => s.leftTab);
   const searchOpen = useUiStore((s) => s.searchOpen);
-  const [query, setQuery] = useState('');
+  const query = useUiStore((s) => s.galleryQuery);
   const showSearch = searchOpen || query !== '';
-
   return (
-    <aside aria-label={t('gallery.title')} className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-surface-1" data-testid="gallery">
-      <Tabs value={leftTab} onValueChange={(v) => useUiStore.getState().setLeftTab(v as LeftTab)} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex h-panel-head shrink-0 items-center gap-4 pr-2 pl-3.5">
-          <TabsList className="gap-4" aria-label={t('gallery.tabsLabel')}>
-            <TabsTrigger variant="text" value="templates" data-testid="left-tab-templates">
-              {t('gallery.title')}
-            </TabsTrigger>
-            <TabsTrigger variant="text" value="presets" data-testid="left-tab-presets">
-              {t('params.presets.title')}
-            </TabsTrigger>
-          </TabsList>
-          <span className="flex-1" />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="text-fg-subtle"
-            aria-label={t('gallery.searchToggle')}
-            aria-pressed={showSearch}
-            data-testid="gallery-search-toggle"
-            onClick={() => {
-              useUiStore.getState().setLeftTab('templates');
-              if (showSearch) {
-                setQuery('');
-                useUiStore.getState().setSearchOpen(false);
-              } else {
-                useUiStore.getState().setSearchOpen(true);
-                requestAnimationFrame(() => document.getElementById('gallery-search')?.focus());
-              }
-            }}
-          >
-            <MagnifyingGlass size={ICON.md - 1} />
-          </Button>
-          <Button variant="ghost" size="icon-sm" className="text-fg-subtle" aria-label={t('gallery.import')} title={t('gallery.import')} data-testid="template-import" onClick={() => void installViaDialog(t, i18n.language)}>
-            <Plus size={ICON.md - 1} />
-          </Button>
-        </div>
-        <TabsContent value="templates" className="flex min-h-0 flex-1 flex-col gap-2">
-          {showSearch && (
-            <div className="relative mx-2.5">
-              <MagnifyingGlass size={ICON.sm} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
-              <Input
-                id="gallery-search"
-                value={query}
-                onChange={(e) => setQuery(e.currentTarget.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && query === '') useUiStore.getState().setSearchOpen(false);
-                }}
-                placeholder={t('gallery.search')}
-                aria-label={t('gallery.search')}
-                className="h-7 pr-8 pl-8"
-                data-testid="gallery-search"
-              />
-              {query && (
-                <button type="button" aria-label={t('gallery.clearSearch')} className="absolute top-1/2 right-1 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-fg-subtle hover:text-foreground" onClick={() => setQuery('')}>
-                  <X size={ICON.sm} />
-                </button>
-              )}
-            </div>
-          )}
-          <TemplatesPage query={query} setQuery={setQuery} />
-        </TabsContent>
-        <TabsContent value="presets" className="flex min-h-0 flex-1 flex-col">
-          <PresetsPage />
-        </TabsContent>
-      </Tabs>
-    </aside>
+    <>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="text-fg-subtle"
+        aria-label={t('gallery.searchToggle')}
+        aria-pressed={showSearch}
+        data-testid="gallery-search-toggle"
+        onClick={() => {
+          if (showSearch) useUiStore.setState({ searchOpen: false, galleryQuery: '' });
+          else {
+            useUiStore.setState({ searchOpen: true });
+            requestAnimationFrame(() => document.getElementById('gallery-search')?.focus());
+          }
+        }}
+      >
+        <MagnifyingGlass size={ICON.md - 1} />
+      </Button>
+      <Button variant="ghost" size="icon-sm" className="text-fg-subtle" aria-label={t('gallery.import')} title={t('gallery.import')} data-testid="template-import" onClick={() => void installViaDialog(t, i18n.language)}>
+        <Plus size={ICON.md - 1} />
+      </Button>
+    </>
   );
+}
+
+/** 模板页：搜索框（展开时）、分类、缩略图网格 */
+export function TemplatesTab() {
+  const { t } = useTranslation();
+  const searchOpen = useUiStore((s) => s.searchOpen);
+  const query = useUiStore((s) => s.galleryQuery);
+  const setQuery = (galleryQuery: string) => useUiStore.setState({ galleryQuery });
+  const showSearch = searchOpen || query !== '';
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {showSearch && (
+        <div className="relative mx-2.5">
+          <MagnifyingGlass size={ICON.sm} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle" aria-hidden="true" />
+          <Input
+            id="gallery-search"
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && query === '') useUiStore.setState({ searchOpen: false });
+            }}
+            placeholder={t('gallery.search')}
+            aria-label={t('gallery.search')}
+            className="h-7 pr-8 pl-8"
+            data-testid="gallery-search"
+          />
+          {query && (
+            <button type="button" aria-label={t('gallery.clearSearch')} className="absolute top-1/2 right-1 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-fg-subtle hover:text-foreground" onClick={() => setQuery('')}>
+              <X size={ICON.sm} />
+            </button>
+          )}
+        </div>
+      )}
+      <TemplatesPage query={query} setQuery={setQuery} />
+    </div>
+  );
+}
+
+/** 预设页 */
+export function PresetsTab() {
+  return <PresetsPage />;
 }

@@ -19,9 +19,6 @@ import type { ExportPreset } from '../../shared/export';
 
 export type Side = 'left' | 'right';
 export type DialogName = 'export' | 'settings' | 'palette' | 'saveTemplate' | 'savePreset' | null;
-/** 左右面板的标签页；以后再加一个（比如模板代码）只要在这里加一个值 */
-export type LeftTab = 'templates' | 'presets';
-export type RightTab = 'props' | 'output';
 
 interface UiState {
   settings: UiSettings;
@@ -29,8 +26,13 @@ interface UiState {
   resourcesOpen: boolean;
   /** 设置对话框打开时的页 */
   settingsPage: 'general' | 'assets' | 'export' | 'shortcuts' | 'about';
-  leftTab: LeftTab;
-  rightTab: RightTab;
+  /** 左右面板当前的标签页（注册表里面板的 id） */
+  leftTab: string;
+  rightTab: string;
+  /** 模板库的搜索词 */
+  galleryQuery: string;
+  /** 预设保存、导入后加一，让各处的预设列表重新取 */
+  presetsVersion: number;
   /** 模板库的搜索框是否展开（Ctrl+F 或搜索图标） */
   searchOpen: boolean;
   /** 从“导出”分体按钮的下拉里选的格式：打开导出对话框时预先选中 */
@@ -47,8 +49,7 @@ interface UiState {
   addRecent(kind: RecentKind, value: string): void;
   openDialog(dialog: DialogName, page?: UiState['settingsPage']): void;
   setResourcesOpen(open: boolean): void;
-  setLeftTab(tab: LeftTab): void;
-  setRightTab(tab: RightTab): void;
+  bumpPresets(): void;
   setSearchOpen(open: boolean): void;
   openExport(preset?: ExportPreset): void;
   setExporting(exporting: boolean): void;
@@ -84,6 +85,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   settingsPage: 'general',
   leftTab: 'templates',
   rightTab: 'props',
+  galleryQuery: '',
+  presetsVersion: 0,
   searchOpen: false,
   exportPreset: null,
   exporting: false,
@@ -134,8 +137,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
   openDialog: (dialog, page) => set((s) => ({ dialog, settingsPage: page ?? s.settingsPage })),
   setResourcesOpen: (resourcesOpen) => set({ resourcesOpen }),
-  setLeftTab: (leftTab) => set({ leftTab }),
-  setRightTab: (rightTab) => set({ rightTab }),
+  bumpPresets: () => set((s) => ({ presetsVersion: s.presetsVersion + 1 })),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   openExport: (preset) => set({ dialog: 'export', exportPreset: preset ?? null }),
   setExporting: (exporting) => set({ exporting }),

@@ -10,7 +10,8 @@ import type { FfmpegInfo } from '../../../shared/export';
 import type { CacheUsage } from '../../../shared/resources';
 import { notify } from '../../stores/noticeStore';
 import { useUiStore } from '../../stores/uiStore';
-import { COMMANDS, shortcutLabel } from '../commands/commands';
+import { useCommands } from '../../app/registry';
+import { shortcutLabel } from '../commands/commands';
 import { ResourceStackPanel } from '../resources/ResourceStackPanel';
 import { OutputSettingsForm } from './OutputSettingsForm';
 
@@ -143,12 +144,14 @@ function ExportPage() {
 
 function Shortcuts() {
   const { t } = useTranslation();
+  // 注册表里所有带快捷键的命令（可选模块的也会列出来）
+  const commands = useCommands();
   return (
     <table className="w-full text-sm" data-testid="shortcut-table">
       <tbody>
-        {COMMANDS.filter((c) => c.shortcut).map((c) => (
+        {commands.filter((c) => c.shortcut).map((c) => (
           <tr key={c.id} className="border-b border-divider last:border-b-0">
-            <td className="py-1.5">{t(`command.items.${c.id}`)}</td>
+            <td className="py-1.5">{t(c.titleKey)}</td>
             <td className="py-1.5 text-right">
               <Kbd>{shortcutLabel(c.shortcut!)}</Kbd>
             </td>
@@ -157,7 +160,7 @@ function Shortcuts() {
         <tr className="border-b border-divider last:border-b-0">
           <td className="py-1.5">{t('shortcuts.frameStep')}</td>
           <td className="py-1.5 text-right">
-            <Kbd>←</Kbd> <Kbd>→</Kbd> <span className="text-xs text-fg-muted">{t('shortcuts.shiftTen')}</span>
+            <Kbd>←</Kbd> <Kbd>→</Kbd> <span className="text-xs text-fg-subtle">{t('shortcuts.shiftTen')}</span>
           </td>
         </tr>
       </tbody>
