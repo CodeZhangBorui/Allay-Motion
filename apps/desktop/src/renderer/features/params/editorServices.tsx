@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { beginGesture, endGesture, useProjectStore } from '../../stores/projectStore';
 import { useResourceStore } from '../../stores/resourceStore';
 import { useUiStore } from '../../stores/uiStore';
+import { previewAudio } from '../../audio/app-audio';
 import { thumbnails } from '../thumbnails/thumbnails';
 
 /** 方块目录按 03-assets.md 3.7 的分组顺序排列；按顺序切成这几组 */
@@ -102,6 +103,7 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       texturePreview,
       textureIds: TEXTURE_IDS,
       soundIds: SOUND_EVENTS,
+      previewSound: (id) => void previewAudio.preview(id),
       async pickImage() {
         const picked = await window.allay.files.pickImage();
         if (!picked) return null;

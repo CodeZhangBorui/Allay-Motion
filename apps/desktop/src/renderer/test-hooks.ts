@@ -1,7 +1,9 @@
 // 只给自动化测试用的钩子（docs/decisions.md M1“测试钩子”）。只有主进程在未打包、且设置了 ALLAY_E2E_HOOKS 时
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
-import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
+import { TemplateManifestSchema, type AudioCue, type ParamValues } from '@allay/template-sdk';
+import { previewAudio, soundBank } from './audio/app-audio';
+import { mixFrames, mixOffline } from './audio/mix';
 import type { CopyBuiltinRequest, PresetEntry, TemplateDevChange, TemplateDevResult, TemplateEntry } from '../shared/templates';
 import { applyPresetEntry, saveCurrentPreset } from './features/templates/presets';
 import { installDroppedTemplate, removeTemplate, selectTemplate } from './features/templates/actions';
@@ -76,6 +78,15 @@ export interface AllayTestHooks {
   writeTemplateDevFiles(id: string, version: string): Promise<TemplateDevResult>;
   /** 装上钩子以来收到的 templates.onChanged 事件（最多 100 条），clear 为真时读完清空 */
   templateChanges(clear?: boolean): TemplateDevChange[];
+  // ---- 音频（M6b）----
+  /** 预览播放的调度状态：当前排了几个声音、最近一次试听、缺失的音效 */
+  audioState(): ReturnType<typeof previewAudio.debug>;
+  /** 当前装载结果里的 cue（含引擎选定的变体） */
+  audioCues(): AudioCue[];
+  /** 试听一个音效事件（与 SoundField 的按钮同一条路） */
+  auditionSound(id: string): Promise<void>;
+  /** 用当前的 cue 离线混音两次（与导出同一个函数），返回两次 WAV 的 SHA-256 和长度、是否压过峰值 */
+  mixTwice(frames: number, fps: number): Promise<{ hashes: (string | null)[]; bytes: number | null; peakNormalized: boolean; missing: string[] }>;
 }
 
 declare global {
@@ -173,6 +184,17 @@ export function installTestHooks(): void {
     },
     setPreviewTimeouts(t) {
       previewEngine.timeouts = { ...previewEngine.timeouts, ...t };
+    },
+    audioState: () => previewAudio.debug(),
+    audioCues: () => [...usePreviewStore.getState().audioCues],
+    auditionSound: (id) => previewAudio.preview(id),
+    async mixTwice(frames, fps) {
+      const cues = usePreviewStore.getState().audioCues;
+      const length = mixFrames(frames, fps);
+      const a = await mixOffline(cues, length, soundBank);
+      const b = await mixOffline(cues, length, soundBank);
+      const hash = async (w: Uint8Array | null) => (w ? [...new Uint8Array(await crypto.subtle.digest('SHA-256', w.slice().buffer))].map((x) => x.toString(16).padStart(2, '0')).join('') : null);
+      return { hashes: [await hash(a.wav), await hash(b.wav)], bytes: a.wav?.byteLength ?? null, peakNormalized: a.peakNormalized, missing: a.missing };
     },
     pauseExportAfter(n) {
       pausedAt = null;

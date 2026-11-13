@@ -8,6 +8,7 @@ import { applyThemeToDocument } from './app/useThemeSync';
 import { initI18n, resolveLanguage, setSystemLocale } from './i18n';
 import { loadInitialTemplate } from './features/templates/actions';
 import { installTestHooks } from './test-hooks';
+import { previewAudio } from './audio/app-audio';
 import { useResourceStore } from './stores/resourceStore';
 import { useUiStore } from './stores/uiStore';
 
@@ -19,6 +20,8 @@ async function bootstrap(): Promise<void> {
   window.allay.resources.onChanged((next) => useResourceStore.getState().replace(next));
   // 界面注册表：核心命令、标签页、菜单项（可选模块也经它接入）
   registerCore();
+  // 预览播放的声音跟着播放状态走（cue 调度、静音、循环）
+  previewAudio.start();
   if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
 

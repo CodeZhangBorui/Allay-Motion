@@ -58,6 +58,8 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
   if (saved && bounds.x !== undefined) win.setContentSize(bounds.width, bounds.height);
   if (opts.hiddenForTests) {
     // 不调用 show / maximize（maximize 在 Windows 上会顺带显示窗口）
+    // 自动化测试不能发出可听见的声音：整个页面静音（预览播放、试听照常调度，只是不出声，见 docs/decisions.md M6b）
+    win.webContents.setAudioMuted(true);
     log.info('window', 'hidden window for automated tests');
   } else {
     if (saved?.maximized) win.maximize();

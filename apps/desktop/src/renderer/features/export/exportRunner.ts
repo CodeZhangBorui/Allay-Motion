@@ -7,6 +7,10 @@ import type { ExportFailure, ExportPreset } from '../../../shared/export';
 import { EngineHost, EngineUnresponsiveError } from '../../engine-host/EngineHost';
 import { createResolver, loadStamp } from '../../engine-host/resource-client';
 import type { TemplateSource } from '../../templates/catalog';
+import i18next from 'i18next';
+import { reportMissingSounds, soundBank } from '../../audio/app-audio';
+import { mixFrames, mixOffline } from '../../audio/mix';
+import { notify } from '../../stores/noticeStore';
 
 /** 画质档位（02-engine.md 2.7） */
 export const QUALITY_SUBFRAMES = { draft: 1, standard: 8, high: 16, ultra: 32 } as const;
@@ -80,7 +84,14 @@ export class ExportRun {
       const total = frameCount(loaded.duration, req.output.fps);
       const cutFrame = loaded.cutTime === null ? null : Math.round(loaded.cutTime * req.output.fps);
 
-      // 2. 主进程：选位置、校验可写、启动 FFmpeg
+      // 离线混音（5.5）：和预览同一段调度代码；变体是导出引擎写进 cue 的（与预览同一个选择）。
+      // 没有能出声的 cue 时不加音轨；缺失的音效静音并提示
+      if (this.canceled) return { kind: 'canceled' };
+      const mix = await mixOffline(loaded.audioCues, mixFrames(total, req.output.fps), soundBank);
+      reportMissingSounds(mix.missing);
+      if (mix.peakNormalized) notify('info', i18next.t('audio.peakNormalized'));
+
+      // 2. 主进程：选位置、校验可写、启动 FFmpeg（有音轨时等 writeAudio 之后才启动）
       if (this.canceled) return { kind: 'canceled' };
       const start = await window.allay.export.start({
         preset: req.preset,
@@ -90,12 +101,18 @@ export class ExportRun {
         totalFrames: total,
         cutFrame,
         suggestedName: req.suggestedName,
+        audio: mix.wav !== null,
       });
       if (!start.ok) return 'canceled' in start ? { kind: 'canceled' } : { kind: 'failed', error: start.error, frame: null };
       this.jobId = start.job.jobId;
       if (this.canceled) {
         await window.allay.export.cancel(start.job.jobId);
         return { kind: 'canceled' };
+      }
+      if (mix.wav) {
+        const audio = await window.allay.export.writeAudio(start.job.jobId, mix.wav);
+        if (!audio.ok) return { kind: 'failed', error: audio.error, frame: null };
+        if (this.canceled) return { kind: 'canceled' };
       }
 
       // 3. 逐帧握手

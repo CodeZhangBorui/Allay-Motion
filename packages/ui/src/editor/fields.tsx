@@ -98,7 +98,7 @@ export function AngleField({ value, onChange, snap, label, testId }: { value: nu
   );
 }
 
-/** SoundField：下拉加试听按钮（试听和 cue 调度在 M6；未接上时按钮禁用） */
+/** SoundField：下拉加试听按钮（宿主给了 previewSound 才能试听，否则按钮禁用） */
 export function SoundField({ value, onChange, label, testId }: { value: string | null; onChange(v: string | null): void; label: string; testId?: string }) {
   const editor = useEditor();
   const NONE = '__none';
@@ -126,6 +126,7 @@ export function SoundField({ value, onChange, label, testId }: { value: string |
         title={editor.previewSound ? editor.t('sound.preview') : editor.t('sound.previewLater')}
         disabled={!editor.previewSound || value === null}
         onClick={() => value && editor.previewSound?.(value)}
+        data-testid={testId ? `${testId}-preview` : undefined}
       >
         <Play size={ICON.sm} weight="fill" />
       </Button>

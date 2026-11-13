@@ -234,7 +234,7 @@
     "noRelease": "No Minecraft Java Edition release with a client jar was found in that folder.",
     "download": {
       "button": "Download vanilla assets (about 45 MB, from Mojang's official servers)",
-      "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com) and downloads the latest Minecraft Java Edition release client jar into this app's data folder on your computer. Only its textures are read. No personal information is sent and nothing updates automatically; the app only goes online when you click this button.",
+      "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com, resources.download.minecraft.net) and downloads the latest Minecraft Java Edition release client jar, plus a few dozen sound files the templates use (estimated under 2 MB), into this app's data folder on your computer. Only its textures and sounds are read. No personal information is sent and nothing updates automatically; the app only goes online when you click this button.",
       "running": "Downloading vanilla assets…",
       "phase": {
         "manifest": "Reading the version list",
@@ -586,5 +586,9 @@
     "sound": "Sound",
     "cut": "Cut point",
     "toEnd": "Go to end"
+  },
+  "audio": {
+    "missing": "These sounds aren't in the current resources and are muted: {{list}}",
+    "peakNormalized": "The mix peaked above 0 dBFS, so it was turned down to −1 dBFS."
   }
 }

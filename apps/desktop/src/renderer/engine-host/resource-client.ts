@@ -11,6 +11,7 @@ import {
   type FontProviderPayload,
   type ResourceKind,
   type ResourcePayload,
+  type SoundMetaPayload,
 } from '@allay/template-sdk';
 import { currentStamp, useResourceStore } from '../stores/resourceStore';
 import { assetKey, type AssetSource } from '../templates/catalog';
@@ -107,6 +108,12 @@ async function loadFont(id: string): Promise<FontPayload | null> {
   return { kind: 'font', providers, skipped };
 }
 
+/** 音效事件的全部变体（引擎据此给 cue 选定变体，02-engine.md 2.10）；资源栈里没有这个事件时为 null */
+async function loadSoundMeta(id: string): Promise<SoundMetaPayload | null> {
+  const variants = await window.allay.resources.soundVariants(id);
+  return variants ? { kind: 'sound', variants } : null;
+}
+
 async function loadFallbackFont(): Promise<BitmapFontPayload | null> {
   const t = await window.allay.resources.fallbackFont();
   return t ? { kind: 'bdf', ascent: t.ascent, descent: t.descent, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits } : null;
@@ -150,7 +157,9 @@ async function resolveWith(kind: ResourceKind, id: string, assets: AssetSource |
           ? loadTexture(id)
           : kind === 'font' && id === DEFAULT_FONT_ID
             ? loadFont(id)
-            : Promise.resolve(null);
+            : kind === 'sound-meta'
+              ? loadSoundMeta(id)
+              : Promise.resolve(null);
       // 失败（解码不了等）当作缺失，交给引擎用占位并报警告；不缓存失败
       entry = entry.catch((error: unknown) => {
         console.warn(`[resources] ${key} failed: ${error instanceof Error ? error.message : String(error)}`);
