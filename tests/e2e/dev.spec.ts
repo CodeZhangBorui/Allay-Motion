@@ -92,7 +92,7 @@ test('T-DEV-1 入口、类型定义、监视提示；改动模板文件后预览
 
   // 换成测试用的 manifest 和代码（红色）
   const manifest = (params: unknown[]) => JSON.stringify({ formatVersion: 1, id: ref.id, version: ref.version, name: 'Dev', category: 'transition', params });
-  let s = await devState(page);
+  let s: DevState;
   save(join(folder, 'manifest.json'), manifest(MANIFEST_PARAMS));
   save(join(folder, 'template.js'), solidCode('#FF0000'));
   await page.waitForFunction(() => window.__allayTest!.project().paramDefaults.tint === '#FF0000' && window.__allayTest!.devState().phase === 'idle' && window.__allayTest!.previewUpToDate(), undefined, { timeout: 10_000, polling: 50 });
