@@ -6,10 +6,12 @@
 // - 取消、失败：杀掉 FFmpeg，等它退出，删除 .partial。任何结局都不留下临时文件。
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdir, open, rename, rm, stat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, open, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
-import type { ExportErrorCode, ExportFailure, ExportPreset } from '../../shared/export';
+import { AUDIO_CHANNELS, AUDIO_SAMPLE_RATE, readWavInfo, type ExportErrorCode, type ExportFailure, type ExportPreset } from '../../shared/export';
 import { ffmpegArgs } from './ffmpeg-args';
 
 export interface ExportJobOptions {
@@ -24,6 +26,13 @@ export interface ExportJobOptions {
    * 最终位置。ProRes：文件路径（…/name.mov）；PNG 序列：目录路径（…/name），帧写成 name_00000.png。
    */
   target: string;
+  /**
+   * 有音轨（5.5）：start() 只做路径检查，等 writeAudio() 交来 WAV 后才启动 FFmpeg。
+   * ProRes 把 WAV 写到临时目录作为 FFmpeg 的第二个输入；PNG 序列把它另存为同一目录里的 name.wav。
+   */
+  audio?: boolean;
+  /** 临时 WAV 放在哪个目录（缺省为系统临时目录） */
+  tempDir?: string;
 }
 
 export class ExportJobError extends Error {
@@ -68,10 +77,22 @@ export class ExportJob {
   private spawnError: NodeJS.ErrnoException | null = null;
   private stdinError: Error | null = null;
   private readonly frameBytes: number;
+  /** FFmpeg 的输出参数（start() 里定下来；有音轨时等 writeAudio() 之后才用它启动） */
+  private output: string | null = null;
+  /** 有音轨且还没收到 WAV */
+  private awaitingAudio: boolean;
+  /** ProRes 的临时 WAV；任何结局都删除 */
+  private tempWav: string | null = null;
 
   constructor(private readonly opts: ExportJobOptions) {
     this.partial = `${opts.target}.partial`;
     this.frameBytes = opts.width * opts.height * 4;
+    this.awaitingAudio = opts.audio === true;
+  }
+
+  /** 临时 WAV 的路径（测试用）；没有时为 null */
+  get tempAudioPath(): string | null {
+    return this.tempWav;
   }
 
   get framesWritten(): number {
@@ -108,8 +129,43 @@ export class ExportJob {
       this.state = 'failed';
       throw new ExportJobError({ code: isNotWritable(error) ? 'output-not-writable' : 'ffmpeg-failed', detail: errnoDetail(error) });
     }
+    this.output = output;
+    // 有音轨：等 writeAudio() 交来混音再启动 FFmpeg（WAV 是 FFmpeg 的输入，要先在磁盘上）
+    if (!this.awaitingAudio) await this.launch(null);
+  }
 
-    const args = ffmpegArgs({ preset, width: this.opts.width, height: this.opts.height, fps: this.opts.fps, output, cutFrame: this.opts.cutFrame });
+  /**
+   * 交来混好的 WAV（48 kHz 立体声 16 位，5.5），然后启动 FFmpeg。只能在 start() 之后、第一帧之前调用一次，
+   * 而且只对声明了 audio 的任务。WAV 不合格式时任务失败（杀进程、清理）。
+   */
+  async writeAudio(wav: Uint8Array): Promise<void> {
+    if (this.state !== 'running' || !this.awaitingAudio || this.proc) throw new Error('this job does not expect audio now');
+    const info = readWavInfo(wav);
+    if (!info || info.channels !== AUDIO_CHANNELS || info.sampleRate !== AUDIO_SAMPLE_RATE || info.bitsPerSample !== 16) {
+      await this.fail({ code: 'ffmpeg-failed', detail: 'audio is not a 48 kHz stereo 16-bit PCM WAV' });
+    }
+    this.awaitingAudio = false;
+    try {
+      if (this.opts.preset === 'png-sequence') {
+        // PNG 序列：WAV 另存到同一目录（5.3 ②），随目录一起改名到最终位置
+        await writeFile(join(this.partial, `${basename(this.opts.target)}.wav`), wav);
+        await this.launch(null);
+        return;
+      }
+      const dir = this.opts.tempDir ?? tmpdir();
+      this.tempWav = join(dir, `allay-mix-${randomUUID()}.wav`);
+      await writeFile(this.tempWav, wav, { flag: 'wx' });
+    } catch (error) {
+      await this.cleanup();
+      this.state = 'failed';
+      throw new ExportJobError({ code: isNotWritable(error) ? 'output-not-writable' : 'ffmpeg-failed', detail: errnoDetail(error) });
+    }
+    await this.launch(this.tempWav);
+  }
+
+  private async launch(audio: string | null): Promise<void> {
+    const output = this.output!;
+    const args = ffmpegArgs({ preset: this.opts.preset, width: this.opts.width, height: this.opts.height, fps: this.opts.fps, output, cutFrame: this.opts.cutFrame, audio });
     let proc: ChildProcessByStdio<Writable, null, Readable>;
     try {
       proc = spawn(this.opts.ffmpeg, args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
@@ -183,6 +239,7 @@ export class ExportJob {
     }
     try {
       const final = await this.place();
+      await this.removeTempAudio();
       this.state = 'done';
       return final;
     } catch (error) {
@@ -238,6 +295,11 @@ export class ExportJob {
   private async cleanup(): Promise<void> {
     // Windows 上进程刚退出时文件句柄可能还没完全释放，重试几次
     await rm(this.partial, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await this.removeTempAudio();
+  }
+
+  private async removeTempAudio(): Promise<void> {
+    if (this.tempWav) await rm(this.tempWav, { force: true, maxRetries: 10, retryDelay: 100 });
   }
 
   /** 把 .partial 改名到最终位置。ProRes 的目标由保存对话框确认过覆盖；PNG 目录重名时加 “ (2)” */

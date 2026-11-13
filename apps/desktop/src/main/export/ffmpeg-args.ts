@@ -17,6 +17,11 @@ export interface FfmpegJobSpec {
   /** ProRes：输出文件（.partial）；PNG 序列：文件名模板，如 dir/name_%05d.png */
   output: string;
   cutFrame: number | null;
+  /**
+   * 混好的 48 kHz 立体声 16 位 WAV（5.5）；没有音频时为 null。
+   * 只有封装成视频文件的预设把它作为第二个输入；PNG 序列的 WAV 由导出任务另存到同一目录（5.3 ②）。
+   */
+  audio?: string | null;
 }
 
 /** 所有预设共用的输入部分：原始 RGBA 帧从 stdin 进来 */
@@ -43,9 +48,13 @@ export function ffmpegArgs(spec: FfmpegJobSpec): string[] {
   const args = inputArgs(spec.width, spec.height, spec.fps);
   const meta = spec.cutFrame === null ? [] : ['-metadata', `comment=cut_frame=${spec.cutFrame}`];
   switch (spec.preset) {
-    case 'prores4444':
+    case 'prores4444': {
+      // 有音频时：WAV 是第二个输入，显式映射视频和音频，音频存成 16 位 PCM（5.3 ①）
+      const audioIn = spec.audio ? ['-i', spec.audio] : [];
+      const audioOut = spec.audio ? ['-map', '0:v:0', '-map', '1:a:0', '-c:a', 'pcm_s16le'] : [];
       // 不设 -qscale:v（5.3）；输出先写到 .partial，扩展名推断不出容器，所以显式 -f mov
-      return [...args, '-vf', colorFilter('yuva444p10le'), '-c:v', 'prores_ks', '-profile:v', '4444', '-alpha_bits', '16', '-vendor', 'apl0', ...meta, '-f', 'mov', spec.output];
+      return [...args, ...audioIn, ...audioOut, '-vf', colorFilter('yuva444p10le'), '-c:v', 'prores_ks', '-profile:v', '4444', '-alpha_bits', '16', '-vendor', 'apl0', ...meta, '-f', 'mov', spec.output];
+    }
     case 'png-sequence':
       return [...args, '-c:v', 'png', '-start_number', '0', '-f', 'image2', spec.output];
   }

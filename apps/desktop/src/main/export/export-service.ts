@@ -63,7 +63,7 @@ export class ExportService {
     const target = await this.chooseTarget(req);
     if (!target) return { ok: false, canceled: true };
 
-    const job = new ExportJob({ ffmpeg, preset: req.preset, width: req.width, height: req.height, fps: req.fps, totalFrames: req.totalFrames, cutFrame: req.cutFrame, target });
+    const job = new ExportJob({ ffmpeg, preset: req.preset, width: req.width, height: req.height, fps: req.fps, totalFrames: req.totalFrames, cutFrame: req.cutFrame, target, audio: req.audio === true });
     try {
       await job.start();
     } catch (error) {
@@ -72,8 +72,20 @@ export class ExportService {
     const jobId = randomUUID();
     const blocker = powerSaveBlocker.start('prevent-app-suspension');
     this.jobs.set(jobId, { job, blocker });
-    this.opts.log.info('export', 'job started', { jobId, pid: job.pid, preset: req.preset, width: req.width, height: req.height, fps: req.fps, frames: req.totalFrames });
+    this.opts.log.info('export', 'job started', { jobId, pid: job.pid, preset: req.preset, width: req.width, height: req.height, fps: req.fps, frames: req.totalFrames, audio: req.audio === true });
     return { ok: true, job: { jobId, target } };
+  }
+
+  /** 交来混好的 WAV（5.5）；主进程写临时文件后启动 FFmpeg */
+  async writeAudio(jobId: string, wav: Uint8Array): Promise<ExportStepResult> {
+    const running = this.require(jobId);
+    try {
+      await running.job.writeAudio(wav);
+      return { ok: true };
+    } catch (error) {
+      this.end(jobId);
+      return { ok: false, error: this.failure(error, 'audio') };
+    }
   }
 
   async writeFrame(jobId: string, pixels: Uint8Array): Promise<ExportStepResult> {

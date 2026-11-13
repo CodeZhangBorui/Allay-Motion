@@ -1,16 +1,18 @@
-// 导出的验收测试（docs/05-export.md 5.10）：M1 范围是 T-EXP-1（①②）、T-EXP-2、T-EXP-3（①）、T-EXP-5、T-EXP-6。
+// 导出的验收测试（docs/05-export.md 5.10）：M1 范围是 T-EXP-1（①②）、T-EXP-2、T-EXP-3（①）、T-EXP-5、T-EXP-6；M6b 加上 T-EXP-4（①②）。
 // 直接驱动主进程的导出任务（apps/desktop/src/main/export/export-job.ts），用 pnpm ffmpeg:fetch 取回的固定 LGPL 构建。
 // T-EXP-7（端到端）在 tests/e2e/export.spec.ts。
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import en from '../../apps/desktop/src/renderer/i18n/locales/en.json';
 import zhCN from '../../apps/desktop/src/renderer/i18n/locales/zh-CN.json';
 import { ExportJob, ExportJobError, classifyFfmpegError, type ExportJobOptions } from '../../apps/desktop/src/main/export/export-job';
 import { parseEncoders, probeFfmpeg } from '../../apps/desktop/src/main/export/ffmpeg-locate';
-import { EXPORT_ERROR_CODES, type ExportErrorCode } from '../../apps/desktop/src/shared/export';
+import { EXPORT_ERROR_CODES, readWavInfo, type ExportErrorCode } from '../../apps/desktop/src/shared/export';
+import { encodeWav } from '../../apps/desktop/src/renderer/audio/wav';
 import { frameCount } from '../../packages/engine/src/frames';
-import { BARS, BAR_W, FFMPEG, H, W, barsFrame, decodeAllRgba, decodeFrame, probe, processAlive, removeDir, tempDir } from './ffmpeg';
+import { BARS, BAR_W, FFMPEG, FFPROBE, H, W, barsFrame, decodeAllRgba, decodeFrame, probe, processAlive, removeDir, tempDir } from './ffmpeg';
 
 let dir: string;
 beforeEach(() => {
@@ -256,5 +258,97 @@ describe('写入时的背压', () => {
     let n = 0;
     await decodeAllRgba(target, width * height * 4, () => n++);
     expect(n).toBe(120);
+  });
+});
+
+// ---- T-EXP-4 音轨（M6b，5.5）。WAV 是脚本生成的正弦波（测试数据），用和渲染进程同一个编码函数 ----
+
+/** 与渲染进程 mixFrames 同一规则：样本数 = 帧数 / 帧率 × 48000 */
+function sineWav(frames: number, fps: number): Uint8Array {
+  const n = Math.round((frames / fps) * 48_000);
+  const l = new Float32Array(n);
+  const r = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    l[i] = 0.25 * Math.sin((2 * Math.PI * 440 * i) / 48_000);
+    r[i] = 0.25 * Math.sin((2 * Math.PI * 660 * i) / 48_000);
+  }
+  return encodeWav([l, r], 48_000);
+}
+
+/** 所有流的 codec_type / codec_name / sample_rate / channels / duration */
+function streams(path: string): Record<string, string>[] {
+  const r = spawnSync(FFPROBE, ['-v', 'error', '-show_entries', 'stream=codec_type,codec_name,sample_rate,channels,duration', '-of', 'json', path], { encoding: 'utf8', windowsHide: true });
+  if (r.status !== 0) throw new Error(`ffprobe failed: ${r.stderr}`);
+  return (JSON.parse(r.stdout) as { streams: Record<string, string>[] }).streams;
+}
+
+describe('T-EXP-4 音轨', () => {
+  const FPS = 30;
+  const FRAMES = 45;
+
+  it('T-EXP-4 ① 有 cue：存在 48 kHz 立体声音轨（pcm_s16le），时长与视频相差不到 1 帧；临时 WAV 不留下', async () => {
+    const temp = join(dir, 'tmp');
+    mkdirSync(temp);
+    const j = job({ fps: FPS, totalFrames: FRAMES, audio: true, tempDir: temp, target: join(dir, 'with.mov') });
+    await j.start();
+    // FFmpeg 等音频交来后才启动
+    expect(j.pid).toBeUndefined();
+    await expect(j.writeFrame(barsFrame())).rejects.toThrow();
+    await j.writeAudio(sineWav(FRAMES, FPS));
+    expect(j.pid).toBeDefined();
+    expect(readdirSync(temp)).toHaveLength(1);
+    for (let i = 0; i < FRAMES; i++) await j.writeFrame(barsFrame());
+    const out = await j.finish();
+    const s = streams(out);
+    const video = s.find((x) => x.codec_type === 'video')!;
+    const audio = s.filter((x) => x.codec_type === 'audio');
+    expect(audio).toHaveLength(1);
+    expect(audio[0]).toMatchObject({ codec_name: 'pcm_s16le', sample_rate: '48000', channels: 2 });
+    expect(Math.abs(Number(audio[0]!.duration) - Number(video.duration))).toBeLessThan(1 / FPS);
+    expect(Number(video.duration)).toBeCloseTo(FRAMES / FPS, 3);
+    expect(readdirSync(temp)).toEqual([]);
+    expect(readdirSync(dir).sort()).toEqual(['tmp', 'with.mov']);
+  });
+
+  it('T-EXP-4 ① 没有 cue：没有音轨', async () => {
+    const out = await encode({ fps: FPS, totalFrames: FRAMES, target: join(dir, 'without.mov') }, barsFrame());
+    const s = streams(out);
+    expect(s.filter((x) => x.codec_type === 'audio')).toEqual([]);
+    expect(s.filter((x) => x.codec_type === 'video')).toHaveLength(1);
+  });
+
+  it('T-EXP-4 ② PNG 序列有 cue：同一目录另存 name.wav（48 kHz 立体声，时长等于视频）；没有 cue 时没有 WAV', async () => {
+    const j = job({ preset: 'png-sequence', fps: FPS, totalFrames: FRAMES, audio: true, target: join(dir, 'seq') });
+    await j.start();
+    await j.writeAudio(sineWav(FRAMES, FPS));
+    for (let i = 0; i < FRAMES; i++) await j.writeFrame(barsFrame());
+    const out = await j.finish();
+    const wav = new Uint8Array(readFileSync(join(out, 'seq.wav')));
+    const info = readWavInfo(wav)!;
+    expect(info).toMatchObject({ channels: 2, sampleRate: 48_000, bitsPerSample: 16 });
+    expect(Math.abs(info.dataBytes / 4 / 48_000 - FRAMES / FPS)).toBeLessThan(1 / FPS);
+    expect(readdirSync(out).filter((f) => f.endsWith('.png'))).toHaveLength(FRAMES);
+
+    const plain = await encode({ preset: 'png-sequence', fps: FPS, totalFrames: FRAMES, target: join(dir, 'plain') }, barsFrame());
+    expect(readdirSync(plain).filter((f) => !f.endsWith('.png'))).toEqual([]);
+  });
+
+  it('T-EXP-4 不合格式的音频：任务失败，不留下任何文件；取消等音频中的任务也不留文件', async () => {
+    const temp = join(dir, 'tmp');
+    mkdirSync(temp);
+    const bad = job({ fps: FPS, totalFrames: FRAMES, audio: true, tempDir: temp, target: join(dir, 'bad.mov') });
+    await bad.start();
+    const mono = encodeWav([new Float32Array(48_000)], 48_000);
+    await expectFailure(bad.writeAudio(mono), 'ffmpeg-failed');
+    const waiting = job({ fps: FPS, totalFrames: FRAMES, audio: true, tempDir: temp, target: join(dir, 'wait.mov') });
+    await waiting.start();
+    await waiting.cancel();
+    // 没声明音轨的任务不接受音频
+    const noAudio = job({ fps: FPS, totalFrames: FRAMES, target: join(dir, 'x.mov') });
+    await noAudio.start();
+    await expect(noAudio.writeAudio(sineWav(FRAMES, FPS))).rejects.toThrow();
+    await noAudio.cancel();
+    expect(readdirSync(temp)).toEqual([]);
+    expect(readdirSync(dir)).toEqual(['tmp']);
   });
 });
