@@ -239,3 +239,71 @@ M2 拆成两半并行：M2a 不依赖引擎（本节），M2b 在 M1 合入后�
 - 运行时下载留给 M2b 的部分：IPC 接线、征求同意的对话框、进度界面；把 `app.getPath('userData')/vanilla-cache` 和 `app.isPackaged` 传给 `createVanillaDownloader`。
 - 留给 M2b：T-AST-2、T-AST-3；资源到 Worker 的通路和缓存；网格；位图字的栅格化和文字对象（本次只做了字体提供器 JSON 的解析和字形宽度规则）；缩略图；IPC 的 `resources` 命名空间；首次发现游戏时的对话框；资源栈弹层；拖入资源包。
 - 没有引入任何字体。
+
+## M2b 资源层接进引擎和界面
+
+### 范围与前提（沿用 M2a 的范围变更）
+
+- 不自制任何贴图、图标、字形、音效。M1 的占位方块桩 `stub-resources.ts` 已删除；贴图缺失时只用引擎里的品红黑棋盘并记警告（T-AST-3）。
+- **T-AST-2 的前提改为**：资源栈里只有一个由测试脚本生成的假原版层（纯色色块的假 jar，覆盖方块、物品、界面目录的全部贴图）。e2e 里这样装载临时模板，`warnings` 为空。另加一条：没有任何素材层时显示引导状态，不报错、不白屏。T-AST-7、H-ART 不再适用，没有做。
+- 覆盖率检查：`tests/unit/coverage-fake-vanilla.test.ts` 对假原版层全覆盖；对本机真实 jar 的检查仍是手动的 `scripts/smoke-vanilla.ts`。
+
+### 兜底字体：方舟像素字体
+
+- 规格的“内置像素字体”用 9.7 推荐的方舟像素字体（Ark Pixel Font）2026.11.10，12px 比例宽度 zh_hans 的 **BDF**，从官方发布包原样取出，**不做任何修改**（不转格式、不裁剪），放在 `resources/fonts/ark-pixel/`，附发布包里的 `OFL.txt`，登记在 `ASSETS_PROVENANCE.json`，随安装包（`extraResources`）分发。
+- 许可核对（2026-11-13，经 GitHub API 读仓库）：字体部分是 `LICENSE-OFL`（SIL OFL 1.1，`Copyright (c) 2021, TakWolf`，**没有 Reserved Font Name**）；构建程序是 `LICENSE-MIT`，不随我们分发。README 写明“字体”和“构建程序”分别授权，没有发现其他条款。缝合像素字体合并了多个来源的字形，许可链更长，没有选。
+- 选 BDF 而不是 OTF/TTF：BDF 是纯文本位图，解析简单、像素准确，不需要在 Worker 里做字体光栅化（Worker 里没有 FontFace 的网络路径，CSP 也不用动）。`.gitattributes` 让它按原样保存，不做换行符转换。
+- 解析在主进程（`@allay/assets` 的 `parseBdf`，约 90 ms，只做一次），成表格经 IPC 交给渲染进程，再交给引擎。
+- 关于页的“第三方许可”在 M4；OFL 全文已经随包附带。
+
+### 资源通路
+
+- 主进程 `ResourceService`（`apps/desktop/src/main/resources/service.ts`）：按 `settings.json` 的 `resources`（M2a 的 `ResourceStackSettingsSchema`）组装资源栈，栈一变就算新的 `resourceStamp` 并经 `resources:changed` 推给渲染进程。改栈的操作串行执行。
+- 渲染进程 `engine-host/resource-client.ts` 是引擎的 `resolveResource`：经 IPC 取原始文件，**在渲染进程里自己解码 PNG**（`@allay/assets` 的 `decodePng`，用浏览器的 `DecompressionStream` 解压）。不用 canvas 解码，是因为 2D canvas 内部预乘，半透明像素会丢精度。解码结果按 stamp 缓存；每次交给 Worker 的是副本（载荷是零拷贝转移的）。
+- 预览：stamp 变了就重新 `load`（引擎按新的 stamp 清空贴图缓存）。导出：用开始导出时的 stamp。
+- 贴图载荷带 `mcmeta`：**与 PNG 来自同一层**的 `.png.mcmeta` 原文（游戏的规则：元数据跟着胜出的那张图走），引擎自己解析动画和 `gui.scaling`。
+- 规格 1.8 之外多出的 IPC 方法：`resources.readTexture`（PNG + 同层 mcmeta）、`fontProviders`（字体定义合并、展开 reference）、`fallbackFont`、`chooseGameDir`（规格的 `setVanilla` 拆成开关/同意和选目录两件事）、`downloadVanilla`、`cancelDownload`。`setVanilla` 只接受 `{ consent?, enabled? }`。全部有 zod 校验，T-ARC-6 的畸形参数表已补齐。
+- 拖放：preload 的 `addDroppedPack(file)` 只接受 `File`，用 `webUtils.getPathForFile` 取路径再交给主进程；页面自己构造的 `File` 没有路径，主进程收到空串被 schema 拒绝（e2e 覆盖）。主进程再要求是绝对路径，且只接受 zip 文件或目录。
+
+### 原版层的来源、同意与下载
+
+- 启动时：内置层和资源包先打开（不需要探测），原版层在后台**离线**探测（本机游戏 + 下载缓存的 `findCached`），`chooseVanillaSource` 默认取较新的那个。
+- 同意：`consent` 为 null 且发现本机游戏时弹一次 3.4 的对话框。**第二个按钮原文“先用内置素材”改为“暂不使用”**（没有内置素材了）；答案写进设置，之后不再问。用户点“下载”并成功、或手动选了游戏目录，都视为同意。
+- 引导状态：探测完、资源栈里没有任何启用的原版层或资源包时，预览区上方显示一张卡片（不是错误卡片，模板照常装载、缺的贴图是占位）：“下载原版资源（约 45 MB，来自 Mojang 官方服务器）”、“查找游戏目录…”、“添加资源包…”，发现过本机游戏但没同意时另有“使用本机的 Minecraft {版本}”。说明文字写明会连哪两个主机、下载什么、存在哪里、不发个人信息、不自动更新。**“约 45 MB”是按 2026-09 的 26.3（jar 41.5 MB）写的估计**，下载前不联网所以拿不到准确大小。资源栈弹层里没有原版层时显示同一组入口。
+- 下载只在 `downloadVanilla()` 里调用，只由按钮触发；进度经 `resources:changed`（节流 100 ms，节流掉的最后一次在间隔结束时补发）。取消用 AbortController，不留 `.part`。失败分 network / verify / disk / unknown 四类文案。
+- **下载缓存的原版层不传 `fetchObject`**：除了用户点“下载”，应用不再按需联网取音效对象。音效在 M6，到时再定（可以在下载时一并取 10 个事件需要的对象）。
+- 测试替身：主进程只有在未打包、且 `ALLAY_E2E_MOJANG_ORIGIN` 是 `http://127.0.0.1:端口` 时才把三个 Mojang 主机映射到这个本机地址（`readTestSwitches` 校验格式，`createVanillaDownloader` 在打包后本来就拒绝）。e2e 的默认值是没人监听的 `127.0.0.1:9`，误点下载也不会出网。另一个开关 `ALLAY_E2E_GAME_APPDATA` 让探测看测试目录而不是 `%APPDATA%`，e2e 默认指向一个空目录，**测试永远不会碰到这台机器上真装的游戏**。
+- 同意过、但游戏和下载缓存都找不到了：静默退回，资源面板显示一行提示（`vanilla.problem = 'missing'`）；jar 打不开为 `jar-unreadable`。
+
+### 资源包与资源栈弹层
+
+- 新加的包放在最上面。zip 包 id 是 `zip:<sha256 前 16 位>`，同一内容重复添加不会出现两行；删除时没有别的条目引用就删掉 `packs/` 里的副本。文件夹包 id 是 `folder:<uuid>`，设置里记路径，窗口重新获得焦点时重扫，内容变了才重建。
+- 打不开的包（文件没了、zip 被拒绝）不进资源栈，在弹层里单独列出原因和删除按钮。
+- 原版层固定在内置层之上、所有资源包之下，不参与排序（规格：资源包在原版层之上）。
+- **内置层是空的，不在弹层里列出**（`LayerInfo.empty`）。
+- 弹层是自己写的（Escape、点外面关闭），排序用每行的“上移/下移”按钮，键盘可用。dnd-kit 拖拽排序、shadcn Popover、Sonner 通知在 M4 换上；现在拖入结果用窗口底部一条 6 秒的提示。
+
+### 引擎
+
+- `ctx.resources.block/item`、`ctx.text.create`、`ctx.sprite.create` 实现，`runtime.ts` 的类型补齐。
+- **面明暗和着色的色彩空间**：游戏在 sRGB 里把系数乘在贴图上；引擎把系数先换成线性值烘进顶点色，在线性空间里乘。对纯幂函数两者相同，sRGB 曲线下暗色会差几个单位（测试里草的着色差到 4/255，容差放到 6）。M1 的临时模板原来把 0.8 等系数当线性值用，现在改用目录方块后南面会比 M1 亮一些。
+- 实例化的方块一律走透明队列（逐实例不透明度需要混合）；不透明度为 1 时结果与不透明相同。不透明度 ≤ 0 的片元直接丢弃（不写深度）。cutout 的阈值只看贴图 alpha（不透明度在 alphaTest 之后才乘）。半透明方块按物体排序，实例之间不排序（“尽力排序”）。
+- 侧面叠加层（草方块侧面）是另外 4 个面，抠图并用 polygonOffset 往前偏。
+- 物品：正反面各一个四边形，用 alphaTest 0.5 抠出形状；侧壁按不透明像素生成并合并同色相邻段。不在目录里但在方块目录里的 ID 按方块渲染。侧壁明暗用方块那套系数（上 1.0、下 0.5、左右 0.6），规格没写。
+- **文字是“一段文字一张贴图、一个四边形”**，不是规格写的“每个字形一个四边形”：每个字形的像素原样拷进这张贴图，放大缩小都用最近邻，视觉上等价，实现和确定性都更简单。阴影是同一张贴图偏移 1 个字体像素、颜色 × 0.25（sRGB）。行高是这一行字形的上升 + 下降 + 1 像素间隔。原点：水平按 align，垂直在整段文字的中线（规格没写）。
+- 原版字形和兜底字形按各自的原生像素尺寸画：原版约 8 像素高，方舟 12 像素高，混排时中文看起来大一些。游戏里中日韩字形来自 unihex（16 像素画成一半），v1 不解析 unihex，所以有这个差别。
+- 哪个字体都没有的字形跳过并报一条警告（列出前 8 个码位）。
+- `text.create` 是同步的，所以引擎在每次 `setup` 之前取好字体（资源栈字体按 stamp 缓存，兜底字体整个 Worker 只取一次）。
+- 精灵九宫格：边框按“逻辑像素 × pixelSize”，逻辑像素以 `.mcmeta` 的 `gui.scaling` 尺寸为准（高清包的贴图像素是它的倍数）。尺寸比两边边框还小时按比例压缩边框。
+- `renderThumbnail` 按规格返回 `ImageBitmap`。方块的投影刚好放进 ±0.82 的正交框。
+
+### 缩略图
+
+- `features/thumbnails/thumbnails.ts`：内存 → `cache.getThumb` → 杂务 Worker 画，按顺序排队；PNG 写进 `userData/cache/thumbs/<stamp>/<kind>_<size>_<id>.png`（ID 里的 `:` 和 `/` 换成 `~`）。写入新 stamp 时删掉其他 stamp 的目录。stamp 变了就丢掉内存里的，把要过的缩略图在后台重建。杂务 Worker 空闲 30 秒销毁。
+- M2 还没有界面用它（方块选择器在 M4），e2e 经测试钩子覆盖生成、磁盘缓存命中和失效。
+
+### 测试
+
+- test:engine 的假资源栈（`tests/engine/harness/fake-resources.ts`）：按 ID 散列的纯色 16×16、一张 4 帧纯色动画条、一张纯色边框的面板图、一张左半透明的物品图、一套由不同宽度实心矩形拼成的测试字体。都只是测试数据。兜底字体用仓库里真实的 BDF。
+- e2e 的假游戏、假资源包、假 Mojang 服务器全部在测试时生成（纯色色块），不提交二进制。拖放用真实的文件输入框拿到带路径的 `File`，再派发 `drop` 事件，走的是界面真实的拖放处理和 preload。
+- 观察到的不稳定（未解决）：一次完整 e2e 里 T-ARC-5 的 CDP 往返时间量到约 1 秒（同期页面里没有任何长任务）；单独跑 7 次都通过。当时机器上同时在跑其他命令。主进程的 BDF 解析（约 90 ms、只做一次）已排除。随后单独跑 7 次、完整 `pnpm check` 一次都通过。
