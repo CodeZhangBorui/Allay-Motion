@@ -135,7 +135,7 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' } }],
     [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: '', defaults: {}, hidden: [] }],
     [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', defaults: {}, hidden: [], id: 'allay.builtin.evil' }],
-    [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', defaults: {}, hidden: [], files: { logo: 'C:\Windows\win.ini' } }],
+    [{ base: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, name: 'x', defaults: {}, hidden: [], files: { logo: 'C:\\Windows\\win.ini' } }],
   ],
   'presets.list': [[1]],
   'presets.save': [
@@ -150,18 +150,18 @@ const MALFORMED: Record<string, unknown[][]> = {
   'presets.importFile': [[1], ['C:\\x.allaypreset']],
   'presets.exportFile': [[], ['../x'], [42]],
   // 合法的 open、save（句柄为 null）、saveAs 会弹对话框，这里只有畸形参数
-  'project.open': [[1], ['C:\x.allay'], [{ path: 'C:\x.allay' }]],
-  'project.openRecent': [[], ['C:\x.allay'], [42], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
+  'project.open': [[1], ['C:\\x.allay'], [{ path: 'C:\\x.allay' }]],
+  'project.openRecent': [[], ['C:\\x.allay'], [42], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
   'project.save': [
     [],
     [null],
-    ['C:\x.allay', {}],
+    ['C:\\x.allay', {}],
     // 格式合法但没签发过的句柄
     ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', { name: 'x', template: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, params: {}, output: { width: 1920, height: 1080, fps: 60 }, export: { preset: 'prores4444', quality: 'standard', shutterAngle: 180 }, preview: { background: 'checker' }, resourceHint: [] }],
     [null, { name: 'x', template: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, params: {}, output: { width: 1920, height: 1080, fps: 61 }, export: { preset: 'prores4444', quality: 'standard', shutterAngle: 180 }, preview: { background: 'checker' }, resourceHint: [] }],
-    [null, { name: 'x', template: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, params: {}, output: { width: 1920, height: 1080, fps: 60 }, export: { preset: 'prores4444', quality: 'standard', shutterAngle: 180 }, preview: { background: 'checker' }, resourceHint: [], files: { logo: 'C:\Windows\win.ini' } }],
+    [null, { name: 'x', template: { id: 'allay.builtin.block-wipe', version: '1.0.0' }, params: {}, output: { width: 1920, height: 1080, fps: 60 }, export: { preset: 'prores4444', quality: 'standard', shutterAngle: 180 }, preview: { background: 'checker' }, resourceHint: [], files: { logo: 'C:\\Windows\\win.ini' } }],
   ],
-  'project.saveAs': [[], [null], [{ name: '' }], [{ name: 'x', path: 'C:\x.allay' }]],
+  'project.saveAs': [[], [null], [{ name: '' }], [{ name: 'x', path: 'C:\\x.allay' }]],
   'project.recents': [[1], ['x']],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],

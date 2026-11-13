@@ -276,7 +276,7 @@ test.describe('导出', () => {
     await waitStatus(page, 'ready');
     await page.getByTestId('topbar-export').click();
     await expect(page.getByTestId('export-dialog')).toBeVisible();
-    if (quality) await page.getByTestId('export-quality').selectOption(quality);
+    if (quality) await page.getByTestId(`export-quality-${quality}`).click();
     await page.getByTestId('export-start').click();
   }
 

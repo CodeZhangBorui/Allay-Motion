@@ -159,8 +159,9 @@ describe('只给测试用的开关', () => {
     ALLAY_FFMPEG: 'C:/ff.exe',
     ALLAY_E2E_GAME_APPDATA: 'C:/game',
     ALLAY_E2E_MOJANG_ORIGIN: 'http://127.0.0.1:4567',
+    ALLAY_E2E_PROJECT_PATH: 'C:/p.allay',
   };
-  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null };
+  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null, projectPath: null };
   it('打包后的应用忽略它们', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
     expect(readTestSwitches(true, ALL)).toEqual(OFF);
@@ -175,6 +176,7 @@ describe('只给测试用的开关', () => {
       ffmpeg: 'C:/ff.exe',
       gameAppData: 'C:/game',
       mojangOrigin: 'http://127.0.0.1:4567',
+      projectPath: 'C:/p.allay',
     });
     // 假服务器只能是本机回环地址
     for (const bad of ['https://127.0.0.1:4567', 'http://evil.example:80', 'http://127.0.0.1:4567/x', 'http://localhost:4567'])

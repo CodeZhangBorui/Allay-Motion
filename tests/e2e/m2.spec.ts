@@ -211,8 +211,11 @@ test('资源栈弹层：拖入资源包，叠加顺序、开关、重排都会�
     await expectSpot(page, 'red');
     await row('Blue').getByTestId('layer-toggle').click();
     await expectSpot(page, 'blue');
-    // Blue 下移（到 Red 下面）→ Red
-    await row('Blue').getByTestId('layer-down').click();
+    // Blue 下移（到 Red 下面）→ Red。dnd-kit 的键盘拖拽：聚焦手柄，空格拿起，下移一格，空格放下
+    await row('Blue').getByTestId('layer-drag').focus();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Space');
     await expectSpot(page, 'red');
     await expect(popover.getByTestId('layer-row').first()).toContainText('Red');
     // 关掉 Red → Blue
