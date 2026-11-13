@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { z } from 'zod';
 import { create } from 'zustand';
+import { withOrigin, type UndoOrigin } from '../stores/projectStore';
 
 // 界面注册表（docs/code-editing-and-mcp-plan.md H1、H2；docs/decisions.md 界面重设计）。
 // 界面从这里读取有哪些标签页/面板、菜单项、命令来渲染；核心功能自己也通过同一组接口注册（core.tsx）。
@@ -129,11 +130,16 @@ export function commandEnabled(cmd: AnyCommand): boolean {
   return !cmd.enabled || cmd.enabled();
 }
 
+export interface DispatchOptions {
+  /** 谁发起的（写进撤销记录的来源，H6）：缺省是 command（菜单、快捷键、命令面板） */
+  source?: UndoOrigin['source'];
+}
+
 /**
- * 执行命令的唯一入口（命令面板、快捷键、菜单都经它）：找命令、看可用条件、带参数的先过 zod 校验，
- * 有 output schema 的再校验返回值。
+ * 执行命令的唯一入口（命令面板、快捷键、菜单、主进程的命令通道、可选模块都经它）：找命令、看可用条件、
+ * 带参数的先过 zod 校验，有 output schema 的再校验返回值。write 命令同步产生的改动在撤销记录上标明命令和来源。
  */
-export async function dispatch(id: string, input?: unknown): Promise<unknown> {
+export async function dispatch(id: string, input?: unknown, options: DispatchOptions = {}): Promise<unknown> {
   const cmd = getCommand(id);
   if (!cmd) throw new CommandError('unknown-command', `unknown command: ${id}`);
   if (!commandEnabled(cmd)) throw new CommandError('disabled', `command is not available now: ${id}`);
@@ -143,7 +149,8 @@ export async function dispatch(id: string, input?: unknown): Promise<unknown> {
     if (!parsed.success) throw new CommandError('invalid-input', `invalid input for ${id}: ${parsed.error.message}`);
     arg = parsed.data;
   }
-  const out = await (cmd.run as (i: unknown) => unknown)(arg);
+  const run = () => (cmd.run as (i: unknown) => unknown)(arg);
+  const out = await (cmd.effect === 'write' ? withOrigin({ labelKey: cmd.undoLabelKey ?? cmd.titleKey, source: options.source ?? 'command' }, run) : run());
   if (cmd.output) {
     const parsed = cmd.output.safeParse(out);
     if (!parsed.success) throw new CommandError('invalid-output', `invalid output from ${id}: ${parsed.error.message}`);
