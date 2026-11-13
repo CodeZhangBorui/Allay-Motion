@@ -1,0 +1,42 @@
+# CI（docs/01-product-architecture.md 1.10）：Windows 上跑 pnpm check 和 pnpm dist。
+# 只做构建与检查：不签名、不上传安装包、不发布（AGENTS.md 硬性规则 11）。
+name: ci
+
+on:
+  push:
+    branches: [main, 'milestone/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-dist:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # 版本取 package.json 的 packageManager 字段
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm check
+        run: pnpm check
+
+      - name: pnpm dist
+        run: pnpm dist
+        env:
+          # 不签名（H-SIGN），不让 electron-builder 去找证书
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
