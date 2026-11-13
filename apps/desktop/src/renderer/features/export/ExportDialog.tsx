@@ -7,6 +7,8 @@ import { FilmSlate } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExportErrorCode, ExportPreset, FfmpegInfo } from '../../../shared/export';
+import { soundFileStates } from '../../audio/sound-library';
+import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { useTransportStore } from '../../stores/transportStore';
@@ -16,7 +18,12 @@ import { ExportRun, QUALITY_SUBFRAMES, type ExportOutcome, type ExportProgress, 
 // M1 的最小导出对话框（M4 套上新的视觉规范）：格式（ProRes 4444 / PNG 序列）、画质、进度、取消、结果。
 // 完整的设置页、进度页、完成页（720×520、格式卡片、剪辑点说明、体积估算、AllayProgress 的完整编排）在 M7。
 
-type Phase = { kind: 'settings' } | { kind: 'running'; progress: ExportProgress } | { kind: 'finished'; outcome: ExportOutcome };
+type Phase =
+  | { kind: 'settings' }
+  /** 导出前检查（M6b）：要用的音效还在下载缓存的索引里、没取回。可以一键取回，或不带它们导出；导出中途不联网 */
+  | { kind: 'sounds'; remote: string[]; fetching: boolean; failed: boolean }
+  | { kind: 'running'; progress: ExportProgress }
+  | { kind: 'finished'; outcome: ExportOutcome };
 
 const PRESETS: ExportPreset[] = ['prores4444', 'png-sequence'];
 const QUALITIES = Object.keys(QUALITY_SUBFRAMES) as QualityLevel[];
@@ -74,16 +81,39 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
     };
   }, []);
 
+  /** 导出前检查要用的音效（预览装载结果里引擎选定的变体，与导出的相同） */
   const start = async () => {
+    const files = usePreviewStore.getState().audioCues.flatMap((c) => (c.variant ? [c.variant.file] : []));
+    const states = await soundFileStates(files, false);
+    const remote = [...new Set(files)].filter((f) => states[f] === 'remote');
+    if (remote.length > 0) {
+      setPhase({ kind: 'sounds', remote, fetching: false, failed: false });
+      return;
+    }
+    await run();
+  };
+
+  const fetchAndRun = async (remote: string[]) => {
+    setPhase({ kind: 'sounds', remote, fetching: true, failed: false });
+    const states = await soundFileStates(remote, true);
+    const still = remote.filter((f) => states[f] !== 'local');
+    if (still.length > 0) {
+      setPhase({ kind: 'sounds', remote: still, fetching: false, failed: true });
+      return;
+    }
+    await run();
+  };
+
+  const run = async () => {
     const { template, params, output, name: projectName } = useProjectStore.getState();
     if (!template) return;
     const name = `${projectName ?? t('project.untitled')}_${localized(template.manifest.name, i18n.language)}_${output.width}x${output.height}_${output.fps}fps`;
-    const run = new ExportRun({ template, params, output, preset, quality, shutterAngle: 180, suggestedName: name }, (progress) =>
+    const job = new ExportRun({ template, params, output, preset, quality, shutterAngle: 180, suggestedName: name }, (progress) =>
       setPhase({ kind: 'running', progress }),
     );
-    runRef.current = run;
+    runRef.current = job;
     setPhase({ kind: 'running', progress: { written: 0, total: 0 } });
-    const outcome = await run.run();
+    const outcome = await job.run();
     runRef.current = null;
     setPhase({ kind: 'finished', outcome });
   };
@@ -140,6 +170,27 @@ export function ExportDialog({ onClose }: { onClose(): void }) {
               </Button>
               <Button size="lg" data-testid="export-start" disabled={info !== null && !info.presets[preset]} onClick={() => void start()}>
                 {t('export.start')}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {phase.kind === 'sounds' && (
+          <>
+            <p className="text-sm" data-testid="export-sounds-remote">
+              {t('export.soundsRemote', { count: phase.remote.length })}
+            </p>
+            {phase.failed && (
+              <p role="alert" className="text-sm text-danger" data-testid="export-sounds-failed">
+                {t('audio.fetchFailed')}
+              </p>
+            )}
+            <DialogFooter>
+              <Button variant="secondary" size="lg" disabled={phase.fetching} onClick={() => void run()} data-testid="export-sounds-skip">
+                {t('export.soundsSkip')}
+              </Button>
+              <Button size="lg" disabled={phase.fetching} onClick={() => void fetchAndRun(phase.remote)} data-testid="export-sounds-fetch">
+                {t(phase.fetching ? 'export.soundsFetching' : 'export.soundsFetch')}
               </Button>
             </DialogFooter>
           </>

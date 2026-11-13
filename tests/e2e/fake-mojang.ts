@@ -15,19 +15,28 @@ export interface FakeMojang {
   /** 收到的请求里有没有 User-Agent 之类的标识 */
   identifyingHeaders: string[];
   jarMode: JarMode;
+  /** 资源对象（M6b 的音效）：fail 时一律返回 500，模拟离线 */
+  objectMode: 'ok' | 'fail';
   /** hold 模式下 jar 已经发了一半、正在等 */
   holding(): boolean;
   close(): Promise<void>;
 }
 
-export async function startFakeMojang(versionId: string, jarEntries: readonly ZipEntrySpec[]): Promise<FakeMojang> {
+/**
+ * assets 给定时（M6b）：版本 JSON 带资源索引，索引里是这些对象（键如 minecraft/sounds.json），
+ * 对象按 /<哈希前两位>/<哈希> 提供，和 resources.download.minecraft.net 一样。
+ */
+export async function startFakeMojang(versionId: string, jarEntries: readonly ZipEntrySpec[], assets?: Readonly<Record<string, Buffer>>): Promise<FakeMojang> {
   const jar = Buffer.from(buildZip(jarEntries));
+  const index = assets ? Buffer.from(JSON.stringify({ objects: Object.fromEntries(Object.entries(assets).map(([k, b]) => [k, { hash: sha1(b), size: b.length }])) })) : null;
+  const objects = new Map(Object.values(assets ?? {}).map((b) => [`/${sha1(b).slice(0, 2)}/${sha1(b)}`, b]));
   const version = Buffer.from(
     JSON.stringify({
       id: versionId,
       type: 'release',
       releaseTime: '2030-01-01T00:00:00+00:00',
       downloads: { client: { url: 'https://piston-data.mojang.com/v1/objects/fake/client.jar', sha1: sha1(jar), size: jar.length } },
+      ...(index ? { assetIndex: { id: 'fake', url: 'https://piston-meta.mojang.com/v1/packages/fake/index.json', sha1: sha1(index), size: index.length } } : {}),
     }),
   );
   const manifest = Buffer.from(
@@ -42,6 +51,7 @@ export async function startFakeMojang(versionId: string, jarEntries: readonly Zi
     requests: [],
     identifyingHeaders: [],
     jarMode: 'ok',
+    objectMode: 'ok',
     holding: () => holding !== null && !holding.destroyed,
     close: async () => {
       server.closeAllConnections();
@@ -54,6 +64,12 @@ export async function startFakeMojang(versionId: string, jarEntries: readonly Zi
     for (const h of ['user-agent', 'cookie', 'authorization', 'referer']) if (req.headers[h] !== undefined) state.identifyingHeaders.push(h);
     if (path === '/mc/game/version_manifest_v2.json') return void res.writeHead(200, { 'content-length': String(manifest.length) }).end(manifest);
     if (path === '/v1/packages/fake/version.json') return void res.writeHead(200, { 'content-length': String(version.length) }).end(version);
+    if (index && path === '/v1/packages/fake/index.json') return void res.writeHead(200, { 'content-length': String(index.length) }).end(index);
+    const object = objects.get(path);
+    if (object) {
+      if (state.objectMode === 'fail') return void res.writeHead(500).end();
+      return void res.writeHead(200, { 'content-length': String(object.length) }).end(object);
+    }
     if (path === '/v1/objects/fake/client.jar') {
       if (state.jarMode === 'fail') return void res.writeHead(500).end();
       if (state.jarMode === 'hold') {

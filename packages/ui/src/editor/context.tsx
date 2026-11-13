@@ -15,6 +15,12 @@ export interface CatalogGroup {
   label: string;
 }
 
+/** 音效库里的一个事件：local 能直接放；remote 在下载缓存里还没取回（试听、选中时按需取）；missing 放不出来 */
+export interface SoundLibraryItem {
+  id: string;
+  state: 'local' | 'remote' | 'missing';
+}
+
 export type RecentKind = 'color' | 'block' | 'item' | 'texture';
 
 export interface EditorServices {
@@ -39,10 +45,15 @@ export interface EditorServices {
   pickImage(): Promise<{ value: string; name: string } | null>;
   /** 资源栈里可选的贴图 ID（目录里方块和物品用到的贴图） */
   textureIds: readonly string[];
-  /** 可选的音效事件 */
-  soundIds: readonly string[];
-  /** 试听（M6 接上）；未提供时试听按钮禁用 */
+  /**
+   * 音效选择器的库（M6b）：library 是资源栈合并后的 sounds.json 里的全部事件（按 ID 排序）；
+   * common 是规格 3.8 的常用事件（置顶，只显示库里有的）。没有素材层时 library 为空
+   */
+  sounds: { library: readonly SoundLibraryItem[]; common: readonly string[]; loading: boolean };
+  /** 试听；未提供时试听按钮禁用 */
   previewSound?(id: string): void;
+  /** 用户在选择器里选中了一个音效（宿主按需取回还没下载的文件） */
+  prepareSound?(id: string): void;
   recent(kind: RecentKind): readonly string[];
   addRecent(kind: RecentKind, value: string): void;
   /** 一次连续操作（拖滑块、拖数字）开始和结束：之间的改动只算一条撤销记录（1.7） */

@@ -2,10 +2,13 @@
 // 以及 T-EXP-4 的端到端部分。窗口不显示、不抢焦点，并且整个页面静音（主进程在测试窗口上 setAudioMuted），不发出声音。
 // 音效来自测试里现场生成的文件夹资源包：sounds.json 加正弦波 WAV（测试数据，不是产品素材，也不是游戏文件）。
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { encodeWav } from '../../apps/desktop/src/renderer/audio/wav';
+import { solidPng, tex } from '../unit/helpers/resource-fixtures';
+import { startFakeMojang } from './fake-mojang';
 import { launchApp, makeUserDataDir, removeUserDataDir, requirePinnedFfmpeg, ROOT } from './helpers';
 
 type Locale = { audio: { missing: string } };
@@ -183,6 +186,13 @@ test.describe('M6b 预览的声音', () => {
       expect(await page.evaluate(() => window.__allayTest!.status().kind)).toBe('ready');
       await page.getByTestId('transport-play').click();
 
+      // 没有素材层：选择器的库是空的，显示引导（没有任何自制或合成音效可选）
+      await page.getByTestId('param-group-sound').click();
+      await page.getByTestId('param-placeSound-trigger').click();
+      await expect(page.getByTestId('sound-library-empty')).toBeVisible();
+      await expect(page.getByTestId('sound-list').locator('[data-testid^="sound-minecraft:"]')).toHaveCount(0);
+      await page.keyboard.press('Escape');
+
       await page.evaluate(() => window.__allayTest!.auditionSound('minecraft:entity.player.levelup'));
       expect((await audio(page)).lastAudition).toEqual({ sound: 'minecraft:entity.player.levelup', file: null });
     } finally {
@@ -248,4 +258,106 @@ test.describe('T-EXP-4 端到端', () => {
       }
     });
   }
+});
+
+test.describe('M6b 音效库', () => {
+  test('M6b 选择器：库是资源包 sounds.json 里的全部事件，常用置顶、按“命名空间 · 类别”分组、可搜索；选中后参数和 cue 跟着变', async () => {
+    const dir = setup(true);
+    const { app, page } = await launchApp(dir);
+    try {
+      await waitReady(page);
+      await page.getByTestId('param-group-sound').click();
+      await page.getByTestId('param-placeSound-trigger').click();
+      const list = page.getByTestId('sound-list');
+      await expect(list.getByTestId('sound-minecraft:ui.toast.in').first()).toBeVisible();
+      // 常用（3.8 的事件、库里有的）在最前面，其后是分组
+      const labels = await list.locator('div.h-6').allTextContents();
+      expect(labels[0]).toBe((await messages(page)) === zhCN ? '常用' : 'Common');
+      expect(labels).toEqual(expect.arrayContaining(['minecraft · block', 'minecraft · ui']));
+      await page.getByTestId('sound-search').fill('toast');
+      // 常用里一行、分组里一行
+      await expect(list.locator('[data-testid^="sound-minecraft:"]')).toHaveCount(2);
+      await list.getByTestId('sound-minecraft:ui.toast.in').first().click();
+      await expect.poll(() => page.evaluate(() => window.__allayTest!.project().params.placeSound)).toBe('minecraft:ui.toast.in');
+      await expect.poll(async () => (await cues(page)).some((c) => c.sound === 'minecraft:ui.toast.in' && c.variant?.file === 'minecraft:test/toast')).toBe(true);
+    } finally {
+      await app.close();
+      removeUserDataDir(dir);
+    }
+  });
+
+  test('M6b 下载缓存的原版层：下载时只取常用事件的音效；选中别的音效时才按需取回；导出前发现没取回的会提示，可一键取回，导出中途不联网', async () => {
+    const dir = setup(false);
+    const out = join(dir, 'exports');
+    mkdirSync(out);
+    const sounds = {
+      'block.stone.place': { sounds: ['test/place'] },
+      'block.stone.break': { sounds: ['test/break'] },
+      'block.anvil.land': { sounds: ['test/anvil'] },
+      'block.bell.use': { sounds: ['test/bell'] },
+    };
+    const assets: Record<string, Buffer> = { 'minecraft/sounds.json': Buffer.from(JSON.stringify(sounds)) };
+    // 正弦波 WAV 放在 .ogg 的键下（解码按内容识别格式）；测试数据，不是游戏文件
+    const tones: [string, number][] = [
+      ['place', 440],
+      ['break', 330],
+      ['anvil', 220],
+      ['bell', 880],
+    ];
+    for (const [name, freq] of tones) assets[`minecraft/sounds/test/${name}.ogg`] = Buffer.from(sine(freq, 0.2));
+    const server = await startFakeMojang('9.9.9', [{ name: tex('stone'), data: solidPng('#00ff00') }], assets);
+    const objectPath = (key: string) => {
+      const h = createHash('sha1').update(assets[key]!).digest('hex');
+      return `/${h.slice(0, 2)}/${h}`;
+    };
+    const { app, page } = await launchApp(dir, { ALLAY_E2E_MOJANG_ORIGIN: server.origin, ALLAY_E2E_EXPORT_TARGET: out, ALLAY_FFMPEG: requirePinnedFfmpeg() });
+    try {
+      await waitReady(page);
+      await page.getByTestId('vanilla-download').click();
+      await expect.poll(() => page.evaluate(() => window.__allayTest!.resourceState()!.vanilla.active), { timeout: 20_000 }).toBe('cached');
+      // 下载时：sounds.json 和常用事件（放置、破坏）的文件；铁砧、钟不取
+      expect(server.requests).toEqual(expect.arrayContaining([objectPath('minecraft/sounds.json'), objectPath('minecraft/sounds/test/place.ogg'), objectPath('minecraft/sounds/test/break.ogg')]));
+      expect(server.requests).not.toContain(objectPath('minecraft/sounds/test/anvil.ogg'));
+      expect(server.requests).not.toContain(objectPath('minecraft/sounds/test/bell.ogg'));
+      await waitReady(page);
+
+      // 选择器里铁砧是 remote；选中它时才取回
+      await page.getByTestId('param-group-sound').click();
+      await page.getByTestId('param-placeSound-trigger').click();
+      const anvil = page.getByTestId('sound-list').getByTestId('sound-minecraft:block.anvil.land');
+      await expect(anvil).toHaveAttribute('data-state', 'remote');
+      await expect(page.getByTestId('sound-list').getByTestId('sound-minecraft:block.stone.place').first()).toHaveAttribute('data-state', 'local');
+      const before = server.requests.length;
+      await anvil.click();
+      await expect.poll(() => server.requests.slice(before)).toContain(objectPath('minecraft/sounds/test/anvil.ogg'));
+      await expect.poll(() => page.evaluate(() => window.__allayTest!.project().params.placeSound)).toBe('minecraft:block.anvil.land');
+      await page.getByTestId('param-placeSound-trigger').click();
+      await expect(page.getByTestId('sound-list').getByTestId('sound-minecraft:block.anvil.land')).toHaveAttribute('data-state', 'local');
+      await page.keyboard.press('Escape');
+
+      // 工程里的音效（钟）没取回：导出前提示。先模拟离线：取不到，提示失败、留在这一步
+      await page.evaluate(() => window.__allayTest!.setParams({ placeSound: 'minecraft:block.bell.use' }));
+      await expect.poll(async () => (await cues(page)).some((c) => c.variant?.file === 'minecraft:test/bell')).toBe(true);
+      await waitReady(page);
+      server.objectMode = 'fail';
+      await page.getByTestId('topbar-export').click();
+      await page.getByTestId('export-quality-draft').click();
+      await page.getByTestId('export-start').click();
+      await expect(page.getByTestId('export-sounds-remote')).toBeVisible();
+      await page.getByTestId('export-sounds-fetch').click();
+      await expect(page.getByTestId('export-sounds-failed')).toBeVisible();
+      server.objectMode = 'ok';
+      await page.getByTestId('export-sounds-fetch').click();
+      await expect(page.getByTestId('export-result')).toHaveAttribute('data-kind', 'done', { timeout: 60_000 });
+      const path = (await page.getByTestId('export-path').textContent())!;
+      expect(streams(path).filter((x) => x.codec_type === 'audio')).toHaveLength(1);
+      // 导出过程中没有再联网：钟的文件只在确认取回时请求过（失败一次、成功一次）
+      expect(server.requests.filter((p) => p === objectPath('minecraft/sounds/test/bell.ogg'))).toHaveLength(2);
+      expect(server.identifyingHeaders).toEqual([]);
+    } finally {
+      await app.close();
+      await server.close();
+      removeUserDataDir(dir);
+    }
+  });
 });

@@ -15,6 +15,7 @@ import { useTransportStore } from '../stores/transportStore';
 import { useUiStore } from '../stores/uiStore';
 import { scheduleCues } from './schedule';
 import { MIX_SAMPLE_RATE, SoundBank } from './sound-bank';
+import { soundFileStates } from './sound-library';
 
 /** 按音效名从资源栈取文件：先 .ogg 再 .wav（3.8） */
 async function loadSoundFile(file: string): Promise<Uint8Array | null> {
@@ -177,6 +178,8 @@ class PreviewAudio {
     const turn = this.auditionTurn.get(eventId) ?? 0;
     this.auditionTurn.set(eventId, turn + 1);
     const variant = playable.length > 0 ? playable[turn % playable.length]! : null;
+    // 下载缓存里还没取回的：试听是用户操作，按需取回（decisions.md M6b）
+    if (variant && (await soundFileStates([variant.file], false))[variant.file] === 'remote') await soundFileStates([variant.file], true);
     const buffer = variant ? await soundBank.buffer(variant.file) : null;
     this.lastAudition = { sound: eventId, file: buffer && variant ? variant.file : null };
     if (!buffer || !variant) {

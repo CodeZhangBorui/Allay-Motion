@@ -1,4 +1,4 @@
-import { DiceFive, Play } from '@phosphor-icons/react';
+import { DiceFive } from '@phosphor-icons/react';
 import { cn } from 'cn';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Button } from '../components/ui/button';
@@ -9,7 +9,7 @@ import { ICON } from '../lib/icons';
 import { beginGesture, useEditor } from './context';
 import { ScrubNumberField } from './ScrubNumberField';
 
-// 几个小控件（6.5）：DurationField、SeedField、AngleField、SoundField，以及开关、枚举、文本。
+// 几个小控件（6.5）：DurationField、SeedField、AngleField，以及开关、枚举、文本（SoundField 在 SoundPicker.tsx）。
 
 /** DurationField：以秒编辑，旁边显示帧数；吸附到 1 / fps */
 export function DurationField({ value, onChange, min, max, label, testId }: { value: number; onChange(v: number): void; min: number; max: number; label: string; testId?: string }) {
@@ -98,41 +98,6 @@ export function AngleField({ value, onChange, snap, label, testId }: { value: nu
   );
 }
 
-/** SoundField：下拉加试听按钮（宿主给了 previewSound 才能试听，否则按钮禁用） */
-export function SoundField({ value, onChange, label, testId }: { value: string | null; onChange(v: string | null): void; label: string; testId?: string }) {
-  const editor = useEditor();
-  const NONE = '__none';
-  const name = (id: string) => editor.t(`sound.names.${id.replace(/[:.]/g, '_')}`, { id });
-  return (
-    <div className="flex min-w-0 items-center gap-1" data-testid={testId}>
-      <Select value={value ?? NONE} onValueChange={(v) => onChange(v === NONE || typeof v !== 'string' ? null : v)}>
-        <SelectTrigger aria-label={label} className="min-w-0 flex-1">
-          <SelectValue>{(v: unknown) => <span className="truncate">{v === NONE || v == null ? editor.t('sound.none') : name(String(v))}</span>}</SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>{editor.t('sound.none')}</SelectItem>
-          {editor.soundIds.map((id) => (
-            <SelectItem key={id} value={id}>
-              {name(id)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        variant="secondary"
-        size="icon-sm"
-        className="text-fg-muted"
-        aria-label={editor.t('sound.preview')}
-        title={editor.previewSound ? editor.t('sound.preview') : editor.t('sound.previewLater')}
-        disabled={!editor.previewSound || value === null}
-        onClick={() => value && editor.previewSound?.(value)}
-        data-testid={testId ? `${testId}-preview` : undefined}
-      >
-        <Play size={ICON.sm} weight="fill" />
-      </Button>
-    </div>
-  );
-}
 
 export function BooleanField({ value, onChange, label, testId }: { value: boolean; onChange(v: boolean): void; label: string; testId?: string }) {
   return (

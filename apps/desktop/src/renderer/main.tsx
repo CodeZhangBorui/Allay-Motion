@@ -9,6 +9,7 @@ import { initI18n, resolveLanguage, setSystemLocale } from './i18n';
 import { loadInitialTemplate } from './features/templates/actions';
 import { installTestHooks } from './test-hooks';
 import { previewAudio } from './audio/app-audio';
+import { startSoundLibrary } from './audio/sound-library';
 import { useResourceStore } from './stores/resourceStore';
 import { useUiStore } from './stores/uiStore';
 
@@ -22,6 +23,8 @@ async function bootstrap(): Promise<void> {
   registerCore();
   // 预览播放的声音跟着播放状态走（cue 调度、静音、循环）
   previewAudio.start();
+  // 音效选择器的库（资源栈合并后的 sounds.json），资源栈一变就重新取
+  startSoundLibrary();
   if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
 

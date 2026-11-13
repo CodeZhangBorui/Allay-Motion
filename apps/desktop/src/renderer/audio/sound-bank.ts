@@ -29,14 +29,17 @@ export class SoundBank {
     this.cache.clear();
   }
 
-  /** 解码好的音效；缺失或解码失败时为 null（失败不缓存，下次再试） */
+  /** 解码好的音效；缺失或解码失败时为 null（null 不缓存：按需取回之后下次就能读到） */
   buffer(file: string): Promise<AudioBuffer | null> {
     let p = this.cache.get(file);
     if (!p) {
-      p = this.decode(file).catch((error: unknown) => {
+      const entry = this.decode(file).catch((error: unknown) => {
         console.warn(`[audio] ${file}: ${error instanceof Error ? error.message : String(error)}`);
-        this.cache.delete(file);
         return null;
+      });
+      p = entry.then((b) => {
+        if (!b && this.cache.get(file) === p) this.cache.delete(file);
+        return b;
       });
       this.cache.set(file, p);
     }

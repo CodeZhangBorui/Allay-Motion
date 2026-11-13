@@ -7,6 +7,7 @@ import { beginGesture, endGesture, useProjectStore } from '../../stores/projectS
 import { useResourceStore } from '../../stores/resourceStore';
 import { useUiStore } from '../../stores/uiStore';
 import { previewAudio } from '../../audio/app-audio';
+import { prepareSound, useSoundLibraryStore } from '../../audio/sound-library';
 import { thumbnails } from '../thumbnails/thumbnails';
 
 /** 方块目录按 03-assets.md 3.7 的分组顺序排列；按顺序切成这几组 */
@@ -86,6 +87,8 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
   const hasAssets = useResourceStore((s) => s.state?.hasAssets ?? false);
   const stamp = useResourceStore((s) => s.state?.stamp ?? '');
   const recent = useUiStore((s) => s.settings.editor.recent);
+  const soundEvents = useSoundLibraryStore((s) => s.events);
+  const soundsLoading = useSoundLibraryStore((s) => s.loading);
   const value = useMemo<EditorServices>(() => {
     const blockGroups: CatalogGroup[] = BLOCK_GROUP_SIZES.map(([key]) => ({ key, label: t(`editor.picker.groups.${key}`) }));
     const itemGroups: CatalogGroup[] = [{ key: 'items', label: t('editor.picker.groups.items') }];
@@ -102,8 +105,9 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       thumbnail: async (kind, id) => (await thumbnails.get(kind, id, 64))?.url ?? null,
       texturePreview,
       textureIds: TEXTURE_IDS,
-      soundIds: SOUND_EVENTS,
+      sounds: { library: soundEvents, common: SOUND_EVENTS, loading: soundsLoading },
       previewSound: (id) => void previewAudio.preview(id),
+      prepareSound: (id) => void prepareSound(id),
       async pickImage() {
         const picked = await window.allay.files.pickImage();
         if (!picked) return null;
@@ -116,6 +120,6 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       gesture: (phase) => (phase === 'start' ? beginGesture() : endGesture()),
       openResources: () => useUiStore.getState().setResourcesOpen(true),
     };
-  }, [t, i18n.language, fps, hasAssets, stamp, recent]);
+  }, [t, i18n.language, fps, hasAssets, stamp, recent, soundEvents, soundsLoading]);
   return <EditorProvider value={value}>{children}</EditorProvider>;
 }

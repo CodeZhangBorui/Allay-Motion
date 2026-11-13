@@ -199,7 +199,11 @@
       "high": "高",
       "ultra": "极致"
     },
-    "doneTitle": "导出完成"
+    "doneTitle": "导出完成",
+    "soundsRemote": "有 {{count}} 个要用的音效还没下载到本机。导出过程中不会联网。",
+    "soundsFetch": "取回音效并导出",
+    "soundsFetching": "正在取回…",
+    "soundsSkip": "不带这些音效导出"
   },
   "resources": {
     "button": "素材：{{name}}",
@@ -234,7 +238,7 @@
     "noRelease": "这个目录里没有找到带客户端的正式版 Minecraft Java 版。",
     "download": {
       "button": "下载原版资源（约 45 MB，来自 Mojang 官方服务器）",
-      "note": "会联网连接 Mojang 的官方服务器（piston-meta.mojang.com、piston-data.mojang.com、resources.download.minecraft.net），下载最新正式版的 Minecraft Java 版客户端 jar，以及模板音效要用的几十个声音文件（估计不到 2 MB），保存在本机的应用数据目录里，只用来读取其中的贴图和音效。不会发送任何个人信息，不会自动更新；只有点这个按钮时才会联网。",
+      "note": "会联网连接 Mojang 的官方服务器（piston-meta.mojang.com、piston-data.mojang.com、resources.download.minecraft.net），下载最新正式版的 Minecraft Java 版客户端 jar，以及内置模板常用的几十个声音文件（估计不到 2 MB），保存在本机的应用数据目录里，只用来读取其中的贴图和音效。之后你试听或选中其他音效、或在导出前确认取回时，才会再从 resources.download.minecraft.net 取回那个音效的文件。不会发送任何个人信息，不会自动更新，不会在后台批量下载。",
       "running": "正在下载原版资源…",
       "phase": {
         "manifest": "读取版本列表",
@@ -514,7 +518,13 @@
         "minecraft_ui_toast_challenge_complete": "挑战完成",
         "minecraft_entity_generic_explode": "爆炸",
         "allay_whoosh": "飞掠"
-      }
+      },
+      "common": "常用",
+      "library": "音效",
+      "remote": "还没下载，试听或选中时从 Mojang 官方服务器取回",
+      "unavailable": "当前的资源里没有这个音效的文件",
+      "loading": "正在读取音效列表…",
+      "noLibrary": "还没有素材，没有可选的音效。"
     },
     "picker": {
       "recent": "最近使用",
@@ -589,6 +599,7 @@
   },
   "audio": {
     "missing": "当前的资源里找不到这些音效，已静音：{{list}}",
-    "peakNormalized": "混音的峰值超过了 0 dBFS，已整体压低到 −1 dBFS。"
+    "peakNormalized": "混音的峰值超过了 0 dBFS，已整体压低到 −1 dBFS。",
+    "fetchFailed": "有音效没能从 Mojang 的服务器取回（可能没有联网），这些音效暂时静音。"
   }
 }
