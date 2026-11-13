@@ -24,6 +24,9 @@ import {
   type TemplateInstance,
   type TemplateModule,
   type ThumbRequest,
+  sanitizeParams,
+  seedOf,
+  type TemplateManifest,
 } from '@allay/template-sdk';
 import { createBlockHandle } from './blocks';
 import { ease, math, segment } from './ease';
@@ -81,6 +84,8 @@ const MAX_WARNINGS = 50;
 interface Loaded {
   module: TemplateModule;
   code: string;
+  manifest: TemplateManifest;
+  locale: string;
   output: LoadRequest['output'];
   stage: StageInfo;
   params: ParamValues;
@@ -134,6 +139,11 @@ function validateInstance(value: unknown): Active['instance'] {
   }
   if (inst.dispose !== undefined && typeof inst.dispose !== 'function') throw new TemplateError('instance.dispose must be a function');
   return inst as TemplateInstance;
+}
+
+/** manifest 有参数定义时按定义清洗；派生模板交来的是生效 manifest（4.7），也带参数定义 */
+function cleanParams(manifest: TemplateManifest, params: ParamValues, locale: string): ParamValues {
+  return manifest.params ? sanitizeParams(manifest.params, params, { locale }) : params;
 }
 
 /** 释放场景里模板创建的几何体和材质。贴图属于引擎的缓存，不在这里释放 */
@@ -208,7 +218,10 @@ export class Engine implements EngineApi {
     this.resources!.setStamp(parsed.resourceStamp);
     const module = this.loaded && this.loaded.code === parsed.code ? this.loaded.module : await importTemplate(parsed.code);
     const stage = computeStage(parsed.output);
-    this.loaded = { module, code: parsed.code, output: parsed.output, stage, params: parsed.params };
+    const locale = parsed.locale ?? 'en';
+    // 参数经 template-sdk 的校验函数清洗（4.4）：缺的补默认值，多的丢弃，类型不对的回到默认值，越界的钳制
+    const params = cleanParams(parsed.manifest, parsed.params, locale);
+    this.loaded = { module, code: parsed.code, manifest: parsed.manifest, locale, output: parsed.output, stage, params };
     if (this.mode !== 'preview') this.pipeline!.setSize(parsed.output.width, parsed.output.height);
     return this.setup();
   }
@@ -216,7 +229,7 @@ export class Engine implements EngineApi {
   async setParams(params: ParamValues): Promise<LoadResult> {
     const parsed = ParamValuesSchema.parse(params);
     if (!this.loaded) throw new Error('no template loaded');
-    this.loaded = { ...this.loaded, params: parsed };
+    this.loaded = { ...this.loaded, params: cleanParams(this.loaded.manifest, parsed, this.loaded.locale) };
     return this.setup();
   }
 
@@ -353,7 +366,8 @@ export class Engine implements EngineApi {
 
     const scene = new THREE.Scene();
     let camera: THREE.Camera = createDefaultCamera(loaded.stage);
-    const seedParam = loaded.params.seed;
+    // 模板有 seed 类型的参数时以它为种子（4.4）；没有参数定义的测试模板沿用 params.seed
+    const seedParam = loaded.manifest.params ? seedOf(loaded.manifest.params, loaded.params) : loaded.params.seed;
     const seed = typeof seedParam === 'number' && Number.isFinite(seedParam) ? seedParam : 0;
     const noises = new Map<string, Noise2D>();
 

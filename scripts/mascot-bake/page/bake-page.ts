@@ -6,9 +6,16 @@ import { TemplateManifestSchema, type ParamValues, type ResourcePayload } from '
 const manifest = TemplateManifestSchema.parse({
   formatVersion: 1,
   id: 'allay.internal.mascot',
-  version: '1',
+  version: '1.0.0',
   name: 'mascot (internal)',
   category: 'overlay',
+  // 引擎按参数定义清洗参数（04-templates.md 4.4），内部模板也要声明它用到的参数
+  params: [
+    { key: 'view', type: 'enum', label: 'view', default: 'body', options: [{ value: 'body', label: 'body' }, { value: 'head', label: 'head' }] },
+    { key: 'clip', type: 'text', label: 'clip', default: 'hover' },
+    { key: 'texture', type: 'texture', label: 'texture', default: 'minecraft:entity/allay/allay' },
+    { key: 'headK', type: 'integer', label: 'headK', default: 1, min: 1, max: 1024 },
+  ],
 });
 
 interface TextureIn {
