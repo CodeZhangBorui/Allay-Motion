@@ -1,0 +1,40 @@
+{
+  "name": "@allay/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop app for Minecraft-style transition animations",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "dist": "electron-vite build && electron-builder --win --x64 --publish never --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "electron": "^45.3.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.8"
+  },
+  "dependencies": {
+    "@allay/assets": "workspace:*",
+    "@allay/engine": "workspace:*",
+    "@allay/mascot": "workspace:*",
+    "@allay/template-sdk": "workspace:*",
+    "@allay/ui": "workspace:*",
+    "i18next": "^27.1.1",
+    "lucide-react": "^1.72.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^18.0.1",
+    "react-resizable-panels": "^4.21.0",
+    "zod": "^4.6.7",
+    "zustand": "^5.1.0"
+  }
+}
