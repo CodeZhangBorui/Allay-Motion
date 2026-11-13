@@ -3,11 +3,11 @@
 // React 只提供放画布的容器。
 import type { LoadResult } from '@allay/template-sdk';
 import { EngineCrashedError, EngineHost, EngineUnresponsiveError, type WatchdogTimeouts } from '../../engine-host/EngineHost';
-import { resolveResource } from '../../engine-host/resource-client';
-import { TemplateCodeError } from '../../engine-host/template-check';
+import { createResolver, loadStamp } from '../../engine-host/resource-client';
+import type { AssetSource } from '../../templates/catalog';
+import { TemplateCodeError } from '../../../shared/template-code';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
-import { currentStamp } from '../../stores/resourceStore';
 import { useTransportStore } from '../../stores/transportStore';
 
 interface Viewport {
@@ -40,6 +40,9 @@ export class PreviewEngine {
   /** 看门狗之后不自动重新装载同一个模板，等用户点“重试” */
   private holdLoad = false;
   timeouts: Partial<WatchdogTimeouts> = {};
+  /** 正在装载或已装载的模板的 asset: 来源（引擎要模板自带的图片时从这里读） */
+  private assets: AssetSource | null = null;
+  private readonly resolveResource = createResolver(() => this.assets);
 
   /** 预览区挂载时交来容器；卸载时传 null */
   mount(container: HTMLElement | null): void {
@@ -89,6 +92,11 @@ export class PreviewEngine {
     return this.viewport ? { width: this.viewport.pixelWidth, height: this.viewport.pixelHeight } : null;
   }
 
+  /** 预览当前装载的是工程的第几版（projectStore.revision）；还没装载时为 -1 */
+  get loadedProjectRevision(): number {
+    return this.loadedRevision;
+  }
+
   get workerGeneration(): number {
     return this.generation;
   }
@@ -135,7 +143,7 @@ export class PreviewEngine {
         const host = await EngineHost.create({
           mode: 'preview',
           canvas,
-          resolveResource,
+          resolveResource: this.resolveResource,
           strictDeterminism: import.meta.env.DEV,
           timeouts: this.timeouts,
           log: (level, msg) => (level === 'error' ? console.error : console.warn)(`[engine] ${msg}`),
@@ -200,11 +208,14 @@ export class PreviewEngine {
     const host = this.host;
     if (!host) return;
     const { template, params, output, revision } = useProjectStore.getState();
-    const stamp = currentStamp();
+    // 模板列表还没取到：等 projectStore 里有了模板再装
+    if (!template) return;
+    const stamp = loadStamp(template.assets);
     if ((revision === this.loadingRevision && stamp === this.loadingStamp) || (revision === this.loadedRevision && stamp === this.loadedStamp)) return;
     this.loadingRevision = revision;
     this.loadingStamp = stamp;
     usePreviewStore.getState().setStatus({ kind: 'loading' });
+    this.assets = template.assets;
     let result: LoadResult;
     try {
       result = await host.load({ manifest: template.manifest, code: template.code, params, output, resourceStamp: stamp });
@@ -219,7 +230,7 @@ export class PreviewEngine {
     this.loadedRevision = revision;
     this.loadedStamp = stamp;
     // 装载期间资源栈又变了：再装一次
-    if (stamp !== currentStamp()) queueMicrotask(() => this.reload());
+    if (stamp !== loadStamp(useProjectStore.getState().template?.assets ?? null)) queueMicrotask(() => this.reload());
     useTransportStore.getState().setTimeline(result.duration, result.cutTime);
     usePreviewStore.getState().setStatus({ kind: 'ready', warnings: result.warnings });
     this.requestRender(useTransportStore.getState().time);

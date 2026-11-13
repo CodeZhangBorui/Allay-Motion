@@ -5,9 +5,8 @@ import { frameCount } from '@allay/engine/frames';
 import type { FrameQuality, OutputSettings, ParamValues } from '@allay/template-sdk';
 import type { ExportFailure, ExportPreset } from '../../../shared/export';
 import { EngineHost, EngineUnresponsiveError } from '../../engine-host/EngineHost';
-import { resolveResource } from '../../engine-host/resource-client';
-import { currentStamp } from '../../stores/resourceStore';
-import type { TemplateSource } from '../../templates/builtin';
+import { createResolver, loadStamp } from '../../engine-host/resource-client';
+import type { TemplateSource } from '../../templates/catalog';
 
 /** 画质档位（02-engine.md 2.7） */
 export const QUALITY_SUBFRAMES = { draft: 1, standard: 8, high: 16, ultra: 32 } as const;
@@ -73,10 +72,11 @@ export class ExportRun {
     let frame: number | null = null;
     try {
       // 1. 导出 Worker：每次导出新建，用输出分辨率的离屏画布
-      const host = await EngineHost.create({ mode: 'export', resolveResource, strictDeterminism: import.meta.env.DEV });
+      const assets = req.template.assets;
+      const host = await EngineHost.create({ mode: 'export', resolveResource: createResolver(() => assets), strictDeterminism: import.meta.env.DEV });
       this.host = host;
       if (this.canceled) return { kind: 'canceled' };
-      const loaded = await host.load({ manifest: req.template.manifest, code: req.template.code, params: req.params, output: req.output, resourceStamp: currentStamp() });
+      const loaded = await host.load({ manifest: req.template.manifest, code: req.template.code, params: req.params, output: req.output, resourceStamp: loadStamp(assets) });
       const total = frameCount(loaded.duration, req.output.fps);
       const cutFrame = loaded.cutTime === null ? null : Math.round(loaded.cutTime * req.output.fps);
 

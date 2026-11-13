@@ -7,15 +7,46 @@
   },
   "gallery": {
     "title": "模板",
-    "search": "搜索模板",
-    "categories": {
-      "all": "全部",
-      "transition": "转场",
-      "overlay": "叠加",
-      "mine": "我的"
+    "import": "导入模板…",
+    "builtin": "内置",
+    "user": "我的",
+    "baseMissing": "基模板缺失",
+    "nondeterministic": "预览与导出可能不一致",
+    "empty": "没有可用的模板。"
+  },
+  "templates": {
+    "installed": "模板已安装。",
+    "installedWithWarnings": "模板已安装，但有问题：{{warnings}}。",
+    "rejected": "无法安装：{{reason}}（{{detail}}）",
+    "listSeparator": "、",
+    "errors": {
+      "not-a-zip": "不是有效的模板包",
+      "package-too-large": "模板包超过 50 MB",
+      "unsafe-path": "包里有不安全的路径",
+      "bad-extension": "包里有不允许的文件类型",
+      "unpacked-too-large": "解压后太大",
+      "manifest-missing": "缺少 manifest.json",
+      "manifest-invalid": "manifest.json 不合规",
+      "format-too-new": "模板格式比应用新，请升级应用",
+      "app-too-old": "需要更新版本的应用",
+      "reserved-id": "模板 ID 不能以 allay. 开头",
+      "base-missing": "它依赖的基模板没有安装或版本不匹配",
+      "base-not-script": "基模板本身是派生模板（只允许派生一层）",
+      "code-missing": "缺少 template.js",
+      "derived-has-code": "派生模板不能带 template.js",
+      "code-too-large": "template.js 超过 1 MB",
+      "code-has-import": "template.js 里不能有 import",
+      "code-syntax": "template.js 无法解析",
+      "trial-failed": "试运行失败",
+      "staging-expired": "安装已超时，请重新导入"
     },
-    "placeholder": "模板库会在这里出现。",
-    "import": "导入模板…"
+    "warnings": {
+      "nondeterministic": "预览与导出可能不一致",
+      "first-frame-visible": "首帧不是全透明",
+      "last-frame-visible": "末帧不是全透明",
+      "cut-not-opaque": "剪辑点不是完全不透明",
+      "load-warnings": "装载时有警告"
+    }
   },
   "preview": {
     "region": "预览",

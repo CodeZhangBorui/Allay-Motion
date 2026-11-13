@@ -7,15 +7,46 @@
   },
   "gallery": {
     "title": "Templates",
-    "search": "Search templates",
-    "categories": {
-      "all": "All",
-      "transition": "Transitions",
-      "overlay": "Overlays",
-      "mine": "Mine"
+    "import": "Import template…",
+    "builtin": "Built-in",
+    "user": "Mine",
+    "baseMissing": "base template missing",
+    "nondeterministic": "preview and export may differ",
+    "empty": "No templates available."
+  },
+  "templates": {
+    "installed": "Template installed.",
+    "installedWithWarnings": "Template installed, with problems: {{warnings}}.",
+    "rejected": "Couldn't install: {{reason}} ({{detail}})",
+    "listSeparator": ", ",
+    "errors": {
+      "not-a-zip": "Not a valid template package",
+      "package-too-large": "The package is larger than 50 MB",
+      "unsafe-path": "The package contains an unsafe path",
+      "bad-extension": "The package contains a file type that is not allowed",
+      "unpacked-too-large": "Too large once unpacked",
+      "manifest-missing": "manifest.json is missing",
+      "manifest-invalid": "manifest.json is invalid",
+      "format-too-new": "The template format is newer than this app; please update",
+      "app-too-old": "A newer version of the app is required",
+      "reserved-id": "Template ids must not start with allay.",
+      "base-missing": "The base template is not installed or its version does not match",
+      "base-not-script": "The base template is itself derived (only one level is allowed)",
+      "code-missing": "template.js is missing",
+      "derived-has-code": "A derived template must not contain template.js",
+      "code-too-large": "template.js is larger than 1 MB",
+      "code-has-import": "template.js must not contain import",
+      "code-syntax": "template.js could not be parsed",
+      "trial-failed": "The trial run failed",
+      "staging-expired": "The install timed out; please import again"
     },
-    "placeholder": "Your template library will appear here.",
-    "import": "Import template…"
+    "warnings": {
+      "nondeterministic": "preview and export may differ",
+      "first-frame-visible": "the first frame is not fully transparent",
+      "last-frame-visible": "the last frame is not fully transparent",
+      "cut-not-opaque": "the cut frame is not fully opaque",
+      "load-warnings": "loading produced warnings"
+    }
   },
   "preview": {
     "region": "Preview",

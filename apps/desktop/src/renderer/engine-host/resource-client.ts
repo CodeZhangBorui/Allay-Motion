@@ -5,6 +5,7 @@ import { decodePng, type DecodedImage } from '@allay/assets';
 import {
   DEFAULT_FONT_ID,
   FALLBACK_FONT_ID,
+  MAX_TEXTURE_SIZE,
   type BitmapFontPayload,
   type FontPayload,
   type FontProviderPayload,
@@ -12,6 +13,7 @@ import {
   type ResourcePayload,
 } from '@allay/template-sdk';
 import { currentStamp, useResourceStore } from '../stores/resourceStore';
+import { assetKey, type AssetSource } from '../templates/catalog';
 
 /** 浏览器自带的 zlib 解压，给 PNG 解码用（不需要 WebAssembly，CSP 不用放宽） */
 async function inflate(data: Uint8Array): Promise<Uint8Array> {
@@ -40,9 +42,40 @@ useResourceStore.subscribe((s, prev) => {
   if (s.state?.stamp !== prev.state?.stamp) checkStamp();
 });
 
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47];
+
+/** PNG 自己解码（保留直通 alpha 的精度）；JPG、WebP 交给浏览器解码 */
+async function decodeAnyImage(bytes: Uint8Array): Promise<DecodedImage> {
+  if (PNG_SIGNATURE.every((b, i) => bytes[i] === b)) return decodeImage(bytes);
+  const bitmap = await createImageBitmap(new Blob([bytes as Uint8Array<ArrayBuffer>]), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+  try {
+    if (bitmap.width > MAX_TEXTURE_SIZE || bitmap.height > MAX_TEXTURE_SIZE) throw new Error('image too large');
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const g = canvas.getContext('2d');
+    if (!g) throw new Error('no 2d context');
+    g.drawImage(bitmap, 0, 0);
+    const data = g.getImageData(0, 0, bitmap.width, bitmap.height).data;
+    return { width: bitmap.width, height: bitmap.height, data: new Uint8Array(data.buffer, data.byteOffset, data.byteLength) };
+  } finally {
+    bitmap.close();
+  }
+}
+
+/** 模板包 assets/ 里的图片（asset:路径）和用户选的图片（file:引用） */
+async function loadImageTexture(id: string, assets: AssetSource | null): Promise<ResourcePayload | null> {
+  let bytes: Uint8Array | null = null;
+  if (id.startsWith('asset:')) {
+    if (!assets) return null;
+    bytes = await window.allay.templates.readAsset(assets, id.slice('asset:'.length));
+  } else if (id.startsWith('file:')) {
+    bytes = await window.allay.files.read(id.slice('file:'.length));
+  }
+  if (!bytes) return null;
+  const img = await decodeAnyImage(bytes);
+  return { kind: 'rgba', width: img.width, height: img.height, data: img.data };
+}
+
 async function loadTexture(id: string): Promise<ResourcePayload | null> {
-  // 只有资源栈里的贴图（命名空间:路径）走这里；asset: 和 file: 在 M3、M4 接上
-  if (/^(asset|file):/.test(id)) return null;
   const raw = await window.allay.resources.readTexture(id);
   if (!raw) return null;
   const img = await decodeImage(raw.png);
@@ -80,9 +113,25 @@ async function loadFallbackFont(): Promise<BitmapFontPayload | null> {
 }
 
 /**
- * 引擎的 resolveResource。每次返回一份新的副本：载荷会被零拷贝转移给 Worker，转移后原对象就不能用了。
+ * 引擎的 resolveResource（只有资源栈，没有模板自带的图片：缩略图用）。
+ * 每次返回一份新的副本：载荷会被零拷贝转移给 Worker，转移后原对象就不能用了。
  */
-export async function resolveResource(kind: ResourceKind, id: string): Promise<ResourcePayload | null> {
+export function resolveResource(kind: ResourceKind, id: string): Promise<ResourcePayload | null> {
+  return resolveWith(kind, id, null);
+}
+
+/** 带模板自带图片的 resolveResource：asset: 从 getAssets() 指的模板读（预览换模板时它跟着变） */
+export function createResolver(getAssets: () => AssetSource | null): (kind: ResourceKind, id: string) => Promise<ResourcePayload | null> {
+  return (kind, id) => resolveWith(kind, id, getAssets());
+}
+
+/** 交给引擎 load 的分代键：资源栈的 stamp 加上模板（asset: 引用随模板变，引擎据此清空贴图缓存） */
+export function loadStamp(assets: AssetSource | null): string {
+  const key = assetKey(assets);
+  return key ? `${currentStamp()}|${key}` : currentStamp();
+}
+
+async function resolveWith(kind: ResourceKind, id: string, assets: AssetSource | null): Promise<ResourcePayload | null> {
   let p: Promise<ResourcePayload | null>;
   if (kind === 'font' && id === FALLBACK_FONT_ID) {
     // 兜底字体不随资源栈变
@@ -90,11 +139,18 @@ export async function resolveResource(kind: ResourceKind, id: string): Promise<R
     p = fallbackFont;
   } else {
     checkStamp();
-    const key = `${kind}:${id}`;
+    const image = kind === 'texture' && /^(asset|file):/.test(id);
+    // asset: 随模板变，键里带上模板
+    const key = image && id.startsWith('asset:') ? `${kind}:${assetKey(assets)}:${id}` : `${kind}:${id}`;
     let entry = cache.get(key);
     if (!entry) {
-      entry =
-        kind === 'texture' ? loadTexture(id) : kind === 'font' && id === DEFAULT_FONT_ID ? loadFont(id) : Promise.resolve(null);
+      entry = image
+        ? loadImageTexture(id, assets)
+        : kind === 'texture'
+          ? loadTexture(id)
+          : kind === 'font' && id === DEFAULT_FONT_ID
+            ? loadFont(id)
+            : Promise.resolve(null);
       // 失败（解码不了等）当作缺失，交给引擎用占位并报警告；不缓存失败
       entry = entry.catch((error: unknown) => {
         console.warn(`[resources] ${key} failed: ${error instanceof Error ? error.message : String(error)}`);

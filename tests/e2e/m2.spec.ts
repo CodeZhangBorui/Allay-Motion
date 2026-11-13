@@ -129,7 +129,7 @@ test('T-AST-2 资源栈里只有一个假原版层（覆盖目录全部贴图）
   try {
     await waitReady(page);
     await expect.poll(() => layerIds(page)).toEqual(['builtin:builtin:true', 'vanilla:1.21.1:true']);
-    // 内置模板此时只有 M1 的临时模板
+    // 内置的旗舰模板 T1
     await page.evaluate(() => window.__allayTest!.loadBuiltin());
     await waitReady(page);
     expect(await page.evaluate(() => window.__allayTest!.status())).toEqual({ kind: 'ready', warnings: [] });
