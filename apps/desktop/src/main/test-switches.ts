@@ -5,12 +5,21 @@ export interface TestSwitches {
   userDataDir: string | null;
   /** 窗口不显示、不进任务栏、不抢焦点（docs/decisions.md“测试在后台运行”） */
   hiddenWindow: boolean;
+  /** 渲染进程装上测试钩子（装载测试模板等，docs/decisions.md M1） */
+  testHooks: boolean;
+  /** 导出不弹保存对话框，直接写到这个目录 */
+  exportTarget: string | null;
+  /** 开发时指定 FFmpeg 可执行文件（05-export.md 5.6 的 ALLAY_FFMPEG） */
+  ffmpeg: string | null;
 }
 
 export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<string, string | undefined>>): TestSwitches {
-  if (isPackaged) return { userDataDir: null, hiddenWindow: false };
+  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null };
   return {
     userDataDir: env.ALLAY_USER_DATA_DIR ? env.ALLAY_USER_DATA_DIR : null,
     hiddenWindow: env.ALLAY_E2E_HIDDEN === '1',
+    testHooks: env.ALLAY_E2E_HOOKS === '1',
+    exportTarget: env.ALLAY_E2E_EXPORT_TARGET ? env.ALLAY_E2E_EXPORT_TARGET : null,
+    ffmpeg: env.ALLAY_FFMPEG ? env.ALLAY_FFMPEG : null,
   };
 }

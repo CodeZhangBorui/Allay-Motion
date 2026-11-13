@@ -20,13 +20,20 @@
   },
   "preview": {
     "region": "预览",
-    "placeholder": "预览视口"
+    "canvas": "预览画布",
+    "unresponsive": "模板无响应",
+    "unresponsiveHint": "画一帧花的时间太长，已被停止。预览已重新启动，没有再装载这个模板。",
+    "templateError": "模板出错了",
+    "crashed": "预览停止工作了",
+    "retry": "重试"
   },
   "transport": {
     "region": "播放条",
     "toStart": "回到开头",
     "play": "播放",
-    "loop": "循环"
+    "loop": "循环",
+    "pause": "暂停",
+    "scrub": "时间轴"
   },
   "params": {
     "title": "属性",
@@ -34,5 +41,38 @@
   },
   "layout": {
     "resizeHandle": "拖动调整宽度"
+  },
+  "export": {
+    "title": "导出",
+    "format": "格式",
+    "presets": {
+      "prores": "透明 MOV（ProRes 4444）",
+      "png": "PNG 序列"
+    },
+    "quality": "画质",
+    "qualities": {
+      "draft": "草稿（无运动模糊）",
+      "standard": "标准（8 个子帧）",
+      "high": "高（16 个子帧）",
+      "ultra": "极致（32 个子帧）"
+    },
+    "start": "导出…",
+    "cancel": "取消",
+    "close": "关闭",
+    "progress": "第 {{written}} / {{total}} 帧",
+    "canceled": "已取消导出，没有留下任何文件。",
+    "done": "已导出 {{frames}} 帧，用时 {{seconds}} 秒。",
+    "cutFrame": "剪辑点：第 {{frame}} 帧。让这一帧对齐两段素材的接缝。",
+    "failedAtFrame": "停在第 {{frame}} 帧。",
+    "errors": {
+      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动。",
+      "outputNotWritable": "无法写入这个位置，请换一个文件夹。",
+      "diskFull": "磁盘空间不足，清理后再试。",
+      "encoderUnavailable": "随附的 FFmpeg 里没有这个格式的编码器。",
+      "ffmpegFailed": "视频编码器出错退出了。",
+      "frameMismatch": "画面与导出设置不一致。",
+      "templateFailed": "导出时模板出错了。",
+      "templateUnresponsive": "导出时模板无响应。"
+    }
   }
 }

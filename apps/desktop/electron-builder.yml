@@ -13,6 +13,15 @@ files:
   - package.json
   - "!node_modules{,/**/*}"
 asar: true
+# FFmpeg 作为独立的可执行文件随包分发（05-export.md 5.6、09-compliance.md 9.9），附 LGPL 许可全文和构建来源。
+# 来自 pnpm ffmpeg:fetch；ffprobe 只给测试用，不进安装包。
+extraResources:
+  - from: ../../resources/ffmpeg/win32-x64
+    to: ffmpeg/win32-x64
+    filter:
+      - ffmpeg.exe
+      - LICENSE.txt
+      - build.json
 # 直接用工作区里已安装的 Electron（相对本目录；node_modules/electron 是 pnpm 的链接，不写哈希目录），
 # 打包时不再联网下载或校验 Electron。根目录的 pnpm dist 会先跑 scripts/ensure-electron-dist.ts 确认它在。
 electronDist: node_modules/electron/dist

@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ExportDialog } from '../features/export/ExportDialog';
 import { resolveLanguage } from '../i18n';
 import { useUiStore } from '../stores/uiStore';
 import { TopBar } from './TopBar';
@@ -10,6 +11,7 @@ export function App() {
   const settings = useUiStore((s) => s.settings);
   const { i18n, t } = useTranslation();
   useThemeSync(settings);
+  const [exporting, setExporting] = useState(false);
 
   // 语言设置变化时切换（“跟随系统”在启动时已经解析过，这里只处理明确的选择）
   useEffect(() => {
@@ -25,8 +27,9 @@ export function App() {
 
   return (
     <div className="flex h-full flex-col">
-      <TopBar />
+      <TopBar onExport={() => setExporting(true)} />
       <Workspace />
+      {exporting && <ExportDialog onClose={() => setExporting(false)} />}
     </div>
   );
 }

@@ -12,8 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && pnpm -r --workspace-concurrency=4 typecheck",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
-    "test:engine": "tsx scripts/not-implemented.ts test:engine M1",
-    "test:export": "tsx scripts/not-implemented.ts test:export M1",
+    "test:engine": "vite build --config tests/engine/vite.config.ts && playwright test --config playwright.engine.config.ts",
+    "test:export": "vitest run --config vitest.export.config.ts",
     "test:e2e": "pnpm build && playwright test",
     "check:provenance": "tsx scripts/check-provenance.ts",
     "check:licenses": "tsx scripts/check-licenses.ts",
@@ -21,8 +21,9 @@
     "assets:gen": "tsx scripts/not-implemented.ts assets:gen M2",
     "templates:build": "tsx scripts/not-implemented.ts templates:build M3",
     "mascot:bake": "tsx scripts/not-implemented.ts mascot:bake M5",
-    "ffmpeg:fetch": "tsx scripts/not-implemented.ts ffmpeg:fetch M1",
-    "dist": "tsx scripts/ensure-electron-dist.ts && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts"
+    "ffmpeg:fetch": "tsx scripts/fetch-ffmpeg.ts",
+    "dist": "tsx scripts/ensure-electron-dist.ts && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts",
+    "review:m1": "tsx scripts/review-m1.ts"
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",
@@ -31,6 +32,7 @@
     "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/picomatch": "^4.0.3",
+    "@types/yauzl": "^3.4.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
@@ -38,7 +40,9 @@
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.2",
+    "vite": "8.3.8",
     "vitest": "^5.1.0",
+    "yauzl": "3.4.0",
     "zod": "^4.6.7"
   }
 }

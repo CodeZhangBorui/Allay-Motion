@@ -4,6 +4,7 @@ import { app, dialog, type BrowserWindow } from 'electron';
 import type { AppInfo, PickedFile } from '../shared/ipc-contract';
 import { IPC } from '../shared/ipc-channels';
 import { TOPBAR_HEIGHT } from '../shared/theme-colors';
+import { UnknownJobError, type ExportService } from './export/export-service';
 import type { FileGrants } from './file-grants';
 import { IpcRejected, type createIpcRegistrar } from './ipc';
 import type { SettingsStore } from './settings-store';
@@ -14,10 +15,22 @@ export interface HandlerDeps {
   registrar: ReturnType<typeof createIpcRegistrar>;
   settings: SettingsStore;
   grants: FileGrants;
+  exports: ExportService;
+  testHooks: boolean;
   getMainWindow(): BrowserWindow | null;
 }
 
-export function registerHandlers({ registrar, settings, grants, getMainWindow }: HandlerDeps): void {
+/** 未知的任务 ID 是调用方的错，拒绝这次调用，不当成主进程内部错误 */
+async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof UnknownJobError) throw new IpcRejected('unknown export job');
+    throw error;
+  }
+}
+
+export function registerHandlers({ registrar, settings, grants, exports, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -25,6 +38,7 @@ export function registerHandlers({ registrar, settings, grants, getMainWindow }:
     platform: process.platform,
     userDataDir: app.getPath('userData'),
     systemLocale: app.getPreferredSystemLanguages()[0] ?? app.getLocale(),
+    testHooks,
   }));
 
   handle(IPC.settings.get, () => settings.ui);
@@ -55,4 +69,11 @@ export function registerHandlers({ registrar, settings, grants, getMainWindow }:
     if (!info.isFile() || info.size > MAX_IMAGE_BYTES) throw new IpcRejected('file not readable');
     return new Uint8Array(await readFile(path));
   });
+
+  handle(IPC.export.ffmpegInfo, () => exports.ffmpegInfo());
+  handle(IPC.export.start, (_event, req) => exports.start(req));
+  handle(IPC.export.writeFrame, (_event, jobId, pixels) => knownJob(() => exports.writeFrame(jobId, pixels)));
+  handle(IPC.export.finish, (_event, jobId) => knownJob(() => exports.finish(jobId)));
+  // 取消一个已经结束或不存在的任务不算错
+  handle(IPC.export.cancel, (_event, jobId) => exports.cancel(jobId));
 }

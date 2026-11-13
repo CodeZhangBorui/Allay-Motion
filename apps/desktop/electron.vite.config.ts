@@ -25,6 +25,8 @@ export default defineConfig({
   renderer: {
     root: resolve(import.meta.dirname, 'src/renderer'),
     plugins: [tailwindcss()],
+    // 引擎 Worker 是 module worker（02-engine.md 2.2），three 体积大，需要 ES 格式才能分块
+    worker: { format: 'es' },
     // 不用 @vitejs/plugin-react：它的 Fast Refresh 需要内联脚本，而 1.6 第 2 条的 CSP 不允许。
     // JSX 由 Vite 内置的转换按 tsconfig 的 react-jsx 处理；开发时改动走整页刷新。
     build: {

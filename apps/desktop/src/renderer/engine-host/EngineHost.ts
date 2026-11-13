@@ -1,0 +1,176 @@
+// 宿主一侧的引擎封装（docs/02-engine.md 2.3）：创建 Worker、Comlink 调用、看门狗、资源回调。
+// 看门狗：load 10 秒，预览单帧 5 秒，导出单帧 30 秒。超时就 terminate()，交给调用方重建 Worker。
+import type { EngineApi, HostCallbacks } from '@allay/engine';
+import {
+  FrameStatsSchema,
+  LoadResultSchema,
+  type EngineMode,
+  type FrameQuality,
+  type FrameStats,
+  type LoadRequest,
+  type LoadResult,
+  type Opaque,
+  type ParamValues,
+  type ResourceKind,
+  type ResourcePayload,
+} from '@allay/template-sdk';
+import * as Comlink from 'comlink';
+import { createEngineWorker } from './create-worker';
+import { assertTemplateCode } from './template-check';
+
+export const WATCHDOG_MS = { load: 10_000, previewFrame: 5_000, exportFrame: 30_000 } as const;
+export type WatchdogTimeouts = { [K in keyof typeof WATCHDOG_MS]: number };
+
+/** 模板在时限内没有返回：Worker 已被终止 */
+export class EngineUnresponsiveError extends Error {
+  constructor(readonly operation: string) {
+    super(`engine did not respond to ${operation} in time`);
+    this.name = 'EngineUnresponsiveError';
+  }
+}
+
+/** Worker 自己挂了（脚本错误、显卡丢失等），或者已经被销毁 */
+export class EngineCrashedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EngineCrashedError';
+  }
+}
+
+export interface EngineHostOptions {
+  mode: EngineMode;
+  /** 预览模式：页面上的 <canvas>，由这里 transferControlToOffscreen() 交给 Worker */
+  canvas?: HTMLCanvasElement;
+  resolveResource(kind: ResourceKind, id: string): Promise<ResourcePayload | null>;
+  log?(level: 'debug' | 'warn' | 'error', message: string): void;
+  timeouts?: Partial<WatchdogTimeouts>;
+  /** 开发构建里打开（2.4） */
+  strictDeterminism?: boolean;
+  /** Worker 被看门狗终止或自己崩溃时调用一次 */
+  onDead?(error: EngineUnresponsiveError | EngineCrashedError): void;
+}
+
+let workerSeq = 0;
+
+export class EngineHost {
+  readonly mode: EngineMode;
+  private readonly worker: Worker;
+  private readonly api: Comlink.Remote<EngineApi>;
+  private readonly timeouts: WatchdogTimeouts;
+  private deadError: EngineUnresponsiveError | EngineCrashedError | null = null;
+  private released = false;
+  private rejectDeath!: (error: Error) => void;
+  private readonly death: Promise<never>;
+
+  private constructor(private readonly opts: EngineHostOptions) {
+    this.mode = opts.mode;
+    this.timeouts = { ...WATCHDOG_MS, ...opts.timeouts };
+    this.death = new Promise<never>((_resolve, reject) => {
+      this.rejectDeath = reject;
+    });
+    // 没人等的时候不要报 unhandled rejection
+    this.death.catch(() => undefined);
+    this.worker = createEngineWorker(`engine-${opts.mode}-${++workerSeq}`);
+    this.worker.addEventListener('error', (event) => {
+      event.preventDefault();
+      this.die(new EngineCrashedError(`engine worker error: ${event.message || 'unknown'}`));
+    });
+    this.worker.addEventListener('messageerror', () => this.die(new EngineCrashedError('engine worker sent an unreadable message')));
+    this.api = Comlink.wrap<EngineApi>(this.worker);
+  }
+
+  /** 建 Worker 并 init；预览模式要传 canvas */
+  static async create(opts: EngineHostOptions): Promise<EngineHost> {
+    const host = new EngineHost(opts);
+    const callbacks: HostCallbacks = {
+      resolveResource: async (kind, id) => {
+        const payload = await opts.resolveResource(kind, id);
+        return payload ? Comlink.transfer(payload, [payload.data.buffer]) : null;
+      },
+      log: (level, message) => opts.log?.(level, String(message).slice(0, 2000)),
+    };
+    const canvas = opts.mode === 'preview' ? opts.canvas?.transferControlToOffscreen() : undefined;
+    if (opts.mode === 'preview' && !canvas) throw new Error('preview engine needs a canvas');
+    const init = { canvas, mode: opts.mode, strictDeterminism: opts.strictDeterminism === true };
+    try {
+      await host.call('init', host.timeouts.load, () => host.api.init(Comlink.transfer(init, canvas ? [canvas] : []), Comlink.proxy(callbacks)));
+    } catch (error) {
+      host.dispose();
+      throw error;
+    }
+    return host;
+  }
+
+  get dead(): boolean {
+    return this.deadError !== null;
+  }
+
+  /** 检查源码不含 import，再装载模板并完成 setup */
+  async load(req: LoadRequest): Promise<LoadResult> {
+    await assertTemplateCode(req.code);
+    const result = await this.call('load', this.timeouts.load, () => this.api.load(req));
+    return LoadResultSchema.parse(result);
+  }
+
+  async setParams(params: ParamValues): Promise<LoadResult> {
+    return LoadResultSchema.parse(await this.call('setParams', this.timeouts.load, () => this.api.setParams(params)));
+  }
+
+  async resize(width: number, height: number): Promise<void> {
+    await this.call('resize', this.timeouts.previewFrame, () => this.api.resize(width, height));
+  }
+
+  async render(t: number, quality?: FrameQuality): Promise<FrameStats> {
+    return FrameStatsSchema.parse(await this.call('render', this.timeouts.previewFrame, () => this.api.render(t, quality)));
+  }
+
+  /** 导出一帧：直通 alpha 的 RGBA8，第一行是顶部 */
+  async renderFrame(index: number, quality: FrameQuality, opaque?: Opaque): Promise<Uint8Array<ArrayBuffer>> {
+    const buf = await this.call('renderFrame', this.timeouts.exportFrame, () => this.api.renderFrame(index, quality, opaque));
+    if (!(buf instanceof ArrayBuffer)) throw new EngineCrashedError('renderFrame returned no pixels');
+    return new Uint8Array(buf);
+  }
+
+  /** 诊断与测试用：画一帧预览并读回画布像素（预乘 alpha） */
+  async readPreview(t: number): Promise<Uint8Array<ArrayBuffer>> {
+    const buf = await this.call('readPreview', this.timeouts.previewFrame, () => this.api.readPreview(t));
+    if (!(buf instanceof ArrayBuffer)) throw new EngineCrashedError('readPreview returned no pixels');
+    return new Uint8Array(buf);
+  }
+
+  /** 释放 GPU 资源并终止 Worker。可以重复调用 */
+  dispose(): void {
+    if (!this.deadError) {
+      void this.api.dispose().catch(() => undefined);
+      this.deadError = new EngineCrashedError('engine disposed');
+      this.rejectDeath(this.deadError);
+    }
+    if (this.released) return;
+    this.released = true;
+    try {
+      this.api[Comlink.releaseProxy]();
+    } catch {
+      // Worker 已经没了
+    }
+    this.worker.terminate();
+  }
+
+  private die(error: EngineUnresponsiveError | EngineCrashedError): void {
+    if (this.deadError) return;
+    this.deadError = error;
+    this.worker.terminate();
+    this.rejectDeath(error);
+    this.opts.onDead?.(error);
+  }
+
+  /** 带看门狗的调用：超时就终止 Worker */
+  private async call<T>(operation: string, timeoutMs: number, fn: () => Promise<T>): Promise<T> {
+    if (this.deadError) throw this.deadError;
+    const timer = setTimeout(() => this.die(new EngineUnresponsiveError(operation)), timeoutMs);
+    try {
+      return await Promise.race([fn(), this.death]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}

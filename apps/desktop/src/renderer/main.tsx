@@ -5,11 +5,13 @@ import './app.css';
 import { App } from './app/App';
 import { applyThemeToDocument } from './app/useThemeSync';
 import { initI18n, resolveLanguage } from './i18n';
+import { installTestHooks } from './test-hooks';
 import { useUiStore } from './stores/uiStore';
 
 async function bootstrap(): Promise<void> {
   const [settings, info] = await Promise.all([window.allay.settings.get(), window.allay.app.info()]);
   useUiStore.getState().replace(settings);
+  if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
 
   const language = resolveLanguage(settings.language, info.systemLocale);

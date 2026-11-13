@@ -44,6 +44,30 @@ const MALFORMED: Record<string, unknown[][]> = {
     ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'],
     [{ path: 'C:\\Windows\\win.ini' }],
   ],
+  // 合法的 export.start 会弹保存对话框，这里只有畸形参数
+  'export.start': [
+    [],
+    [null],
+    [{ preset: 'prores4444' }],
+    [{ preset: 'webm-vp9', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'prores4444', width: 1001, height: 563, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'prores4444', width: 1920, height: 1080, fps: 61, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'prores4444', width: 1920, height: 1080, fps: 60, totalFrames: 0, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'prores4444', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x', path: 'C:\\Windows\\x.mov' }],
+    [{ preset: 'prores4444', width: 8192, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+  ],
+  'export.writeFrame': [
+    [],
+    ['not-a-uuid', new Uint8Array(4)],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', [1, 2, 3, 4]],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'pixels'],
+    // 格式合法但不存在的任务
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', new Uint8Array(16)],
+  ],
+  'export.finish': [[], [42], ['C:\\out.mov'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301']],
+  'export.cancel': [[], [null], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
+  'export.ffmpegInfo': [[1], ['C:\\ffmpeg.exe'], [{ path: 'x' }]],
 };
 
 test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不到，主进程不崩溃', async () => {
@@ -79,7 +103,7 @@ test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不�
           },
           { method, args },
         );
-        expect(outcome, `${method}(${JSON.stringify(args).slice(0, 80)})`).toMatch(/^rejected: .*(invalid arguments|unknown file reference)/);
+        expect(outcome, `${method}(${JSON.stringify(args).slice(0, 80)})`).toMatch(/^rejected: .*(invalid arguments|unknown file reference|unknown export job)/);
       }
     }
 
