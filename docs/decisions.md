@@ -1023,3 +1023,35 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 单元测试：`export-m7.test.ts`（命令行有无音频、编码器参数与码率缩放、预设可用性、偶数修正、文件名、体积估算、时间码）、`export-task.test.ts`（引擎和 `window.allay.export` 换成假的，测三个命令的参数与返回值校验、状态机、一次只跑一个、取消、模板出错）。
 - e2e（`tests/e2e/export.spec.ts`）：六个内置模板经 `exportTask.start` 各以 1080p60 标准画质导出 ProRes，核对时长（帧数 / 60）、帧数、首末帧最大 alpha 为 0、剪辑点最小 alpha 为 255（叠加层 T6 改为“中间有画面”）、bt709 / tv 标记与剪辑点注释；T-EXP-7 的其余三个预设经真实界面（PNG、WebM 的 alpha 判定同 ①；绿幕首末帧是纯底色）；任务命令；H.264 全部失败；T-EXP-8 界面；复制诊断信息；遮盖检查。M1 的 T-EXP-5/6/7 界面测试照旧通过（只改了日志里预设列表的期望）。
 - 测试钩子多了 `dispatch(id, input)`：经注册表执行命令，出错时返回 `{ error: code }`。
+
+## 四路合并的对接（MD-b、M5b、M7、M6b，2026-11-13）
+
+主控在 `integrate/wave3` 上依次合了 MD-b、M5b、M7（机械处理冲突），M6b 的分支最后合进来并完成对接。
+
+### 导出：M7 的结构为准，接上 M6b 的音频
+
+- **命令行只留一份**：M7 的 `ffmpegArgs({ …, audio })`（有音频时第二个输入 `-i <wav>`，①`pcm_s16le`、③`libopus 160k`、④`aac 192k`，② 忽略）。M6b 原来在 ProRes 分支里自己拼的 `-map 0:v:0 -map 1:a:0` 去掉了：只有两路输入、各一条流，FFmpeg 自动选到的就是它们（T-EXP-4 核对）。
+- **ExportJob**：M7 的 `audio?: string` 换成 M6b 的 `audio?: boolean` 加 `writeAudio(wav)`：有音轨的任务 `start()` 只检查路径，交来 WAV 后才启动 FFmpeg；先写帧会被拒绝；WAV 头不是 48 kHz 立体声 16 位 PCM 时任务失败并清理。视频预设的 WAV 写到系统临时目录，任何结局都删；PNG 序列直接写进 `.partial` 目录，名为 `<目标名>.wav`，随目录改名（重名时目录和 WAV 都是 “… (2)”）。M7 的重名加 “ (2)”、`.partial`、取消与失败的清理带音轨时都成立（test:export 核对）。
+- **ExportService.start**：传 `audio`；有音轨时检查这个预设的音频编码器（新表 `PRESET_AUDIO_ENCODER`，与 `PRESET_AUDIO_ARGS` 一致，单元测试核对）在 `-encoders` 里，不在就 `encoder-unavailable`。预设本身的可用性（M7 的 `blockers`）不因音频编码器而变：没有 cue 的导出不需要它。
+- **任务**：离线混音放在 `ExportRun` 的准备阶段（装载导出引擎之后、`export.start` 之前），四个预设都带音轨。任务结果多 `audio`、`peakNormalized` 两项（快照的 schema 跟着加）。缺失或还没取回的音效静音并给提示（`notify`），经命令启动的任务也一样，**导出过程中不联网、不卡住**（e2e 经 `exportTask.start` 核对没有向假服务器发任何请求）。
+- **对话框只是观察者**：“有没取回的音效”放在 M7 设置页右列的遮盖检查下面：一行提示加“取回音效”（用户操作，联网只经 `fetchObject`；取不到时提示并留着这一行），不取回也能直接“导出”。M6b 原来在旧对话框里插的“取回音效并导出 / 不带这些音效导出”那一步去掉了。峰值压低的提示放在完成页（任务结果里的 `peakNormalized`），另有一条 info 通知。
+
+### 悦灵的导出编排接回 M7 的对话框
+
+- `ExportPages.tsx` 新增 `ExportAllay`：对话框在进度页和结果页之上的固定位置放它，换页时不重新挂载（e2e 给 DOM 节点打记号核对）。阶段：准备、渲染 → `rendering`，封装 → `muxing`（飞向 `target` 的文件图标），完成 `done`、失败 `error`、取消 `canceled`；结果页停在最后的进度处，完成时到头。捧的东西用 M5b 的 `primaryBlockId`（第一个 `block` 参数，或第一个 `blockList` 的第一项，否则胶片图标），缩略图用 `ResourceThumb`。M7 进度页里原来那个 `AllayProgress` 去掉了。
+- 布局：悦灵在对话框上部（上内边距 40 px），进度页的数字、结果页的内容在它下面。没有对着设计稿调。
+
+### 其他
+
+- **测试钩子 `dispatch`**：MD-b 和 M7 各加了一个，留 MD-b 的返回形态（`{ ok: true, output }` 或 `{ ok: false, name, code, message }`，`code` 是 `CommandError` 的码）。`tests/e2e/export.spec.ts` 的 `command()` 换成解包：成功返回 `output`，失败返回 `{ error: code }`，原有断言不变；直接调钩子的一处改用 `command()`。
+- **wave3 上的另一个缺口**：`registerCore` 里 `CORE_COMMANDS` 注册了两遍（合并时多出来的一行），启动即抛“已经注册”，界面起不来，e2e 全部超时。删掉重复的那行。
+- `tests/unit/export-task.test.ts` 的假引擎 `load` 补上 `audioCues: []`（真实的 `LoadResult` 总有这一项；准备阶段的混音要读它）。M6b 自己的 ProRes 命令行单元测试删掉（M7 的 `export-m7.test.ts` 已覆盖），换成编码器表与命令行一致的检查。
+- T-EXP-4 扩到 ③④（`export-m7.test.ts`）：有音轨时编码器（opus、aac）、48 kHz 立体声、按包累加的音频时长与视频相差不到 1 帧；没有 cue 时没有音轨；带音轨时的重名、取消、帧数不足封装都不留 `.partial` 和临时 WAV。
+- T-ARC-6 的畸形参数表在合并后覆盖全部通道（测试本身核对表的键与 `INVOKE_CHANNELS` 一致）。
+- 界面截图基线（T-UI-5）合并后没有变化，没有重新生成。
+
+### 没验证的
+
+- 带音轨的 WebM、MP4、ProRes 都没在真实剪辑软件或播放器里打开听过；AAC、Opus 开头的编码延迟（priming）只按 ffprobe 的包时长核对，没核对与画面的听感同步。
+- 悦灵在新对话框里的位置、大小与设计稿是否一致，没有人看过；减少动效下的编排只跑了 M5b 原有的 T-ALY-4。
+- 音频编码器缺失时的报错只按代码路径写了，没有造一个缺 `aac` 的 FFmpeg 来测。
