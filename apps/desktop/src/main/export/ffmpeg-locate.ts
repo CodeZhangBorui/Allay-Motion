@@ -3,7 +3,7 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { delimiter, join } from 'node:path';
 import { promisify } from 'node:util';
-import { EXPORT_PRESETS, type ExportPreset, type FfmpegInfo } from '../../shared/export';
+import { EXPORT_PRESETS, H264_ENCODERS, type ExportPreset, type FfmpegInfo, type H264Probe, type PresetBlocker } from '../../shared/export';
 import { PRESET_ENCODERS } from './ffmpeg-args';
 
 const run = promisify(execFile);
@@ -44,19 +44,50 @@ export function locateFfmpeg(opts: LocateOptions): string | null {
 
 const NO_WINDOW = { windowsHide: true, timeout: 15_000, maxBuffer: 8 * 1024 * 1024 } as const;
 
-/** 跑一次 ffmpeg -version 和 -encoders，得出版本和每个预设能不能用 */
-export async function probeFfmpeg(ffmpeg: string | null): Promise<FfmpegInfo> {
-  const none = Object.fromEntries(EXPORT_PRESETS.map((p) => [p, false])) as Record<ExportPreset, boolean>;
-  if (!ffmpeg) return { available: false, version: null, presets: none };
+/** FFmpeg 本身的能力：能不能启动、版本、-encoders 列出的编码器 */
+export interface FfmpegCaps {
+  available: boolean;
+  version: string | null;
+  encoders: ReadonlySet<string>;
+}
+
+/** 跑一次 ffmpeg -version 和 -encoders */
+export async function probeCaps(ffmpeg: string | null): Promise<FfmpegCaps> {
+  if (!ffmpeg) return { available: false, version: null, encoders: new Set() };
   try {
     const version = (await run(ffmpeg, ['-hide_banner', '-version'], NO_WINDOW)).stdout.split(/\r?\n/)[0]?.trim() ?? null;
     const encodersOut = (await run(ffmpeg, ['-hide_banner', '-encoders'], NO_WINDOW)).stdout;
-    const encoders = parseEncoders(encodersOut);
-    const presets = Object.fromEntries(EXPORT_PRESETS.map((p) => [p, PRESET_ENCODERS[p].every((e) => encoders.has(e))])) as Record<ExportPreset, boolean>;
-    return { available: true, version, presets };
+    return { available: true, version, encoders: parseEncoders(encodersOut) };
   } catch {
-    return { available: false, version: null, presets: none };
+    return { available: false, version: null, encoders: new Set() };
   }
+}
+
+/**
+ * 每个预设能不能用、不能用的原因。绿幕 MP4：有探测结果时看它；还没探测过时，只要列表里有任何一个候选就先算可用
+ * （真正导出前一定会探测，5.3“首次需要时”）。
+ */
+export function buildInfo(caps: FfmpegCaps, h264: H264Probe | null, candidates: readonly string[] = H264_ENCODERS): FfmpegInfo {
+  const presets = {} as Record<ExportPreset, boolean>;
+  const blockers = {} as Record<ExportPreset, PresetBlocker>;
+  const usableProbe = h264 && caps.version !== null && h264.ffmpegVersion === caps.version ? h264 : null;
+  for (const p of EXPORT_PRESETS) {
+    let blocker: PresetBlocker = null;
+    if (!caps.available) blocker = 'ffmpeg-missing';
+    else if (!PRESET_ENCODERS[p].every((e) => caps.encoders.has(e))) blocker = 'encoder-missing';
+    else if (p === 'greenscreen-mp4') {
+      if (usableProbe) blocker = usableProbe.encoder ? null : 'no-h264';
+      else blocker = candidates.some((e) => caps.encoders.has(e)) ? null : 'no-h264';
+    }
+    presets[p] = blocker === null;
+    blockers[p] = blocker;
+  }
+  return { available: caps.available, version: caps.version, presets, blockers, h264: usableProbe };
+}
+
+/** 跑一次 ffmpeg -version 和 -encoders，得出版本和每个预设能不能用（不含 H.264 探测） */
+export async function probeFfmpeg(ffmpeg: string | null): Promise<FfmpegInfo> {
+  return buildInfo(await probeCaps(ffmpeg), null);
 }
 
 /** 解析 ffmpeg -encoders 的输出，取编码器名 */

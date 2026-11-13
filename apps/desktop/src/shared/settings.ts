@@ -1,5 +1,6 @@
 import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type ResourceStackSettings } from '@allay/assets';
 import { z } from 'zod';
+import { H264ProbeSchema } from './export';
 
 // 设置文件 settings.json 的 schema（docs/01-product-architecture.md 1.9）。
 // 读取时每个字段单独兜底：坏掉的字段回到默认值，不连累其他字段。
@@ -150,17 +151,29 @@ export function defaultResourceSettings(): ResourceStackSettings {
   return structuredClone(DEFAULT_RESOURCE_STACK_SETTINGS);
 }
 
+/** 导出的应用级设置（M7），只有主进程读写：上次选的输出文件夹、H.264 探测结果的缓存（5.3） */
+export const ExportAppSettingsSchema = z.strictObject({
+  folder: z.string().min(1).max(1000).nullable(),
+  h264: H264ProbeSchema.nullable(),
+});
+export type ExportAppSettings = z.infer<typeof ExportAppSettingsSchema>;
+export function defaultExportAppSettings(): ExportAppSettings {
+  return { folder: null, h264: null };
+}
+
 export const SettingsFileSchema = z.object({
   formatVersion: z.literal(SETTINGS_FORMAT_VERSION),
   ui: UiSettingsSchema.catch(defaultUiSettings),
   window: WindowStateSchema.optional().catch(undefined),
   /** 资源栈（应用级设置，1.9），只有主进程读写 */
   resources: ResourceStackSettingsSchema.catch(defaultResourceSettings).default(defaultResourceSettings),
+  /** 导出（M7），只有主进程读写 */
+  export: ExportAppSettingsSchema.catch(defaultExportAppSettings).default(defaultExportAppSettings),
 });
 export type SettingsFile = z.infer<typeof SettingsFileSchema>;
 
 export function defaultSettingsFile(): SettingsFile {
-  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings(), resources: defaultResourceSettings() };
+  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings() };
 }
 
 export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSettings {

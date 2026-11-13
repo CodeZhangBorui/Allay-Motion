@@ -45,6 +45,11 @@ const api = {
     finish: invoke(IPC.export.finish),
     cancel: invoke(IPC.export.cancel),
     ffmpegInfo: invoke(IPC.export.ffmpegInfo),
+    probeEncoders: invoke(IPC.export.probeEncoders),
+    outputFolder: invoke(IPC.export.outputFolder),
+    chooseFolder: invoke(IPC.export.chooseFolder),
+    reveal: invoke(IPC.export.reveal),
+    copyDiagnostics: invoke(IPC.export.copyDiagnostics),
   },
   resources: {
     layers: invoke(IPC.resources.layers),

@@ -21,9 +21,14 @@ export interface ExportJobOptions {
   totalFrames: number;
   cutFrame: number | null;
   /**
-   * 最终位置。ProRes：文件路径（…/name.mov）；PNG 序列：目录路径（…/name），帧写成 name_00000.png。
+   * 最终位置。视频：文件路径（…/name.mov 等）；PNG 序列：目录路径（…/name），帧写成 name_00000.png。
+   * 已经存在时不覆盖，改名时加 “ (2)”（5.2）。
    */
   target: string;
+  /** 绿幕 MP4 的 H.264 编码器（探测结果） */
+  h264Encoder?: string | null;
+  /** 混好的音频（临时 WAV，M6b）；没有音轨时省略或为 null */
+  audio?: string | null;
 }
 
 export class ExportJobError extends Error {
@@ -109,7 +114,16 @@ export class ExportJob {
       throw new ExportJobError({ code: isNotWritable(error) ? 'output-not-writable' : 'ffmpeg-failed', detail: errnoDetail(error) });
     }
 
-    const args = ffmpegArgs({ preset, width: this.opts.width, height: this.opts.height, fps: this.opts.fps, output, cutFrame: this.opts.cutFrame });
+    const args = ffmpegArgs({
+      preset,
+      width: this.opts.width,
+      height: this.opts.height,
+      fps: this.opts.fps,
+      output,
+      cutFrame: this.opts.cutFrame,
+      audio: this.opts.audio ?? null,
+      h264Encoder: this.opts.h264Encoder ?? null,
+    });
     let proc: ChildProcessByStdio<Writable, null, Readable>;
     try {
       proc = spawn(this.opts.ffmpeg, args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
@@ -240,21 +254,26 @@ export class ExportJob {
     await rm(this.partial, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 
-  /** 把 .partial 改名到最终位置。ProRes 的目标由保存对话框确认过覆盖；PNG 目录重名时加 “ (2)” */
+  /** 把 .partial 改名到最终位置；目标已经存在时不覆盖，加 “ (2)”、“ (3)”…（5.2） */
   private async place(): Promise<string> {
-    const { target, preset } = this.opts;
-    if (preset === 'prores4444') {
-      await rm(target, { force: true });
-      await rename(this.partial, target);
-      return target;
-    }
-    let final = target;
-    for (let n = 2; await exists(final); n++) {
-      final = join(dirname(target), `${basename(target, extname(target))} (${n})`);
-    }
+    const final = await uniquePath(this.opts.target, false);
     await rename(this.partial, final);
     return final;
   }
+}
+
+/** 不与已有文件或目录重名的路径：name.ext → name (2).ext → name (3).ext …（目录没有扩展名） */
+export async function uniquePath(target: string, avoidPartial = true): Promise<string> {
+  const ext = extname(target);
+  // PNG 序列的目录名里可能有点号（如 1.5x），只有真正的视频扩展名才当扩展名
+  const isVideo = /^\.(mov|webm|mp4)$/i.test(ext);
+  const stem = isVideo ? basename(target, ext) : basename(target);
+  const suffix = isVideo ? ext : '';
+  let final = target;
+  for (let n = 2; (await exists(final)) || (avoidPartial && (await exists(`${final}.partial`))); n++) {
+    final = join(dirname(target), `${stem} (${n})${suffix}`);
+  }
+  return final;
 }
 
 async function exists(path: string): Promise<boolean> {
