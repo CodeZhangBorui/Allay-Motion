@@ -7,7 +7,7 @@ import {
   OpaqueSchema,
   ParamValuesSchema,
   ResizeSchema,
-  TexturePayloadSchema,
+  ThumbRequestSchema,
   EngineModeSchema,
   type AudioCue,
   type EngineMode,
@@ -23,14 +23,21 @@ import {
   type StageInfo,
   type TemplateInstance,
   type TemplateModule,
+  type ThumbRequest,
 } from '@allay/template-sdk';
+import { createBlockHandle } from './blocks';
 import { ease, math, segment } from './ease';
 import { frameTime, subframeTimes } from './frames';
 import { DeterminismGuard } from './harden';
 import { createNoise2D, type Noise2D } from './noise';
+import { createItemHandle } from './items';
 import { FramePipeline } from './pipeline';
 import { createRng } from './random';
+import { EngineResources } from './resources';
+import { createSprite } from './sprite';
 import { computeStage, createDefaultCamera, createStageCamera } from './stage';
+import { createGlyphSource, createText } from './text';
+import { buildThumbScene } from './thumbnail';
 
 /** 宿主实现的回调，经 Comlink.proxy 传入（2.3） */
 export interface HostCallbacks {
@@ -46,7 +53,7 @@ export interface InitOptions {
   strictDeterminism?: boolean;
 }
 
-/** 引擎对外的接口（2.3）。renderThumbnail 在 M2 加入 */
+/** 引擎对外的接口（2.3） */
 export interface EngineApi {
   init(opts: InitOptions, host: HostCallbacks): Promise<void>;
   load(req: LoadRequest): Promise<LoadResult>;
@@ -54,6 +61,8 @@ export interface EngineApi {
   resize(width: number, height: number): void;
   render(t: number, quality?: FrameQuality): Promise<FrameStats>;
   renderFrame(index: number, quality: FrameQuality, opaque?: Opaque): Promise<ArrayBuffer>;
+  /** 方块、物品的缩略图（03-assets.md 3.10）；杂务和导出引擎可用 */
+  renderThumbnail(req: ThumbRequest): Promise<ImageBitmap>;
   /** 诊断与测试用：按 t 画一帧预览（N = 1），并读回 canvas 上的像素（预乘 alpha，第一行是顶部） */
   readPreview(t: number): Promise<ArrayBuffer>;
   dispose(): void;
@@ -80,6 +89,8 @@ interface Loaded {
 interface Active {
   instance: TemplateInstance;
   scene: THREE.Scene;
+  /** 这次 setup 自己建的贴图（文字），实例销毁时释放 */
+  owned: THREE.Texture[];
   /** setup 之后模板还可能经 setCamera 换相机：渲染时取最新的 */
   camera(): THREE.Camera;
   duration: number;
@@ -146,15 +157,17 @@ export class Engine implements EngineApi {
 
   private loaded: Loaded | null = null;
   private active: Active | null = null;
-  private resourceStamp: string | null = null;
-  private readonly textures = new Map<string, Promise<THREE.Texture>>();
-  private placeholder: THREE.Texture | null = null;
+  private resources: EngineResources | null = null;
   private readonly times: number[] = [];
 
   async init(opts: InitOptions, host: HostCallbacks): Promise<void> {
     if (this.renderer) throw new Error('engine already initialised');
     this.mode = EngineModeSchema.parse(opts.mode);
     this.host = host;
+    this.resources = new EngineResources(
+      (kind, id) => host.resolveResource(kind, id),
+      (level, message) => host.log(level, message),
+    );
     this.guard = new DeterminismGuard(opts.strictDeterminism === true);
     THREE.ColorManagement.enabled = true;
 
@@ -192,10 +205,7 @@ export class Engine implements EngineApi {
   async load(req: LoadRequest): Promise<LoadResult> {
     const parsed = LoadRequestSchema.parse(req);
     this.requireInit();
-    if (parsed.resourceStamp !== this.resourceStamp) {
-      this.clearTextures();
-      this.resourceStamp = parsed.resourceStamp;
-    }
+    this.resources!.setStamp(parsed.resourceStamp);
     const module = this.loaded && this.loaded.code === parsed.code ? this.loaded.module : await importTemplate(parsed.code);
     const stage = computeStage(parsed.output);
     this.loaded = { module, code: parsed.code, output: parsed.output, stage, params: parsed.params };
@@ -258,10 +268,28 @@ export class Engine implements EngineApi {
     return out.buffer;
   }
 
+  async renderThumbnail(req: ThumbRequest): Promise<ImageBitmap> {
+    const r = ThumbRequestSchema.parse(req);
+    if (this.mode === 'preview') throw new Error('renderThumbnail() is for utility and export engines');
+    this.requireInit();
+    const resources = this.resources!;
+    resources.setStamp(r.resourceStamp);
+    const { scene, camera } = await buildThumbScene(resources, r.kind, r.id, () => undefined);
+    try {
+      const pipeline = this.pipeline!;
+      pipeline.setSize(r.size, r.size);
+      const pixels = pipeline.renderToPixels({ scene, camera, times: [0], update: (t) => resources.applyAnimations(t) }, 'straight', [0, 0, 0]);
+      return await createImageBitmap(new ImageData(new Uint8ClampedArray(pixels.buffer as ArrayBuffer), r.size, r.size), { premultiplyAlpha: 'none' });
+    } finally {
+      disposeScene(scene);
+      // 导出引擎上的模板仍按原来的输出尺寸渲染
+      if (this.loaded) this.pipeline!.setSize(this.loaded.output.width, this.loaded.output.height);
+    }
+  }
+
   dispose(): void {
     this.disposeActive();
-    this.clearTextures();
-    this.placeholder?.dispose();
+    this.resources?.dispose();
     this.pipeline?.dispose();
     this.renderer?.dispose();
     this.renderer = null;
@@ -277,7 +305,11 @@ export class Engine implements EngineApi {
       scene: active.scene,
       camera: active.camera(),
       times: subframeTimes(t, q.subframes, q.shutterAngle, fps, active.duration, this.times),
-      update: (tk: number) => this.guard.run(() => active.instance.update(tk)),
+      update: (tk: number) => {
+        // 动画贴图的帧是 t 的函数，每个子帧更新（2.8）
+        this.resources!.applyAnimations(tk);
+        this.guard.run(() => active.instance.update(tk));
+      },
     };
   }
 
@@ -300,11 +332,7 @@ export class Engine implements EngineApi {
       this.host?.log('warn', `template dispose() threw: ${error instanceof Error ? error.message : String(error)}`);
     }
     disposeScene(active.scene);
-  }
-
-  private clearTextures(): void {
-    for (const p of this.textures.values()) void p.then((t) => t.dispose(), () => undefined);
-    this.textures.clear();
+    for (const t of active.owned) t.dispose();
   }
 
   private async setup(): Promise<LoadResult> {
@@ -318,6 +346,10 @@ export class Engine implements EngineApi {
     };
     const cues: AudioCue[] = [];
     let setupDone = false;
+    const resources = this.resources!;
+    const owned: THREE.Texture[] = [];
+    // text.create 是同步的，字体要在 setup 之前载好
+    const glyphs = createGlyphSource(await resources.fonts());
 
     const scene = new THREE.Scene();
     let camera: THREE.Camera = createDefaultCamera(loaded.stage);
@@ -338,7 +370,13 @@ export class Engine implements EngineApi {
         camera = next;
       },
       createStageCamera: (opts) => createStageCamera(loaded.stage, opts.fov),
-      resources: { texture: (id) => this.texture(id, warn) },
+      resources: {
+        texture: (id) => resources.texture(id, warn),
+        block: (id, opts) => createBlockHandle(resources, id, opts, warn),
+        item: (id) => createItemHandle(resources, id, warn),
+      },
+      text: { create: (opts) => createText(opts, glyphs, warn, owned) },
+      sprite: { create: (texture, opts) => createSprite(texture, opts) },
       random: (key = '') => createRng(seed, String(key)),
       noise2D: (x, y, key = '') => {
         const k = String(key);
@@ -368,69 +406,14 @@ export class Engine implements EngineApi {
       instance = validateInstance(await loaded.module.setup(ctx));
     } catch (error) {
       disposeScene(scene);
+      for (const t of owned) t.dispose();
       if (error instanceof TemplateError) throw error;
       throw new TemplateError(`template setup() failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     } finally {
       setupDone = true;
     }
     const cutTime = instance.cutTime ?? null;
-    this.active = { instance, scene, camera: () => camera, duration: instance.duration, cutTime };
+    this.active = { instance, scene, owned, camera: () => camera, duration: instance.duration, cutTime };
     return { duration: instance.duration, cutTime, audioCues: cues, warnings };
   }
-
-  /** ctx.resources.texture：经宿主的 resolveResource 取 RGBA8，做成设好过滤和色彩空间的贴图 */
-  private texture(id: string, warn: (m: string) => void): Promise<THREE.Texture> {
-    if (typeof id !== 'string' || id.length === 0 || id.length > 512) return Promise.reject(new TypeError('invalid texture id'));
-    let p = this.textures.get(id);
-    if (!p) {
-      p = this.fetchTexture(id).catch((error: unknown) => {
-        this.host?.log('warn', `texture ${id} failed: ${error instanceof Error ? error.message : String(error)}`);
-        return null;
-      }).then((tex) => {
-        if (tex) return tex;
-        this.textures.delete(id);
-        warn(`texture ${id} is missing; a placeholder is used`);
-        return this.placeholderTexture();
-      });
-      this.textures.set(id, p);
-    }
-    return p;
-  }
-
-  private async fetchTexture(id: string): Promise<THREE.Texture | null> {
-    const raw = await this.host!.resolveResource('texture', id);
-    if (raw === null) return null;
-    const payload = TexturePayloadSchema.parse(raw);
-    return makeTexture(payload.width, payload.height, payload.data);
-  }
-
-  private placeholderTexture(): THREE.Texture {
-    if (!this.placeholder) {
-      // 品红与黑的 2×2 棋盘，放大成 16×16
-      const data = new Uint8Array(16 * 16 * 4);
-      for (let y = 0; y < 16; y++)
-        for (let x = 0; x < 16; x++) {
-          const on = ((x >> 3) + (y >> 3)) % 2 === 0;
-          data.set(on ? [248, 0, 248, 255] : [0, 0, 0, 255], (y * 16 + x) * 4);
-        }
-      this.placeholder = makeTexture(16, 16, data);
-    }
-    return this.placeholder;
-  }
-}
-
-/** 贴图：放大用 Nearest，缩小用 LinearMipmapLinear 并生成 mipmap（2.8）；sRGB 编码 */
-function makeTexture(width: number, height: number, topFirst: Uint8Array): THREE.Texture {
-  // 载荷第一行是顶部；DataTexture 不翻转，第一行对应 v = 0（底部），所以在 CPU 上翻一次
-  const data = new Uint8Array(topFirst.length);
-  const row = width * 4;
-  for (let y = 0; y < height; y++) data.set(topFirst.subarray((height - 1 - y) * row, (height - y) * row), y * row);
-  const tex = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.LinearMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  tex.flipY = false;
-  tex.needsUpdate = true;
-  return tex;
 }

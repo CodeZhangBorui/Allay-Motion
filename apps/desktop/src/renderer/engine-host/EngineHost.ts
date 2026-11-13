@@ -13,6 +13,7 @@ import {
   type ParamValues,
   type ResourceKind,
   type ResourcePayload,
+  type ThumbRequest,
 } from '@allay/template-sdk';
 import * as Comlink from 'comlink';
 import { createEngineWorker } from './create-worker';
@@ -52,6 +53,18 @@ export interface EngineHostOptions {
 
 let workerSeq = 0;
 
+/** 载荷里所有可以零拷贝转移的缓冲（去重：同一个 ArrayBuffer 只能列一次） */
+export function payloadBuffers(payload: ResourcePayload): ArrayBuffer[] {
+  const views: ArrayBufferView[] = [];
+  if (payload.kind === 'rgba') views.push(payload.data);
+  else if (payload.kind === 'font') {
+    for (const p of payload.providers) if (p.type === 'bitmap') views.push(p.image.data);
+  } else views.push(payload.codepoints, payload.metrics, payload.offsets, payload.bits);
+  const set = new Set<ArrayBuffer>();
+  for (const v of views) if (v.buffer instanceof ArrayBuffer) set.add(v.buffer);
+  return [...set];
+}
+
 export class EngineHost {
   readonly mode: EngineMode;
   private readonly worker: Worker;
@@ -85,7 +98,8 @@ export class EngineHost {
     const callbacks: HostCallbacks = {
       resolveResource: async (kind, id) => {
         const payload = await opts.resolveResource(kind, id);
-        return payload ? Comlink.transfer(payload, [payload.data.buffer]) : null;
+        // 载荷交给 Worker 后在这里就不能再用了：调用方每次都要给一份新的（缓存里的要先复制）
+        return payload ? Comlink.transfer(payload, payloadBuffers(payload)) : null;
       },
       log: (level, message) => opts.log?.(level, String(message).slice(0, 2000)),
     };
@@ -129,6 +143,13 @@ export class EngineHost {
     const buf = await this.call('renderFrame', this.timeouts.exportFrame, () => this.api.renderFrame(index, quality, opaque));
     if (!(buf instanceof ArrayBuffer)) throw new EngineCrashedError('renderFrame returned no pixels');
     return new Uint8Array(buf);
+  }
+
+  /** 方块、物品的缩略图（杂务或导出引擎） */
+  async renderThumbnail(req: ThumbRequest): Promise<ImageBitmap> {
+    const bitmap = await this.call('renderThumbnail', this.timeouts.exportFrame, () => this.api.renderThumbnail(req));
+    if (!(bitmap instanceof ImageBitmap)) throw new EngineCrashedError('renderThumbnail returned no image');
+    return bitmap;
   }
 
   /** 诊断与测试用：画一帧预览并读回画布像素（预乘 alpha） */
