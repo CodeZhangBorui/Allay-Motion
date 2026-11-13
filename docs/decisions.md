@@ -39,6 +39,13 @@
 - 标题栏按钮区颜色：顶栏用 `--surface-1`，所以按钮区底色是 `--surface-1`、符号色是 `--foreground`。渲染进程在主题变化时读取计算后的颜色（CSS 压缩会把 `#FFFFFF` 写成 `#fff`，所以经 `rgb()` 解析）发给主进程；主进程在页面加载前用 `shared/theme-colors.ts` 里同样的值（单元测试核对它与设计变量一致）。
 - 浅色主题的阴影规格没给，用了同样形状、更淡的不透明度。
 
+### 打包不联网
+
+- 主控复跑 `pnpm dist` 时，electron-builder 的打包步骤即使本机缓存里已有 Electron 的 zip，仍会去 GitHub 取校验和，网络不通就失败。现在 `electron-builder.yml` 用 `electronDist: node_modules/electron/dist` 直接拿工作区里已安装的 Electron（`node_modules/electron` 是 pnpm 建的链接，不写 `.pnpm` 下的哈希目录），打包时不再下载或校验 Electron。
+- 根目录的 `pnpm dist` 先跑 `scripts/ensure-electron-dist.ts`：二进制已在就直接继续（不联网）；Electron 45 没有 postinstall，全新安装后二进制可能还没下载，这时它触发一次下载（需要网络），失败时给出明确的报错和手动命令。
+- 其他二进制：NSIS、nsis-resources、7zip 由 electron-builder 下载到 `%LOCALAPPDATA%electron-builderCache`，校验和写在 electron-builder 里，**有缓存时不联网**（下面的断网验证里没有任何下载记录）；全新的机器（包括 CI）第一次打包时会下载一次。
+- 验证：把 `HTTP(S)_PROXY`、`ALL_PROXY`、npm 的 proxy、`ELECTRON_GET_USE_PROXY` + `GLOBAL_AGENT_*` 都指向不通的 `127.0.0.1:9`（同样设置下 `curl https://github.com` 失败），删掉 `release/` 后跑 `pnpm dist`：退出码 0，日志里没有下载记录，`tests/dist/T-ARC-2.packaged.test.ts` 3/3 通过。这是“代理不通”的断网，不是拔网线：不认代理环境变量、直接连网的客户端不受它限制，但打包日志里没有出现任何下载，原先失败的那一步就是走这条路的。
+
 ### 测试的做法
 
 - **T-ARC-2** 分两半：开发态（未打包的构建）在 `pnpm check` 的 e2e 里查 `require`/`process` 和 `webPreferences`；打包后的 fuses 检查放在 `pnpm dist` 末尾（`tests/dist/`），因为 `pnpm check` 不出安装包。CI 两个都跑。

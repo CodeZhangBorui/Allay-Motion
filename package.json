@@ -22,7 +22,7 @@
     "templates:build": "tsx scripts/not-implemented.ts templates:build M3",
     "mascot:bake": "tsx scripts/not-implemented.ts mascot:bake M5",
     "ffmpeg:fetch": "tsx scripts/not-implemented.ts ffmpeg:fetch M1",
-    "dist": "pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts"
+    "dist": "tsx scripts/ensure-electron-dist.ts && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts"
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",
