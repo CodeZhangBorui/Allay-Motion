@@ -1,0 +1,21 @@
+{
+  "name": "@allay/mascot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@allay/ui": "workspace:*",
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "typescript": "~6.0.3"
+  }
+}

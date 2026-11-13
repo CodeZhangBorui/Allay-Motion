@@ -1,0 +1,38 @@
+{
+  "topbar": {
+    "project": "未命名工程",
+    "resources": "素材：内置",
+    "undo": "撤销",
+    "redo": "重做",
+    "export": "导出"
+  },
+  "gallery": {
+    "title": "模板",
+    "search": "搜索模板",
+    "categories": {
+      "all": "全部",
+      "transition": "转场",
+      "overlay": "叠加",
+      "mine": "我的"
+    },
+    "placeholder": "模板库会在这里出现。",
+    "import": "导入模板…"
+  },
+  "preview": {
+    "region": "预览",
+    "placeholder": "预览视口"
+  },
+  "transport": {
+    "region": "播放条",
+    "toStart": "回到开头",
+    "play": "播放",
+    "loop": "循环"
+  },
+  "params": {
+    "title": "属性",
+    "placeholder": "选中模板后，在这里调整参数。"
+  },
+  "layout": {
+    "resizeHandle": "拖动调整宽度"
+  }
+}

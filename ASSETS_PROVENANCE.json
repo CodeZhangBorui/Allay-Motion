@@ -1,0 +1,9 @@
+[
+  {
+    "path": "docs/review/**/*.png",
+    "origin": "original",
+    "author": "Allay Motion 项目（应用截图，由端到端测试驱动应用截取）",
+    "license": "项目自有",
+    "note": "评审用截图，不进安装包"
+  }
+]

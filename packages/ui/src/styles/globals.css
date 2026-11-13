@@ -1,0 +1,221 @@
+/*
+ * 设计变量与两套主题，来源：docs/06-ui-design.md 6.2。
+ * 色值已经验算过对比度（node docs/reference/contrast-check.mjs），不要凭感觉改。
+ * 使用方需要在自己的入口 CSS 里加 @source 指向本包的 src，让 Tailwind 扫描到这里的类名。
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+/* 主题由 <html data-theme="dark|light"> 决定；dark: 前缀跟随它而不是系统设置 */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ---------- 6.2 设计变量：深色（默认） ---------- */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #0B0F13;
+  --surface-1: #14171D;
+  --surface-2: #1C2127;
+  --surface-3: #252B32;
+  --border: #2D333B;
+  --border-strong: #474E57;
+  --input-border: #5C646E;
+  --foreground: #F2F4F6;
+  --fg-muted: #9EA5AE;
+  --fg-subtle: #7A8189;
+  --primary: #2072D5;
+  --primary-hover: #2E80E0;
+  --primary-active: #1665C8;
+  --primary-foreground: #FAFCFE;
+  --primary-text: #60AAF3;
+  --ring: #52CFF3;
+  --allay: #52CFF3;
+  --allay-glow: #9EEDFB;
+  --allay-deep: #1B92C2;
+  --amethyst: #B98CEA;
+  --success: #52CD7D;
+  --warning: #F8BD40;
+  --danger: #F4514F;
+  --viewport: #060606;
+  --skeleton: #22272D;
+
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / .45);
+  --shadow-dialog: 0 16px 48px rgb(0 0 0 / .55);
+}
+
+/* ---------- 6.2 设计变量：浅色 ---------- */
+[data-theme='light'] {
+  color-scheme: light;
+  --background: #F5F7F9;
+  --surface-1: #FFFFFF;
+  --surface-2: #EDF0F4;
+  --surface-3: #E3E7EC;
+  --border: #DADEE3;
+  --border-strong: #B9BEC6;
+  --input-border: #81878F;
+  --foreground: #141B24;
+  --fg-muted: #565E69;
+  --fg-subtle: #737B85;
+  --primary: #0D6AD7;
+  --primary-hover: #085DC7;
+  --primary-active: #0052B4;
+  --primary-foreground: #FAFCFE;
+  --primary-text: #0D6AD7;
+  --ring: #257DA9;
+  --allay: #22A6D5;
+  --allay-glow: #76DBF3;
+  --allay-deep: #257DA9;
+  --amethyst: #925AC9;
+  --success: #078543;
+  --warning: #A2650A;
+  --danger: #D4212D;
+  --viewport: #D1D1D1;
+  --skeleton: #E4E8ED;
+
+  /* 规格只给了深色主题的阴影；浅色用同样的形状、更淡的不透明度（见 docs/decisions.md） */
+  --shadow-popover: 0 8px 24px rgb(16 24 40 / .12);
+  --shadow-dialog: 0 16px 48px rgb(16 24 40 / .18);
+}
+
+/* ---------- 映射到 shadcn 的变量（6.2“映射到 shadcn 的变量”），两套主题共用 ---------- */
+:root,
+[data-theme='dark'],
+[data-theme='light'] {
+  --card: var(--surface-1);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--fg-muted);
+  --secondary: var(--surface-3);
+  --secondary-foreground: var(--foreground);
+  --accent: var(--surface-3);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+}
+
+/* ---------- 尺寸、字体、动效 ---------- */
+:root {
+  --font-ui: "Inter Variable", "Segoe UI Variable Text", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --font-id: "Cascadia Mono", Consolas, monospace;
+
+  --dur-1: 90ms;   /* 悬停、按下 */
+  --dur-2: 160ms;  /* 弹层、开关、内容切换的淡入淡出 */
+  --dur-3: 240ms;  /* 面板、对话框 */
+  --dur-4: 400ms;  /* 页面级、悦灵进出场 */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-in-out: cubic-bezier(.45, .05, .2, 1);
+
+  --topbar-height: 40px;
+  --transport-height: 48px;
+}
+
+/* 减少动效：除 120 ms 的透明度渐变外其余时长归零（6.2 动效） */
+[data-reduced-motion='true'] {
+  --dur-1: 0ms;
+  --dur-2: 0ms;
+  --dur-3: 0ms;
+  --dur-4: 0ms;
+  --dur-fade: 120ms;
+}
+
+@theme inline {
+  --font-sans: var(--font-ui);
+  --font-heading: var(--font-ui);
+  --font-mono: var(--font-id);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input-border: var(--input-border);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-text: var(--primary-text);
+  --color-ring: var(--ring);
+  --color-allay: var(--allay);
+  --color-allay-glow: var(--allay-glow);
+  --color-allay-deep: var(--allay-deep);
+  --color-amethyst: var(--amethyst);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-viewport: var(--viewport);
+  --color-skeleton: var(--skeleton);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+
+  /* 字号阶梯 11/12/13/14/16/20，行高 1.4 */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.4;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.4;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.4;
+  --text-base: 14px;
+  --text-base--line-height: 1.4;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.4;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.4;
+
+  /* 圆角：6 控件、8 卡片与弹层、12 对话框 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --shadow-popover: var(--shadow-popover);
+  --shadow-dialog: var(--shadow-dialog);
+
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-sm antialiased;
+    user-select: none;
+  }
+  /* 焦点环：2 px 的 --ring，外偏移 2 px（6.9） */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .pixelated {
+    image-rendering: pixelated;
+  }
+}
