@@ -2,6 +2,7 @@
 // 线程边界两侧都用这些 schema 校验：Worker 校验宿主发来的请求，宿主校验 Worker 交回的结果。
 // 放在 template-sdk 是因为引擎只能依赖 three、template-sdk、assets（1.4），而这些 schema 需要 zod。
 import { z } from 'zod';
+import { TemplateManifestSchema } from './manifest';
 import type { ParamValue } from './runtime';
 
 export const ParamValueSchema: z.ZodType<ParamValue> = z.lazy(() =>
@@ -9,20 +10,7 @@ export const ParamValueSchema: z.ZodType<ParamValue> = z.lazy(() =>
 );
 export const ParamValuesSchema = z.record(z.string(), ParamValueSchema);
 
-export const LocalizedStringSchema = z.union([z.string(), z.strictObject({ 'zh-CN': z.string().optional(), en: z.string().optional() })]);
-
-/**
- * M1 用到的 manifest 字段。完整的 schema（参数定义、分组、时间段、派生）在 M3 加入（04-templates.md 4.3）。
- * 未知字段保留但忽略。
- */
-export const TemplateManifestSchema = z.looseObject({
-  formatVersion: z.literal(1),
-  id: z.string().regex(/^[a-z0-9]+(\.[a-z0-9-]+)+$/),
-  version: z.string().min(1).max(64),
-  name: LocalizedStringSchema,
-  category: z.enum(['transition', 'overlay', 'title']),
-});
-export type TemplateManifest = z.infer<typeof TemplateManifestSchema>;
+export { TemplateManifestSchema, type TemplateManifest } from './manifest';
 
 export const OutputSettingsSchema = z.strictObject({
   width: z.int().min(16).max(8192),
@@ -40,6 +28,8 @@ export const LoadRequestSchema = z.strictObject({
   params: ParamValuesSchema,
   output: OutputSettingsSchema,
   resourceStamp: z.string().max(256),
+  /** text 参数缺值时按这个语言取默认值（4.4）；缺省英文 */
+  locale: z.string().max(16).optional(),
 });
 export type LoadRequest = z.infer<typeof LoadRequestSchema>;
 

@@ -1,6 +1,0 @@
-{
-  "extends": "../../../tsconfig.base.json",
-  // 模板是普通 JS（不含 import 的单文件 ESM），用 JSDoc 做类型检查；类型化数组的下标访问不另做 undefined 检查
-  "compilerOptions": { "lib": ["ES2023"], "types": [], "allowJs": true, "checkJs": true, "noUncheckedIndexedAccess": false },
-  "include": ["template.js"]
-}
