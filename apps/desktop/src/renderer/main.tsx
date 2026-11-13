@@ -6,11 +6,15 @@ import { App } from './app/App';
 import { applyThemeToDocument } from './app/useThemeSync';
 import { initI18n, resolveLanguage } from './i18n';
 import { installTestHooks } from './test-hooks';
+import { useResourceStore } from './stores/resourceStore';
 import { useUiStore } from './stores/uiStore';
 
 async function bootstrap(): Promise<void> {
-  const [settings, info] = await Promise.all([window.allay.settings.get(), window.allay.app.info()]);
+  const [settings, info, resources] = await Promise.all([window.allay.settings.get(), window.allay.app.info(), window.allay.resources.layers()]);
   useUiStore.getState().replace(settings);
+  // 先拿到资源栈（和它的 stamp）再装载模板，免得用空栈白装一次
+  useResourceStore.getState().replace(resources);
+  window.allay.resources.onChanged((next) => useResourceStore.getState().replace(next));
   if (info.testHooks) installTestHooks();
   applyThemeToDocument(settings);
 

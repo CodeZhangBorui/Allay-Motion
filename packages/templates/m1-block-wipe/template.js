@@ -50,19 +50,10 @@ const template = {
       uOut[i] = 1 - uIn[i]; // outPattern = reverse
     }
 
-    // 方块：一个立方体，面的明暗烘进顶点色（顶 1.0、底 0.5、南北 0.8、东西 0.6）
-    const texture = await ctx.resources.texture('minecraft:block/diamond_block');
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const faceShade = [0.6, 0.6, 1.0, 0.5, 0.8, 0.8]; // BoxGeometry 的面顺序：+x −x +y −y +z −z
-    const colors = new Float32Array(geometry.getAttribute('position').count * 3);
-    for (let face = 0; face < 6; face++) {
-      for (let v = 0; v < 4; v++) colors.fill(faceShade[face], (face * 4 + v) * 3, (face * 4 + v) * 3 + 3);
-    }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.MeshBasicMaterial({ map: texture, vertexColors: true });
-    const mesh = new THREE.InstancedMesh(geometry, material, count);
-    mesh.frustumCulled = false;
-    scene.add(mesh);
+    // 方块：经资源栈和方块目录取（面明暗、贴图都由引擎处理），每个格子一个实例
+    const block = await ctx.resources.block('minecraft:diamond_block');
+    const blocks = block.instanced(count);
+    scene.add(blocks.object);
 
     // update 里复用的对象（update 内不分配内存）
     const m = new THREE.Matrix4();
@@ -96,14 +87,9 @@ const template = {
           const k = Math.max(0, e) * s;
           scl.set(k, k, k);
           m.compose(pos, quat, scl);
-          mesh.setMatrixAt(i, m);
+          blocks.setMatrix(i, m);
         }
-        mesh.instanceMatrix.needsUpdate = true;
-      },
-      dispose() {
-        geometry.dispose();
-        material.dispose();
-        mesh.dispose();
+        blocks.commit();
       },
     };
   },

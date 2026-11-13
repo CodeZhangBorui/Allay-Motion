@@ -1,7 +1,6 @@
 {
   "topbar": {
     "project": "未命名工程",
-    "resources": "素材：内置",
     "undo": "撤销",
     "redo": "重做",
     "export": "导出"
@@ -74,5 +73,82 @@
       "templateFailed": "导出时模板出错了。",
       "templateUnresponsive": "导出时模板无响应。"
     }
+  },
+  "resources": {
+    "button": "素材：{{name}}",
+    "buttonNone": "素材：无",
+    "buttonLabel": "素材与资源栈",
+    "title": "素材",
+    "subtitle": "从上到下依次查找，排在上面的优先。",
+    "kinds": {
+      "builtin": "内置",
+      "vanilla": "原版",
+      "pack": "资源包"
+    },
+    "vanillaName": "Minecraft {{version}}",
+    "vanillaLocal": "本机安装的游戏",
+    "vanillaDownloaded": "从 Mojang 下载",
+    "folder": "文件夹",
+    "toggle": "启用“{{name}}”",
+    "remove": "移除“{{name}}”",
+    "moveUp": "上移“{{name}}”",
+    "moveDown": "下移“{{name}}”",
+    "legacy": "旧版格式（1.12 及更早），大部分贴图不会生效。",
+    "skipped": "有 {{count}} 个文件被跳过。",
+    "broken": {
+      "missing": "找不到这个资源包的文件。",
+      "rejected": "这个资源包含有不安全的文件，已被拒绝。",
+      "unreadable": "无法读取这个资源包。"
+    },
+    "vanillaProblem": "原版游戏文件找不到了（可能已移动或卸载），暂时不使用原版素材。",
+    "noVanilla": "没有使用原版素材",
+    "useLocal": "使用本机的 Minecraft {{version}}",
+    "findGame": "查找游戏目录…",
+    "noRelease": "这个目录里没有找到带客户端的正式版 Minecraft Java 版。",
+    "download": {
+      "button": "下载原版资源（约 45 MB，来自 Mojang 官方服务器）",
+      "note": "会联网连接 Mojang 的官方服务器（piston-meta.mojang.com、piston-data.mojang.com），下载最新正式版的 Minecraft Java 版客户端 jar，保存在本机的应用数据目录里，只用来读取其中的贴图。不会发送任何个人信息，不会自动更新；只有点这个按钮时才会联网。",
+      "running": "正在下载原版资源…",
+      "phase": {
+        "manifest": "读取版本列表",
+        "version": "读取版本信息",
+        "jar": "下载客户端",
+        "index": "下载资源索引",
+        "object": "下载资源文件"
+      },
+      "progress": "下载进度",
+      "cancel": "取消下载",
+      "errors": {
+        "network": "无法连接 Mojang 的服务器。请检查网络后重试。",
+        "verify": "下载的文件校验失败，已经丢弃。请重试。",
+        "disk": "无法写入应用数据目录（磁盘已满或没有权限）。",
+        "unknown": "下载失败，请重试。",
+        "busy": "已经在下载了。"
+      },
+      "retry": "重新下载"
+    },
+    "addPack": "添加资源包…",
+    "addFolder": "添加文件夹…",
+    "dropHint": "也可以把 zip 直接拖进窗口。",
+    "dropOverlay": "松开以添加资源包",
+    "added": "已添加资源包。",
+    "addErrors": {
+      "rejected": "资源包被拒绝：里面有不安全的文件路径。",
+      "unsupported": "只能添加 zip 格式的资源包或文件夹。",
+      "unreadable": "无法读取这个文件。"
+    },
+    "onboarding": {
+      "title": "还没有可用的素材",
+      "body": "{{name}} 不自带 Minecraft 的贴图。可以使用本机安装的游戏、从 Mojang 官方服务器下载原版资源，或者添加你自己的资源包。在那之前，预览里缺失的贴图显示为品红和黑色的方格。"
+    },
+    "discovery": {
+      "title": "找到了你的 Minecraft",
+      "body": "检测到 Minecraft Java 版 {{version}}。使用游戏里的原版贴图和音效后，预览和导出的画面会和游戏里一样。",
+      "local": "{{name}} 只在本机读取这些文件，不会复制、上传或修改它们。",
+      "accept": "使用原版素材",
+      "decline": "暂不使用",
+      "later": "之后可以在“素材”里随时更改。"
+    },
+    "close": "关闭"
   }
 }
