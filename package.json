@@ -17,6 +17,7 @@
     "test:e2e": "pnpm build && playwright test",
     "check:provenance": "tsx scripts/check-provenance.ts",
     "check:licenses": "tsx scripts/check-licenses.ts",
+    "check:removable": "tsx scripts/check-removable.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:engine && pnpm test:export && pnpm check:provenance && pnpm check:licenses && pnpm test:e2e",
     "assets:gen": "tsx scripts/not-implemented.ts assets:gen M2",
     "templates:build": "tsx scripts/build-templates.ts",
@@ -24,12 +25,14 @@
     "templates:api": "tsx scripts/gen-template-api.ts",
     "mascot:bake": "tsx scripts/mascot-bake.ts",
     "ffmpeg:fetch": "tsx scripts/fetch-ffmpeg.ts",
-    "dist": "tsx scripts/ensure-electron-dist.ts && pnpm templates:build && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts",
+    "dist": "tsx scripts/ensure-electron-dist.ts && pnpm templates:build && tsx scripts/mascot-dist.ts && pnpm --filter @allay/desktop dist && vitest run --config vitest.dist.config.ts",
     "review:m1": "tsx scripts/review-m1.ts",
     "review:m2b": "tsx scripts/review-m2b.ts",
     "review:m3": "tsx scripts/review-m3.ts",
     "review:m4": "tsx scripts/review-m4.ts",
     "review:ui-redesign": "tsx scripts/review-ui-redesign.ts",
+    "review:md-b": "tsx scripts/review-md-b.ts",
+    "review:m5b": "tsx scripts/review-m5b.ts",
     "test:e2e:baselines": "pnpm build && playwright test tests/e2e/m4.spec.ts -g T-UI-5 --update-snapshots"
   },
   "devDependencies": {

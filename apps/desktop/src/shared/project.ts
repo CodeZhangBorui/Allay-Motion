@@ -3,7 +3,7 @@
 // 主进程保存时换成 files 里的本机路径，打开时再签发新的引用（1.6 第 6 条）。
 import { TemplateIdSchema } from '@allay/template-sdk';
 import { z } from 'zod';
-import { ExportPresetSchema } from './export';
+import { DEFAULT_KEY_COLOR, ExportPresetSchema, KeyColorSchema } from './export';
 
 export const PROJECT_FORMAT_VERSION = 1;
 export const PROJECT_EXTENSION = 'allay';
@@ -24,6 +24,8 @@ export const ProjectExportSchema = z.strictObject({
   preset: ExportPresetSchema,
   quality: z.enum(['draft', 'standard', 'high', 'ultra']),
   shutterAngle: z.number().min(0).max(360),
+  /** 绿幕 MP4 的底色（M7）；旧工程没有这一项时用 #00FF00 */
+  key: KeyColorSchema.default(DEFAULT_KEY_COLOR),
 });
 
 export const ProjectPreviewSchema = z.strictObject({
@@ -51,7 +53,7 @@ export const ProjectFileSchema = z.looseObject({
   template: z.strictObject({ id: TemplateIdSchema, version: z.string().min(1).max(64) }),
   params: ParamsSchema.catch({}).default({}),
   output: ProjectOutputSchema.catch({ width: 1920, height: 1080, fps: 60 }).default({ width: 1920, height: 1080, fps: 60 }),
-  export: ProjectExportSchema.catch({ preset: 'prores4444', quality: 'standard', shutterAngle: 180 }).default({ preset: 'prores4444', quality: 'standard', shutterAngle: 180 }),
+  export: ProjectExportSchema.catch({ preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: DEFAULT_KEY_COLOR }).default({ preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: DEFAULT_KEY_COLOR }),
   preview: ProjectPreviewSchema.catch({ background: 'checker' }).default({ background: 'checker' }),
   files: z.record(ParamKey, z.string().max(4096)).catch({}).default({}),
   resourceHint: z.array(z.string().max(200)).max(64).catch([]).default([]),

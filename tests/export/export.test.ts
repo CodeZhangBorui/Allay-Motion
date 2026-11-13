@@ -65,7 +65,7 @@ describe('固定的 FFmpeg 构建', () => {
     const info = await probeFfmpeg(FFMPEG);
     expect(info.available).toBe(true);
     expect(info.version).toMatch(/^ffmpeg version n9\.0/);
-    expect(info.presets).toEqual({ prores4444: true, 'png-sequence': true });
+    expect(info.presets).toEqual({ prores4444: true, 'png-sequence': true, 'webm-vp9': true, 'greenscreen-mp4': true });
   });
   it('parseEncoders 认得 -encoders 的输出', () => {
     const text = ' Encoders:\n V..... = Video\n ------\n VFS... prores_ks            Apple ProRes\n VF...D png                  PNG\n A....D aac                  AAC\n';

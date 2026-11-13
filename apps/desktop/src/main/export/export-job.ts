@@ -3,7 +3,7 @@
 //
 // - 输出先写到 <目标>.partial（PNG 序列是 <目录>/<名字>.partial/），成功后改名。
 // - writeFrame 在数据写进 stdin、且（缓冲满时）等到 drain 之后才返回，内存里最多一两帧。
-// - 取消、失败：杀掉 FFmpeg，等它退出，删除 .partial。任何结局都不留下临时文件。
+// - 取消、失败：杀掉 FFmpeg，等它退出，删除 .partial。任何结局都不留下临时文件（包括有音轨时的临时 WAV）。
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
@@ -23,12 +23,15 @@ export interface ExportJobOptions {
   totalFrames: number;
   cutFrame: number | null;
   /**
-   * 最终位置。ProRes：文件路径（…/name.mov）；PNG 序列：目录路径（…/name），帧写成 name_00000.png。
+   * 最终位置。视频：文件路径（…/name.mov 等）；PNG 序列：目录路径（…/name），帧写成 name_00000.png。
+   * 已经存在时不覆盖，改名时加 “ (2)”（5.2）。
    */
   target: string;
+  /** 绿幕 MP4 的 H.264 编码器（探测结果） */
+  h264Encoder?: string | null;
   /**
-   * 有音轨（5.5）：start() 只做路径检查，等 writeAudio() 交来 WAV 后才启动 FFmpeg。
-   * ProRes 把 WAV 写到临时目录作为 FFmpeg 的第二个输入；PNG 序列把它另存为同一目录里的 name.wav。
+   * 有音轨（5.5，M6b）：start() 只做路径检查，等 writeAudio() 交来 WAV 后才启动 FFmpeg（WAV 是 FFmpeg 的输入，要先落盘）。
+   * 视频预设把 WAV 写到临时目录作为第二个输入；PNG 序列把它另存为同一目录里的 name.wav（5.3 ②）。
    */
   audio?: boolean;
   /** 临时 WAV 放在哪个目录（缺省为系统临时目录） */
@@ -81,7 +84,7 @@ export class ExportJob {
   private output: string | null = null;
   /** 有音轨且还没收到 WAV */
   private awaitingAudio: boolean;
-  /** ProRes 的临时 WAV；任何结局都删除 */
+  /** 视频预设的临时 WAV；任何结局都删除 */
   private tempWav: string | null = null;
 
   constructor(private readonly opts: ExportJobOptions) {
@@ -107,7 +110,7 @@ export class ExportJob {
     return this.state;
   }
 
-  /** 校验输出位置可写，启动 FFmpeg */
+  /** 校验输出位置可写，启动 FFmpeg（有音轨时等 writeAudio） */
   async start(): Promise<void> {
     if (this.state !== 'idle') throw new Error('job already started');
     this.state = 'running';
@@ -130,13 +133,12 @@ export class ExportJob {
       throw new ExportJobError({ code: isNotWritable(error) ? 'output-not-writable' : 'ffmpeg-failed', detail: errnoDetail(error) });
     }
     this.output = output;
-    // 有音轨：等 writeAudio() 交来混音再启动 FFmpeg（WAV 是 FFmpeg 的输入，要先在磁盘上）
     if (!this.awaitingAudio) await this.launch(null);
   }
 
   /**
-   * 交来混好的 WAV（48 kHz 立体声 16 位，5.5），然后启动 FFmpeg。只能在 start() 之后、第一帧之前调用一次，
-   * 而且只对声明了 audio 的任务。WAV 不合格式时任务失败（杀进程、清理）。
+   * 交来混好的 WAV（48 kHz 立体声 16 位 PCM，5.5），然后启动 FFmpeg。只能在 start() 之后、第一帧之前调用一次，
+   * 而且只对声明了 audio 的任务。WAV 不合格式时任务失败（清理，不留文件）。
    */
   async writeAudio(wav: Uint8Array): Promise<void> {
     if (this.state !== 'running' || !this.awaitingAudio || this.proc) throw new Error('this job does not expect audio now');
@@ -152,8 +154,7 @@ export class ExportJob {
         await this.launch(null);
         return;
       }
-      const dir = this.opts.tempDir ?? tmpdir();
-      this.tempWav = join(dir, `allay-mix-${randomUUID()}.wav`);
+      this.tempWav = join(this.opts.tempDir ?? tmpdir(), `allay-mix-${randomUUID()}.wav`);
       await writeFile(this.tempWav, wav, { flag: 'wx' });
     } catch (error) {
       await this.cleanup();
@@ -165,7 +166,16 @@ export class ExportJob {
 
   private async launch(audio: string | null): Promise<void> {
     const output = this.output!;
-    const args = ffmpegArgs({ preset: this.opts.preset, width: this.opts.width, height: this.opts.height, fps: this.opts.fps, output, cutFrame: this.opts.cutFrame, audio });
+    const args = ffmpegArgs({
+      preset: this.opts.preset,
+      width: this.opts.width,
+      height: this.opts.height,
+      fps: this.opts.fps,
+      output,
+      cutFrame: this.opts.cutFrame,
+      audio,
+      h264Encoder: this.opts.h264Encoder ?? null,
+    });
     let proc: ChildProcessByStdio<Writable, null, Readable>;
     try {
       proc = spawn(this.opts.ffmpeg, args, { stdio: ['pipe', 'ignore', 'pipe'], windowsHide: true });
@@ -302,21 +312,26 @@ export class ExportJob {
     if (this.tempWav) await rm(this.tempWav, { force: true, maxRetries: 10, retryDelay: 100 });
   }
 
-  /** 把 .partial 改名到最终位置。ProRes 的目标由保存对话框确认过覆盖；PNG 目录重名时加 “ (2)” */
+  /** 把 .partial 改名到最终位置；目标已经存在时不覆盖，加 “ (2)”、“ (3)”…（5.2） */
   private async place(): Promise<string> {
-    const { target, preset } = this.opts;
-    if (preset === 'prores4444') {
-      await rm(target, { force: true });
-      await rename(this.partial, target);
-      return target;
-    }
-    let final = target;
-    for (let n = 2; await exists(final); n++) {
-      final = join(dirname(target), `${basename(target, extname(target))} (${n})`);
-    }
+    const final = await uniquePath(this.opts.target, false);
     await rename(this.partial, final);
     return final;
   }
+}
+
+/** 不与已有文件或目录重名的路径：name.ext → name (2).ext → name (3).ext …（目录没有扩展名） */
+export async function uniquePath(target: string, avoidPartial = true): Promise<string> {
+  const ext = extname(target);
+  // PNG 序列的目录名里可能有点号（如 1.5x），只有真正的视频扩展名才当扩展名
+  const isVideo = /^\.(mov|webm|mp4)$/i.test(ext);
+  const stem = isVideo ? basename(target, ext) : basename(target);
+  const suffix = isVideo ? ext : '';
+  let final = target;
+  for (let n = 2; (await exists(final)) || (avoidPartial && (await exists(`${final}.partial`))); n++) {
+    final = join(dirname(target), `${stem} (${n})${suffix}`);
+  }
+  return final;
 }
 
 async function exists(path: string): Promise<boolean> {

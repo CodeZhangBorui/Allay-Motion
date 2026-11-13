@@ -27,6 +27,11 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ editor: { recent: { color: ['#000000'] } } }],
     [{ editor: { groups: { 'allay.builtin.block-wipe': { timing: 'yes' } } } }],
     [{ editor: { solidColor: 'red' } }],
+    // 可选模块的开关表（MD-b）：键必须是目录名的格式，值必须是布尔
+    [{ optionalModules: { 'Bad Name': true } }],
+    [{ optionalModules: { 'code-editor': 'yes' } }],
+    [{ optionalModules: ['code-editor'] }],
+    [{ optionalModules: Object.fromEntries(Array.from({ length: 33 }, (_, i) => [`m${i}`, true])) }],
     ['x'.repeat(200_000)],
   ],
   'window.setTitleBarColors': [
@@ -53,7 +58,9 @@ const MALFORMED: Record<string, unknown[][]> = {
     [],
     [null],
     [{ preset: 'prores4444' }],
-    [{ preset: 'webm-vp9', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'gif', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
+    [{ preset: 'webm-vp9', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: '' }],
+    [{ preset: 'greenscreen-mp4', width: 1920, height: 1080, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x', encoder: 'libx264' }],
     [{ preset: 'prores4444', width: 1001, height: 563, fps: 60, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
     [{ preset: 'prores4444', width: 1920, height: 1080, fps: 61, totalFrames: 10, cutFrame: null, suggestedName: 'x' }],
     [{ preset: 'prores4444', width: 1920, height: 1080, fps: 60, totalFrames: 0, cutFrame: null, suggestedName: 'x' }],
@@ -82,6 +89,13 @@ const MALFORMED: Record<string, unknown[][]> = {
   'export.finish': [[], [42], ['C:\\out.mov'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301']],
   'export.cancel': [[], [null], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
   'export.ffmpegInfo': [[1], ['C:\\ffmpeg.exe'], [{ path: 'x' }]],
+  'export.probeEncoders': [[], ['true'], [1], [true, 'h264_mf'], [{ candidates: ['x'] }]],
+  'export.outputFolder': [[1], ['C:\\Windows']],
+  // 合法的 chooseFolder 会弹文件夹对话框，这里只有畸形参数；文件夹只能从对话框来，不接受路径
+  'export.chooseFolder': [['C:\\Windows'], [{ folder: 'C:\\x' }]],
+  // 格式合法但不存在（或没有完成）的任务也拒绝：只能显示这个进程里导出完成的文件
+  'export.reveal': [[], ['C:\\Windows\\win.ini'], ['../x'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'x']],
+  'export.copyDiagnostics': [[], [''], [42], ['x'.repeat(20_001)], [{ text: 'x' }], ['x', 'y']],
   'resources.layers': [[1], ['all']],
   'resources.stamp': [[1]],
   'resources.read': [
@@ -190,6 +204,18 @@ const MALFORMED: Record<string, unknown[][]> = {
   ],
   'project.saveAs': [[], [null], [{ name: '' }], [{ name: 'x', path: 'C:\\x.allay' }]],
   'project.recents': [[1], ['x']],
+  // 主进程到界面的命令通道（MD-b）：界面只能交回格式对的结果
+  'host.commandResult': [
+    [],
+    [null],
+    ['3f2504e0-4f89-41d3-9a0c-0305e82c3301'],
+    [{ requestId: 'not-a-uuid', ok: true }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: 'yes' }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: false, error: 'exploded', message: 'x' }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true, path: 'C:\\Windows' }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true, output: 'x'.repeat(1_000_001) }],
+    [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true }, 'extra'],
+  ],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],

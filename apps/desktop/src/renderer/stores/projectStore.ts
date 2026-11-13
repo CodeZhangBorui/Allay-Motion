@@ -9,12 +9,45 @@ import type { TemplateSource } from '../templates/catalog';
 // 指针按下时暂停记录（先记下按下前的状态），松开时恢复记录并补一条。
 // 参数始终是完整的一组：换模板、改参数时都经 template-sdk 的校验函数清洗（4.4），text 的多语言默认值按界面语言取一次。
 
+/**
+ * 撤销记录的来源（docs/code-editing-and-mcp-plan.md H6）：哪一次改动产生了这个状态。
+ * labelKey 是文案键（命令的 undoLabelKey 或 titleKey，界面上直接改参数时是 history.*）；
+ * source 是谁改的：界面、命令（含快捷键、命令面板）、主进程经命令通道（H11）、可选模块（module:<id>）。
+ */
+export interface UndoOrigin {
+  labelKey: string;
+  source: 'ui' | 'command' | 'main' | `module:${string}`;
+}
+
+export const UI_ORIGIN: UndoOrigin = { labelKey: 'history.params', source: 'ui' };
+
+/** 当前这次改动的来源（dispatch 执行 write 命令期间设置；没有设置时是界面上的直接修改） */
+let ambientOrigin: UndoOrigin | null = null;
+
+/** 在 fn 同步执行期间产生的改动都记成 origin（只覆盖同步部分：异步命令在 await 之后的改动按界面修改记） */
+export function withOrigin<T>(origin: UndoOrigin, fn: () => T): T {
+  const prev = ambientOrigin;
+  ambientOrigin = origin;
+  try {
+    return fn();
+  } finally {
+    ambientOrigin = prev;
+  }
+}
+
+function originFor(fallbackKey: string): UndoOrigin {
+  return ambientOrigin ?? { ...UI_ORIGIN, labelKey: fallbackKey };
+}
+
 export type QualityLevel = 'draft' | 'standard' | 'high' | 'ultra';
 
 export interface ExportSettings {
   preset: ExportPreset;
   quality: QualityLevel;
+  /** 快门角 0–360（5.2） */
   shutterAngle: number;
+  /** 绿幕 MP4 的底色 #RRGGBB */
+  key: string;
 }
 
 interface ProjectState {
@@ -35,6 +68,8 @@ interface ProjectState {
   savedRevision: number;
   /** file: 引用对应的文件名（只用于显示） */
   fileNames: Record<string, string>;
+  /** 产生当前状态的那次改动（撤销时显示“撤销什么”，H6） */
+  origin: UndoOrigin;
   setTemplate(template: TemplateSource, params?: Readonly<Record<string, unknown>>, locale?: string): void;
   /** 改一部分参数（多余的键丢弃，越界的钳制） */
   setParams(patch: Readonly<Record<string, unknown>>, locale?: string): void;
@@ -47,9 +82,9 @@ interface ProjectState {
 }
 
 export const DEFAULT_OUTPUT: OutputSettings = { width: 1920, height: 1080, fps: 60 };
-export const DEFAULT_EXPORT: ExportSettings = { preset: 'prores4444', quality: 'standard', shutterAngle: 180 };
+export const DEFAULT_EXPORT: ExportSettings = { preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: '#00FF00' };
 
-type Tracked = Pick<ProjectState, 'template' | 'params'>;
+type Tracked = Pick<ProjectState, 'template' | 'params' | 'origin'>;
 
 export const useProjectStore = create<ProjectState>()(
   temporal(
@@ -64,12 +99,14 @@ export const useProjectStore = create<ProjectState>()(
       structureRevision: 0,
       savedRevision: 0,
       fileNames: {},
+      origin: UI_ORIGIN,
       setTemplate: (template, params = {}, locale = 'en') =>
         set((s) => ({
           template,
           params: sanitizeParams(template.params, params, { locale }),
           revision: s.revision + 1,
           structureRevision: s.structureRevision + 1,
+          origin: originFor('history.template'),
         })),
       setParams: (patch, locale = 'en') =>
         set((s) => {
@@ -77,7 +114,7 @@ export const useProjectStore = create<ProjectState>()(
           const params = sanitizeParams(s.template.params, { ...s.params, ...patch }, { locale });
           // 值没变就不产生新状态（不记撤销、不重画）
           if (Object.keys(params).every((k) => sameValue(params[k], s.params[k]))) return {};
-          return { params, revision: s.revision + 1 };
+          return { params, revision: s.revision + 1, origin: originFor('history.params') };
         }),
       setOutput: (output) => set((s) => ({ output, revision: s.revision + 1, structureRevision: s.structureRevision + 1 })),
       setExportSettings: (patch) => set((s) => ({ exportSettings: { ...s.exportSettings, ...patch } })),
@@ -95,12 +132,13 @@ export const useProjectStore = create<ProjectState>()(
             revision,
             structureRevision: s.structureRevision + 1,
             savedRevision: revision,
+            origin: UI_ORIGIN,
           };
         }),
       markSaved: (name, handle) => set((s) => ({ name, handle, savedRevision: s.revision })),
     }),
     {
-      partialize: (s): Tracked => ({ template: s.template, params: s.params }),
+      partialize: (s): Tracked => ({ template: s.template, params: s.params, origin: s.origin }),
       equality: (a, b) => a.template === b.template && a.params === b.params,
       limit: 200,
     },
@@ -120,7 +158,7 @@ let gestureBefore: Tracked | null = null;
 export function beginGesture(): void {
   if (gestureDepth++ > 0) return;
   const s = useProjectStore.getState();
-  gestureBefore = { template: s.template, params: s.params };
+  gestureBefore = { template: s.template, params: s.params, origin: s.origin };
   useProjectStore.temporal.getState().pause();
 }
 
@@ -166,4 +204,60 @@ export function clearHistory(): void {
 /** 单个参数（给属性面板用） */
 export function setParam(key: string, value: ParamValue, locale: string): void {
   useProjectStore.getState().setParams({ [key]: value }, locale);
+}
+
+/** 撤销、重做各自会撤回或重做哪一次改动（H6）；没有可撤销的时为 null */
+export function undoInfo(): { undo: UndoOrigin | null; redo: UndoOrigin | null } {
+  const t = useProjectStore.temporal.getState();
+  return {
+    undo: t.pastStates.length > 0 ? useProjectStore.getState().origin : null,
+    // zundo 的重做从 futureStates 的末尾取
+    redo: t.futureStates.at(-1)?.origin ?? null,
+  };
+}
+
+// ---- 工程修订号（docs/code-editing-and-mcp-plan.md H3）----
+
+/** 工程状态的修订号：模板、参数或输出每变一次加一（就是 revision）。写命令可以带上读到的修订号做并发保护 */
+export function projectRevision(): number {
+  return useProjectStore.getState().revision;
+}
+
+export class RevisionConflictError extends Error {
+  constructor(
+    readonly expected: number,
+    readonly actual: number,
+  ) {
+    super(`project revision is ${actual}, expected ${expected}`);
+    this.name = 'RevisionConflictError';
+  }
+}
+
+/** baseRevision 不是当前修订号时抛 RevisionConflictError，不改任何东西；是的话执行 fn */
+export function ifRevision<T>(baseRevision: number | undefined, fn: () => T): T {
+  const actual = projectRevision();
+  if (baseRevision !== undefined && baseRevision !== actual) throw new RevisionConflictError(baseRevision, actual);
+  return fn();
+}
+
+// ---- 模板开发模式的热重载（H9）----
+
+/**
+ * 同一个模板（id 和版本相同）的代码或 manifest 在磁盘上被改了，预览已经切到新代码：换掉工程里的模板，参数用 params。
+ * 不进撤销历史（这不是用户在应用里的改动）；历史里引用旧模板的状态也换成新模板（参数用 remap 重新对上），
+ * 免得撤销把已经不在磁盘上的旧代码带回来。
+ */
+export function hotSwapTemplate(next: TemplateSource, params: ParamValues, remap: (old: TemplateSource, values: ParamValues) => ParamValues): void {
+  const same = (t: TemplateSource | null) => !!t && t.ref.id === next.ref.id && t.ref.version === next.ref.version;
+  const temporalApi = useProjectStore.temporal;
+  const tracking = temporalApi.getState().isTracking;
+  if (tracking) temporalApi.getState().pause();
+  try {
+    useProjectStore.setState((s) => ({ template: next, params, revision: s.revision + 1, structureRevision: s.structureRevision + 1 }));
+  } finally {
+    if (tracking) temporalApi.getState().resume();
+  }
+  const fix = <S extends Partial<Tracked>>(st: S): S => (st.template && same(st.template) && st.params ? { ...st, template: next, params: remap(st.template, st.params) } : st);
+  temporalApi.setState((ts) => ({ pastStates: ts.pastStates.map(fix), futureStates: ts.futureStates.map(fix) }));
+  if (gestureBefore && same(gestureBefore.template)) gestureBefore = fix(gestureBefore);
 }

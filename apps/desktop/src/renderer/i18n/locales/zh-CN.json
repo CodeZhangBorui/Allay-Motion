@@ -165,8 +165,42 @@
     "format": "格式",
     "presets": {
       "prores": "透明 MOV（ProRes 4444）",
-      "png": "PNG 序列"
+      "png": "PNG 序列",
+      "webm": "透明 WebM（VP9）",
+      "greenscreen": "绿幕 MP4（H.264）"
     },
+    "presetDesc": {
+      "prores": "带透明通道、画质最好，体积大。",
+      "png": "每帧一张图，无损，体积小。",
+      "webm": "带透明通道、体积很小；多数剪辑软件不认它的透明通道。",
+      "greenscreen": "不带透明通道，用纯色底，再在剪辑软件里抠掉。"
+    },
+    "worksWith": "适用于：{{apps}}",
+    "presetFor": {
+      "prores": "Premiere、DaVinci Resolve、Final Cut、After Effects",
+      "png": "几乎所有剪辑软件（按图片序列导入）",
+      "webm": "OBS、网页",
+      "greenscreen": "任何剪辑软件（用色度抠像）"
+    },
+    "blockers": {
+      "checking": "正在检测 H.264 编码器…",
+      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动",
+      "encoderMissing": "随附的 FFmpeg 里没有这个格式的编码器",
+      "noH264": "这台电脑上没有可用的 H.264 编码器（可在设置里重新检测）"
+    },
+    "resolution": "分辨率",
+    "resolutions": {
+      "1080p": "1920×1080（1080p）",
+      "1440p": "2560×1440（1440p）",
+      "2160p": "3840×2160（4K）",
+      "vertical": "1080×1920（竖屏）",
+      "square": "1080×1080（方形）",
+      "custom": "自定义"
+    },
+    "width": "宽",
+    "height": "高",
+    "customHint": "宽高各取 64–4096 之间的偶数，奇数会自动减一。",
+    "fps": "帧率",
     "quality": "画质",
     "qualities": {
       "draft": "草稿（无运动模糊）",
@@ -174,36 +208,73 @@
       "high": "高（16 个子帧）",
       "ultra": "极致（32 个子帧）"
     },
-    "start": "导出…",
-    "cancel": "取消",
-    "close": "关闭",
-    "progress": "第 {{written}} / {{total}} 帧",
-    "canceled": "已取消导出，没有留下任何文件。",
-    "done": "已导出 {{frames}} 帧，用时 {{seconds}} 秒。",
-    "cutFrame": "剪辑点：第 {{frame}} 帧。让这一帧对齐两段素材的接缝。",
-    "failedAtFrame": "停在第 {{frame}} 帧。",
-    "errors": {
-      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动。",
-      "outputNotWritable": "无法写入这个位置，请换一个文件夹。",
-      "diskFull": "磁盘空间不足，清理后再试。",
-      "encoderUnavailable": "随附的 FFmpeg 里没有这个格式的编码器。",
-      "ffmpegFailed": "视频编码器出错退出了。",
-      "frameMismatch": "画面与导出设置不一致。",
-      "templateFailed": "导出时模板出错了。",
-      "templateUnresponsive": "导出时模板无响应。"
-    },
-    "progressLabel": "导出进度",
     "qualityShort": {
       "draft": "草稿",
       "standard": "标准",
       "high": "高",
       "ultra": "极致"
     },
+    "shutter": "快门角",
+    "shutterHint": "运动模糊的长度：180° 是常见的电影感，0° 没有模糊，360° 最长。",
+    "key": "底色",
+    "keyHex": "底色（十六进制）",
+    "keyOptions": {
+      "green": "绿",
+      "blue": "蓝",
+      "black": "黑",
+      "custom": "自定义"
+    },
+    "location": "输出位置",
+    "folderUnset": "导出时选择文件夹",
+    "chooseFolder": "更改…",
+    "fileName": "文件名",
+    "estimate": "约 {{size}} · {{frames}} 帧",
+    "cover": {
+      "checking": "正在检查剪辑点的画面是否完全遮住…",
+      "ok": "剪辑点（第 {{frame}} 帧）画面完全遮住。",
+      "warn": "剪辑点（第 {{frame}} 帧）这一刻画面没有完全遮住，接缝会露出来。",
+      "overlay": "叠加层模板没有剪辑点。"
+    },
+    "start": "导出",
+    "cancel": "取消",
+    "close": "关闭",
+    "stages": {
+      "preparing": "准备中…",
+      "rendering": "渲染帧",
+      "muxing": "封装文件"
+    },
+    "progress": "第 {{written}} / {{total}} 帧",
+    "progressLabel": "导出进度",
+    "eta": "剩余约 {{time}}",
+    "etaUnknown": "正在估算剩余时间…",
+    "canceled": "已取消导出，没有留下任何文件。",
     "doneTitle": "导出完成",
-    "soundsRemote": "有 {{count}} 个要用的音效还没下载到本机。导出过程中不会联网。",
-    "soundsFetch": "取回音效并导出",
-    "soundsFetching": "正在取回…",
-    "soundsSkip": "不带这些音效导出"
+    "done": "已导出 {{frames}} 帧，用时 {{seconds}} 秒。",
+    "savedTo": "保存在",
+    "cutPoint": "剪辑点：第 {{frame}} 帧（{{timecode}}）。把片段放在上方轨道，让这一帧对齐两段素材的接缝。",
+    "encoderUsed": "H.264 编码器：{{encoder}}",
+    "reveal": "在文件夹中显示",
+    "again": "再导出一个",
+    "finish": "完成",
+    "failedTitle": "导出失败",
+    "failedAtFrame": "停在第 {{frame}} 帧。",
+    "noLeftovers": "没有留下任何临时文件。",
+    "copyDiagnostics": "复制诊断信息",
+    "copied": "已复制",
+    "back": "返回设置",
+    "errors": {
+      "ffmpegMissing": "视频编码器（FFmpeg）缺失或无法启动。",
+      "outputNotWritable": "无法写入这个位置，请换一个文件夹。",
+      "diskFull": "磁盘空间不足，清理后再试。",
+      "encoderUnavailable": "没有可用的编码器来导出这个格式。",
+      "ffmpegFailed": "视频编码器出错退出了。",
+      "frameMismatch": "画面与导出设置不一致。",
+      "templateFailed": "导出时模板出错了。",
+      "templateUnresponsive": "导出时模板无响应。"
+    },
+    "soundsRemote": "有 {{count}} 个要用的音效还没下载到本机。不取回的话，导出时这些音效静音；导出过程中不会联网。",
+    "soundsFetch": "取回音效",
+    "soundsFetching": "正在取回…"
   },
   "resources": {
     "button": "素材：{{name}}",
@@ -363,9 +434,8 @@
     "defaultOutput": "输出设置",
     "ffmpeg": "FFmpeg 版本",
     "ffmpegUnknown": "未知",
-    "encoders": "编码器",
-    "redetect": "重新检测编码器",
-    "encodersLater": "编码器探测在后续版本提供。",
+    "encoders": "H.264 编码器",
+    "redetect": "重新检测",
     "version": "版本 {{version}}",
     "thirdParty": "第三方许可",
     "licenses": {
@@ -375,7 +445,10 @@
       "noto": "Noto Sans SC（思源黑体）字体：SIL Open Font License 1.1。",
       "phosphor": "Phosphor 图标：MIT。",
       "npm": "其余开源组件使用 MIT、BSD、ISC、Apache-2.0 等许可。"
-    }
+    },
+    "encoderNone": "没有可用的",
+    "encoderNotProbed": "尚未检测",
+    "encoderProbing": "正在检测…"
   },
   "shortcuts": {
     "keys": {
@@ -412,7 +485,14 @@
       "settings": "设置",
       "resources": "素材与资源栈",
       "toggleTheme": "切换深色 / 浅色主题",
-      "guides": "安全框参考线"
+      "guides": "安全框参考线",
+      "openTemplateFolder": "打开模板文件夹",
+      "copyBuiltinTemplate": "复制当前内置模板来修改",
+      "projectGet": "读取工程状态",
+      "projectSetParams": "修改参数（带修订号）",
+      "exportTaskStart": "启动导出任务",
+      "exportTaskGet": "查询导出任务",
+      "exportTaskCancel": "取消导出任务"
     }
   },
   "editor": {
@@ -545,7 +625,8 @@
         "concrete": "混凝土",
         "terracotta": "陶瓦",
         "items": "物品"
-      }
+      },
+      "loading": "正在取缩略图…"
     },
     "blockList": {
       "replace": "更换“{{name}}”",
@@ -601,5 +682,72 @@
     "missing": "当前的资源里找不到这些音效，已静音：{{list}}",
     "peakNormalized": "混音的峰值超过了 0 dBFS，已整体压低到 −1 dBFS。",
     "fetchFailed": "有音效没能从 Mojang 的服务器取回（可能没有联网），这些音效暂时静音。"
+  },
+  "dev": {
+    "overlay": {
+      "title": "模板改动没有生效",
+      "kept": "预览保持上一个能运行的版本。修好并保存后会自动重新载入。",
+      "region": "模板诊断"
+    },
+    "kinds": {
+      "compile": "语法",
+      "load": "装载",
+      "setup": "setup",
+      "update": "update",
+      "watchdog": "无响应",
+      "determinism": "确定性",
+      "rule": "规则"
+    },
+    "codes": {
+      "syntax-error": "语法错误",
+      "has-import": "模板里不能用 import",
+      "too-large": "template.js 超过 1 MB",
+      "evaluate-failed": "模块执行时出错",
+      "bad-export": "默认导出的形状不对",
+      "setup-threw": "setup() 抛出了错误",
+      "bad-instance": "setup() 的返回值不对",
+      "update-threw": "update(t) 抛出了错误",
+      "audio-cue-outside-setup": "音效只能在 setup() 里声明",
+      "unresponsive": "没有在时限内返回（可能是死循环）",
+      "forbidden-api": "调用了会让画面不确定的接口",
+      "render-mismatch": "同一时刻渲染两次结果不同",
+      "math-random": "用了 Math.random()，请改用 ctx.random(key)",
+      "date-now": "用了 Date.now()，画面只能取决于 t",
+      "new-date": "用了不带参数的 Date，画面只能取决于 t",
+      "performance-now": "用了 performance.now()，画面只能取决于 t",
+      "import": "模板里不能用 import",
+      "engine-crashed": "预览引擎意外退出",
+      "load-failed": "装载失败",
+      "template-unreadable": "manifest.json 不合规或缺少 template.js"
+    },
+    "position": "第 {{line}} 行，第 {{column}} 列",
+    "positionLine": "第 {{line}} 行",
+    "atTime": "t = {{t}} 秒",
+    "status": {
+      "watching": "正在监视模板文件夹",
+      "reloading": "正在重新载入…",
+      "lastOk": "{{time}} 已重新载入",
+      "lastFailed": "{{time}} 重新载入失败",
+      "hint": "用外部编辑器修改这个模板的文件，保存后预览自动更新"
+    },
+    "copyName": "{{name}}（副本）",
+    "copied": "已复制为可修改的模板。文件夹里带有类型定义，用外部编辑器打开即可补全。",
+    "errors": {
+      "not-found": "找不到这个模板",
+      "not-builtin": "只能复制内置模板",
+      "not-script": "这个模板没有自己的代码，不能复制",
+      "bad-id": "模板 ID 不合规",
+      "not-user": "只有用户模板有文件夹",
+      "outside": "模板文件夹不在应用的数据目录里",
+      "open-failed": "没能打开文件夹"
+    },
+    "failed": "操作没有完成：{{reason}}"
+  },
+  "history": {
+    "params": "修改参数",
+    "template": "更换模板"
+  },
+  "splash": {
+    "starting": "正在启动…"
   }
 }

@@ -15,6 +15,10 @@ export interface MainWindowOptions {
    * 只影响“显不显示”，不碰任何安全设置；打包后的应用永远是 false（见 index.ts）。
    */
   hiddenForTests: boolean;
+  /** 页面就绪后、显示之前等它（启动画面至少显示满 600 ms，docs/07-allay-mascot.md 7.6 C） */
+  beforeShow?: () => Promise<void>;
+  /** 显示之后（启动画面淡出） */
+  onShown?: () => void;
 }
 
 export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
@@ -62,8 +66,15 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     win.webContents.setAudioMuted(true);
     log.info('window', 'hidden window for automated tests');
   } else {
-    if (saved?.maximized) win.maximize();
-    win.once('ready-to-show', () => win.show());
+    // 最大化放到显示的那一刻：maximize 在 Windows 上会顺带显示窗口，不能抢在启动画面的最短时长之前
+    win.once('ready-to-show', () => {
+      void (opts.beforeShow?.() ?? Promise.resolve()).then(() => {
+        if (win.isDestroyed()) return;
+        if (saved?.maximized) win.maximize();
+        else win.show();
+        opts.onShown?.();
+      });
+    });
   }
 
   // 位置和大小的记忆：位置用外框，大小用内容区；最大化时只记“最大化”，保留之前的普通尺寸

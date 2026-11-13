@@ -1,10 +1,11 @@
 // 预览引擎的控制器（docs/02-engine.md 2.2、2.3）：常驻的预览 Worker、画布、只保留最新的预览请求、
 // 看门狗触发后重建 Worker。画布由这里创建和替换（一个 <canvas> 只能 transferControlToOffscreen 一次），
 // React 只提供放画布的容器。
-import type { LoadResult } from '@allay/template-sdk';
-import { EngineCrashedError, EngineHost, EngineUnresponsiveError, type WatchdogTimeouts } from '../../engine-host/EngineHost';
+// 模板开发模式的热重载（H9）也在这里：trySwap 在备用 Worker（新的画布）里试载、试渲当前帧，成功才换上去。
+import type { LoadResult, ParamValues } from '@allay/template-sdk';
+import { EngineCrashedError, EngineHost, EngineUnresponsiveError, type EngineHostOptions, type WatchdogTimeouts } from '../../engine-host/EngineHost';
 import { createResolver, loadStamp } from '../../engine-host/resource-client';
-import type { AssetSource } from '../../templates/catalog';
+import type { AssetSource, TemplateSource } from '../../templates/catalog';
 import { TemplateCodeError } from '../../../shared/template-code';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
@@ -37,6 +38,8 @@ export class PreviewEngine {
   private loadingStamp = '';
   /** 已装载的模板与输出的版本（projectStore.structureRevision）：没变时改参数走 setParams，不重新装载代码 */
   private loadedStructure = -1;
+  /** 当前 Worker 里有一个装载成功的模板（loadedRevision 可能是 -1：热重载换上去之后参数还要再推一次） */
+  private hasLoaded = false;
   /** 装载进行中又来了新的工程版本：做完这一次再来一次（同一时刻最多一个在途的装载） */
   private busy = false;
   private again = false;
@@ -85,6 +88,7 @@ export class PreviewEngine {
   /** 错误卡片上的“重试” */
   retry(): void {
     this.holdLoad = false;
+    this.hasLoaded = false;
     this.loadedRevision = -1;
     this.loadingRevision = -1;
     // 正在建 Worker 时不再建第二个：建好后它会装载当前工程
@@ -167,27 +171,18 @@ export class PreviewEngine {
       this.loadedRevision = -1;
       this.loadingRevision = -1;
       this.loadedStructure = -1;
+      this.hasLoaded = false;
       this.appliedSize = '';
       const generation = ++this.generation;
       usePreviewStore.getState().setGeneration(generation);
 
-      const canvas = document.createElement('canvas');
-      canvas.dataset.testid = 'preview-canvas';
-      canvas.className = 'block';
+      const canvas = this.makeCanvas();
       this.canvas = canvas;
       this.container?.replaceChildren(canvas);
       this.styleCanvas();
 
       try {
-        const host = await EngineHost.create({
-          mode: 'preview',
-          canvas,
-          resolveResource: this.resolveResource,
-          strictDeterminism: import.meta.env.DEV,
-          timeouts: this.timeouts,
-          log: (level, msg) => (level === 'error' ? console.error : console.warn)(`[engine] ${msg}`),
-          onDead: (error) => this.onDead(generation, error),
-        });
+        const host = await this.createHost(canvas, this.resolveResource);
         if (generation !== this.generation) {
           host.dispose();
           return;
@@ -207,8 +202,91 @@ export class PreviewEngine {
     return p;
   }
 
-  private onDead(generation: number, error: EngineUnresponsiveError | EngineCrashedError): void {
-    if (generation !== this.generation) return;
+  private makeCanvas(): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.dataset.testid = 'preview-canvas';
+    canvas.className = 'block';
+    return canvas;
+  }
+
+  /** 建一个预览 Worker。它死掉时，只有它还是当前的 Worker 才重建（备用 Worker 死了由热重载自己处理） */
+  private async createHost(canvas: HTMLCanvasElement, resolveResource: EngineHostOptions['resolveResource']): Promise<EngineHost> {
+    let created: EngineHost | null = null;
+    created = await EngineHost.create({
+      mode: 'preview',
+      canvas,
+      resolveResource,
+      strictDeterminism: import.meta.env.DEV,
+      timeouts: this.timeouts,
+      log: (level, msg) => (level === 'error' ? console.error : console.warn)(`[engine] ${msg}`),
+      onDead: (error) => {
+        if (created !== null && created === this.host) this.onDead(error);
+      },
+    });
+    return created;
+  }
+
+  /**
+   * 热重载（H9）：在备用 Worker 里装载 source（参数用 params）并试渲当前时刻，每一步都受看门狗约束。
+   * 成功时返回 commit：把备用 Worker 和它的画布换上去、销毁旧的，并在中间同步调用 apply() 改工程；
+   * 失败时备用 Worker 已销毁，旧 Worker 和画面不动。error 是原样的错误（诊断由调用方取）。
+   */
+  async trySwap(source: TemplateSource, params: ParamValues): Promise<SwapTrial> {
+    const output = useProjectStore.getState().output;
+    const stamp = loadStamp(source.assets);
+    const time = useTransportStore.getState().time;
+    const vp = this.viewport;
+    const canvas = this.makeCanvas();
+    let promoted = false;
+    // 换上去之前从 source 读模板自带的图片；换上去之后和主 Worker 一样跟着 this.assets 走
+    const resolver = createResolver(() => (promoted ? this.assets : source.assets));
+    let standby: EngineHost | null = null;
+    let result: LoadResult;
+    try {
+      standby = await this.createHost(canvas, resolver);
+      if (vp) await standby.resize(vp.pixelWidth, vp.pixelHeight);
+      result = await standby.load({ manifest: source.manifest, code: source.code, params, output, resourceStamp: stamp });
+      await standby.render(time, this.quality);
+    } catch (error) {
+      standby?.dispose();
+      return { ok: false, error };
+    }
+    const host = standby;
+    return {
+      ok: true,
+      result,
+      discard: () => host.dispose(),
+      commit: (apply) => {
+        const old = this.host;
+        promoted = true;
+        this.host = host;
+        this.canvas = canvas;
+        this.container?.replaceChildren(canvas);
+        this.styleCanvas();
+        this.appliedSize = vp ? `${vp.pixelWidth}x${vp.pixelHeight}` : '';
+        // 看门狗之后正在重建的空闲 Worker 随之作废（recreate 按 generation 判断）
+        usePreviewStore.getState().setGeneration(++this.generation);
+        this.holdLoad = false;
+        this.assets = source.assets;
+        old?.dispose();
+        apply();
+        const s = useProjectStore.getState();
+        this.loadingRevision = -1;
+        this.loadedStamp = stamp;
+        this.loadedStructure = s.structureRevision;
+        // 输出在试载期间变了：整体重新装载；只是参数变了：结构已经对上，参数走 setParams 再推一次
+        this.hasLoaded = output === s.output;
+        this.loadedRevision = this.hasLoaded && sameParams(s.params, params) ? s.revision : -1;
+        useTransportStore.getState().setTimeline(result.duration, result.cutTime);
+        usePreviewStore.getState().setAudioCues(result.audioCues);
+        usePreviewStore.getState().setStatus({ kind: 'ready', warnings: result.warnings });
+        if (this.loadedRevision !== s.revision) this.reload();
+        this.requestRender(useTransportStore.getState().time);
+      },
+    };
+  }
+
+  private onDead(error: EngineUnresponsiveError | EngineCrashedError): void {
     this.host = null;
     if (error instanceof EngineUnresponsiveError) {
       this.holdLoad = true;
@@ -271,21 +349,25 @@ export class PreviewEngine {
     this.loadingRevision = revision;
     this.loadingStamp = stamp;
     // 只改了参数（模板、输出、资源栈都没变，上一次装载成功）：setParams，不重新装载代码，也不进入“装载中”
-    const paramsOnly = this.loadedRevision >= 0 && structureRevision === this.loadedStructure && stamp === this.loadedStamp && usePreviewStore.getState().status.kind === 'ready';
+    const paramsOnly = this.hasLoaded && structureRevision === this.loadedStructure && stamp === this.loadedStamp && usePreviewStore.getState().status.kind === 'ready';
     if (!paramsOnly) usePreviewStore.getState().setStatus({ kind: 'loading' });
     this.assets = template.assets;
     let result: LoadResult;
     try {
       result = paramsOnly ? await host.setParams(params) : await host.load({ manifest: template.manifest, code: template.code, params, output, resourceStamp: stamp });
     } catch (error) {
+      // 装载期间这个 Worker 已经被换掉（热重载）：它的失败与当前状态无关
+      if (host !== this.host) return;
       this.loadedRevision = -1;
       this.loadedStructure = -1;
+      this.hasLoaded = false;
       this.handleError(error);
       return;
     } finally {
       if (this.loadingRevision === revision) this.loadingRevision = -1;
     }
     if (host !== this.host) return;
+    this.hasLoaded = true;
     this.loadedRevision = revision;
     this.loadedStructure = structureRevision;
     this.loadedStamp = stamp;
@@ -307,5 +389,12 @@ export class PreviewEngine {
     usePreviewStore.getState().setStatus({ kind: 'error', message: text });
   }
 }
+
+function sameParams(a: ParamValues, b: ParamValues): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => Object.hasOwn(b, k) && JSON.stringify(a[k]) === JSON.stringify(b[k]));
+}
+
+export type SwapTrial = { ok: true; result: LoadResult; commit(apply: () => void): void; discard(): void } | { ok: false; error: unknown };
 
 export const previewEngine = new PreviewEngine();

@@ -852,3 +852,174 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 
 - **`BlockHandle.faceTexture(face)`**：返回方块目录里那一面的贴图（不含草方块侧面叠加层、不带面明暗和着色），是引擎缓存里的那张，模板不释放、不改属性；面名不合法时抛 `TypeError`；目录里没有的方块返回占位图（`block()` 已经记过警告）。T3、T5 的 `util.ts` 换成一行调用（取 `south`，和原来找 +z 面的结果是同一张），`runtime.ts`、04 的接口块、`pnpm templates:api` 的产物同步。T-TPL-5 的基准图没有变化（同一张贴图）。
 - **着色器编译失败的警告**：引擎在 `init` 里设 `renderer.debug.onShaderError`；`setup` 结束时按场景渲染时的目标（半浮点的 sceneRT，程序的缓存键与真正渲染时一致）`renderer.compile(scene, camera)`，再对 `renderer.info.programs` 逐个 `getUniforms()` 触发 Three 的链接检查。失败记成 `LoadResult.warnings` 里的 `shader failed to compile: …`（带着色器的编译日志，限长）；之后渲染时才出现的（模板在 update 里换材质）经 `host.log` 报出。代价：每次 setup 多一次预编译，同一程序 Three 有缓存。
+## MD-b 模板开发模式的界面接线与主程序侧其余准备
+
+范围：H3、H4、H6、H9、H11、错误浮层、入口命令、监视提示、可选模块的惰性发现、“可拆除”检查（`docs/code-editing-and-mcp-plan.md`；`docs/08-milestones.md` MD）。H7（导出任务化）属于 M7，没做。没有写任何可选模块，也没有内嵌编辑器或 MCP 的界面、文案、占位。
+
+### 热重载管线（H9）
+
+- `features/preview/hotReload.ts`：收到 `templates.onChanged` 且是当前模板 → 渲染进程再合并 100 ms（主进程已按模板防抖 150 ms）→ `templates.read` 重新取 → `analyzeTemplateCode`（语法、import、确定性规则）→ `previewEngine.trySwap` 在**新画布上的备用预览 Worker** 里 resize、load、render 当前时刻（每步受看门狗约束）→ 成功才把画布和 Worker 换上去并销毁旧的。失败时备用 Worker 销毁，旧 Worker、旧画面、播放都不动；预览状态保持“就绪”，原因只进错误浮层。连续保存只重载最后一次（进行中再来改动就做完再来一次）。
+- **确定性规则命中不切换**：安装时规则命中只是警告，开发模式更严（硬性规则 2：写模板时就拦下）。生产构建的预览不开运行时拦截，所以不确定代码在开发模式里靠静态规则（`rule`，带位置）发现。
+- 参数：`remapParams` 按键名和类型对上（同名同类型保留后再经 sanitize 钳制，类型变了、新加的回默认值，没了的丢掉）。提交那一刻再按最新参数对一次（试载期间用户可能又改了）。播放位置不动，时长可能变（时间轴按新时长）。
+- 工程：`hotSwapTemplate` 换模板**不进撤销历史**；历史里引用旧模板的状态也换成新模板（参数同样重新对上），否则撤销会把磁盘上已经没有的旧代码带回来。manifest 变了属性面板随工程里的模板重建。
+- `previewEngine` 里看门狗的回调改成按 Worker 实例判断（原来按 generation），备用 Worker 死掉不会触发主 Worker 的重建；装载中途被换掉的 Worker 的失败被忽略。新增 `hasLoaded`：热重载换上去后若参数在试载期间变了，结构已对上，参数走 `setParams`。
+- 模板自带图片：热重载前清掉这个模板的 `asset:` 解码缓存（`forgetTemplateAssets`），改了 `assets/` 下的图也能更新。
+- 只处理当前模板本身；当前模板是某个用户模板的派生、基模板被改时不自动重载（重新选一次即可）。
+- 文件夹被删、manifest 坏了：诊断 `load / template-unreadable`，不带位置。
+
+### 错误浮层与监视提示
+
+- `DevOverlay`：贴在预览上沿（不挡画面中央），列出诊断的种类、错误码对应的文案、“第 N 行，第 M 列”、出错时刻和原文，最多 5 条；修好后自动消失。文案在 `dev.*`，两种语言。没有文案的错误码原样显示。
+- 死循环（`watchdog`）**没有行列**：Worker 已被终止，拿不到卡在哪（同 MD-a）。浮层显示种类和错误码，测试断言 `operation` 为 `render`。这是 T-DEV-2“带位置”唯一做不到的一项。
+- 状态栏 `DevWatchStatus`：当前模板是用户模板时显示“正在监视模板文件夹 · hh:mm:ss 已重新载入 / 重新载入失败”，重载中转圈；不是用户模板时不显示。
+- 预览原有的错误卡片（悦灵）不动：装载时就失败（选中一个已经坏掉的用户模板）仍走原来的错误卡片，修好保存后热重载换上去，卡片随“就绪”消失。
+
+### 入口
+
+- 命令 `copyBuiltinTemplate`（当前是内置脚本模板时可用；新名字“原名（副本）”按界面语言取一次，参数沿用当前取值，复制后主进程已写好 `template-api.d.ts` 和 `jsconfig.json`，然后选中新模板）、`openTemplateFolder`（当前是用户模板时可用；只开文件夹）。经注册表注册，文件菜单第三组和命令面板里都有。失败按枚举错误提示。
+- e2e 不点“打开模板文件夹”（会弹出资源管理器），只核对可用状态。
+
+### 主程序侧其余准备
+
+- **H3 修订号**：就是 `projectStore.revision`（模板、参数、输出每变一次加一）。新增 `ifRevision`、`RevisionConflictError` 和两个不在命令面板列出的命令 `project.get`（返回修订号、模板、参数）、`project.setParams`（可带 `baseRevision`，对不上就拒绝、不改任何东西）。
+- **H4 静帧接口**：`engine-host/still.ts` 的 `openStill(host, req)`（装载一次、逐帧取 RGBA）和 `renderStillPng`。最长边上限 1920（超过等比缩小，两边至少 16），一个会话最多 240 帧。封面和悬停预览改用它；评审截图里“某一时刻的一帧”（`review:md-b` 的 `md-b-still.png`）和测试钩子 `renderStill` 用它。之前的评审脚本截的是整个窗口（界面截图），不是“渲染某一时刻”，没有改。安装试运行的确定性自检改用 `EngineHost.checkDeterminism`（probe 帧两次、中间穿插首末帧），渲染次数从 4 次变成 7 次，判定相同。
+- **H6 撤销来源**：工程状态多一个 `origin { labelKey, source }`，跟着模板和参数一起进 zundo 的历史（只比较模板和参数，origin 单独变不产生记录）。`undoInfo()` 给出撤销、重做各对应哪次改动。`dispatch` 执行 write 命令时，同步产生的改动标为命令的 `undoLabelKey`（或标题）和来源（缺省 `command`，命令通道是 `main`，模块可用 `module:<id>`）；界面上直接改参数是 `ui`。异步命令在 `await` 之后的改动按界面修改记（`withOrigin` 只覆盖同步部分）。界面上还没有显示这个标签（顶栏不在本任务范围），数据和测试钩子有。
+- **H11 命令通道**：`host:command`（主进程 → 界面的事件，带 requestId、命令 id、JSON 参数）和 `host:commandResult`（界面交回结果的 invoke 通道）。界面一侧按 schema 校验请求后经 `dispatch` 执行（参数再按命令自己的 schema 校验）；主进程一侧 IPC 层先查来源、按 `IPC_ARGS` 校验，再只认自己发出去的 requestId。超时 15 秒、窗口不在、窗口关闭都给明确的失败。结果 JSON 不超过 1 MB。现在主进程没有调用方（文件关联、第二实例参数在 M8 接）；测试开关打开时（只在未打包时）挂在主进程的 `globalThis.__allayHostCommands`，e2e 从主进程调用。T-ARC-6 的畸形参数表补了 `host.commandResult` 和 `optionalModules`。
+
+### 可选模块的惰性发现
+
+- `app/optionalModules.ts`：`import.meta.glob('../../../../../packages/optional/*/src/index.ts')`，按目录名整理成表；`OptionalModuleManager.sync(开关表)` 启停。设置 `ui.optionalModules`：目录名 → 布尔，最多 32 项，默认空表；关着的模块不加载代码块。模块入口导出 `activate(host)`（或默认导出 `{ id, activate }`）。activate 失败、没有导出时撤掉已注册的东西、记下原因，不连累主程序。
+- 宿主：`app/editorHost.ts` + `app/hostUi.tsx`。已实现 `templates.onExternalChange`、`engine.onDiagnostics`、`engine.requestReload`（只能是当前模板，走同一条热重载管线）、`playhead`、`domain`（方块 ID、缓动、接口说明；接口说明 JSON 是单独的惰性块）、`ui.*`。**没实现** `templates.read`、`templates.write`（主进程没有带内容版本的读写，界面也不反写代码），调用时以 `HostUnsupportedError` 拒绝。模块注册的面板、命令、文案键必须以“<目录名>.”开头；`bottom` 位置的面板放进注册表的 `dock` 区域。模块命令的参数只要求是 JSON（契约里的命令没有自己的 schema）。设置里没有开关的界面：现在没有模块，也就没有可开的东西。
+- `apps/desktop` 加了 `@allay/host-api` 的 workspace 依赖（只有类型）。
+- **验证**：单元测试用只在测试夹具里的假模块（`tests/fixtures/fake-module`）验证开着加载、能注册面板与命令与文案、关着不加载、关掉全部注销。另外手工验证了 MD-a 没验证的那一项：把同一个假模块临时放进 `packages/optional/fake/`，`electron-vite build` 把它打成单独的块（`assets/src-*.js`），主包里没有它；在真实应用里开关打开时模块被激活、它的命令能经 `dispatch` 执行，关着时命令不存在。验证完已删除，没有提交。
+
+### “可拆除”检查
+
+- `pnpm check:removable`（`scripts/check-removable.ts`）：把 `packages/optional` 移到临时目录（`--mode=empty` 时换成空目录），跑完整的 `pnpm check`，结束（含失败、Ctrl+C）时把目录和 lockfile 原样放回。目录里有模块时先 `pnpm install --offline` 刷新、放回后按原 lockfile 再装一次（现在是空操作）。CI 在 `pnpm check` 之后跑它，超时从 45 分钟调到 75 分钟。
+
+### 测试
+
+- e2e `tests/e2e/dev.spec.ts`：T-DEV-1（菜单入口、类型定义、监视提示、改代码后 5 秒内换上新代码且播放位置和参数不变、换了 Worker、不进撤销历史、manifest 改类型和加参数后属性面板重建）、T-DEV-2 的界面部分（语法错误 6:25、setup 抛错 5:11、update 抛错 9:29、死循环、`Math.random` 8:24；每次核对浮层的种类、错误码、位置，Worker 没换、状态仍就绪、画面哈希不变；修好后浮层消失、画面更新），以及 H11、H3、H6、H4 的端到端。测试进程直接改模板文件夹里的文件（写临时文件再改名，真实的文件系统事件），判定全部用状态轮询（重载完成的次数与结果）。
+- 单元：`MD-b.project-state`（参数对上、热重载不进历史、撤销来源、修订号冲突）、`MD-b.host-commands`（两端校验）、`T-DEV-4.optional-loader`。
+- `T-ALY.mascot-bake` 在全量单元测试并行时偶尔报 “Process failed to launch”（同时启动 Electron），单独跑通过；与本次改动无关。
+
+### 没验证的
+
+- 真实 VS Code 里打开复制出的模板文件夹的补全体验（仍只有 MD-a 的编译器检查）。
+- “打开模板文件夹”真的弹出资源管理器（测试里不点）。
+- 中文输入法、真实剪辑软件与本任务无关，未涉及。
+
+## M5b 悦灵接进应用（M5 后半）
+
+范围：`docs/07-allay-mascot.md` 7.4 的五个组件换成读烘焙图集的实现、7.5 的十一个出场位置、7.6 的四段编排、全局协调（T-ALY-3）、减少动效、7.9 的性能预算、启动画面、应用图标进安装包、烘焙产物缺失时的行为。
+
+### 烘焙产物怎么到达界面
+
+- **不在构建产物里，由主进程提供**：`app://renderer/mascot/<文件名>` 由 `app-protocol.ts` 映射到产物目录（只认扁平的小写文件名、只有 `.png` 和 `.json`，`app-path.ts` 的 `resolveMascotPath`）。目录：打包后是安装目录的 `resources/mascot`，未打包时是 `packages/mascot/generated`，测试可以用 `ALLAY_E2E_MASCOT_DIR`（只在未打包时生效，同其他测试开关）换成自己生成的假图集或空目录。这样 `pnpm build` 的产物与本机有没有烘焙过无关，CI 和本机一样。
+- **运行时缺产物就退回占位**：渲染进程先取 `allay.atlas.json`（zod 校验，`assets.ts`），404 或不合格就是“缺产物”，五个组件都用 M4 的 CSS 占位（`placeholder.tsx`，原样保留）。图集按尺寸各解码一次成 `ImageBitmap`，全应用共用。开发服务器上由同一个 Vite 插件提供 `/mascot/`。
+- **e2e 默认走占位**：`tests/e2e/helpers.ts` 把 `ALLAY_E2E_MASCOT_DIR` 默认指向不存在的目录。本机烘焙过的真实产物（原版贴图的派生图像）不进任何测试和截图基线；需要图集的测试（`m5b.spec.ts`）用测试时生成的假图集（`tests/e2e/fake-mascot.ts`：文件名、网格、`atlas.json` 与烘焙约定相同，画面是每个动作一种颜色的纯色色块）。
+- **`pnpm dist`**：新增前置步骤 `scripts/mascot-dist.ts`，把运行时用到的文件（图集、`atlas.json`、头像）复制到 `apps/desktop/build/mascot/`（electron-builder 的 `extraResources` → `resources/mascot`），`icon.ico` 复制到 `apps/desktop/build/icon.ico`（electron-builder 默认从 buildResources 取应用和安装程序的图标）。两处都被 git 忽略，每次先清空再复制。**缺产物时默认失败**，提示先 `pnpm mascot:bake`；只有设了 `ALLAY_DIST_ALLOW_PLACEHOLDER=1` 才用 Electron 默认图标和 CSS 占位继续并打印警告。理由：安装包是给人用的，悄悄换成占位不容易被发现；CI 没有游戏时显式加这个变量。
+
+### 组件（接口按 7.4 不变，多了可选的 `priority`）
+
+- `Allay`：`<canvas>` 按 `size × devicePixelRatio` 在 96 和 288 里选不小于所需的一套，只在帧号变化时 `drawImage`；捧着的东西按 `handAnchor` 每帧摆位。小于 28 px 用头像。朝向水平翻转、转身 140 ms。`glow` 照旧不画。
+- `AllayHead`：烘焙的正面头像，取设备像素不超过所需的最大一张、整数像素显示（`image-rendering: pixelated`）；睁眼、闭眼两张都在 DOM 里只切可见性（眨眼不闪）。减少动效时点击不转圈。头像不参与全局协调（7.2：顶栏头像不算）。
+- **一个帧循环**（`ticker.ts`）：全应用的悦灵（帧动画、飞舞、进度、拖放）共用一个 `requestAnimationFrame`，回调里只写 `transform`、`opacity` 和画布，尺寸来自 `ResizeObserver`。每帧耗时记进定长环形缓冲，T-ALY-6 读它。7.4 说的是“一个区域内一个循环”，全应用一个更严。
+- **全局协调**（`stage.ts`，T-ALY-3）：每个要画全身悦灵的地方在 layout effect 里申请位置，只批准一个：优先级高的，同级先来的。优先级：拖放 > 导出 > 对话框（首次发现、关于）> 方块选择器 > 预览视口 > 模板库 > 错误卡片 > 空状态。没批准的只留同样大小的空位（`data-allay="reserved"`），加载区域只剩骨架。外层已经拿到位置的（飞舞区域、导出进度、拖放）用 `MascotSlotHeld` 让里面的 `<Allay>` 不再另外申请。申请变化时 React 同步重渲染，同一次提交里一只消失另一只出现。
+- **规格没写的取舍**：“我的”空状态和预览错误卡片同时出现时只有错误卡片有悦灵（错误更需要注意）；模板库与预览同时加载时悦灵在预览上（用户在看的地方）。
+
+### 四段编排与出场位置
+
+- A 骨架屏飞舞：M4 的时序与路径不变，换到帧循环上；退场时内容项“淡入并上移 8 px”按悦灵**实际**飞出的那一侧排序（M4 固定按右侧），上移的动画放在 `packages/mascot/src/mascot.css`（ui 的 `allay-item-in` 只有淡入，没有改它）。
+- B 导出进度：弹簧跟随（临界阻尼，不过冲不抖）；进度条前端在动时放拖尾方点；“写完全部帧、等 FFmpeg 收尾”算封装：飞到进度条右端的文件图标，东西放进去，图标弹一下；完成 `dance` 2 秒后 `hover`；失败 `sad`、东西掉下淡出；取消向上飞出。导出对话框把进度和结果页做成同一个 `AllayProgress`（不重新挂载），结果页上悦灵接着演。捧着的方块：模板第一个 `block` 参数，或第一个 `blockList` 的第一项（缩略图）；都没有时捧胶片图标。标题的“像素字”不做（界面不用像素字，6.2）。
+- C 启动画面：见下。
+- D 拖放：拖进来时沿用 M4 的压暗、虚线框和 hover。放下后（`AllayDelivery`）：按文件名判断去向（`.allaytpl` → “我的”标签，`.zip` 和文件夹 → 顶栏素材按钮，其余无效 → `sad`），600 ms 内飞到目标、目标弹一下、退场；真正的安装和通知仍由 `useDropPacks` 做，没有改它。判断只看文件名，所以“文件名有效但内容坏了”时悦灵照样送过去，随后出错误通知。
+- 第 4 项（方块/物品选择器）：`packages/ui` 不能依赖 mascot，所以 `EditorServices` 加了可选的 `pickerLoader(loading)`，网格里每格的缩略图报告“还没取到”的计数，应用据此在网格上盖一层 `AllayLoader`（整层不接收指针）。
+- 其余位置（模板库、预览、空状态、首次发现、顶栏头像、错误卡片、关于页）M4 已经放了，这次只加优先级。
+
+### 启动画面
+
+- 页面是构建时由 `apps/desktop/src/splash/generate.ts` 生成的静态 HTML 和 CSS（Vite 插件放进 `out/renderer/splash/`），没有脚本：CSS `steps()` 按图集网格播 `fly`（飞入时）和 `hover`，捧着的方块按同一份模型代码算出的手部锚点逐帧摆位（不读烘焙产物，所以产物缺失时构建照常）。方块是三块中性灰的面（界面色），不是贴图。
+- 文字不写死：产品名、字标、非官方声明取自 `packages/ui/src/brand`，状态字是新文案 `splash.starting`（两种语言）。颜色从 `globals.css` 的两套主题变量读出来。字体用系统字体兜底（启动画面不加载应用的字体文件）。
+- 每种语言 × 主题一个页面，主进程按设置挑；地址片段用 `:target` 选状态（`#p` 缺产物用 CSS 占位，`#s` 设置里开了减少动效，`#ps` 两者都是），系统的减少动效由 `@media (prefers-reduced-motion)` 直接生效。
+- 窗口：420×260、无边框、透明底、圆角 12、不进任务栏、可拖动。`webPreferences` 与主窗口逐项相同，只是没有 preload（不需要 IPC）；CSP、网络拦截、导航拦截照常（同一个 `app://` 处理与全局加固）。设置读完就创建。
+- 时序：主窗口 `ready-to-show` 后等启动画面显示满 600 ms，再显示主窗口（保存过“最大化”的，最大化挪到这一刻：`maximize` 在 Windows 上会顺带显示窗口），然后启动画面 `moveTop` 后 180 ms 淡出并销毁。主窗口 20 秒都没就绪时启动画面自己关掉。这是对 `window.ts` 的最小改动（`beforeShow`、`onShown` 两个可选回调）。
+- 后台测试默认不建启动画面（其余 e2e 依赖“第一个窗口就是主窗口”）；`ALLAY_E2E_SPLASH=1`（只在未打包时生效）时建一个不显示的，供启动画面的测试检查。
+
+### 减少动效
+
+- 组件在减少动效时都不订阅帧循环：没有飞行、拖尾、掉落、弹跳、内容上移；帧动画停在当前动作的第一帧；加载区域里悦灵静止在中央偏左，旁边是状态字；导出时静止在进度条前端（位置随进度跳变，不做位移动画），取消时直接隐藏；拖放时原地停 300 ms 后消失。
+- `useThemeSync` 原来只在设置变化时读一次系统的 `prefers-reduced-motion`，现在“跟随系统”时也监听它的变化（T-ALY-4 用 `emulateMedia` 开启，正好依赖这一点）。
+
+### 测试
+
+- T-ALY-1、T-ALY-7：M5a 的 `tests/unit/T-ALY.mascot-bake.test.ts`（T-ALY-7 按 M5a 改过的判定），没有改。另在 `tests/unit/M5b.mascot.test.ts` 核对 `apps/desktop/build/mascot`、`build/icon.ico` 被 git 忽略。
+- T-ALY-2：M4 的单元测试与 e2e（占位实现），时序代码没有改。
+- T-ALY-3：`tests/e2e/m5b.spec.ts`，假图集。一个 MutationObserver 在每次 DOM 变化时数 `[data-allay="body"]`，脚本依次走：资源栈变化（模板库重建封面）与预览装载同时、方块选择器叠在上面、关于页、完整导出（含封装与舞蹈）、“我的”空状态与预览错误卡片同时、拖放有效与无效的文件。判定：最大值为 1，且出现过的位置包含飞舞、关于、导出、空状态、拖放（确认不是因为悦灵没出现才不超过一只）。协调的纯逻辑另有单元测试。
+- T-ALY-4：设置为“跟随系统”，`emulateMedia({ reducedMotion: 'reduce' })`，走飞舞、拖放、导出、点头像；每 30 ms 采样：悦灵帧循环的订阅数始终为 0（没有脚本驱动的 transform 动画），悦灵相关元素上没有改 `transform`/`translate`/`rotate`/`scale` 的 CSS 动画或过渡。
+- T-ALY-5：M4 的占位版保留；新增图集版，并核对悦灵各层的计算样式都是 `pointer-events: none`。
+- T-ALY-6：飞舞 3 秒，读帧循环的耗时统计（p95 ≤ 1 ms）；同时用 DevTools 协议录性能跟踪，`FireAnimationFrame` 执行期间同一线程上的 `Layout` 事件必须为零。窗口不显示（帧率限制已关），测的是这台机器上的数值；跟踪里数的是所有 rAF 回调，不只是悦灵的，比规格更严。
+- 启动画面：URL 选对了页面、没有脚本和 Node、帧来自图集且取得到、`webPreferences` 与 1.6 第 1 条一致、非官方声明逐字相同、从显示到关闭 ≥ 600 ms、关闭后窗口没了；缺产物 + 减少动效时是 `#ps`、CSS 占位、没有任何动画。
+
+### 没做的、没验证的
+
+- **没在可见窗口里看过启动画面和主窗口的衔接**（淡出、最大化的时机）：测试窗口不显示。评审录屏里的启动画面是在同一应用里另开一个同样设置的窗口录的。
+- 7.2“用户拖滑块、拖时间轴时悦灵不出现”：加载编排本来不会在拖动时触发（M4：只改参数时走 `setParams`，不进入装载状态），没有另加抑制。
+- 7.2“预览正在播放时不进入预览画布区域”：其他区域的飞舞都限制在自己的区域里（`overflow: hidden`），拖放的送达路线可能从预览上方飞过（600 ms 内结束）。
+- 拖放的去向只按文件名判断（见上）。
+- `icon.icns`（v1 只做 Windows）。打包后的应用图标只核对了文件被放进去，没有在资源管理器、任务栏里人工看过。
+
+## M7 导出完善
+
+音频（cue 调度、离线混音、`export.writeAudio`、各预设的音频封装、T-EXP-4）属于并行的 M6b，这里没有做。命令行构造函数已经留好音频的位置：`ffmpegArgs({ …, audio })` 有音频文件时加第二个输入 `-i <wav>` 和各预设的 `-c:a …`（5.3：①`pcm_s16le`、③`libopus 160k`、④`aac 192k`；② PNG 序列不经 FFmpeg 封装音频，WAV 另存），没有时与 M1 相同；两种情况各有单元测试。`ExportJobOptions.audio` 已经接到命令行，`ExportService.start` 还没有传它，留给合并时对接。
+
+### 导出任务（H7）
+
+- **任务在渲染进程**（`features/export/exportTasks.ts`）：画面在渲染进程的导出 Worker 里出，帧经 IPC 交给主进程的 FFmpeg，所以“一次导出”的主人是渲染进程。任务有编号（UUID）、状态（`preparing → rendering → muxing → done | failed | canceled`）、进度、剩余时间、结果或错误；存在一个 zustand store 里，结束的只留最近 10 个。一次只跑一个（导出是模态的，5.1）。
+- **三个带类型的命令**，经注册表的 `dispatch`（`app/core.tsx` 注册）：`exportTask.start`（参数全可选：`preset`、`quality`、`shutterAngle`、`key`、`fileName`，省略的取工程的导出设置；返回 `{ taskId }`，立即返回，任务在后台跑）、`exportTask.get`（`{ taskId }` → 快照或 null）、`exportTask.cancel`（`{ taskId }` → `{ status }`，等任务真的停下、清理完才返回）。参数和返回值都有 zod schema。**不接受输出路径**（下一节）。三个命令都不在命令面板里列出（要参数；面板里的“导出”仍是打开对话框）。
+- `effect` 三个都标 `read`：它们不改工程，也没有可撤销的修改；导出只会在用户用文件夹对话框选过的位置新建文件，重名时加 “ (2)”，从不覆盖。将来 MCP 要不要对 `start` 再加一道确认，由那时的接入决定。
+- **对话框只是观察者**：设置页的“导出”调 `dispatch('exportTask.start')`，进度页、完成页只读任务快照，“取消”调 `dispatch('exportTask.cancel')`。对话框重新打开时接上正在跑的任务（e2e 里经命令启动、再打开对话框、经命令取消，都验证了）。状态栏的“导出中”跟着任务走。M1 里“对话框卸载就取消导出”的做法去掉了（导出进行中对话框本来就关不掉）。
+
+### 输出位置与文件名
+
+- 规格 6.4 的设置页有“输出位置和文件名”，M1 的做法（点“导出”后弹保存对话框）对不上。改成：**文件夹**只来自主进程的文件夹对话框（“更改…”，或者还没选过时点“导出”会先弹一次），记在设置文件里（`settings.json` 的 `export.folder`，只有主进程读写，坏了只回退这一项）；**文件名**在对话框里可以改，默认按 5.2 的规则生成。渲染进程只交文件名，主进程再清洗一次（路径分隔符、保留名都换掉），所以渲染进程仍然不能让主进程写任意路径（1.6 第 6 条）。
+- **重名一律加 “ (2)”、“ (3)”**，四个预设都一样（M1 的 ProRes 由保存对话框确认覆盖，现在没有保存对话框了，所以也不覆盖）。启动时挑一次（正在写的别人的 `.partial` 也算占用），封装完成改名时再挑一次（以防这期间有人占了）。
+- 规格之外多出的 IPC 方法：`export.outputFolder()`、`export.chooseFolder()`、`export.reveal(jobId)`（“在文件夹中显示”，只认这个进程里导出完成的任务，最近 20 个）、`export.copyDiagnostics(text)`（写系统剪贴板，最长 2 万字）。规格里的 `export.probeEncoders` 的参数是 `force: boolean`。T-ARC-6 的畸形参数表都补了。
+
+### 编码器探测（5.3）
+
+- 试编码的输入用 `lavfi` 的 `color` 源（256×144、30 fps、8 帧），走与导出相同的色彩滤镜、编码器参数和 `h264_metadata` 比特流滤镜，输出到 `-f null -`。`-encoders` 里没有的候选不试，记 `unlisted`；单个候选 20 秒超时。
+- **缓存**：结果连同 `ffmpeg -version` 的第一行存在设置文件的 `export.h264`；版本对不上就当没探测过。**“首次需要时”**：打开导出对话框或顶栏的格式下拉时，如果还没有缓存就在后台探测一次（卡片上显示“正在检测…”）；点“导出”时主进程再确认一次（有缓存直接用）。没探测过时，只要 `-encoders` 里有任何一个候选，绿幕就先算可用（不让界面闪成禁用）。
+- 全部失败：绿幕卡片和下拉项置灰，写明“这台电脑上没有可用的 H.264 编码器（可在设置里重新检测）”；设置 → 导出的“重新检测”忽略缓存重新试编码（M4 时禁用的按钮现在可用）。
+- 测试开关 `ALLAY_E2E_H264`（逗号分隔的编码器名，只认编码器名的字符，最多 8 个，只在未打包时生效）代替 5.3 的候选表，e2e 用它造“全部失败”。
+- **本机实测**（固定的 n9.0.2 LGPL 构建，RTX 5070 笔记本 + Intel 核显）：`h264_nvenc` 成功（被选中）、`h264_qsv` 成功、`h264_amf` 失败（列表里有，没有 AMD 显卡）、`h264_mf` 成功、`libx264` 不在构建里、`libopenh264` 成功。T-EXP-1 ④ 对四个能用的都测了（1080p 八色块，最大误差 nvenc 3、qsv 3、mf 4、openh264 4），T-EXP-3 ④ 四个都带对了 bt709 标记。**AMD 的 `h264_amf` 没有实测过能编码**，它的参数照 5.3。
+- T-EXP-1 ④ 改用 1920×1080 的八色块：`h264_mf`、`libopenh264` 的码率按像素数 × 帧率缩放，在 256×144 上只有约 0.2 Mbps，`libopenh264` 误差到 5，测的不是实际会用的画质。判定（≤ 4）没变。
+- `libopenh264` 兜底保留、排最后（H-H264 的默认，等人决定）。
+
+### 设置页的其他项
+
+- **分辨率**：导出对话框按 5.2 列 1920×1080、2560×1440、3840×2160、1080×1920、1080×1080 和“自定义”（宽高输入框，失焦或回车时修正：限制在 64–4096、奇数减一，`evenDimension`）。改的是工程的输出设置（与“输出”标签页同一份）。“输出”标签页和设置里的 `OutputSettingsForm` 仍是 M4 的列表（有 720p、没有 1440p 和自定义），不在 M7 的范围里，没改；工程是自定义分辨率时那个下拉显示的是 1080p（只是显示不对，值没变）。
+- **快门角** 0–360，整数，存在工程里（M1 起就有这个字段，之前固定 180）。草稿画质（1 个子帧）下快门角不起作用，界面没有特意禁用。
+- **绿幕底色**：绿、蓝、黑和自定义（十六进制输入），存在工程的 `export.key`（新字段，旧工程没有时是 `#00FF00`）。只有绿幕预设用不透明模式渲染（5.1 第 2 步）。
+- **体积估算**：按 5.9 的实测折算成每像素每帧的字节数（ProRes 约 107 MB / 120 帧 1080p，PNG 约 5 MB，VP9 约 2 MB，H.264 按 1080p60 20 Mbps），乘以像素数和帧数，界面写“约”。实际体积取决于画面内容，PNG 和 VP9 的偏差可能很大。
+- **遮盖检查**（5.8）：设置页打开、或画质 / 快门角 / 输出 / 模板 / 参数变了以后 250 ms，另起一个导出模式的 Worker，按输出分辨率和所选画质、快门角渲染剪辑点那一帧（直通 alpha），最小 alpha 不到 255 就警告，不禁用“导出”。叠加层写“没有剪辑点”。导出过程中剪辑点那一帧的最小 alpha 也记进任务结果（`cutMinAlpha`，绿幕不记）。
+
+### 进度、完成、失败
+
+- 进度页：`AllayProgress`（按现有接口：`value`、`phase` 为 `rendering` / `muxing`、`carry`、`label`；外观由 M5b 做）、阶段、百分比、当前帧 / 总帧数、剩余时间（最近 20 帧的平均耗时，5.7）、“取消”。悦灵捧的是模板第一个方块参数的第一个方块的缩略图，没有方块参数时是胶片图标（7.6 B）。
+- 完成页：“导出完成”、文件路径、剪辑点（`第 n 帧（分:秒:帧）`，与时间轴的时间码写法一致）、用到的 H.264 编码器、“在文件夹中显示”“再导出一个”“完成”。
+- 失败页：错误码对应的一句话、停在哪一帧、“没有留下任何临时文件”、“复制诊断信息”（应用版本、FFmpeg 版本、H.264 探测结果、模板 ID、预设与输出设置、帧数、错误码、FFmpeg stderr 的最后几行；不含文件内容）、“返回设置”。取消后同样可以返回设置。
+- 导出期间阻止休眠：M1 已接 `powerSaveBlocker('prevent-app-suspension')`；“job started”日志多记一项 `sleepBlocked`，e2e 核对它。没有验证系统真的没有休眠。
+- `encoder-unavailable` 的文案从“随附的 FFmpeg 里没有这个格式的编码器”改成“没有可用的编码器来导出这个格式”：现在它也覆盖“探测过、但 H.264 编码器在导出时打不开”的情况。
+
+### 顶栏与格式卡片
+
+- 顶栏“导出”分体按钮的下拉列出全部四个预设，每项第二行是“适用于”的软件；不可用的置灰，第二行换成原因。打开下拉时同样会触发首次探测。
+- **格式卡片的“适用于”是按规格写的，没有在真实剪辑软件里验证过**（M7 的人工确认项，见 `docs/review/M7/README.md`）。确认后改文案（两种语言）。
+
+### 测试
+
+- test:export（真实 FFmpeg，`tests/export/export-m7.test.ts`）：T-EXP-1 ③④、T-EXP-3 ③④、T-EXP-5 ③④、T-EXP-6 ③④（含 H.264 编码器在导出时打不开）、T-EXP-8、T-EXP-9（不在列表里的跳过；在列表里但必然失败的 `h264_vaapi` 和伪造进列表的名字都真的试一次并失败；全部失败时没有胜出者）、重名不覆盖。①② 的同名测试在 M1 的文件里。
+- 单元测试：`export-m7.test.ts`（命令行有无音频、编码器参数与码率缩放、预设可用性、偶数修正、文件名、体积估算、时间码）、`export-task.test.ts`（引擎和 `window.allay.export` 换成假的，测三个命令的参数与返回值校验、状态机、一次只跑一个、取消、模板出错）。
+- e2e（`tests/e2e/export.spec.ts`）：六个内置模板经 `exportTask.start` 各以 1080p60 标准画质导出 ProRes，核对时长（帧数 / 60）、帧数、首末帧最大 alpha 为 0、剪辑点最小 alpha 为 255（叠加层 T6 改为“中间有画面”）、bt709 / tv 标记与剪辑点注释；T-EXP-7 的其余三个预设经真实界面（PNG、WebM 的 alpha 判定同 ①；绿幕首末帧是纯底色）；任务命令；H.264 全部失败；T-EXP-8 界面；复制诊断信息；遮盖检查。M1 的 T-EXP-5/6/7 界面测试照旧通过（只改了日志里预设列表的期望）。
+- 测试钩子多了 `dispatch(id, input)`：经注册表执行命令，出错时返回 `{ error: code }`。

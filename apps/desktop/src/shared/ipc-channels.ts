@@ -5,7 +5,9 @@
 // M3 加上 templates 和 presets（多出的 commitInstall、cancelInstall、saveDerived 见 docs/decisions.md M3）；
 // M4 加上 project（没有 create：新建工程只是渲染进程里的状态，见 docs/decisions.md M4）；
 // M6b 加上 export.writeAudio 和 resources.soundVariants、soundLibrary、soundFiles（音效，docs/decisions.md M6b）；
-// MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）。
+// M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
+// MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
+// MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）。
 
 export const IPC = {
   app: {
@@ -31,6 +33,11 @@ export const IPC = {
     finish: 'export:finish',
     cancel: 'export:cancel',
     ffmpegInfo: 'export:ffmpegInfo',
+    probeEncoders: 'export:probeEncoders',
+    outputFolder: 'export:outputFolder',
+    chooseFolder: 'export:chooseFolder',
+    reveal: 'export:reveal',
+    copyDiagnostics: 'export:copyDiagnostics',
   },
   resources: {
     layers: 'resources:layers',
@@ -87,6 +94,11 @@ export const IPC = {
     saveAs: 'project:saveAs',
     recents: 'project:recents',
   },
+  host: {
+    /** 主进程 → 渲染进程的事件：请界面执行一个命令 */
+    command: 'host:command',
+    commandResult: 'host:commandResult',
+  },
   cache: {
     getThumb: 'cache:getThumb',
     putThumb: 'cache:putThumb',
@@ -114,6 +126,11 @@ export const INVOKE_CHANNELS = [
   IPC.export.finish,
   IPC.export.cancel,
   IPC.export.ffmpegInfo,
+  IPC.export.probeEncoders,
+  IPC.export.outputFolder,
+  IPC.export.chooseFolder,
+  IPC.export.reveal,
+  IPC.export.copyDiagnostics,
   IPC.resources.layers,
   IPC.resources.stamp,
   IPC.resources.read,
@@ -157,6 +174,7 @@ export const INVOKE_CHANNELS = [
   IPC.project.save,
   IPC.project.saveAs,
   IPC.project.recents,
+  IPC.host.commandResult,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

@@ -17,6 +17,7 @@ import type { ProjectService } from './project/service';
 import { PROJECT_EXTENSION, type ProjectOpenResult, type ProjectSaveResult } from '../shared/project';
 import type { TemplateService } from './templates/service';
 import type { TemplateDevService } from './templates/dev-service';
+import type { HostCommandChannel } from './host-commands';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -29,6 +30,7 @@ export interface HandlerDeps {
   thumbs: ThumbCache;
   templates: TemplateService;
   templateDev: TemplateDevService;
+  hostCommands: HostCommandChannel;
   presets: PresetStore;
   projects: ProjectService;
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
@@ -54,7 +56,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -178,6 +180,9 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.templates.writeDevFiles, (_event, id, version) => templateDev.writeDevFiles({ id, version }));
   handle(IPC.templates.openFolder, (_event, id, version) => templateDev.openFolder({ id, version }));
 
+  // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
+  handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));
+
   // ---- project（1.9）----
   const pickProjectToOpen = async (): Promise<string | null> => {
     if (projectPathForTests) return projectPathForTests;
@@ -244,4 +249,9 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.export.finish, (_event, jobId) => knownJob(() => exports.finish(jobId)));
   // 取消一个已经结束或不存在的任务不算错
   handle(IPC.export.cancel, (_event, jobId) => exports.cancel(jobId));
+  handle(IPC.export.probeEncoders, (_event, force) => exports.probeEncoders(force));
+  handle(IPC.export.outputFolder, () => exports.outputFolder());
+  handle(IPC.export.chooseFolder, () => exports.chooseFolder());
+  handle(IPC.export.reveal, (_event, jobId) => knownJob(async () => exports.reveal(jobId)));
+  handle(IPC.export.copyDiagnostics, (_event, text) => exports.copyDiagnostics(text));
 }

@@ -165,8 +165,42 @@
     "format": "Format",
     "presets": {
       "prores": "Transparent MOV (ProRes 4444)",
-      "png": "PNG sequence"
+      "png": "PNG sequence",
+      "webm": "Transparent WebM (VP9)",
+      "greenscreen": "Green-screen MP4 (H.264)"
     },
+    "presetDesc": {
+      "prores": "Alpha channel, best quality, large files.",
+      "png": "One image per frame, lossless, small.",
+      "webm": "Alpha channel, very small; most editors ignore its alpha.",
+      "greenscreen": "No alpha; solid background you key out in your editor."
+    },
+    "worksWith": "Works with: {{apps}}",
+    "presetFor": {
+      "prores": "Premiere, DaVinci Resolve, Final Cut, After Effects",
+      "png": "Almost any editor (import as an image sequence)",
+      "webm": "OBS, the web",
+      "greenscreen": "Any editor (with a chroma key)"
+    },
+    "blockers": {
+      "checking": "Checking H.264 encoders…",
+      "ffmpegMissing": "The video encoder (FFmpeg) is missing or won’t start",
+      "encoderMissing": "The bundled FFmpeg has no encoder for this format",
+      "noH264": "No working H.264 encoder on this computer (you can re-check in Settings)"
+    },
+    "resolution": "Resolution",
+    "resolutions": {
+      "1080p": "1920×1080 (1080p)",
+      "1440p": "2560×1440 (1440p)",
+      "2160p": "3840×2160 (4K)",
+      "vertical": "1080×1920 (vertical)",
+      "square": "1080×1080 (square)",
+      "custom": "Custom"
+    },
+    "width": "Width",
+    "height": "Height",
+    "customHint": "Width and height must be even numbers from 64 to 4096; odd values are rounded down.",
+    "fps": "Frame rate",
     "quality": "Quality",
     "qualities": {
       "draft": "Draft (no motion blur)",
@@ -174,36 +208,73 @@
       "high": "High (16 subframes)",
       "ultra": "Ultra (32 subframes)"
     },
-    "start": "Export…",
-    "cancel": "Cancel",
-    "close": "Close",
-    "progress": "Frame {{written}} of {{total}}",
-    "canceled": "Export canceled. No files were left behind.",
-    "done": "Exported {{frames}} frames in {{seconds}} s.",
-    "cutFrame": "Cut point: frame {{frame}}. Line this frame up with the seam between your two clips.",
-    "failedAtFrame": "Stopped at frame {{frame}}.",
-    "errors": {
-      "ffmpegMissing": "The video encoder (FFmpeg) is missing or could not be started.",
-      "outputNotWritable": "Can't write to that location. Pick another folder.",
-      "diskFull": "The disk is full. Free up some space and try again.",
-      "encoderUnavailable": "This format's encoder isn't available in the bundled FFmpeg.",
-      "ffmpegFailed": "The video encoder stopped with an error.",
-      "frameMismatch": "The frames didn't match the export settings.",
-      "templateFailed": "The template ran into an error while exporting.",
-      "templateUnresponsive": "The template stopped responding while exporting."
-    },
-    "progressLabel": "Export progress",
     "qualityShort": {
       "draft": "Draft",
       "standard": "Standard",
       "high": "High",
       "ultra": "Ultra"
     },
+    "shutter": "Shutter angle",
+    "shutterHint": "Length of the motion blur: 180° is the usual film look, 0° is none, 360° is longest.",
+    "key": "Background",
+    "keyHex": "Background (hex)",
+    "keyOptions": {
+      "green": "Green",
+      "blue": "Blue",
+      "black": "Black",
+      "custom": "Custom"
+    },
+    "location": "Location",
+    "folderUnset": "Choose a folder when exporting",
+    "chooseFolder": "Change…",
+    "fileName": "File name",
+    "estimate": "About {{size}} · {{frames}} frames",
+    "cover": {
+      "checking": "Checking that the cut frame is fully covered…",
+      "ok": "The cut frame ({{frame}}) is fully covered.",
+      "warn": "At the cut frame ({{frame}}) the picture isn’t fully covered, so the seam will show.",
+      "overlay": "Overlay templates have no cut point."
+    },
+    "start": "Export",
+    "cancel": "Cancel",
+    "close": "Close",
+    "stages": {
+      "preparing": "Preparing…",
+      "rendering": "Rendering frames",
+      "muxing": "Writing the file"
+    },
+    "progress": "Frame {{written}} of {{total}}",
+    "progressLabel": "Export progress",
+    "eta": "About {{time}} left",
+    "etaUnknown": "Estimating time left…",
+    "canceled": "Export canceled. No files were left behind.",
     "doneTitle": "Export complete",
-    "soundsRemote": "{{count}} sound(s) this clip uses haven't been downloaded yet. The export itself never goes online.",
-    "soundsFetch": "Fetch sounds and export",
-    "soundsFetching": "Fetching…",
-    "soundsSkip": "Export without them"
+    "done": "Exported {{frames}} frames in {{seconds}} s.",
+    "savedTo": "Saved to",
+    "cutPoint": "Cut point: frame {{frame}} ({{timecode}}). Put the clip on the track above and line this frame up with the seam between your two shots.",
+    "encoderUsed": "H.264 encoder: {{encoder}}",
+    "reveal": "Show in folder",
+    "again": "Export another",
+    "finish": "Done",
+    "failedTitle": "Export failed",
+    "failedAtFrame": "Stopped at frame {{frame}}.",
+    "noLeftovers": "No temporary files were left behind.",
+    "copyDiagnostics": "Copy diagnostics",
+    "copied": "Copied",
+    "back": "Back to settings",
+    "errors": {
+      "ffmpegMissing": "The video encoder (FFmpeg) is missing or won’t start.",
+      "outputNotWritable": "Can’t write to this location. Choose another folder.",
+      "diskFull": "The disk is full. Free up some space and try again.",
+      "encoderUnavailable": "There’s no working encoder for this format.",
+      "ffmpegFailed": "The video encoder quit with an error.",
+      "frameMismatch": "The frames don’t match the export settings.",
+      "templateFailed": "The template failed during export.",
+      "templateUnresponsive": "The template stopped responding during export."
+    },
+    "soundsRemote": "{{count}} sound(s) this clip uses haven't been downloaded yet. If you don't fetch them they're muted in the export; the export itself never goes online.",
+    "soundsFetch": "Fetch sounds",
+    "soundsFetching": "Fetching…"
   },
   "resources": {
     "button": "Assets: {{name}}",
@@ -363,9 +434,8 @@
     "defaultOutput": "Output settings",
     "ffmpeg": "FFmpeg version",
     "ffmpegUnknown": "Unknown",
-    "encoders": "Encoders",
-    "redetect": "Re-detect encoders",
-    "encodersLater": "Encoder detection comes in a later version.",
+    "encoders": "H.264 encoder",
+    "redetect": "Check again",
     "version": "Version {{version}}",
     "thirdParty": "Third-party licenses",
     "licenses": {
@@ -375,7 +445,10 @@
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
       "phosphor": "Phosphor Icons: MIT.",
       "npm": "Other open-source components use MIT, BSD, ISC, Apache-2.0 and similar licenses."
-    }
+    },
+    "encoderNone": "None works",
+    "encoderNotProbed": "Not checked yet",
+    "encoderProbing": "Checking…"
   },
   "shortcuts": {
     "keys": {
@@ -412,7 +485,14 @@
       "settings": "Settings",
       "resources": "Assets and resource stack",
       "toggleTheme": "Toggle dark / light theme",
-      "guides": "Safe-area guides"
+      "guides": "Safe-area guides",
+      "openTemplateFolder": "Open template folder",
+      "copyBuiltinTemplate": "Duplicate built-in template to edit",
+      "projectGet": "Read project state",
+      "projectSetParams": "Set parameters (with revision)",
+      "exportTaskStart": "Start export task",
+      "exportTaskGet": "Get export task",
+      "exportTaskCancel": "Cancel export task"
     }
   },
   "editor": {
@@ -545,7 +625,8 @@
         "concrete": "Concrete",
         "terracotta": "Terracotta",
         "items": "Items"
-      }
+      },
+      "loading": "Fetching thumbnails…"
     },
     "blockList": {
       "replace": "Replace “{{name}}”",
@@ -601,5 +682,72 @@
     "missing": "These sounds aren't in the current resources and are muted: {{list}}",
     "peakNormalized": "The mix peaked above 0 dBFS, so it was turned down to −1 dBFS.",
     "fetchFailed": "Some sounds couldn't be fetched from Mojang's server (you may be offline), so they're muted for now."
+  },
+  "dev": {
+    "overlay": {
+      "title": "Template change not applied",
+      "kept": "The preview keeps the last working version. Save a fix and it reloads automatically.",
+      "region": "Template diagnostics"
+    },
+    "kinds": {
+      "compile": "Syntax",
+      "load": "Load",
+      "setup": "setup",
+      "update": "update",
+      "watchdog": "Unresponsive",
+      "determinism": "Determinism",
+      "rule": "Rule"
+    },
+    "codes": {
+      "syntax-error": "Syntax error",
+      "has-import": "Templates cannot use import",
+      "too-large": "template.js is larger than 1 MB",
+      "evaluate-failed": "The module failed while running",
+      "bad-export": "The default export has the wrong shape",
+      "setup-threw": "setup() threw an error",
+      "bad-instance": "setup() returned the wrong shape",
+      "update-threw": "update(t) threw an error",
+      "audio-cue-outside-setup": "Sound cues can only be declared in setup()",
+      "unresponsive": "Did not return in time (possibly an infinite loop)",
+      "forbidden-api": "Called an API that makes frames nondeterministic",
+      "render-mismatch": "Rendering the same moment twice gave different results",
+      "math-random": "Uses Math.random(); use ctx.random(key) instead",
+      "date-now": "Uses Date.now(); frames may depend only on t",
+      "new-date": "Uses Date without arguments; frames may depend only on t",
+      "performance-now": "Uses performance.now(); frames may depend only on t",
+      "import": "Templates cannot use import",
+      "engine-crashed": "The preview engine stopped unexpectedly",
+      "load-failed": "Loading failed",
+      "template-unreadable": "manifest.json is invalid or template.js is missing"
+    },
+    "position": "Line {{line}}, column {{column}}",
+    "positionLine": "Line {{line}}",
+    "atTime": "t = {{t}} s",
+    "status": {
+      "watching": "Watching template folder",
+      "reloading": "Reloading…",
+      "lastOk": "Reloaded at {{time}}",
+      "lastFailed": "Reload failed at {{time}}",
+      "hint": "Edit this template’s files in your own editor; the preview updates when you save"
+    },
+    "copyName": "{{name}} (copy)",
+    "copied": "Copied as an editable template. The folder includes type definitions for completion in your editor.",
+    "errors": {
+      "not-found": "Template not found",
+      "not-builtin": "Only built-in templates can be copied",
+      "not-script": "This template has no code of its own and cannot be copied",
+      "bad-id": "Invalid template ID",
+      "not-user": "Only user templates have a folder",
+      "outside": "The template folder is outside the app’s data folder",
+      "open-failed": "Could not open the folder"
+    },
+    "failed": "Could not finish: {{reason}}"
+  },
+  "history": {
+    "params": "Change parameters",
+    "template": "Change template"
+  },
+  "splash": {
+    "starting": "Starting…"
   }
 }

@@ -1,5 +1,6 @@
 import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type ResourceStackSettings } from '@allay/assets';
 import { z } from 'zod';
+import { H264ProbeSchema } from './export';
 
 // 设置文件 settings.json 的 schema（docs/01-product-architecture.md 1.9）。
 // 读取时每个字段单独兜底：坏掉的字段回到默认值，不连累其他字段。
@@ -89,6 +90,15 @@ export const EditorPrefsSchema = z.strictObject({
   recent: RecentSchema.catch(() => defaultEditorPrefs().recent),
 });
 
+// ---- 可选模块的开关表（docs/code-editing-and-mcp-plan.md 3.1 第 4 条）----
+// 键是 packages/optional 下的目录名；没有列出、或为 false 的模块不加载。主程序不认识任何具体的模块。
+
+export const MAX_OPTIONAL_MODULES = 32;
+export const OptionalModuleIdSchema = z.string().regex(/^[a-z][a-z0-9-]{0,31}$/);
+export const OptionalModulesSchema = z
+  .record(OptionalModuleIdSchema, z.boolean())
+  .refine((m) => Object.keys(m).length <= MAX_OPTIONAL_MODULES, 'too many optional modules');
+
 /** 渲染进程可见、可改的部分 */
 export const UiSettingsSchema = z.strictObject({
   theme: ThemeSchema.catch('dark'),
@@ -96,6 +106,7 @@ export const UiSettingsSchema = z.strictObject({
   reducedMotion: ReducedMotionPrefSchema.catch('system'),
   layout: LayoutSchema.catch({ left: { ...DEFAULT_LAYOUT.left }, right: { ...DEFAULT_LAYOUT.right } }),
   editor: EditorPrefsSchema.catch(defaultEditorPrefs).default(defaultEditorPrefs),
+  optionalModules: OptionalModulesSchema.catch({}).default({}),
 });
 export type UiSettings = z.infer<typeof UiSettingsSchema>;
 
@@ -106,6 +117,7 @@ export function defaultUiSettings(): UiSettings {
     reducedMotion: 'system',
     layout: { left: { ...DEFAULT_LAYOUT.left }, right: { ...DEFAULT_LAYOUT.right } },
     editor: defaultEditorPrefs(),
+    optionalModules: {},
   };
 }
 
@@ -133,6 +145,8 @@ export const UiSettingsPatchSchema = z.strictObject({
       recent: RecentSchema.optional(),
     })
     .optional(),
+  /** 可选模块的开关表：整体替换 */
+  optionalModules: OptionalModulesSchema.optional(),
 });
 export type UiSettingsPatch = z.infer<typeof UiSettingsPatchSchema>;
 
@@ -150,17 +164,29 @@ export function defaultResourceSettings(): ResourceStackSettings {
   return structuredClone(DEFAULT_RESOURCE_STACK_SETTINGS);
 }
 
+/** 导出的应用级设置（M7），只有主进程读写：上次选的输出文件夹、H.264 探测结果的缓存（5.3） */
+export const ExportAppSettingsSchema = z.strictObject({
+  folder: z.string().min(1).max(1000).nullable(),
+  h264: H264ProbeSchema.nullable(),
+});
+export type ExportAppSettings = z.infer<typeof ExportAppSettingsSchema>;
+export function defaultExportAppSettings(): ExportAppSettings {
+  return { folder: null, h264: null };
+}
+
 export const SettingsFileSchema = z.object({
   formatVersion: z.literal(SETTINGS_FORMAT_VERSION),
   ui: UiSettingsSchema.catch(defaultUiSettings),
   window: WindowStateSchema.optional().catch(undefined),
   /** 资源栈（应用级设置，1.9），只有主进程读写 */
   resources: ResourceStackSettingsSchema.catch(defaultResourceSettings).default(defaultResourceSettings),
+  /** 导出（M7），只有主进程读写 */
+  export: ExportAppSettingsSchema.catch(defaultExportAppSettings).default(defaultExportAppSettings),
 });
 export type SettingsFile = z.infer<typeof SettingsFileSchema>;
 
 export function defaultSettingsFile(): SettingsFile {
-  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings(), resources: defaultResourceSettings() };
+  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings() };
 }
 
 export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSettings {
@@ -173,5 +199,6 @@ export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSet
       right: patch.layout?.right ?? current.layout.right,
     },
     editor: { ...current.editor, ...patch.editor },
+    optionalModules: patch.optionalModules ?? current.optionalModules,
   };
 }

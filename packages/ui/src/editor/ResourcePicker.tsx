@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { cn } from 'cn';
 import { ImageBroken, MagnifyingGlass } from '@phosphor-icons/react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../components/ui/button';
 import { Input, Skeleton } from '../components/ui/misc';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
@@ -13,10 +13,14 @@ import { useEditor, type CatalogEntry } from './context';
 
 type Kind = 'block' | 'item';
 
+/** 选择器网格里还没取到的缩略图数（7.5 第 4 项：缩略图未就绪时网格上有加载编排） */
+const PendingThumbs = createContext<((delta: 1 | -1) => void) | null>(null);
+
 /** 一张缩略图：取到之前是骨架块，像素化显示 */
 export function ResourceThumb({ kind, id, size = 32, className }: { kind: Kind; id: string; size?: number; className?: string }) {
   const editor = useEditor();
   const [url, setUrl] = useState<string | null | undefined>(undefined);
+  const report = useContext(PendingThumbs);
   useEffect(() => {
     let alive = true;
     setUrl(undefined);
@@ -24,12 +28,22 @@ export function ResourceThumb({ kind, id, size = 32, className }: { kind: Kind; 
       setUrl(null);
       return;
     }
-    void editor.thumbnail(kind, id).then((u) => alive && setUrl(u));
+    let pending = true;
+    report?.(1);
+    const settle = () => {
+      if (pending) report?.(-1);
+      pending = false;
+    };
+    void editor.thumbnail(kind, id).then((u) => {
+      settle();
+      if (alive) setUrl(u);
+    });
     return () => {
       alive = false;
+      settle();
     };
     // resourceStamp 变了要重新取
-  }, [kind, id, editor, editor.hasAssets, editor.resourceStamp]);
+  }, [kind, id, editor, editor.hasAssets, editor.resourceStamp, report]);
   if (url === undefined) return <Skeleton className={cn('shrink-0 rounded-[4px]', className)} style={{ width: size, height: size }} />;
   if (url === null)
     return (
@@ -88,6 +102,8 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
     overscan: 6,
   });
   const anyMatch = rows.some((r) => r.kind === 'cells');
+  const [pending, setPending] = useState(0);
+  const report = useCallback((delta: 1 | -1) => setPending((n) => Math.max(0, n + delta)), []);
   return (
     <div className="flex flex-col gap-2">
       <div className="relative">
@@ -104,6 +120,8 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
           )}
         </div>
       )}
+      <PendingThumbs.Provider value={report}>
+      <div className="relative">
       <div ref={scrollRef} className="h-[300px] overflow-y-auto" role="listbox" aria-label={editor.t(kind === 'block' ? 'picker.blocks' : 'picker.items')}>
         {!anyMatch && <p className="py-6 text-center text-xs text-fg-muted">{editor.t('picker.empty', { q })}</p>}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -143,6 +161,9 @@ function PickerGrid({ kind, value, onPick }: { kind: Kind; value: string | null;
           })}
         </div>
       </div>
+      {editor.pickerLoader?.(pending > 0)}
+      </div>
+      </PendingThumbs.Provider>
     </div>
   );
 }

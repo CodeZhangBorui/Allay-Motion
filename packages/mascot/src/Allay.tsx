@@ -1,9 +1,21 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import type { ClipName } from '../model/allay.motions';
+import type { AtlasJson } from './atlas';
+import { pickSheetSize, useAtlasSheet, useMascotAssets } from './assets';
+import { AllayHead } from './AllayHead';
+import { AllayPlaceholder } from './placeholder';
+import { useReducedMotion } from './reduced';
+import { useMascotSlot, type MascotPriority } from './stage';
+import { onMascotFrame } from './ticker';
 
-// 悦灵组件的占位实现（M4）。接口已经是最终的（docs/07-allay-mascot.md 7.4）；外形只用 CSS 几何形状，
-// 不读烘焙产物、不画新图。配色跟随界面的设计变量；界面禁止外发光，所以不画辉光。
-// M5 后半把内部换成图集的 <canvas> 绘制，调用方不用改。
+// Allay（docs/07-allay-mascot.md 7.4）：一只悦灵，只负责画当前帧，不负责移动。
+// - 用一个 <canvas> 从烘焙的图集里 drawImage 当前帧；按 size × devicePixelRatio 在 96 和 288 两套里选不小于所需的那套。
+// - 动作按图集的 30 fps 步进，由全应用唯一的帧循环驱动（ticker.ts），只在帧号变化时重画。
+// - 捧着的东西画在手部锚点上（atlas.json 的 handAnchor，每帧一项）。
+// - 朝向用水平翻转，转身 140 ms。glow 留在接口里但不画（界面禁止外发光，docs/decisions.md 界面重设计）。
+// - 产物缺失时退回 CSS 占位（placeholder.tsx）。
+// - 同一时刻全应用只画一只全身悦灵（stage.ts）；没轮到的只留一个同样大小的空位。
+// - 减少动效：静止在当前动作的第一帧。
 
 export interface AllayProps {
   clip?: ClipName;
@@ -12,108 +24,93 @@ export interface AllayProps {
   facing?: 'left' | 'right';
   /** 捧着的东西（物品图标等），画在手部锚点上 */
   carry?: ReactNode;
-  /** 悦灵青的 drop-shadow 辉光（不烘进图集）。界面禁止外发光（6.1），占位实现忽略这个参数 */
+  /** 悦灵青的 drop-shadow 辉光（不烘进图集）。界面禁止外发光（6.1），不画 */
   glow?: boolean;
+  /** 出场位置的优先级（stage.ts）：同一时刻只画优先级最高的那一只 */
+  priority?: MascotPriority;
   className?: string;
   style?: CSSProperties;
 }
 
 /** 一只悦灵。只负责画当前帧，不负责移动。显示尺寸小于 28 px 时一律用头像（7.3）。 */
-export function Allay({ clip = 'hover', size = 72, facing = 'right', carry, className, style }: AllayProps) {
+export function Allay(props: AllayProps) {
+  const { size = 72, className } = props;
   if (size < 28) return <AllayHead size={size} className={className} />;
-  const s = size;
+  return <AllayBody {...props} size={size} />;
+}
+
+function AllayBody({ clip = 'hover', size = 72, facing = 'right', carry, priority = 'default', className, style }: AllayProps & { size: number }) {
+  const granted = useMascotSlot(priority);
+  const assets = useMascotAssets();
+  const reduced = useReducedMotion();
+  if (!granted) {
+    // 没轮到：留出同样大小的空位
+    return <span data-allay="reserved" aria-hidden="true" className={`pointer-events-none inline-block shrink-0 ${className ?? ''}`} style={{ width: size, height: size, ...style }} />;
+  }
+  if (assets.status === 'missing') return <AllayPlaceholder clip={clip} size={size} facing={facing} carry={carry} reduced={reduced} className={className} style={style} />;
   return (
     <span
       data-allay="body"
       data-clip={clip}
+      data-source={assets.status === 'ready' ? 'atlas' : 'pending'}
       aria-hidden="true"
-      className={`allay-placeholder pointer-events-none relative inline-block shrink-0 ${className ?? ''}`}
+      className={`pointer-events-none relative inline-block shrink-0 ${className ?? ''}`}
       style={{
-        width: s,
-        height: s,
-        // 朝向用水平翻转，转身 140 ms
+        width: size,
+        height: size,
         transform: facing === 'left' ? 'scaleX(-1)' : undefined,
-        transition: 'transform 140ms var(--ease-out)',
+        transition: reduced ? undefined : 'transform 140ms var(--ease-out)',
         ...style,
       }}
     >
-      <span className="allay-ph-bob absolute inset-0 block">
-        {/* 翅膀 */}
-        <span className="allay-ph-wing absolute block rounded-[50%] bg-allay-light/70" style={{ left: s * 0.1, top: s * 0.28, width: s * 0.36, height: s * 0.22 }} />
-        <span className="allay-ph-wing absolute block rounded-[50%] bg-allay-light/50" style={{ left: s * 0.02, top: s * 0.36, width: s * 0.3, height: s * 0.18 }} />
-        {/* 头 */}
-        <span className="absolute block rounded-[22%] bg-allay" style={{ left: s * 0.36, top: s * 0.14, width: s * 0.36, height: s * 0.36 }}>
-          <span className="absolute block rounded-[1px] bg-background" style={{ left: s * 0.15, top: s * 0.13, width: s * 0.05, height: s * 0.09 }} />
-          <span className="absolute block rounded-[1px] bg-background" style={{ left: s * 0.25, top: s * 0.13, width: s * 0.05, height: s * 0.09 }} />
-        </span>
-        {/* 身体和下摆 */}
-        <span className="absolute block rounded-[30%] bg-allay-deep" style={{ left: s * 0.44, top: s * 0.5, width: s * 0.2, height: s * 0.26 }} />
-        <span className="absolute block rounded-b-[40%] bg-allay/40" style={{ left: s * 0.42, top: s * 0.68, width: s * 0.24, height: s * 0.14 }} />
-        {carry && (
-          <span className="absolute flex items-center justify-center" style={{ left: s * 0.6, top: s * 0.52, width: s * 0.3, height: s * 0.3 }}>
-            {carry}
-          </span>
-        )}
-      </span>
+      {assets.status === 'ready' && <AtlasFrames atlas={assets.atlas} clip={clip} size={size} carry={carry} reduced={reduced} />}
     </span>
   );
 }
 
-/** 顶栏头像：静态；每 6–10 秒眨一次眼；点击它转一圈（7.5 第 9 项）。占位用 CSS 方块。 */
-export function AllayHead({ size = 20, className, onClick, label }: { size?: number; className?: string; onClick?: () => void; label?: string }) {
-  const [closed, setClosed] = useState(false);
-  const [spin, setSpin] = useState(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+function AtlasFrames({ atlas, clip, size, carry, reduced }: { atlas: AtlasJson; clip: ClipName; size: number; carry?: ReactNode; reduced: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const carryRef = useRef<HTMLSpanElement>(null);
+  const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1;
+  const px = Math.max(1, Math.round(size * dpr));
+  const cell = pickSheetSize(px, atlas.sizes);
+  const sheet = useAtlasSheet(cell);
+  const hasCarry = carry !== undefined && carry !== null && carry !== false;
+
   useEffect(() => {
-    // 眨眼间隔取 6–10 秒之间的固定序列（界面装饰，不影响画面，确定性无所谓；避免 Math.random 只是为了截图可复现）
-    const intervals = [7200, 8600, 6400, 9300, 7800];
-    let i = 0;
-    const next = () => {
-      timer.current = setTimeout(() => {
-        setClosed(true);
-        timer.current = setTimeout(() => {
-          setClosed(false);
-          next();
-        }, 140);
-      }, intervals[i++ % intervals.length]);
+    const canvas = canvasRef.current;
+    const g = canvas?.getContext('2d');
+    if (!canvas || !g || !sheet) return;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    const { start, count } = atlas.clips[clip];
+    const frameMs = 1000 / atlas.fps;
+    const t0 = performance.now();
+    let last = -1;
+    const draw = (now: number) => {
+      const f = reduced ? 0 : Math.floor((now - t0) / frameMs) % count;
+      if (f === last) return;
+      last = f;
+      const idx = start + f;
+      g.clearRect(0, 0, px, px);
+      g.drawImage(sheet, (idx % atlas.columns) * cell, Math.floor(idx / atlas.columns) * cell, cell, cell, 0, 0, px, px);
+      const item = carryRef.current;
+      const a = atlas.handAnchor[idx];
+      if (item && a) item.style.transform = `translate(${(a[0] * size).toFixed(1)}px, ${(a[1] * size).toFixed(1)}px) rotate(${a[2].toFixed(1)}deg) translate(-50%, -50%)`;
     };
-    next();
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
-  const s = size;
-  const head = (
-    <span
-      data-allay="head"
-      data-eyes={closed ? 'closed' : 'open'}
-      aria-hidden="true"
-      className="relative inline-block shrink-0 rounded-[22%] bg-allay"
-      style={{ width: s * 0.8, height: s * 0.8, transform: `rotate(${spin * 360}deg)`, transition: spin ? 'transform var(--dur-4) var(--ease-out)' : undefined }}
-    >
-      <span className="absolute block rounded-[1px] bg-background" style={{ left: s * 0.22, top: s * 0.3, width: s * 0.1, height: closed ? s * 0.03 : s * 0.17 }} />
-      <span className="absolute block rounded-[1px] bg-background" style={{ left: s * 0.48, top: s * 0.3, width: s * 0.1, height: closed ? s * 0.03 : s * 0.17 }} />
-    </span>
-  );
-  if (!onClick) {
-    return (
-      <span className={`inline-flex shrink-0 items-center justify-center ${className ?? ''}`} style={{ width: s, height: s }}>
-        {head}
-      </span>
-    );
-  }
+    draw(t0);
+    if (reduced) return;
+    return onMascotFrame(draw);
+  }, [atlas, clip, sheet, reduced, px, cell, size, hasCarry]);
+
   return (
-    <button
-      type="button"
-      aria-label={label}
-      className={`inline-flex shrink-0 items-center justify-center rounded-sm ${className ?? ''}`}
-      style={{ width: Math.max(24, s), height: Math.max(24, s) }}
-      onClick={() => {
-        setSpin((n) => n + 1);
-        onClick();
-      }}
-    >
-      {head}
-    </button>
+    <>
+      <canvas ref={canvasRef} width={px} height={px} className="pointer-events-none block" style={{ width: size, height: size }} />
+      {hasCarry && (
+        <span ref={carryRef} className="pointer-events-none absolute top-0 left-0 flex items-center justify-center" style={{ width: size * 0.3, height: size * 0.3, transform: 'translate(-9999px, 0)' }}>
+          {carry}
+        </span>
+      )}
+    </>
   );
 }

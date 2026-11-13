@@ -6,6 +6,7 @@ import {
   SettingsFileSchema,
   applyUiPatch,
   defaultSettingsFile,
+  type ExportAppSettings,
   type SettingsFile,
   type UiSettings,
   type UiSettingsPatch,
@@ -103,6 +104,16 @@ export class SettingsStore {
 
   async updateResources(next: ResourceStackSettings): Promise<void> {
     this.current = { ...this.current, resources: next };
+    await this.persist();
+  }
+
+  /** 导出的应用级设置（输出文件夹、H.264 探测缓存） */
+  get exportSettings(): ExportAppSettings {
+    return this.current.export;
+  }
+
+  async updateExport(patch: Partial<ExportAppSettings>): Promise<void> {
+    this.current = { ...this.current, export: { ...this.current.export, ...patch } };
     await this.persist();
   }
 

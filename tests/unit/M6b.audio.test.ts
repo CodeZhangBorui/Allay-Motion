@@ -3,10 +3,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ffmpegArgs } from '../../apps/desktop/src/main/export/ffmpeg-args';
+import { PRESET_AUDIO_ARGS, PRESET_AUDIO_ENCODER } from '../../apps/desktop/src/main/export/ffmpeg-args';
 import { voiceParams } from '../../apps/desktop/src/renderer/audio/schedule';
 import { encodeWav } from '../../apps/desktop/src/renderer/audio/wav';
-import { AudioWavSchema, MAX_AUDIO_BYTES, readWavInfo } from '../../apps/desktop/src/shared/export';
+import { AudioWavSchema, EXPORT_PRESETS, MAX_AUDIO_BYTES, readWavInfo } from '../../apps/desktop/src/shared/export';
 import { SOUND_EVENTS } from '../../packages/assets/src/index';
 
 describe('M6b WAV', () => {
@@ -33,20 +33,14 @@ describe('M6b WAV', () => {
   });
 });
 
-describe('M6b FFmpeg 的音频参数（5.3）', () => {
-  const base = { width: 64, height: 64, fps: 30, output: 'out.partial', cutFrame: null };
-  it('ProRes 有音频：WAV 作为第二个输入，显式映射，pcm_s16le；没有音频时没有任何音频参数', () => {
-    const withAudio = ffmpegArgs({ ...base, preset: 'prores4444', audio: 'mix.wav' });
-    const i = withAudio.indexOf('pipe:0');
-    expect(withAudio.slice(i + 1, i + 3)).toEqual(['-i', 'mix.wav']);
-    expect(withAudio.join(' ')).toContain('-map 0:v:0 -map 1:a:0 -c:a pcm_s16le');
-    const without = ffmpegArgs({ ...base, preset: 'prores4444', audio: null });
-    expect(without.filter((a) => a === '-i')).toHaveLength(1);
-    expect(without.join(' ')).not.toMatch(/-c:a|-map/);
-  });
-
-  it('PNG 序列不把 WAV 交给 FFmpeg（另存到同一目录）', () => {
-    expect(ffmpegArgs({ ...base, preset: 'png-sequence', audio: 'mix.wav' })).toEqual(ffmpegArgs({ ...base, preset: 'png-sequence' }));
+describe('M6b FFmpeg 的音频编码器（5.6）', () => {
+  // 命令行本身由 M7 的 ffmpegArgs 构造（export-m7.test.ts 核对各预设有无音频）；这里核对导出服务检查的编码器表与命令行一致
+  it('PRESET_AUDIO_ENCODER 与每个预设命令行里的 -c:a 一致；PNG 序列不经 FFmpeg 编码音频', () => {
+    for (const preset of EXPORT_PRESETS) {
+      const a = PRESET_AUDIO_ARGS[preset];
+      expect(PRESET_AUDIO_ENCODER[preset], preset).toBe(a.length > 0 ? a[a.indexOf('-c:a') + 1] : null);
+    }
+    expect(PRESET_AUDIO_ENCODER['png-sequence']).toBeNull();
   });
 });
 

@@ -373,7 +373,7 @@ test.describe('导出', () => {
       await expect(page.getByTestId('export-dialog').getByRole('alert')).toContainText(msg.export.errors.ffmpegMissing!);
       await expect(page.getByTestId('export-start')).toBeDisabled();
       expect(readdirSync(out)).toEqual([]);
-      expect(readMainLog(dir)).toMatch(/ffmpeg probed .*"presets":\{"prores4444":false,"png-sequence":false\}/);
+      expect(readMainLog(dir)).toMatch(/ffmpeg probed .*"presets":\{"prores4444":false,"png-sequence":false,"webm-vp9":false,"greenscreen-mp4":false\}/);
     } finally {
       await app.close();
       removeUserDataDir(dir);

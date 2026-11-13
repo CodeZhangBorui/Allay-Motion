@@ -1,12 +1,15 @@
 import type {
+  ChooseFolderResult,
   ExportFinishResult,
   ExportStartRequest,
   ExportStartResult,
   ExportStepResult,
   FfmpegInfo,
+  H264Probe,
 } from '../shared/export';
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
+import type { HostCommandRequest, HostCommandResult } from '../shared/host-commands';
 import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
@@ -47,7 +50,7 @@ export interface AllayApi {
     read(ref: string): Promise<Uint8Array>;
   };
   export: {
-    /** 弹出主进程的保存对话框并启动 FFmpeg；用户取消时 canceled 为真 */
+    /** 启动 FFmpeg；还没选过输出文件夹时先弹主进程的文件夹对话框，用户取消时 canceled 为真 */
     start(req: ExportStartRequest): Promise<ExportStartResult>;
     /** 写一帧直通 alpha 的 RGBA8；数据进了 FFmpeg（必要时等到 drain）才返回 */
     writeFrame(jobId: string, pixels: Uint8Array): Promise<ExportStepResult>;
@@ -56,6 +59,16 @@ export interface AllayApi {
     finish(jobId: string): Promise<ExportFinishResult>;
     cancel(jobId: string): Promise<void>;
     ffmpegInfo(): Promise<FfmpegInfo>;
+    /** H.264 编码器探测（5.3）；force 为真时忽略缓存重新试编码。FFmpeg 不能用时为 null */
+    probeEncoders(force: boolean): Promise<H264Probe | null>;
+    /** 当前的输出文件夹（显示用）；还没选过时为 null */
+    outputFolder(): Promise<string | null>;
+    /** 弹出主进程的文件夹对话框，选中的记进设置 */
+    chooseFolder(): Promise<ChooseFolderResult>;
+    /** 在文件夹中显示这个任务的输出（只认导出完成的任务） */
+    reveal(jobId: string): Promise<void>;
+    /** 把诊断信息写进系统剪贴板 */
+    copyDiagnostics(text: string): Promise<void>;
   };
   resources: {
     /** 资源栈的完整状态（各层、原版层来源、下载进度、resourceStamp） */
@@ -144,6 +157,12 @@ export interface AllayApi {
     /** 弹出保存对话框 */
     saveAs(data: ProjectData): Promise<ProjectSaveResult>;
     recents(): Promise<RecentProject[]>;
+  };
+  host: {
+    /** 主进程请界面执行命令（H11）；请求在界面一侧再按 schema 校验。返回取消订阅的函数 */
+    onCommand(callback: (request: HostCommandRequest) => void): () => void;
+    /** 交回命令的结果；主进程按 schema 校验 */
+    commandResult(result: HostCommandResult): Promise<boolean>;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

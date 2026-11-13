@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@allay/ui/components/tabs';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { FfmpegInfo } from '../../../shared/export';
+import { useExportInfo } from '../export/exportInfo';
 import type { CacheUsage } from '../../../shared/resources';
 import { notify } from '../../stores/noticeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -118,8 +118,10 @@ function Assets() {
 
 function ExportPage() {
   const { t } = useTranslation();
-  const [info, setInfo] = useState<FfmpegInfo | null>(null);
-  useEffect(() => void window.allay.export.ffmpegInfo().then(setInfo), []);
+  const info = useExportInfo((s) => s.info);
+  const probing = useExportInfo((s) => s.probing);
+  useEffect(() => void useExportInfo.getState().load(), []);
+  const h264 = info?.h264 ?? null;
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-2">
@@ -133,9 +135,14 @@ function ExportPage() {
           </span>
         </Row>
         <Row label={t('settings.encoders')}>
-          <Button variant="secondary" disabled title={t('settings.encodersLater')}>
-            {t('settings.redetect')}
-          </Button>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="num truncate text-xs text-fg-subtle" data-testid="h264-encoder" title={h264 ? h264.attempts.map((a) => `${a.encoder}: ${a.result}`).join('\n') : undefined}>
+              {probing ? t('settings.encoderProbing') : !info?.available ? t('export.errors.ffmpegMissing') : h264 ? (h264.encoder ?? t('settings.encoderNone')) : t('settings.encoderNotProbed')}
+            </span>
+            <Button variant="secondary" disabled={probing || !info?.available} data-testid="redetect-encoders" onClick={() => void useExportInfo.getState().probe(true)}>
+              {t('settings.redetect')}
+            </Button>
+          </div>
         </Row>
       </section>
     </div>
@@ -175,7 +182,7 @@ function About() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <Allay clip="hover" size={56} />
+        <Allay clip="hover" size={56} priority="dialog" />
         <div className="flex flex-col">
           <span className="text-lg font-semibold">{t('brand.name')}</span>
           <span className="num text-xs text-fg-subtle" data-testid="about-version">
