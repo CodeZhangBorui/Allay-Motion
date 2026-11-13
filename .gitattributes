@@ -1,0 +1,2 @@
+# 第三方字体按原样保存，不做换行符转换（docs/decisions.md M2b）
+resources/fonts/** -text

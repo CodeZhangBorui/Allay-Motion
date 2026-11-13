@@ -1,11 +1,12 @@
 import { BrandMark } from '@allay/ui/brand';
 import { Button } from '@allay/ui/components/button';
-import { ChevronDown, Layers, Redo2, Undo2 } from 'lucide-react';
+import { ChevronDown, Redo2, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ResourceButton } from '../features/resources/ResourceButton';
 import { usePreviewStore } from '../stores/previewStore';
 
 // 顶栏（6.4）：40 px；空白处是窗口拖动区，可交互元素标 no-drag；右侧给系统窗口按钮留位置。
-// M0 只有外形；M1 接上“导出”，其余按钮在后续里程碑接上功能。
+// M0 只有外形；M1 接上“导出”，M2 接上素材按钮（资源栈弹层），其余按钮在后续里程碑接上功能。
 
 export function TopBar({ onExport }: { onExport(): void }) {
   const { t } = useTranslation();
@@ -31,11 +32,7 @@ export function TopBar({ onExport }: { onExport(): void }) {
 
       <div data-testid="drag-region" className="h-full flex-1" />
 
-      <Button variant="ghost" className="app-no-drag text-fg-muted" disabled>
-        <Layers />
-        {t('topbar.resources')}
-        <ChevronDown className="size-3.5" />
-      </Button>
+      <ResourceButton />
       <div className="mx-1 h-5 w-px bg-border" />
       <Button variant="ghost" size="icon" className="app-no-drag" aria-label={t('topbar.undo')} disabled>
         <Undo2 />

@@ -107,25 +107,64 @@ test.describe('预览', () => {
     const { page } = launched;
     const msg = await messages(page);
     const generation = await page.evaluate(() => window.__allayTest!.workerGeneration());
-    // 主线程卡顿，两种量法：
-    // - 页面里的长任务观察器（主线程上任何超过 50 ms 的任务都会记下）；
-    // - 测试这边每 20 ms 经 CDP 往页面主线程发一次 evaluate，量往返时间。不用页面里的 setInterval 心跳：
-    //   窗口不显示时 Chromium 会把隐藏页面的计时器压到约每秒一次，心跳的间隔量出来的是节流，不是卡顿。
+    // 主线程卡顿，三种量法，全部在页面里、不经过计时器（docs/decisions.md M2b“T-ARC-5 的 1 秒空洞”）：
+    // - 长任务观察器：主线程上任何超过 50 ms 的任务；
+    // - 探针 Worker：每 10 ms 给页面发一条消息，主线程立刻回，Worker 记下往返时间（Worker 的计时器不受隐藏页面节流）；
+    // - MessageChannel 自循环：主线程连续给自己发消息，记下相邻两次回调的间隔。
+    // 后两种量的是主线程“多久没有处理消息”，不管是 JS 任务还是渲染流水线里的等待都算。
+    // CDP 往返时间只记录不断言：它还经过浏览器进程和 Playwright 自己的事件循环。
     await page.evaluate(() => {
       const longTasks: number[] = [];
       const obs = new PerformanceObserver((list) => {
         for (const e of list.getEntries()) longTasks.push(e.duration);
       });
       obs.observe({ type: 'longtask' });
-      (window as unknown as { __jank: unknown }).__jank = { longTasks, stop: () => obs.disconnect() };
+      const src = `const sent = new Map(); let seq = 0; let worst = 0;
+        onmessage = (e) => {
+          if (e.data === 'report') { postMessage({ worst }); return; }
+          const t = sent.get(e.data);
+          if (t !== undefined) { worst = Math.max(worst, performance.now() - t); sent.delete(e.data); }
+        };
+        setInterval(() => { const id = ++seq; sent.set(id, performance.now()); postMessage(id); }, 10);`;
+      const probe = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      let report: (worst: number) => void = () => undefined;
+      probe.onmessage = (e: MessageEvent<number | { worst: number }>) => {
+        if (typeof e.data === 'number') probe.postMessage(e.data);
+        else report(e.data.worst);
+      };
+      let maxGap = 0;
+      let looping = true;
+      let last = performance.now();
+      const ch = new MessageChannel();
+      ch.port1.onmessage = () => {
+        const now = performance.now();
+        maxGap = Math.max(maxGap, now - last);
+        last = now;
+        if (looping) ch.port2.postMessage(0);
+      };
+      ch.port2.postMessage(0);
+      (window as unknown as { __jank: unknown }).__jank = {
+        longTasks,
+        async stop() {
+          obs.disconnect();
+          looping = false;
+          const worst = await new Promise<number>((resolve) => {
+            report = resolve;
+            probe.postMessage('report');
+          });
+          probe.terminate();
+          ch.port1.close();
+          return { longTasks, workerRoundTrip: worst, channelGap: maxGap };
+        },
+      };
     });
     let probing = true;
-    let maxRoundTrip = 0;
-    const probe = (async () => {
+    let maxCdpRoundTrip = 0;
+    const cdpProbe = (async () => {
       while (probing) {
         const t0 = performance.now();
         await page.evaluate(() => 0);
-        maxRoundTrip = Math.max(maxRoundTrip, performance.now() - t0);
+        maxCdpRoundTrip = Math.max(maxCdpRoundTrip, performance.now() - t0);
         await new Promise((r) => setTimeout(r, 20));
       }
     })();
@@ -141,15 +180,17 @@ test.describe('预览', () => {
     await expect.poll(() => page.workers().filter((w) => /engine\.worker/.test(w.url())).length).toBe(1);
     await page.waitForTimeout(300);
     probing = false;
-    await probe;
-    const longTasks = await page.evaluate(() => {
-      const j = (window as unknown as { __jank: { longTasks: number[]; stop: () => void } }).__jank;
-      j.stop();
-      return j.longTasks;
+    await cdpProbe;
+    const jank = await page.evaluate(() =>
+      (window as unknown as { __jank: { stop(): Promise<{ longTasks: number[]; workerRoundTrip: number; channelGap: number }> } }).__jank.stop(),
+    );
+    test.info().annotations.push({
+      type: 'T-ARC-5 主线程',
+      description: `longtasks=${JSON.stringify(jank.longTasks)} workerRoundTrip=${jank.workerRoundTrip.toFixed(1)}ms channelGap=${jank.channelGap.toFixed(1)}ms cdpRoundTrip=${maxCdpRoundTrip.toFixed(1)}ms`,
     });
-    expect(longTasks.filter((d) => d > 100)).toEqual([]);
-    expect(maxRoundTrip).toBeLessThan(100);
-    test.info().annotations.push({ type: 'T-ARC-5 主线程', description: `longtasks=${JSON.stringify(longTasks)} maxRoundTrip=${maxRoundTrip.toFixed(1)}ms` });
+    expect(jank.longTasks.filter((d) => d > 100)).toEqual([]);
+    expect(jank.workerRoundTrip).toBeLessThan(100);
+    expect(jank.channelGap).toBeLessThan(100);
 
     // 点“重试”换回正常模板
     await page.evaluate(() => window.__allayTest!.loadBuiltin());

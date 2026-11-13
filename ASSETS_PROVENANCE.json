@@ -5,5 +5,13 @@
     "author": "Allay Motion 项目（应用截图，由端到端测试驱动应用截取）",
     "license": "项目自有",
     "note": "评审用截图，不进安装包"
+  },
+  {
+    "path": "resources/fonts/ark-pixel/*.bdf",
+    "origin": "third-party",
+    "source": "https://github.com/TakWolf/ark-pixel-font/releases/tag/2026.11.10",
+    "author": "TakWolf",
+    "license": "OFL-1.1",
+    "note": "方舟像素字体 12px 比例宽度 zh_hans 的 BDF，取自发布包 ark-pixel-font-12px-proportional-bdf-v2026.11.10.zip（sha256 f8f2880a…db7dfd），未做任何修改；许可全文 resources/fonts/ark-pixel/OFL.txt 同包附带。没有原版层时文字的兜底字形（docs/decisions.md M2b）"
   }
 ]

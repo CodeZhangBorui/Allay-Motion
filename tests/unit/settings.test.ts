@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger, formatLine } from '../../apps/desktop/src/main/logger';
 import { SettingsStore, writeJsonAtomic } from '../../apps/desktop/src/main/settings-store';
 import { restoreBounds } from '../../apps/desktop/src/main/window-state';
-import { defaultUiSettings } from '../../apps/desktop/src/shared/settings';
+import { defaultResourceSettings, defaultUiSettings } from '../../apps/desktop/src/shared/settings';
 
 let dir: string;
 const log = createLogger(null, false);
@@ -21,7 +21,26 @@ describe('设置读写（1.9）', () => {
   it('没有文件时用默认值', async () => {
     const store = new SettingsStore(join(dir, 'settings.json'), log);
     const s = await store.load();
-    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings() });
+    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings() });
+  });
+
+  it('资源栈配置：M1 的设置文件没有 resources 时用默认值；坏掉时只回退这一项', async () => {
+    const file = join(dir, 'settings.json');
+    writeFileSync(file, JSON.stringify({ formatVersion: 1, ui: { theme: 'light' } }));
+    const store = new SettingsStore(file, log);
+    expect((await store.load()).resources).toEqual(defaultResourceSettings());
+    writeFileSync(file, JSON.stringify({ formatVersion: 1, ui: { theme: 'light' }, resources: { vanilla: 'x', packs: 3 } }));
+    const loaded = await store.load();
+    expect(loaded.resources).toEqual(defaultResourceSettings());
+    expect(loaded.ui.theme).toBe('light');
+    // zip 包只能记 <sha256>.zip，不能被改成任意路径
+    writeFileSync(
+      file,
+      JSON.stringify({ formatVersion: 1, resources: { vanilla: { consent: true, enabled: true, dir: null }, packs: [{ id: 'z', name: 'z', enabled: true, source: { kind: 'zip', file: '../../evil.zip' } }] } }),
+    );
+    expect((await store.load()).resources).toEqual(defaultResourceSettings());
+    await store.updateResources({ vanilla: { consent: false, enabled: true, dir: null }, packs: [] });
+    expect(JSON.parse(readFileSync(file, 'utf8')).resources.vanilla.consent).toBe(false);
   });
 
   it('写入带 formatVersion，先写临时文件再改名，不留临时文件', async () => {
@@ -132,15 +151,34 @@ describe('窗口位置和大小的恢复', () => {
 });
 
 describe('只给测试用的开关', () => {
-  const ALL = { ALLAY_E2E_HIDDEN: '1', ALLAY_USER_DATA_DIR: 'C:/x', ALLAY_E2E_HOOKS: '1', ALLAY_E2E_EXPORT_TARGET: 'C:/out', ALLAY_FFMPEG: 'C:/ff.exe' };
-  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null };
+  const ALL = {
+    ALLAY_E2E_HIDDEN: '1',
+    ALLAY_USER_DATA_DIR: 'C:/x',
+    ALLAY_E2E_HOOKS: '1',
+    ALLAY_E2E_EXPORT_TARGET: 'C:/out',
+    ALLAY_FFMPEG: 'C:/ff.exe',
+    ALLAY_E2E_GAME_APPDATA: 'C:/game',
+    ALLAY_E2E_MOJANG_ORIGIN: 'http://127.0.0.1:4567',
+  };
+  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, gameAppData: null, mojangOrigin: null };
   it('打包后的应用忽略它们', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
     expect(readTestSwitches(true, ALL)).toEqual(OFF);
   });
   it('未打包时生效', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
-    expect(readTestSwitches(false, ALL)).toEqual({ userDataDir: 'C:/x', hiddenWindow: true, testHooks: true, exportTarget: 'C:/out', ffmpeg: 'C:/ff.exe' });
+    expect(readTestSwitches(false, ALL)).toEqual({
+      userDataDir: 'C:/x',
+      hiddenWindow: true,
+      testHooks: true,
+      exportTarget: 'C:/out',
+      ffmpeg: 'C:/ff.exe',
+      gameAppData: 'C:/game',
+      mojangOrigin: 'http://127.0.0.1:4567',
+    });
+    // 假服务器只能是本机回环地址
+    for (const bad of ['https://127.0.0.1:4567', 'http://evil.example:80', 'http://127.0.0.1:4567/x', 'http://localhost:4567'])
+      expect(readTestSwitches(false, { ALLAY_E2E_MOJANG_ORIGIN: bad }).mojangOrigin).toBeNull();
     expect(readTestSwitches(false, { ALLAY_E2E_HIDDEN: 'yes', ALLAY_E2E_HOOKS: 'yes' })).toEqual(OFF);
     expect(readTestSwitches(false, {})).toEqual(OFF);
   });

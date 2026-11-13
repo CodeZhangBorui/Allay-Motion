@@ -3,7 +3,9 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
+import { useResourceStore } from '../../stores/resourceStore';
 import { useTransportStore } from '../../stores/transportStore';
+import { ResourceOnboarding, useShowOnboarding } from '../resources/ResourceOnboarding';
 import { previewEngine } from './previewEngine';
 
 // 中间：预览视口（6.4）。四周是中性灰 --viewport；画布按输出比例居中，四周留 24 px。
@@ -27,6 +29,7 @@ export function PreviewArea() {
   const output = useProjectStore((s) => s.output);
   const revision = useProjectStore((s) => s.revision);
   const status = usePreviewStore((s) => s.status);
+  const onboarding = useShowOnboarding();
 
   // 画布由 previewEngine 创建并放进这个容器
   useLayoutEffect(() => {
@@ -55,6 +58,15 @@ export function PreviewArea() {
     if (revision > 0) previewEngine.reload();
   }, [revision]);
 
+  // 资源栈变了 → 重新装载（引擎按新的 resourceStamp 清空贴图缓存）
+  useEffect(
+    () =>
+      useResourceStore.subscribe((s, prev) => {
+        if (s.state?.stamp !== prev.state?.stamp) previewEngine.reload();
+      }),
+    [],
+  );
+
   // 时间变了 → 重画
   useEffect(
     () =>
@@ -74,6 +86,7 @@ export function PreviewArea() {
         aria-label={t('preview.canvas')}
         role="img"
       />
+      {onboarding && !failed && <ResourceOnboarding />}
       {failed && (
         <div
           role="alert"

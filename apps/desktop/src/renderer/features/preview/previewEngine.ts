@@ -3,10 +3,11 @@
 // React 只提供放画布的容器。
 import type { LoadResult } from '@allay/template-sdk';
 import { EngineCrashedError, EngineHost, EngineUnresponsiveError, type WatchdogTimeouts } from '../../engine-host/EngineHost';
-import { STUB_RESOURCE_STAMP, stubResolveResource } from '../../engine-host/stub-resources';
+import { resolveResource } from '../../engine-host/resource-client';
 import { TemplateCodeError } from '../../engine-host/template-check';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
+import { currentStamp } from '../../stores/resourceStore';
 import { useTransportStore } from '../../stores/transportStore';
 
 interface Viewport {
@@ -31,6 +32,9 @@ export class PreviewEngine {
   private loadedRevision = -1;
   /** 正在装载的工程版本：同一版本不重复装载 */
   private loadingRevision = -1;
+  /** 已装载、正在装载时用的 resourceStamp：资源栈变了要重新装载（引擎据此清空贴图缓存） */
+  private loadedStamp = '';
+  private loadingStamp = '';
   private rendering = false;
   private pendingTime: number | null = null;
   /** 看门狗之后不自动重新装载同一个模板，等用户点“重试” */
@@ -131,7 +135,7 @@ export class PreviewEngine {
         const host = await EngineHost.create({
           mode: 'preview',
           canvas,
-          resolveResource: stubResolveResource,
+          resolveResource,
           strictDeterminism: import.meta.env.DEV,
           timeouts: this.timeouts,
           log: (level, msg) => (level === 'error' ? console.error : console.warn)(`[engine] ${msg}`),
@@ -196,12 +200,14 @@ export class PreviewEngine {
     const host = this.host;
     if (!host) return;
     const { template, params, output, revision } = useProjectStore.getState();
-    if (revision === this.loadingRevision || revision === this.loadedRevision) return;
+    const stamp = currentStamp();
+    if ((revision === this.loadingRevision && stamp === this.loadingStamp) || (revision === this.loadedRevision && stamp === this.loadedStamp)) return;
     this.loadingRevision = revision;
+    this.loadingStamp = stamp;
     usePreviewStore.getState().setStatus({ kind: 'loading' });
     let result: LoadResult;
     try {
-      result = await host.load({ manifest: template.manifest, code: template.code, params, output, resourceStamp: STUB_RESOURCE_STAMP });
+      result = await host.load({ manifest: template.manifest, code: template.code, params, output, resourceStamp: stamp });
     } catch (error) {
       this.loadedRevision = -1;
       this.handleError(error);
@@ -211,6 +217,9 @@ export class PreviewEngine {
     }
     if (host !== this.host || revision !== useProjectStore.getState().revision) return;
     this.loadedRevision = revision;
+    this.loadedStamp = stamp;
+    // 装载期间资源栈又变了：再装一次
+    if (stamp !== currentStamp()) queueMicrotask(() => this.reload());
     useTransportStore.getState().setTimeline(result.duration, result.cutTime);
     usePreviewStore.getState().setStatus({ kind: 'ready', warnings: result.warnings });
     this.requestRender(useTransportStore.getState().time);

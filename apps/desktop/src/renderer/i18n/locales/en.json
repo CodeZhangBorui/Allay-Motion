@@ -1,7 +1,6 @@
 {
   "topbar": {
     "project": "Untitled project",
-    "resources": "Assets: Built-in",
     "undo": "Undo",
     "redo": "Redo",
     "export": "Export"
@@ -74,5 +73,82 @@
       "templateFailed": "The template ran into an error while exporting.",
       "templateUnresponsive": "The template stopped responding while exporting."
     }
+  },
+  "resources": {
+    "button": "Assets: {{name}}",
+    "buttonNone": "Assets: none",
+    "buttonLabel": "Assets and resource stack",
+    "title": "Assets",
+    "subtitle": "Searched from top to bottom; higher entries win.",
+    "kinds": {
+      "builtin": "Built-in",
+      "vanilla": "Vanilla",
+      "pack": "Resource pack"
+    },
+    "vanillaName": "Minecraft {{version}}",
+    "vanillaLocal": "Installed game on this computer",
+    "vanillaDownloaded": "Downloaded from Mojang",
+    "folder": "Folder",
+    "toggle": "Enable “{{name}}”",
+    "remove": "Remove “{{name}}”",
+    "moveUp": "Move “{{name}}” up",
+    "moveDown": "Move “{{name}}” down",
+    "legacy": "Old format (1.12 or earlier): most textures won't apply.",
+    "skipped": "{{count}} file(s) were skipped.",
+    "broken": {
+      "missing": "This resource pack's files can't be found.",
+      "rejected": "This resource pack contains unsafe files and was rejected.",
+      "unreadable": "This resource pack can't be read."
+    },
+    "vanillaProblem": "The game files can no longer be found (moved or uninstalled?), so vanilla assets are not used for now.",
+    "noVanilla": "Vanilla assets are not in use",
+    "useLocal": "Use the installed Minecraft {{version}}",
+    "findGame": "Find game folder…",
+    "noRelease": "No Minecraft Java Edition release with a client jar was found in that folder.",
+    "download": {
+      "button": "Download vanilla assets (about 45 MB, from Mojang's official servers)",
+      "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com) and downloads the latest Minecraft Java Edition release client jar into this app's data folder on your computer. Only its textures are read. No personal information is sent and nothing updates automatically; the app only goes online when you click this button.",
+      "running": "Downloading vanilla assets…",
+      "phase": {
+        "manifest": "Reading the version list",
+        "version": "Reading version info",
+        "jar": "Downloading the client",
+        "index": "Downloading the asset index",
+        "object": "Downloading asset files"
+      },
+      "progress": "Download progress",
+      "cancel": "Cancel download",
+      "errors": {
+        "network": "Couldn't reach Mojang's servers. Check your connection and try again.",
+        "verify": "The downloaded file failed verification and was discarded. Please try again.",
+        "disk": "Couldn't write to the app's data folder (disk full or no permission).",
+        "unknown": "The download failed. Please try again.",
+        "busy": "A download is already running."
+      },
+      "retry": "Download again"
+    },
+    "addPack": "Add resource pack…",
+    "addFolder": "Add folder…",
+    "dropHint": "You can also drop a zip onto the window.",
+    "dropOverlay": "Drop to add a resource pack",
+    "added": "Resource pack added.",
+    "addErrors": {
+      "rejected": "Resource pack rejected: it contains unsafe file paths.",
+      "unsupported": "Only zip resource packs or folders can be added.",
+      "unreadable": "That file can't be read."
+    },
+    "onboarding": {
+      "title": "No assets yet",
+      "body": "{{name}} doesn't ship Minecraft's textures. Use the game installed on this computer, download the vanilla assets from Mojang's official servers, or add your own resource pack. Until then, missing textures show as magenta and black squares in the preview."
+    },
+    "discovery": {
+      "title": "Found your Minecraft",
+      "body": "Minecraft Java Edition {{version}} was detected. With the game's own textures and sounds, previews and exports look just like the game.",
+      "local": "{{name}} only reads these files on this computer. It never copies, uploads or changes them.",
+      "accept": "Use vanilla assets",
+      "decline": "Not now",
+      "later": "You can change this any time under “Assets”."
+    },
+    "close": "Close"
   }
 }

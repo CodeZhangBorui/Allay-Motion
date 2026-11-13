@@ -18,6 +18,10 @@ const api: EngineApi = {
     const buf = await engine.renderFrame(index, quality, opaque);
     return Comlink.transfer(buf, [buf]);
   },
+  renderThumbnail: async (req) => {
+    const bitmap = await engine.renderThumbnail(req);
+    return Comlink.transfer(bitmap, [bitmap]);
+  },
   readPreview: async (t) => {
     const buf = await engine.readPreview(t);
     return Comlink.transfer(buf, [buf]);

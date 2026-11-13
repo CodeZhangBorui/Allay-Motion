@@ -8,19 +8,20 @@ import randomInUpdate from '../../fixtures/templates/random-in-update.js?raw';
 import hangUpdate from '../../fixtures/templates/hang-update.js?raw';
 import usesImport from '../../fixtures/templates/uses-import.js?raw';
 import escapeAttempts from '../../fixtures/templates/escape-attempts.js?raw';
+import m2Features from '../../fixtures/templates/m2-features.js?raw';
 import { EngineHost, type WatchdogTimeouts } from '../../../apps/desktop/src/renderer/engine-host/EngineHost';
-import { STUB_RESOURCE_STAMP, stubResolveResource } from '../../../apps/desktop/src/renderer/engine-host/stub-resources';
+import { ANIM_COLORS, FAKE_STAMP, fakeColor, fakeResolveResource, setFakeVanillaFont } from './fake-resources';
 import { frameCount } from '../../../packages/engine/src/frames';
 import { TemplateManifestSchema, type FrameQuality, type OutputSettings, type ParamValues } from '../../../packages/template-sdk/src/index';
 
-export const TEMPLATES = { blockWipe, alphaRects, movingRect, randomInUpdate, hangUpdate, usesImport, escapeAttempts } as const;
+export const TEMPLATES = { blockWipe, alphaRects, movingRect, randomInUpdate, hangUpdate, usesImport, escapeAttempts, m2Features } as const;
 export type TemplateName = keyof typeof TEMPLATES;
 
 const manifest = TemplateManifestSchema.parse({ ...manifestJson, id: 'test.engine.fixture' });
 
 async function exportEngine(name: TemplateName, output: OutputSettings, params: ParamValues = {}, timeouts?: Partial<WatchdogTimeouts>) {
-  const host = await EngineHost.create({ mode: 'export', resolveResource: stubResolveResource, strictDeterminism: true, timeouts });
-  const loaded = await host.load({ manifest, code: TEMPLATES[name], params, output, resourceStamp: STUB_RESOURCE_STAMP });
+  const host = await EngineHost.create({ mode: 'export', resolveResource: fakeResolveResource, strictDeterminism: true, timeouts });
+  const loaded = await host.load({ manifest, code: TEMPLATES[name], params, output, resourceStamp: FAKE_STAMP });
   return { host, loaded };
 }
 
@@ -48,6 +49,42 @@ function shuffled(n: number): number[] {
 
 const harness = {
   frameCount,
+  fakeColor,
+  animColors: () => ANIM_COLORS,
+  setFakeVanillaFont,
+
+  /** M2 的场景（方块、物品、文字、精灵、动画贴图、缺失资源）：取若干帧的若干像素，以及 warnings */
+  async scenario(scenario: string, extra: ParamValues, output: OutputSettings, indices: number[], points: [number, number][]) {
+    const { host, loaded } = await exportEngine('m2Features', output, { scenario, ...extra });
+    try {
+      const frames: number[][][] = [];
+      for (const i of indices) {
+        const buf = await host.renderFrame(i, { subframes: 1, shutterAngle: 180 });
+        frames.push(points.map(([x, y]) => px(buf, output.width, x, y)));
+      }
+      return { warnings: loaded.warnings, frames };
+    } finally {
+      host.dispose();
+    }
+  },
+
+  /** 缩略图（3.10）：尺寸、不透明像素比例、中心像素 */
+  async thumbnail(kind: 'block' | 'item', id: string, size: 64 | 128) {
+    const host = await EngineHost.create({ mode: 'utility', resolveResource: fakeResolveResource, strictDeterminism: true });
+    try {
+      const bitmap = await host.renderThumbnail({ kind, id, size, resourceStamp: FAKE_STAMP });
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const g = canvas.getContext('2d')!;
+      g.drawImage(bitmap, 0, 0);
+      const d = g.getImageData(0, 0, bitmap.width, bitmap.height).data;
+      let opaque = 0;
+      for (let k = 3; k < d.length; k += 4) if (d[k]! > 200) opaque++;
+      const c = ((bitmap.height >> 1) * bitmap.width + (bitmap.width >> 1)) * 4;
+      return { width: bitmap.width, height: bitmap.height, opaqueFraction: opaque / (bitmap.width * bitmap.height), center: [d[c]!, d[c + 1]!, d[c + 2]!, d[c + 3]!], corner: d[3]! };
+    } finally {
+      host.dispose();
+    }
+  },
 
   /** T-ENG-1：每帧的 SHA-256；order 是渲染顺序，结果按帧号排列 */
   async frameHashes(name: TemplateName, output: OutputSettings, quality: FrameQuality, shuffle: boolean) {
@@ -114,11 +151,11 @@ const harness = {
   async previewVsExport(name: TemplateName, output: OutputSettings, indices: number[]) {
     const canvas = document.createElement('canvas');
     document.body.append(canvas);
-    const preview = await EngineHost.create({ mode: 'preview', canvas, resolveResource: stubResolveResource, strictDeterminism: true });
+    const preview = await EngineHost.create({ mode: 'preview', canvas, resolveResource: fakeResolveResource, strictDeterminism: true });
     const { host } = await exportEngine(name, output);
     try {
       await preview.resize(output.width, output.height);
-      await preview.load({ manifest, code: TEMPLATES[name], params: {}, output, resourceStamp: STUB_RESOURCE_STAMP });
+      await preview.load({ manifest, code: TEMPLATES[name], params: {}, output, resourceStamp: FAKE_STAMP });
       const results = [];
       for (const index of indices) {
         const t = index / output.fps;

@@ -4,6 +4,9 @@
 import { TemplateManifestSchema, type ParamValues } from '@allay/template-sdk';
 import { setExportGate } from './features/export/exportRunner';
 import { previewEngine } from './features/preview/previewEngine';
+import { thumbnails, type ThumbKind, type ThumbSize } from './features/thumbnails/thumbnails';
+import type { ResourceState } from '../shared/resources';
+import { useResourceStore } from './stores/resourceStore';
 import { usePreviewStore, type PreviewStatus } from './stores/previewStore';
 import { useProjectStore } from './stores/projectStore';
 import { useTransportStore } from './stores/transportStore';
@@ -20,6 +23,12 @@ export interface AllayTestHooks {
   setTime(t: number): void;
   /** 读回预览画布（预乘 alpha，顶部在前）的像素统计 */
   previewStats(t: number): Promise<{ width: number; height: number; maxAlpha: number; minAlpha: number }>;
+  /** 预览画布上 (fx, fy)（0–1 的相对位置，左上为原点）的像素，预乘 alpha */
+  previewPixel(t: number, fx: number, fy: number): Promise<[number, number, number, number]>;
+  /** 渲染进程当前看到的资源栈状态 */
+  resourceState(): ResourceState | null;
+  /** 取一张缩略图（3.10）：来源（内存、磁盘缓存、新画的）和尺寸 */
+  thumbnail(kind: ThumbKind, id: string, size: ThumbSize): Promise<{ source: string; width: number; height: number; stamp: string } | null>;
   /** 预览看门狗的时限（毫秒），测试可以调短 */
   setPreviewTimeouts(t: { load?: number; previewFrame?: number }): void;
   /** 下一次导出写完第 n 帧后停住（FFmpeg 仍在运行），直到 resumeExport 或取消；null 取消这个设置 */
@@ -66,6 +75,25 @@ export function installTestHooks(): void {
       }
       const size = previewEngine.pixelSize;
       return { width: size?.width ?? 0, height: size?.height ?? 0, maxAlpha, minAlpha };
+    },
+    async previewPixel(t, fx, fy) {
+      const px = await previewEngine.readPreview(t);
+      const size = previewEngine.pixelSize;
+      if (!size) throw new Error('preview has no size');
+      const x = Math.min(size.width - 1, Math.max(0, Math.floor(fx * size.width)));
+      const y = Math.min(size.height - 1, Math.max(0, Math.floor(fy * size.height)));
+      const o = (y * size.width + x) * 4;
+      return [px[o]!, px[o + 1]!, px[o + 2]!, px[o + 3]!];
+    },
+    resourceState: () => useResourceStore.getState().state,
+    async thumbnail(kind, id, size) {
+      const stamp = useResourceStore.getState().state?.stamp ?? '';
+      const thumb = await thumbnails.get(kind, id, size);
+      if (!thumb) return null;
+      const img = new Image();
+      img.src = thumb.url;
+      await img.decode();
+      return { source: thumb.source, width: img.naturalWidth, height: img.naturalHeight, stamp };
     },
     setPreviewTimeouts(t) {
       previewEngine.timeouts = { ...previewEngine.timeouts, ...t };
