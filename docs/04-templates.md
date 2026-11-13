@@ -141,6 +141,8 @@ export interface SetupContext {
 export interface BlockHandle {
   single(): THREE.Object3D;                    // 边长为 1 的方块，模板自己缩放
   instanced(count: number): BlockInstances;
+  faceTexture(face: 'up' | 'down' | 'north' | 'south' | 'east' | 'west'): THREE.Texture;
+                                               // 这个面的贴图（不含叠加层、不带着色），引擎缓存里的，模板不释放
 }
 export interface BlockInstances {
   object: THREE.Object3D;                      // 加到场景里

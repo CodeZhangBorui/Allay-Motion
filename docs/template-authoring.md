@@ -91,6 +91,7 @@ ctx 交出来的对象：
 |---|---|---|
 | `single` | `single(): THREE.Object3D` | 边长为 1 的方块，中心在原点，模板自己缩放 |
 | `instanced` | `instanced(count: number): BlockInstances` | 建 count 个实例（一次绘制）；用 setMatrix 等摆放，每帧改完调用一次 commit() |
+| `faceTexture` | `faceTexture(face: BlockFace): THREE.Texture` | 方块某个面用的贴图（按方块目录；不含草方块侧面的叠加层，不带面明暗和着色），供着色器平铺等用途。 返回引擎缓存里的贴图：模板不要释放它，也不要改它的属性（例如 wrapS）。 |
 
 **BlockInstances**
 

@@ -102,6 +102,8 @@ interface BlockParts {
   textures: Map<string, { tex: THREE.Texture; overlay: boolean }>;
   textureIds: string[];
   render: RenderType;
+  /** 每个面的贴图（不含侧面叠加层），BlockHandle.faceTexture 用 */
+  faceTextures: Record<Face, THREE.Texture>;
 }
 
 async function loadParts(resources: EngineResources, id: string, shading: boolean, warn: Warn): Promise<BlockParts> {
@@ -124,7 +126,8 @@ async function loadParts(resources: EngineResources, id: string, shading: boolea
     textures.set(key, { tex, overlay: grp.overlay });
   }
   const textureIds = [...textures.keys()];
-  return { geometry: () => buildCubeGeometry(groups, textureIds, shading), textures, textureIds, render: faces.render };
+  const faceTextures = Object.fromEntries(FACES.map((face) => [face, textures.get(faces.faces[face].texture)!.tex])) as Record<Face, THREE.Texture>;
+  return { geometry: () => buildCubeGeometry(groups, textureIds, shading), textures, textureIds, render: faces.render, faceTextures };
 }
 
 /** ctx.resources.block(id, { shading })（04-templates.md 4.5） */
@@ -142,6 +145,10 @@ export async function createBlockHandle(resources: EngineResources, id: string, 
     instanced(count) {
       if (!Number.isInteger(count) || count < 1 || count > 100_000) throw new RangeError('instance count must be an integer between 1 and 100000');
       return createInstances(parts.geometry(), materials(true), count);
+    },
+    faceTexture(face) {
+      if (!(FACES as readonly string[]).includes(face)) throw new TypeError(`invalid block face: ${String(face)}`);
+      return parts.faceTextures[face];
     },
   };
 }

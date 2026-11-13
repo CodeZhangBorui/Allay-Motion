@@ -318,6 +318,13 @@
           "optional": false,
           "signature": "instanced(count: number): BlockInstances;",
           "doc": "建 count 个实例（一次绘制）；用 setMatrix 等摆放，每帧改完调用一次 commit()"
+        },
+        {
+          "name": "faceTexture",
+          "kind": "method",
+          "optional": false,
+          "signature": "faceTexture(face: BlockFace): THREE.Texture;",
+          "doc": "方块某个面用的贴图（按方块目录；不含草方块侧面的叠加层，不带面明暗和着色），供着色器平铺等用途。\n返回引擎缓存里的贴图：模板不要释放它，也不要改它的属性（例如 wrapS）。"
         }
       ]
     },
@@ -575,6 +582,10 @@
     "EaseLibrary": {
       "doc": "",
       "text": "Readonly<Record<EasingName, EaseFn>> & { bezier(x1: number, y1: number, x2: number, y2: number): EaseFn; /** 把 easing 参数的值变成函数；认不出的值退回 linear */ from(value: unknown): EaseFn; }"
+    },
+    "BlockFace": {
+      "doc": "方块的六个面：上、下、北（-z）、南（+z，朝向默认相机）、东（+x）、西（-x）",
+      "text": "'up' | 'down' | 'north' | 'south' | 'east' | 'west'"
     }
   },
   "easings": [

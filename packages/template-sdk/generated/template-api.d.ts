@@ -112,11 +112,19 @@ export interface SetupContext {
   warn(message: string): void;
 }
 
+/** 方块的六个面：上、下、北（-z）、南（+z，朝向默认相机）、东（+x）、西（-x） */
+export type BlockFace = 'up' | 'down' | 'north' | 'south' | 'east' | 'west';
+
 export interface BlockHandle {
   /** 边长为 1 的方块，中心在原点，模板自己缩放 */
   single(): THREE.Object3D;
   /** 建 count 个实例（一次绘制）；用 setMatrix 等摆放，每帧改完调用一次 commit() */
   instanced(count: number): BlockInstances;
+  /**
+   * 方块某个面用的贴图（按方块目录；不含草方块侧面的叠加层，不带面明暗和着色），供着色器平铺等用途。
+   * 返回引擎缓存里的贴图：模板不要释放它，也不要改它的属性（例如 wrapS）。
+   */
+  faceTexture(face: BlockFace): THREE.Texture;
 }
 
 export interface BlockInstances {
