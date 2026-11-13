@@ -58,24 +58,6 @@ async function upToDate(page: Page): Promise<void> {
 
 const params = (page: Page) => page.evaluate(() => window.__allayTest!.project().params);
 
-test('DBGX', async () => {
-  const ctx = await start();
-  const { page } = ctx;
-  try {
-    await upToDate(page);
-    const tr = await page.evaluate(() => window.__allayTest!.transport());
-    const out: unknown[] = [tr, await page.evaluate(() => window.__allayTest!.previewStats(0))];
-    for (const cols of [12, 15]) {
-      await page.evaluate((c) => window.__allayTest!.setParams({ cols: c }), cols);
-      await upToDate(page);
-      for (const t of [0.3, tr.cutTime ?? 0.55, 0.9]) out.push([cols, t, await page.evaluate((x) => window.__allayTest!.previewHash(x), t), await page.evaluate((x) => window.__allayTest!.previewPixel(x, 0.5, 0.5), t)]);
-    }
-    console.log('DBGX', JSON.stringify(out));
-  } finally {
-    await stop(ctx);
-  }
-});
-
 test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非空，改参数后画面变化', async () => {
   const ctx = await start();
   const { page } = ctx;
@@ -109,7 +91,6 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
         await upToDate(page);
         const after = (await hashes()).join();
         changed = after !== before;
-        console.log('DBG', i, await input.getAttribute('aria-label'), await input.inputValue(), changed, JSON.stringify(await page.evaluate(() => window.__allayTest!.project().params)));
       }
       expect(changed, `${e.id} 改参数后画面变化`).toBe(true);
     }
