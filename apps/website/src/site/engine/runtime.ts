@@ -153,6 +153,15 @@ export class LivePreview {
     });
   }
 
+  /** 当前播放头的时刻（秒） */
+  get currentTime(): number {
+    return this.time;
+  }
+
+  get isPlaying(): boolean {
+    return this.playing;
+  }
+
   /** 当前装着的模板 */
   get templateId(): string | null {
     return this.loadedId;
@@ -244,7 +253,11 @@ export class LivePreview {
         t %= span;
         this.onLoop?.();
       }
-      if (!this.loop && t >= this.duration) t = this.duration;
+      if (!this.loop && t >= this.duration) {
+        // 不循环的（剪辑点的转场）：播到片尾就停
+        t = this.duration;
+        this.playing = false;
+      }
       this.time = t;
       this.dirty = true;
       this.emit();

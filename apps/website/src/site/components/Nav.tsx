@@ -1,14 +1,15 @@
 // 导航就是这一页的时间轴：每一节是轨道上的一段片段（宽度按这一节在页面里的长度），滚动位置是播放头，
 // 右边是这一页的时间码；剪辑点（页面中段唯一的转场）用应用时间轴上同样的琥珀色菱形标出来。
 // 片段是普通的锚点链接（键盘可达，当前一段带 aria-current）。窄屏只留一条细的进度轨和时间码。
-// 位置只在尺寸变化时量；每帧只按 scrollY 写播放头的 transform 和时间码文字。
+// 位置只在尺寸变化时量；播放头和时间码不是直接等于滚动位置：目标值跟着滚动，显示值用临界阻尼的弹簧追上去，
+// 滚轮一格的跳变被化成一段顺滑的运动，停手后很快落到目标上（data-settled）。
 import { AllayHead } from '@allay/mascot';
 import { Button, buttonVariants } from '@allay/ui/components/button';
 import { GithubLogo, Moon, Sun } from '@phosphor-icons/react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { REPO_URL } from '../links';
-import { clamp01, maxScroll, onFrame, onGeometryChange, track, type Geometry } from '../motion/frame';
+import { clamp01, maxScroll, onFrame, onGeometryChange, spring, track, type Geometry } from '../motion/frame';
 import { setLanguage, setTheme, usePrefs } from '../prefs';
 
 /** 页面时间码：60 fps，每滚 6 px 走一帧 */
@@ -86,16 +87,31 @@ export function Nav() {
     if (clips.length === 0) return;
     let lastTc = '';
     let lastCurrent = -1;
+    let shown = window.scrollY;
+    let vel = 0;
+    let settled = '';
+    const header = trackRef.current?.closest<HTMLElement>('header') ?? null;
     let trackW = trackRef.current?.clientWidth ?? 0;
     const ro = new ResizeObserver(() => (trackW = trackRef.current?.clientWidth ?? 0));
     if (trackRef.current) ro.observe(trackRef.current);
     const links = () => [...(trackRef.current?.querySelectorAll<HTMLAnchorElement>('a[data-clip-link]') ?? [])];
     const off = onFrame((s) => {
       const max = maxScroll();
-      const p = clamp01(s.y / max);
+      // 大步跳（拖滚动条、锚点、连按 PageDown）时弹簧照样追，只是更快；离目标很近就直接落到目标上
+      [shown, vel] = spring(shown, vel, s.y, Math.abs(s.y - shown) > s.vh * 3 ? 16 : 11, s.dt);
+      if (Math.abs(shown - s.y) < 0.5 && Math.abs(vel) < 5) {
+        shown = s.y;
+        vel = 0;
+      }
+      const now = shown === s.y ? 'true' : 'false';
+      if (now !== settled && header) {
+        settled = now;
+        header.dataset.settled = now;
+      }
+      const p = clamp01(shown / max);
       if (headRef.current) headRef.current.style.transform = `translate3d(${(p * trackW).toFixed(1)}px, 0, 0)`;
       if (miniHeadRef.current) miniHeadRef.current.style.transform = `scaleX(${p.toFixed(4)})`;
-      const tc = timecode(s.y);
+      const tc = timecode(shown);
       if (tc !== lastTc && tcRef.current) {
         tcRef.current.textContent = tc;
         lastTc = tc;
@@ -122,7 +138,7 @@ export function Nav() {
   const nextLang = prefs.language === 'zh-CN' ? 'en' : 'zh-CN';
 
   return (
-    <header data-testid="site-nav" className="nav-bar fixed inset-x-0 top-0 z-50" style={{ height: 'var(--nav-h)' }}>
+    <header data-testid="site-nav" data-motion="nav" data-settled="true" className="nav-bar fixed inset-x-0 top-0 z-50" style={{ height: 'var(--nav-h)' }}>
       <div className="wrap flex h-full items-center gap-4 lg:gap-6">
         <a href="#top" className="link-focus flex shrink-0 items-center gap-2.5 rounded-md" aria-label={t('site.nav.home')}>
           <AllayHead size={24} label={t('brand.name')} />

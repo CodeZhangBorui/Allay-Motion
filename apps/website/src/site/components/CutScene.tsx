@@ -1,8 +1,11 @@
 // 剪辑点：全页唯一的整幅转场（docs/decisions.md 官网 · 第三版）。
-// 盖在“分镜”和“试用”两节的接缝上的，就是应用的方块擦除模板本身——由桌面版的引擎在浏览器里实时渲染，
-// 滚动位置就是它的播放头（进入 → 铺满 → 退出，可逆、跟手）。这正是成片在剪辑软件里的用法：盖在两段素材的接缝上。
-// - 铺满的那一刻（剪辑点）才把下面的内容换成下一节的开场白，换的过程被方块完全挡住；
-// - 一块固定在视口上的画布，pointer-events: none，不挡点击；不在这一段时不渲染；
+// 盖在“分镜”和“试用”两节的接缝上的，就是应用的方块擦除模板本身——由桌面版的引擎在浏览器里实时渲染。
+// 这正是成片在剪辑软件里的用法：盖在两段素材的接缝上。
+// - 往下越过分界线（这一节的上沿过了视口 75%）时自动按时间完整播一遍（约 1.5 秒），不按滚动位置逐帧驱动，
+//   停手也会播完；铺满的那一刻（剪辑点）才把下面的开场白显示出来，换的过程被方块完全挡住；
+// - 快速跳过（这一节已经整个滚过去了才被发现）就直接落到终态，不补播；播的时候滚远了就停下、落到终态；
+// - 往回滚不倒放：整节回到视口下方以后才干净地复位，下次往下走再播；
+// - 一块固定在视口上的画布，pointer-events: none，不挡点击；不播的时候不渲染；
 // - 引擎起不来（没有 WebGL2 等）或减少动效时，没有转场，开场白一直可见。
 import { localize, type ParamValues } from '@allay/template-sdk';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,21 +17,13 @@ import { usePrefs } from '../prefs';
 import type { LivePreview } from '../engine/runtime';
 
 const TEMPLATE = 'allay.builtin.block-wipe';
-const IN = 0.5;
-const HOLD = 0.16;
-const OUT = 0.5;
+const IN = 0.6;
+const HOLD = 0.24;
+const OUT = 0.7;
 const DURATION = IN + HOLD + OUT;
 const CUT_TIME = IN + HOLD / 2;
-
-/** 滚动（这一节上沿在视口里的位置，以视口高为单位）→ 模板时间：进入、停留、退出三段分别线性对应 */
-function timeAt(top: number): number {
-  // 上沿从 0.9 走到 0：进入；0 到 −0.2：停留（铺满）；−0.2 到 −1.1：退出
-  if (top >= 0.9) return 0;
-  if (top >= 0) return ((0.9 - top) / 0.9) * IN;
-  if (top >= -0.2) return IN + (-top / 0.2) * HOLD;
-  if (top >= -1.1) return IN + HOLD + ((-0.2 - top) / 0.9) * OUT;
-  return DURATION;
-}
+/** 这一节的上沿（以视口高为单位）走到这里时触发 */
+const TRIGGER = 0.75;
 
 /**
  * 方块：一面安静的墙，亮色只零星点缀。深色主题是近黑的混凝土（夹一点黑曜石的纹理）上的钻石块和青金石，
@@ -146,31 +141,77 @@ export function CutScene() {
     };
   }, [ready, entry, theme, language]);
 
-  // 滚动 → 播放头；只在这一段可见时画
+  // 越过分界线 → 自动完整播一遍。状态：idle（等着）→ playing（在播）→ done（播完，开场白可见）
   useEffect(() => {
     const section = sectionRef.current;
-    if (!section || !enabled) return;
+    const overlay = overlayRef.current;
+    const clipB = clipBRef.current;
+    if (!section || !overlay || !clipB || !enabled) return;
     const g = track(section);
-    let lastT = -1;
-    let lastActive = false;
+    let state: 'idle' | 'playing' | 'done' = 'idle';
+    /** 开始播的时刻：模板时间按墙上时钟算（掉帧也按时播完，不会因为帧率低拖长） */
+    let startAt = 0;
+    let shown: boolean | null = null;
+    let lastHud = '';
+    const showB = (v: boolean) => {
+      if (v === shown) return;
+      shown = v;
+      clipB.style.visibility = v ? 'visible' : 'hidden';
+    };
+    const set = (next: typeof state) => {
+      state = next;
+      overlay.dataset.active = String(next === 'playing');
+      section.dataset.settled = String(next !== 'playing');
+      section.dataset.cutState = next;
+      liveRef.current?.setVisible(next === 'playing');
+    };
+    set('idle');
     const off = onFrame((s) => {
       const top = (g.geometry.top - s.y) / s.vh;
-      const time = timeAt(top);
-      const active = ready && time > 0 && time < DURATION;
       const live = liveRef.current;
-      if (active !== lastActive) {
-        lastActive = active;
-        if (overlayRef.current) overlayRef.current.dataset.active = String(active);
-        live?.setVisible(active);
+      if (!ready || !live) {
+        // 引擎没起来：没有转场，开场白一直可见
+        showB(true);
+        return;
       }
-      // 剪辑点以前，下面的开场白不显示（换的那一刻被方块完全挡住）；引擎没起来时一直显示
-      if (clipBRef.current) clipBRef.current.style.visibility = ready && time < CUT_TIME ? 'hidden' : 'visible';
-      if (!active || !live) return;
-      if (Math.abs(time - lastT) > 1e-4) {
-        lastT = time;
+      if (state === 'idle') {
+        if (top < -0.5) {
+          // 已经整个滚过去了（拖滚动条、锚点跳转、连按 PageDown）：直接落到终态，不补播
+          set('done');
+          showB(true);
+        } else if (top < TRIGGER) {
+          live.setPlaying(false);
+          live.seek(0);
+          startAt = s.now;
+          set('playing');
+          showB(false);
+        } else showB(false);
+        return;
+      }
+      if (state === 'playing') {
+        if (top > 1.2 || top < -1.6) {
+          // 播的时候滚远了：停下，落到终态（往上滚远就复位）
+          set(top > 1.2 ? 'idle' : 'done');
+          showB(top <= 1.2);
+          return;
+        }
+        const time = Math.min(DURATION, (s.now - startAt) / 1000);
         live.seek(time);
-        if (hudTimeRef.current) hudTimeRef.current.textContent = `${time.toFixed(2)} / ${DURATION.toFixed(2)} s`;
+        if (time >= CUT_TIME) showB(true);
+        const hud = `${time.toFixed(2)} / ${DURATION.toFixed(2)} s`;
+        if (hud !== lastHud && hudTimeRef.current) {
+          lastHud = hud;
+          hudTimeRef.current.textContent = hud;
+        }
+        if (time >= DURATION) {
+          set('done');
+          showB(true);
+        }
+        return;
       }
+      // done：开场白一直可见；整节回到视口下方以后才复位
+      showB(true);
+      if (top > 1.05) set('idle');
     });
     return () => {
       off();
@@ -184,7 +225,8 @@ export function CutScene() {
     (window as unknown as { __siteCut?: unknown }).__siteCut = {
       cutTime: CUT_TIME,
       duration: DURATION,
-      timeAtTop: timeAt,
+      time: () => liveRef.current?.currentTime ?? -1,
+      playing: () => liveRef.current?.isPlaying ?? false,
       coverage: async (time: number) => {
         const px = await liveRef.current?.readPixels(time);
         if (!px) return -1;
@@ -202,8 +244,8 @@ export function CutScene() {
   const name = entry ? localize(entry.manifest.name, language) : '';
 
   return (
-    <section ref={sectionRef} id={SECTION.cut} data-cut aria-labelledby="cut-title" className={`relative ${enabled ? 'h-[240vh]' : ''}`}>
-      <div className={enabled ? 'sticky top-0 flex h-[100svh] items-center overflow-hidden' : 'py-28'}>
+    <section ref={sectionRef} id={SECTION.cut} data-cut data-motion="cut" data-settled="true" aria-labelledby="cut-title" className="relative">
+      <div className="relative flex min-h-[100svh] items-center overflow-hidden py-28">
         <div className="pointer-events-none absolute inset-0 bg-grid fade-mask opacity-60" aria-hidden="true" />
         <div ref={clipBRef} className="wrap relative">
           <span data-allay-anchor="cut" data-allay-facing="left" className="absolute top-[12%] right-[12%] hidden size-1 lg:block" aria-hidden="true" />

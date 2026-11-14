@@ -164,7 +164,7 @@
   "story": {
     "kicker": "Workflow · three steps",
     "title": "Three steps, from launch to export.",
-    "lead": "The design goal: under 30 seconds from opening the app to exporting your first transition, with no manual to read. The preview on the right is rendering live the whole time — scrolling is operating it.",
+    "lead": "The design goal: under 30 seconds from opening the app to exporting your first transition, with no manual to read. The preview is rendering live the whole time; the three steps play on their own, or pick one from the tabs.",
     "panel": "Properties",
     "cutFrame": "Cut point: frame {{frame}}",
     "steps": {
@@ -172,25 +172,29 @@
         "kicker": "Step one",
         "title": "Pick a template.",
         "body": "Transitions or overlays. Scroll and the preview switches templates — every frame is being rendered in your browser right now.",
-        "more": "Just a few of them — the library keeps growing"
+        "more": "Just a few of them — the library keeps growing",
+        "tab": "Pick"
       },
       "tune": {
         "kicker": "Step two",
         "title": "Tweak a few parameters.",
-        "body": "Columns, order, flip… every change lands in the preview on the next frame. The properties panel is generated from the template’s manifest."
+        "body": "Columns, order, flip… every change lands in the preview on the next frame. The properties panel is generated from the template’s manifest.",
+        "tab": "Tweak"
       },
       "export": {
         "kicker": "Step three",
         "title": "Export, drop it in your editor.",
-        "body": "Choose format, resolution and frame rate. Every exported frame matches the preview; put the clip on an upper track and line the cut point up with the seam between two shots."
+        "body": "Choose format, resolution and frame rate. Every exported frame matches the preview; put the clip on an upper track and line the cut point up with the seam between two shots.",
+        "tab": "Export"
       }
-    }
+    },
+    "stepsLabel": "The three steps"
   },
   "cut": {
     "kicker": "The cut",
     "titleA": "That was the cut.",
     "titleB": "Now it’s your turn.",
-    "body": "What just covered your screen was the {{template}} template itself, rendered live in your browser by the app’s engine — your scroll was its playhead. Below is the desktop editor, also running right here in your browser.",
+    "body": "What just covered your screen was the {{template}} template itself, rendered live in your browser by the app’s engine and laid over the seam between two sections — exactly how the clip is used in your editor. Below is the desktop editor, also running right here in your browser.",
     "hud": "The cut · {{template}} · rendered live"
   }
 }

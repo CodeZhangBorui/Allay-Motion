@@ -370,12 +370,18 @@
   transform: translateY(28px);
 }
 
-/* 分镜：不在当前这一步的文字退到后面 */
-[data-step] {
-  transition: opacity 600ms var(--ease-out);
+/* 分镜：三步叠在同一格里，只显示当前这一步（先淡出、再淡入，不叠在一起） */
+.story-steps > * {
+  transition:
+    opacity 360ms var(--ease-out) 160ms,
+    visibility 0s linear 0s;
 }
-[data-step][data-active='false'] {
-  opacity: .16;
+.story-steps > [data-active='false'] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 140ms var(--ease-out),
+    visibility 0s linear 140ms;
 }
 
 /* 完全离线：被删掉的全局一个个划掉（进视口时） */
@@ -418,7 +424,7 @@
   animation: none !important;
 }
 [data-reduced-motion='true'] .reveal > *,
-[data-reduced-motion='true'] [data-step],
+[data-reduced-motion='true'] .story-steps > *,
 [data-reduced-motion='true'] .strike > li::after {
   transition: none !important;
 }
