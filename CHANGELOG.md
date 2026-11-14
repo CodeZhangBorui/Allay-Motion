@@ -2,6 +2,17 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循语义化版本。
 
+## [未发布]
+
+### 新增
+
+- macOS 版（macOS 12 及更新）：Apple 芯片（arm64）和 Intel（x64）各一份 dmg 和 zip，由发版工作流与 Windows 版同时构建。随包的 FFmpeg 由本项目从官方源码按 LGPL 配置编译，绿幕 MP4 用系统的 VideoToolbox 编码；`.allay`、`.allaytpl` 的文件关联；窗口左上角的系统按钮。
+
+### 已知问题
+
+- macOS 版只做了 ad-hoc 签名、没有经过 Apple 公证：首次打开时要在访达里右键选“打开”（macOS 15 起到“系统设置 → 隐私与安全性”里点“仍要打开”）。还没有在真实的 Mac 上人工试用过。
+- macOS 上快捷键仍显示为“Ctrl+…”（实际按 ⌘ 生效）。
+
 ## [0.1.0] - 2026-11-14
 
 第一版。由仓库所有者决定公开发布；[`docs/release-checklist.md`](docs/release-checklist.md) 里品牌、名称、代码签名等项尚未逐项确认。

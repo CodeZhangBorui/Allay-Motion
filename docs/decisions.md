@@ -1372,3 +1372,74 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - 动效（换步滑入、悦灵挪位和漂浮、气泡弹出、聚光口移位）只在隐藏窗口里截过静态图，没有在可见窗口里看过、没有录屏。截图里的悦灵是 CSS 占位，没有用烘焙图集看过姿态切换（`dance`、`sad`、捧东西）的实际效果。
 - 只在 1440×900 的窗口里截图；最小窗口 1120×700 下首次启动引导的两栏、新手引导的气泡位置只靠布局规则保证，没有截图看过。
 - 新手引导的文案没有请用户确认是否真的讲清了模板和预设的区别。
+
+## macOS 构建（2026-11-14，分支 claude/macos-build）
+
+### 范围变更
+
+- 仓库所有者要求“更改 action 的逻辑，使其构建的时候同时构建 macOS 和 Windows 版本”（经主控转达）。`01-product-architecture.md` 1.2 原来把“macOS、Linux 安装包”列在 v1 不做里；按所有者的要求加入 macOS，Linux 仍不做，1.2 那一行已改。
+- 这不只是工作流多一台 macOS 机器：FFmpeg、打包配置、图标、窗口按钮、文件关联、打包后的检查都要能在 macOS 上用。Windows 的行为不变（安装包内容、文件名、打包后的检查与原来一致；本机 `pnpm dist` 跑过 T-ARC-2、M8 的检查，见“验证”）。
+
+### 架构：arm64、x64 各一份，不做 universal
+
+- 发版工作流在 `macos-15`（Apple 芯片）和 `macos-15-intel` 上各构建一份 dmg 和 zip。universal 要把两份 Electron 和两份 FFmpeg 用 `lipo` 合成一份，包大约大一倍；`electronDist` 指向工作区里装的 Electron（M0“打包不联网”），它只有本机架构，做 universal 就得在打包时另外下载另一个架构的 Electron。分开构建时每份都在自己的架构上原生跑打包后的检查和冒烟启动。
+- 产物名：`Allay-Motion-<版本>-arm64.dmg`、`Allay-Motion-<版本>-x64.dmg`、`…-arm64-mac.zip`、`…-x64-mac.zip`（electron-builder 的名字带空格，工作流和 Windows 一样把空格换成 `-`）。
+- `scripts/dist.mjs` 按当前机器选 electron-builder 的平台和架构：Windows 上是原来写死的 `--win --x64`，macOS 上是 `--mac --arm64` 或 `--mac --x64`。
+
+### FFmpeg 的来源与许可
+
+- **调研结论：没有来源可信、许可明确为 LGPL 的 macOS 预编译包。** FFmpeg-Builds（原 BtbN）只出 Windows 和 Linux；FFmpeg 官网下载页链接的 macOS 静态构建（evermeet.cx、osxexperts.net）和 Martin Riedl 的构建、Homebrew 的 `ffmpeg`、npm 的 `ffmpeg-static` 都是 GPL 构建（带 libx264、libx265 等）。所以 **在 CI 里从官方源码编译**。
+- **源码**（`scripts/ffmpeg-build.ts` 的 `FFMPEG_MACOS`，每个都固定版本、写死 SHA-256，校验不过就停）：
+  - FFmpeg 9.0.2：`https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz`，SHA-256 `8c385028…a96e002e`。下载时用发布页的 `.asc` 核对过签名（FFmpeg release signing key，指纹 `FCF9 86EA 15E6 E293 A564 4F10 B432 2F04 D676 58D8`）。Windows 用的是 release/9.0 分支上 n9.0.2 之后 57 个提交的快照（`n9.0.2-57-gd838f9f9ae`），macOS 用的是 9.0.2 发布版本身：官方 tarball 有签名和固定地址，分支快照没有。
+  - libvpx 1.17.0（BSD-3-Clause，另附 PATENTS 授权）：GitHub 标签归档 `webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz`，SHA-256 `1020f184…6081dc0a`。上游不发 tarball，只有这个；GitHub 归档的字节理论上可能变，变了校验会失败、构建停下，不会悄悄换成别的东西。
+  - opus 1.6.1（BSD-3-Clause）：`downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz`，SHA-256 `6ffcb593…572411a1`，与官方 `SHA256SUMS.txt` 一致。
+- **配置**：`--enable-version3 --disable-autodetect --enable-pthreads --enable-zlib --enable-videotoolbox --enable-audiotoolbox --enable-libvpx --enable-libopus --disable-network --disable-ffplay --disable-doc --disable-debug`，静态链接 libvpx 和 libopus。**没有 `--enable-gpl`、`--enable-nonfree`**，许可是 LGPLv3（与 Windows 的 win64-lgpl 一致，`ffmpeg -L` 核对）。
+  - `--disable-autodetect`：Homebrew 装的 lzma、sdl2、iconv 之类不会被自动链进来；只显式打开上面几项。zlib、VideoToolbox、AudioToolbox 都是系统自带的。
+  - 外部库只开导出用到的：VP9 要 libvpx，Opus 要 libopus（FFmpeg 自带的 opus 编码器是实验性的，Windows 的构建也用 libopus）。ProRes（`prores_ks`）、PNG、AAC、PCM 是 FFmpeg 自带的。
+  - **FFmpeg 自带的编解码器、封装、滤镜全部保留**，没有用 `--disable-everything` 逐个打开：它们都是 LGPL，不影响许可；导出测试的回读、试编码用的 `lavfi`、`null` 封装和 ffprobe 都要用到，和 Windows 的构建保持一致也少一类“只在一个平台上缺组件”的问题。代价是二进制大一些（约几十 MB）。
+  - **H.264**：LGPL 构建里没有 libx264；Windows 走 `h264_mf` 等系统或硬件编码器，macOS 对应的是系统的 `h264_videotoolbox`。探测顺序（5.3 的表）在 `h264_mf` 之后加了它，参数是同样的码率加 `-allow_sw 1`（没有硬件编码器的机器，例如虚拟机，允许 VideoToolbox 自带的软件编码器）。没有编进 libopenh264（H-H264 的兜底只在 Windows 的构建里有）。H.264 的专利由 Apple 的系统编码器负责，与 Windows 上 Media Foundation 的情况相同。
+- **编译后的核对**（`verifyBuild`，用缓存时也重跑）：`lipo -archs` 是目标架构；`otool -L` 只有 `/usr/lib/` 和 `/System/Library/` 下的依赖；`-version` 里没有 gpl/nonfree；`-L` 是 LGPL v3；`prores_ks`、`png`、`libvpx-vp9`、`aac`、`libopus`、`pcm_s16le`、`h264_videotoolbox` 都在。最低系统版本 macOS 12（与 Electron 45 一致）。
+- **随包的文件**：`Contents/Resources/ffmpeg/darwin-<架构>/` 下的 `ffmpeg`、`LICENSE.txt`（FFmpeg 的 LGPLv3 和它引用的 GPLv3 全文、libvpx 的 LICENSE 和 PATENTS、opus 的 COPYING——BSD 要求随二进制附带许可原文）、`build.json`（版本、配置、每个源码包的地址和 SHA-256、构建脚本）。ffprobe 只给测试用，不进包。关于页和 `THIRD_PARTY_NOTICES.txt` 写明来源；许可清单 `third-party-licenses.json` 多了 `ffmpegMacos`。
+- **缓存**：两个工作流都用 `actions/cache`（v6.1.0，固定到提交 `55cc8345`），键是 `scripts/ffmpeg-build.ts` 和 `scripts/ffmpeg-macos.ts` 的哈希；`build.json` 里另记配方（`FFMPEG_MACOS` 的 SHA-256），对不上就重新编译。编译用的 `pkg-config` 和（x64 的）`nasm` 来自 runner 上的 Homebrew，只在编译时用，不进安装包。
+- 本地在 Mac 上 `pnpm ffmpeg:fetch` 同样会编译，要 Xcode 命令行工具和 `pkg-config`（Intel 另要 `nasm`）。
+
+### 打包配置
+
+- `mac.target` 是 dmg 和 zip；`minimumSystemVersion: "12.0"`；`category: public.app-category.video`；dmg 不写 blockmap（不做自动更新）；`publish` 仍是 null。
+- **签名**：没有 Apple 开发者证书，`mac.identity: "-"` 做 ad-hoc 签名（arm64 上没有有效签名的应用根本启动不了）。不公证。`hardenedRuntime: false`：hardened runtime 只在公证时才需要，ad-hoc 签名时开着它会因库验证失败（各框架没有共同的团队 ID）启动不了；electron-builder 的提示是加 `disable-library-validation` 豁免，那等于开了 hardened runtime 又关掉其中一项，不如不开。这不涉及 1.6 的任何一条。
+- **fuses 和 asar 完整性不变**：electron-builder 的顺序是复制文件 → 把 asar 完整性写进 Info.plist（`ElectronAsarIntegrity`）→ afterPack → 改 fuses → 签名，签名覆盖改过的 Info.plist 和 Electron Framework，两者不冲突。另开了 `electronFuses.resetAdHocDarwinSignature`：改 fuse 之后立刻重做一次 ad-hoc 签名，这样即使 electron-builder 跳过签名（它在 PR 构建里默认跳过），arm64 的应用也仍能启动；Windows 上不起作用。`tests/dist` 在 macOS 上核对 fuses、`codesign --verify --deep --strict`、`Signature=adhoc`、没有 runtime 标志。
+- **extraResources 按平台**：FFmpeg 移到 `win.extraResources`（`win32-x64`，路径和文件不变）和 `mac.extraResources`（`darwin-${arch}`）。`THIRD_PARTY_NOTICES.txt` 在 Windows 上仍是 `win.extraFiles` 放在安装目录根上；macOS 上 `Contents/` 下不能放散文件（会破坏签名的封装），放进 `Contents/Resources/`。Windows 上 Electron 的 `LICENSE`、`LICENSES.chromium.html` 随 Electron 目录整个复制过去，macOS 上 electron-builder 只复制 `Electron.app`，所以另外把这两个放进 `Contents/Resources/`（`LICENSE.electron.txt` 与 Windows 同名）。
+- **afterPack** 在 macOS 上删的是 `<产品名>.app/Contents/Resources/default_app.asar`；它在 fuses 和签名之前运行，不破坏签名。
+- **图标**：`build/icon.icns` 由 `scripts/mascot-dist.ts` 从提交的 `packages/mascot/generated/icon.ico` 生成（`scripts/icns.ts`）：ICO 里 16–256 的 PNG 原样放进 icns，512 和 1024 由 256 那张最近邻整数倍放大（像素画，不插值、不产生新的像素内容）。没有引入新素材，也没有重新烘焙；`icon.icns` 与 `icon.ico` 一样被 git 忽略，不需要另登记来源（来源就是已登记的 `icon.ico`）。放大出来的 512、1024 的圆角是 256 的阶梯放大，比重新烘焙的略粗，只在访达的大图标和“显示简介”里看得出来。
+- **文件关联**：`fileAssociations` 在 macOS 上写成 Info.plist 的 `CFBundleDocumentTypes`（类型名、Editor 角色，图标用应用图标）。macOS 双击关联文件不经启动参数，而是发 `open-file` 事件（应用没开时在 ready 之前就来，应用开着时交给已有的进程，不起第二实例）；主进程注册了 `open-file`，路径经 `filesFromOpenEvent`（只认绝对路径和关联的扩展名）进同一个队列，同样换成一次性令牌交给界面。M8 当时没加 `app.onOpenFile` 是因为 Windows 用不到；macOS 上没有别的路。
+
+### 窗口与界面
+
+- **窗口按钮**：`titleBarStyle: 'hidden'` 加 `titleBarOverlay` 在 macOS 上显示左上角的红绿灯，`titleBarOverlay.height`（44）让它们在顶栏里竖直居中，同时打开 Window Controls Overlay 的 CSS 变量。顶栏的左边距从固定的 `pl-2` 改成 `calc(env(titlebar-area-x, 0px) + 8px)`：Windows 上 `titlebar-area-x` 是 0，仍是 8px（T-UI-5 的截图基线不受影响）；macOS 上让出红绿灯的宽度。右边距的公式原样，macOS 上右边没有按钮，算出来是 6px。这是渲染层唯一的改动（`TopBar.tsx` 一处）。
+- `setTitleBarOverlay`（主题切换时改按钮区颜色）只在 Windows、Linux 上有效，macOS 上不调用；红绿灯的颜色由系统决定。
+- **菜单与快捷键**：应用没有设置自己的菜单，macOS 上用 Electron 的默认菜单（应用菜单里的关于、隐藏、退出 ⌘Q，编辑菜单的复制粘贴，窗口菜单），这和 Windows 上（同一份默认菜单，菜单栏被隐藏）一致。界面的快捷键匹配本来就把 `metaKey` 当作 Ctrl（`shared/shortcuts.ts`、`useShortcuts.ts`），⌘S、⌘Z 等能用。**快捷键的显示仍写作“Ctrl+…”**，没有换成 ⌘：快捷键的显示和录制正由别的会话在改（主控说明“不碰渲染进程的界面组件”），留给他们统一处理。
+- **其他平台假设**：FFmpeg 路径解析（`ffmpeg-locate.ts`）原来就按 `process.platform-process.arch` 和 `.exe` 后缀区分；用户数据目录是 `~/Library/Application Support/AllayMotion`；探测本机游戏目录原来就有 darwin 分支。关窗口仍退出应用（Windows 的行为；macOS 习惯是留在程序坞，规格没要求，选了更简单、两边一致的做法）。
+
+### CI 的取舍
+
+- `ci.yml` 的完整 `pnpm check` **仍只在 Windows 上跑**（`pnpm check:removable` 按仓库所有者的精简，只在手动运行时勾选）。引擎测试（T-TPL-5 的基准图、剪辑点的 alpha）和端到端的截图基线（T-UI-5）是按 Windows 的软件渲染（WARP）定的，macOS 虚拟机上走的是另一套渲染路径，逐像素比对没有意义；为它另做一套基线、放宽判定，不值得也违背“不靠降低判定凑数”。
+- **macOS 不在日常 CI 里**。本分支原先在 `ci.yml` 加了一个 macOS 作业（arm64），仓库所有者随后把 `ci.yml` 精简成一个 Windows 作业（`AGENTS.md`“CI 与发布”），合并时照所有者的版本，去掉了这个作业。macOS 的验证都在发版工作流的两个 macOS 构建（arm64、x64，手动触发也跑）里：编译 FFmpeg（有缓存时只核对）、`pnpm test:export`（导出的编码回读在这份 FFmpeg 上跑一遍，绿幕 MP4 走 VideoToolbox）、`pnpm dist`（打包 + `tests/dist`：fuses、asar、包内容、Info.plist、签名、FFmpeg 的许可和依赖、冷启动）。冷启动直接启动打包后的 `.app` 可执行文件（不经访达、Gatekeeper），量到完整的启动时间线（启动画面、界面就绪、主窗口显示）才算过，兼作冒烟；只记数字、不按预算判定（`ALLAY_T_ARC_7_REPORT_ONLY`，与 Windows 发版相同）。前两次启动各截两张全屏图作为工作流产物上传，给人看窗口按钮和顶栏。改了 macOS 相关的代码，要手动触发一次发版工作流来验证。
+- `pnpm test`（单元测试）没有放到 macOS 上：有一批测试用的是 Windows 路径的字面量（`C:\\…`），它们测的是平台无关的逻辑，在 Windows 的 CI 上跑。
+- 发版工作流：三份构建（Windows x64、macOS arm64、macOS x64）是一个矩阵，`fail-fast: false` 让一份失败时其余照常跑完、日志都看得到。每份产出自己的校验和。
+- 与仓库所有者的自动发布流程（上文“GitCode 镜像与自动发布”）合并：发布作业 `publish-release` 只在推 `v*` 标签时运行，`needs: build` 要三份都成功；它把三份校验和合成一份 `SHA256SUMS.txt`（按文件名排序），核对五个安装包（Windows 的 exe，两种架构的 dmg、zip）都在并 `sha256sum -c`，然后建草稿、挂上全部附件，再 `gh release edit --draft=false` 公开。任何一份构建失败、缺文件或校验不过，都不会建 Release，更不会公开。手动触发只构建并上传工作流产物，不建 Release，也就不跑合并校验和这一步（各平台的校验和在各自的构建里已算好）。权限、固定到提交哈希的 action、没有证书和密钥这些都不变；新增的第三方 action 只有 `actions/cache`。Release 说明加了 macOS 版未公证、首次打开怎么放行。
+- GitCode 同步脚本（`scripts/sync-gitcode-release.mjs`）不按文件名挑附件：GitHub Release 上有几个附件就逐个下载、核对 SHA-256、上传几个，所以 macOS 的 dmg、zip 不用改脚本；`tests/sync-gitcode-release.test.mjs` 加了一条三平台五个安装包加 `SHA256SUMS.txt` 全部同步的用例。
+
+### 验证
+
+- 本机（Windows）：`pnpm typecheck`、`pnpm lint`、`pnpm test` 通过；`pnpm dist` 的打包一步（`electron-builder --win --x64`，经 `scripts/dist.mjs`）和打包后的 T-ARC-2、M8 检查通过。T-ARC-7 没有在本机跑：它会临时挪开真实的 `%APPDATA%\AllayMotion`，这台机器的 C 盘只剩约 100 MB，另外几个会话也在这台机器上工作；Windows 的 T-ARC-7 代码只是把解析日志的部分提成了函数，判定不变，由 CI 的 Windows 发版构建跑。
+- CI 上的结果见下一小节。
+
+### 没验证的（只能在真实的 Mac 上人工确认）
+
+- **没有在任何真实的 Mac 上打开过**：只在 GitHub 的 macOS 虚拟机上打包、核对包内容和签名、直接启动可执行文件。dmg 拖进“应用程序”、首次打开时 Gatekeeper 的提示和放行步骤（Release 说明里写的右键“打开”、macOS 15 起在“隐私与安全性”里“仍要打开”）都没有亲眼看过。
+- 红绿灯在顶栏里的位置、和左边内容的间距只在 CI 截图里看过（如果截图里有）；全屏、拖动窗口、双击顶栏缩放没有试过。
+- 双击 `.allay`、`.allaytpl` 走 `open-file`，没有在访达里真的双击过；单元测试只覆盖路径筛选。
+- VideoToolbox 的硬件编码只在虚拟机上（多半是软件编码器）试过；导出的四种格式没有在 macOS 的剪辑软件（Final Cut、DaVinci Resolve、Premiere）里导入过。
+- 程序坞、访达里的图标样子没人看过。
+- Intel（x64）版只在 `macos-15-intel` 上构建和冒烟，没有在真实的 Intel Mac 上跑过。
+- 没有签名证书、没有公证，这些都待 H-SIGN 决定。

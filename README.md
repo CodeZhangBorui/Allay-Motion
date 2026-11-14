@@ -16,7 +16,7 @@
 
 ## 从源码构建
 
-构建前请确保本机已安装 **Node 24+** 和 **pnpm 12**。
+构建前请确保本机已安装 **Node 24+** 和 **pnpm 12**。支持 Windows（x64）和 macOS 12 及更新（Apple 芯片与 Intel）；macOS 上 `pnpm ffmpeg:fetch` 会从官方源码编译 FFmpeg，需要 Xcode 命令行工具和 `pkg-config`，Intel 机器另需 `nasm`，耗时约十几分钟。
 
 ```bash
 pnpm install
@@ -36,13 +36,14 @@ pnpm dev
 |---|---|
 | `pnpm check` | 类型检查、lint、单元测试、引擎测试、导出测试、来源登记检查、许可检查、端到端测试 |
 | `pnpm check:removable` | 可选模块目录不存在时 `pnpm check` 照常通过 |
-| `pnpm dist` | 生成 Windows 安装包（`apps/desktop/release/`），并跑打包后的检查 |
+| `pnpm dist` | 按当前机器打包（`apps/desktop/release/`）：Windows 上生成 x64 安装包，macOS 上生成本机架构（arm64 或 x64）的 dmg 和 zip；并跑打包后的检查 |
 | `pnpm licenses:gen` | 依赖变了之后重新生成第三方许可清单 |
 
 
 ## 第三方软件与许可
 
-- FFmpeg（LGPLv3）以独立进程调用，随安装包附带许可全文；构建来源和源码去处写在应用的“关于”页。
+- FFmpeg（LGPLv3）以独立进程调用，随安装包附带许可全文；构建来源和源码去处写在应用的“关于”页。Windows 版用 FFmpeg-Builds 的 LGPL 构建，macOS 版由本项目从官方源码按 LGPL 配置编译（静态链接 BSD 许可的 libvpx、libopus）。
+- macOS 版只做了 ad-hoc 签名、没有经过 Apple 公证：首次打开时在“访达”里右键选“打开”，macOS 15 起到“系统设置 → 隐私与安全性”里点“仍要打开”。
 - 方舟像素字体、IBM Plex、Noto Sans SC 使用 SIL Open Font License 1.1。
 - 其余依赖使用 MIT、BSD、ISC、Apache-2.0 等许可；完整清单在“关于 → 第三方许可”和安装目录的 `THIRD_PARTY_NOTICES.txt`。
 
