@@ -5,13 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { DEVELOPERS, LICENSE_NAME, REPO_URL, SECTION } from '../links';
 import { Section, SectionHead } from './Section';
 
-/** 名字的首字，放在一个圆角小方块里（不从外站取头像：官网不发第三方请求） */
-function Initial({ name }: { name: string }) {
-  return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-control-hi text-[14px] font-semibold" aria-hidden="true">
-      {[...name][0]?.toUpperCase()}
-    </span>
-  );
+/** 真实头像（GitHub 头像，下载后自托管；三张都是 256×256，显示 40 px，高分屏也清楚） */
+function Avatar({ src, name }: { src: string; name: string }) {
+  return <img src={src} alt="" width={40} height={40} loading="lazy" decoding="async" className="size-10 shrink-0 rounded-full bg-control object-cover ring-1 ring-[color-mix(in_srgb,var(--foreground)_12%,transparent)]" data-testid="avatar" data-name={name} />;
 }
 
 export function OpenSourceSection() {
@@ -41,7 +37,7 @@ export function OpenSourceSection() {
           <ul className="mt-4 divide-y divide-site-line" data-testid="team">
             {DEVELOPERS.map((d) => (
               <li key={d.name} className="flex items-center gap-3 py-3">
-                <Initial name={d.name} />
+                <Avatar src={d.avatar} name={d.name} />
                 <span className="text-[14.5px] font-medium">{d.name}</span>
                 {d.url && (
                   <a href={d.url} target="_blank" rel="noreferrer noopener" className="ml-auto inline-flex items-center gap-1 rounded-md text-[12.5px] text-fg-muted hover:text-foreground">

@@ -5,12 +5,14 @@ export const LICENSE_NAME = 'GPL-3.0';
 export interface Developer {
   name: string;
   url?: string;
+  /** 自托管的头像（public/team/，来源登记在 ASSETS_PROVENANCE.json；官网不向 GitHub 发请求） */
+  avatar: string;
 }
 
 export const DEVELOPERS: readonly Developer[] = [
-  { name: 'Mystic-Stars', url: 'https://github.com/Mystic-Stars' },
-  { name: '风花叶', url: 'https://github.com/khiqwq' },
-  { name: 'Claude' },
+  { name: 'Mystic-Stars', url: 'https://github.com/Mystic-Stars', avatar: 'team/mystic-stars.png' },
+  { name: '风花叶', url: 'https://github.com/khiqwq', avatar: 'team/khiqwq.jpg' },
+  { name: 'Claude', avatar: 'team/claude.png' },
 ];
 
 /** 页内各节的锚点 */
