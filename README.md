@@ -62,10 +62,23 @@ pnpm dev
 - 方舟像素字体、IBM Plex、Noto Sans SC 使用 SIL Open Font License 1.1。
 - 其余依赖使用 MIT、BSD、ISC、Apache-2.0 等许可；完整清单在“关于 → 第三方许可”和安装目录的 `THIRD_PARTY_NOTICES.txt`。
 
-## 许可
+## 许可 / License
 
-<!-- H-LICENSE：项目自己的许可证待定（docs/release-checklist.md）。定了之后在这里写明，并在仓库根目录放 LICENSE。 -->
-项目自己的许可证还没有决定（H-LICENSE）。
+**中文**
+
+- 本项目以 [GNU 通用公共许可证第 3 版](LICENSE)（**GPL-3.0-only**）授权。
+- **商业授权**：需要以 GPL 不允许的方式使用（例如用在闭源产品里），请通过本仓库的 [Issues](https://github.com/Mystic-Stars/Allay-Motion/issues) 联系版权人，另行取得商业授权。
+- 用本软件导出的视频归使用者所有，不受本许可约束。
+- **许可范围**：GPL-3.0 和商业授权只覆盖本项目自己的代码和原创素材，都**不包含** Minecraft 的任何内容：Minecraft 的名称与商标；应用在运行时从 Mojang 下载或从本机游戏读取的原版资源（贴图、模型、音效、字体、语言文件等）；用户自己添加的第三方资源包；以及由它们派生的内容，包括照原版悦灵制作的模型数据（`packages/mascot/model/` 里与 Mojang 设计对应的部分）和由原版贴图渲染的悦灵图像（`packages/mascot/generated/`）。这些内容的权利属于 Mojang 或各资源包的作者，本项目未获授权、不分发原版资源包，也不对它们授予任何权利；使用者需自行遵守 Minecraft 最终用户许可协议和各资源包的许可。
+
+**English**
+
+- This project is licensed under the [GNU General Public License v3.0](LICENSE) (**GPL-3.0-only**).
+- **Commercial license**: to use it in ways the GPL does not allow (for example in closed-source products), contact the copyright holder through this repository's [Issues](https://github.com/Mystic-Stars/Allay-Motion/issues).
+- Videos you export with this software belong to you and are not covered by this license.
+- **Scope**: the GPL-3.0 license and the commercial license cover only this project's own code and original assets. **Neither includes** any Minecraft content: the Minecraft name and trademarks; the vanilla resources the app downloads from Mojang at runtime or reads from your installed game (textures, models, sounds, fonts, language files and so on); third-party resource packs you add; and anything derived from them, including the Allay model data made after the original (the parts of `packages/mascot/model/` that correspond to Mojang's design) and the Allay images rendered from the original texture (`packages/mascot/generated/`). Those rights belong to Mojang or to the resource pack authors. This project is not licensed by them, does not distribute vanilla resource packs and grants no rights to them; follow the Minecraft EULA and each resource pack's license yourself.
+
+贡献代码前请读 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 
 ## 文档
 

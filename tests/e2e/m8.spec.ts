@@ -141,7 +141,9 @@ test('M8 关于页：非官方声明、悦灵图像的来源、FFmpeg 的来源�
   try {
     await page.evaluate(() => window.__allayTest!.dispatch('settings', { page: 'about' }));
     await expect(page.getByTestId('about-disclaimer')).toContainText('NOT AN OFFICIAL MINECRAFT PRODUCT');
-    await expect(page.getByTestId('about-mascot-credit')).toContainText('Mojang');
+    await expect(page.getByTestId('about-license')).toContainText('GPL-3.0');
+    await expect(page.getByTestId('about-license')).toContainText('https://github.com/Mystic-Stars/Allay-Motion/issues');
+    await expect(page.getByTestId('about-license-scope')).toContainText('Mojang');
     await expect(page.getByTestId('about-guidelines')).toContainText('https://www.minecraft.net/usage-guidelines');
     const data = JSON.parse(readFileSync(join(ROOT, 'apps/desktop/src/renderer/features/settings/third-party-licenses.json'), 'utf8')) as { ffmpeg: { commit: string }; entries: unknown[] };
     await expect(page.getByTestId('about-ffmpeg-source')).toContainText(data.ffmpeg.commit);

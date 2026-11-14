@@ -8,6 +8,9 @@ import { useTranslation } from 'react-i18next';
 /** Minecraft 使用准则（9.3：导出的视频里出现 Minecraft 素材时，由用户自己参照）。只显示，不打开浏览器（应用不联网） */
 export const GUIDELINES_URL = 'https://www.minecraft.net/usage-guidelines';
 
+/** 商业授权的联系方式（用户决定，2026-11-14）：只写仓库的 Issues，不写任何邮箱。同样只显示、不打开浏览器 */
+export const ISSUES_URL = 'https://github.com/Mystic-Stars/Allay-Motion/issues';
+
 interface Entry {
   name: string;
   version: string;

@@ -455,7 +455,11 @@
     "thirdPartyAll": "全部组件（{{count}}）",
     "thirdPartyLoading": "正在读取清单…",
     "licenseInFile": "许可全文：安装目录的 {{file}}。",
-    "noLicenseFile": "包里没有许可文件；按 {{license}} 授权。"
+    "noLicenseFile": "包里没有许可文件；按 {{license}} 授权。",
+    "license": {
+      "title": "许可",
+      "body": "本软件以 GPL-3.0-only 授权。需要以 GPL 不允许的方式使用（例如用在闭源产品里），请通过仓库的 Issues 联系版权人取得商业授权：{{url}}。用本软件导出的视频归你所有，不受本许可约束。"
+    }
   },
   "shortcuts": {
     "keys": {

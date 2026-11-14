@@ -455,7 +455,11 @@
     "thirdPartyAll": "All components ({{count}})",
     "thirdPartyLoading": "Loading the list…",
     "licenseInFile": "Full license text: {{file}} in the install folder.",
-    "noLicenseFile": "The package has no license file; licensed under {{license}}."
+    "noLicenseFile": "The package has no license file; licensed under {{license}}.",
+    "license": {
+      "title": "License",
+      "body": "This software is licensed under GPL-3.0-only. To use it in ways the GPL does not allow (for example in closed-source products), contact the copyright holder for a commercial license through the repository’s Issues: {{url}}. Videos you export with it are yours and are not covered by this license."
+    }
   },
   "shortcuts": {
     "keys": {

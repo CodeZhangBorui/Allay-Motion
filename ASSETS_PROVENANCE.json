@@ -43,7 +43,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵四个动作的图集（帧边长 288）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -54,7 +54,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵四个动作的图集（帧边长 96）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -65,7 +65,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 16px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -76,7 +76,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 16px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -87,7 +87,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 20px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -98,7 +98,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 20px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -109,7 +109,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 24px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -120,7 +120,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 24px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -131,7 +131,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 32px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -142,7 +142,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 32px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -153,7 +153,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 48px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -164,7 +164,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "悦灵正面头像 48px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   },
   {
@@ -175,7 +175,7 @@
     "gameVersion": "1.21.1",
     "approvedBy": "项目负责人（用户），经主控会话转达",
     "approvedOn": "2026-11-13",
-    "license": "派生自 Mojang 的贴图，版权归 Mojang；未经 Mojang 许可，用户知悉并承担风险",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
     "note": "应用图标（悦灵头像，16–256px），安装包和 exe 用。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   }
 ]

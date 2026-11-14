@@ -38,8 +38,15 @@ export function installerScript(): string {
   return `${BOM}; 由 scripts/dist-extras.ts 生成，不要手改（docs/decisions.md M8）\r\n!macro customWelcomePage\r\n  !define MUI_WELCOMEPAGE_TITLE "${nsisString(title)}"\r\n  !define MUI_WELCOMEPAGE_TEXT "${nsisString(text)}"\r\n  !insertmacro MUI_PAGE_WELCOME\r\n!macroend\r\n`;
 }
 
+/** 本项目自己的许可（用户决定，2026-11-14，docs/decisions.md M8） */
+export const PROJECT_LICENSE = [
+  'This software is licensed under the GNU General Public License v3.0 only (GPL-3.0-only); see LICENSE in the source repository.',
+  'Commercial licenses for uses not permitted by the GPL are available from the copyright holder: https://github.com/Mystic-Stars/Allay-Motion/issues',
+  '本软件以 GNU 通用公共许可证第 3 版（GPL-3.0-only）授权；需要不受 GPL 约束地使用（例如闭源），请通过仓库的 Issues 联系版权人取得商业授权。',
+].join('\n');
+
 export function noticesText(file: ThirdPartyFile): string {
-  return renderNotices(file, `${brandMessages.en.name} / ${brandMessages['zh-CN'].name}\n\n${brandMessages['zh-CN'].disclaimer}\n\n${brandMessages.en.mascotCredit}\n${brandMessages['zh-CN'].mascotCredit}`);
+  return renderNotices(file, `${brandMessages.en.name} / ${brandMessages['zh-CN'].name}\n\n${brandMessages['zh-CN'].disclaimer}\n\n${PROJECT_LICENSE}\n\n${brandMessages.en.licenseScope}\n\n${brandMessages['zh-CN'].licenseScope}`);
 }
 
 function main(): void {
