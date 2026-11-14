@@ -325,14 +325,6 @@
     "download": {
       "button": "下载原版资源（约 45 MB，来自 Mojang 官方服务器）",
       "note": "会联网连接 Mojang 的官方服务器（piston-meta.mojang.com、piston-data.mojang.com、resources.download.minecraft.net），下载最新正式版的 Minecraft Java 版客户端 jar，以及内置模板常用的几十个声音文件（估计不到 2 MB），保存在本机的应用数据目录里，只用来读取其中的贴图和音效。之后你试听或选中其他音效、或在导出前确认取回时，才会再从 resources.download.minecraft.net 取回那个音效的文件。不会发送任何个人信息，不会自动更新，不会在后台批量下载。",
-      "running": "正在下载原版资源…",
-      "phase": {
-        "manifest": "读取版本列表",
-        "version": "读取版本信息",
-        "jar": "下载客户端",
-        "index": "下载资源索引",
-        "object": "下载资源文件"
-      },
       "progress": "下载进度",
       "cancel": "取消下载",
       "errors": {
@@ -367,7 +359,37 @@
       "later": "之后可以在“素材”里随时更改。"
     },
     "close": "关闭",
-    "drag": "拖动以调整“{{name}}”的顺序"
+    "drag": "拖动以调整“{{name}}”的顺序",
+    "progress": {
+      "activity": {
+        "index": "正在下载资源索引…",
+        "done": "完成",
+        "version": "正在读 {{version}} 的版本信息…",
+        "scan": "正在读取 jar 里的资源目录…",
+        "manifest": "正在取版本清单…",
+        "sounds": "正在取音效文件（{{done}} / {{total}}）…",
+        "stack": "正在把原版素材放进资源栈…",
+        "jar-cached": "{{version}} 的客户端 jar 已经下载过，校验通过",
+        "sounds-list": "正在查找常用音效…",
+        "jar": "正在下载 {{version}} 的客户端 jar…"
+      },
+      "stages": {
+        "manifest": "取版本清单",
+        "extract": "提取资源",
+        "jar": "下载客户端 jar",
+        "finalize": "建立资源索引",
+        "sounds": "取常用音效"
+      },
+      "etaMinutes": "还要约 {{minutes}}:{{seconds}}",
+      "etaSeconds": "还要约 {{count}} 秒",
+      "canceledAt": "已取消，停在“{{stage}}”这一步。没有留下下载了一半的文件。",
+      "stoppedAt": "停在“{{stage}}”这一步。重试时已经下载并校验通过的文件不会再下。",
+      "items": "{{done}} / {{total}} 个文件",
+      "stagesLabel": "下载的各个阶段",
+      "done": "原版素材 {{version}} 已就绪。",
+      "bytes": "{{received}} / {{total}}",
+      "speed": "{{speed}}/s"
+    }
   },
   "common": {
     "close": "关闭",
@@ -423,7 +445,9 @@
       "assets": "素材",
       "export": "导出",
       "shortcuts": "快捷键",
-      "about": "关于"
+      "about": "关于",
+      "appearance": "外观",
+      "folders": "文件夹"
     },
     "language": "语言",
     "languages": {
@@ -446,7 +470,6 @@
     "cacheUsage": "{{files}} 个文件，{{size}}",
     "clearCache": "清除缓存",
     "cacheCleared": "缓存已清除。",
-    "defaultOutput": "输出设置",
     "ffmpeg": "FFmpeg 版本",
     "ffmpegUnknown": "未知",
     "encoders": "H.264 编码器",
@@ -474,7 +497,88 @@
     "license": {
       "title": "许可",
       "body": "本软件以 GPL-3.0-only 授权。需要以 GPL 不允许的方式使用（例如用在闭源产品里），请通过仓库的 Issues 联系版权人取得商业授权：{{url}}。用本软件导出的视频归你所有，不受本许可约束。"
-    }
+    },
+    "languageHint": "“跟随系统”按 Windows 的首选语言选择简体中文或 English。",
+    "shortcuts": {
+      "categories": {
+        "export": "导出",
+        "file": "文件",
+        "help": "帮助",
+        "playback": "播放",
+        "view": "视图",
+        "other": "其他",
+        "edit": "编辑",
+        "templates": "模板"
+      },
+      "replace": "替换",
+      "reserved": {
+        "navigation": "{{key}} 用于逐帧移动和列表导航，不能绑定。",
+        "text": "{{key}} 是文本输入必需的键，不能绑定。",
+        "system": "{{key}} 由系统使用，不能绑定。"
+      },
+      "changed": "（已改过）",
+      "reset": "把“{{command}}”恢复为默认快捷键",
+      "edit": "更改“{{command}}”的快捷键",
+      "search": "搜索命令或按键",
+      "resetCleared": "默认快捷键原来被“{{command}}”占用，已清除它的快捷键。",
+      "empty": "没有找到“{{query}}”。",
+      "duplicate": "和另一条命令的快捷键重复，只有排在前面的那条生效。",
+      "clear": "清除“{{command}}”的快捷键",
+      "conflict": "{{key}} 已经给了“{{command}}”。换成这条命令，那条命令就没有快捷键了。",
+      "pressKeys": "按下新的快捷键…",
+      "resetAll": "全部恢复默认",
+      "none": "未设置",
+      "recording": "为“{{command}}”录制快捷键"
+    },
+    "descriptions": {
+      "export": "当前工程的输出规格，以及编码器的情况。导出的文件放在哪里在“文件夹”里设置。",
+      "assets": "原版素材从哪里来、资源包的顺序，以及缩略图缓存。",
+      "folders": "新工程保存在哪里、导出的文件放在哪里。文件夹只能在系统的文件夹对话框里选。",
+      "general": "界面语言和首次启动引导。",
+      "shortcuts": "点一条命令右边的按键就能录制新的快捷键。录制时按 Esc 取消。",
+      "appearance": "主题和动效。选了立即生效。"
+    },
+    "onboarding": {
+      "hint": "再走一遍语言、主题、素材和文件夹的设置。已经做过的选择会保留。",
+      "rerun": "重新运行引导",
+      "button": "运行引导",
+      "title": "首次启动引导"
+    },
+    "assetsStack": "资源栈",
+    "folders": {
+      "choose": "选择…",
+      "problems": {
+        "missing": "找不到这个文件夹（可能是移动硬盘没有接上）。{{fallback}}",
+        "readonly": "这个文件夹现在不能写入。{{fallback}}"
+      },
+      "export": {
+        "unset": "未设置（第一次导出时会问你）",
+        "hint": "导出的文件直接放在这里，同名时自动加编号。",
+        "fallback": "导出时会先请你另选一个文件夹。",
+        "label": "导出文件夹"
+      },
+      "project": {
+        "fallback": "保存时对话框会退回系统的默认位置。",
+        "unset": "未设置（使用系统的默认位置）",
+        "hint": "“保存”“另存为”新工程时，对话框从这里开始。",
+        "label": "工程默认保存文件夹"
+      },
+      "chooseErrors": {
+        "missing": "找不到这个文件夹，请换一个。",
+        "readonly": "这个文件夹不能写入，请换一个。"
+      },
+      "reset": "清除这个文件夹"
+    },
+    "themeHints": {
+      "dark": "深灰面板，适合长时间剪辑",
+      "light": "浅灰面板，适合明亮的环境"
+    },
+    "projectOutput": "当前工程的输出",
+    "cacheTitle": "缓存",
+    "projectOutputHint": "分辨率和帧率存在工程文件里，和属性面板“输出”页是同一份；新建工程时回到 1920 × 1080、60 fps。",
+    "encoderTitle": "编码器",
+    "reducedMotionHint": "开启后界面不做过渡动画，吉祥物也只静止显示。",
+    "motionTitle": "动效"
   },
   "shortcuts": {
     "keys": {
@@ -520,7 +624,8 @@
       "exportTaskGet": "查询导出任务",
       "exportTaskCancel": "取消导出任务",
       "projectOpenAssociated": "从文件打开工程",
-      "templatesInstallAssociated": "从文件安装模板"
+      "templatesInstallAssociated": "从文件安装模板",
+      "onboarding": "首次启动引导"
     }
   },
   "editor": {
@@ -801,5 +906,77 @@
     "copy": "复制诊断信息",
     "copied": "诊断信息已复制",
     "copyFailed": "复制失败"
+  },
+  "onboarding": {
+    "assets": {
+      "local": {
+        "using": "已经在使用本机的游戏。",
+        "found": "使用本机的 Minecraft {{version}}",
+        "detail": "没有找到已安装的 Minecraft Java 版。可以手动指定游戏目录（.minecraft）。",
+        "title": "使用本机已安装的游戏",
+        "foundDetail": "在 {{dir}} 找到。只在本机读取，不复制、不上传、不修改。"
+      },
+      "summaryDownloading": "正在下载原版资源",
+      "summaryActive": "原版素材 {{version}}",
+      "download": {
+        "title": "下载原版资源",
+        "consent": "点“开始下载”即表示同意按上面的说明从这三个地址下载。",
+        "start": "开始下载",
+        "detail": "约 45 MB，来自 Mojang 官方服务器。只在你点“开始下载”之后联网。"
+      },
+      "later": {
+        "title": "稍后再说",
+        "detail": "先不用原版素材，缺的贴图显示为占位。之后可以在顶栏的素材按钮或设置里补上。"
+      },
+      "summaryNone": "还没有原版素材",
+      "active": "正在使用原版素材 {{version}}",
+      "summaryLater": "稍后再说"
+    },
+    "steps": {
+      "language": {
+        "name": "语言",
+        "title": "选择界面语言",
+        "body": "选了立即生效。“跟随系统”会按 Windows 的首选语言自动选择。"
+      },
+      "done": {
+        "name": "完成",
+        "body": "下面是这次的选择。点“开始使用”进入编辑器。",
+        "title": "准备好了"
+      },
+      "assets": {
+        "name": "素材",
+        "title": "原版贴图和音效从哪里来",
+        "body": "模板用 Minecraft 的原版贴图和音效来画方块、物品和文字。本应用不附带这些文件：可以从 Mojang 的官方服务器下载，也可以读取你电脑上已经安装的游戏。"
+      },
+      "appearance": {
+        "title": "选择主题",
+        "body": "两套主题的层次和对比度相同，只是明暗不同。不喜欢过渡动画的话，可以在下面打开“减少动效”。",
+        "name": "外观"
+      },
+      "folders": {
+        "name": "文件夹",
+        "body": "可以先不设：工程保存时用系统的默认位置，第一次导出时再问你。",
+        "title": "工程和导出放在哪里"
+      }
+    },
+    "folderDefault": {
+      "export": "导出时再问",
+      "project": "系统默认位置"
+    },
+    "language": {
+      "sample": "选模板、调参数、导出",
+      "systemDetail": "跟随系统（{{language}}）"
+    },
+    "skipAll": "跳过引导",
+    "stepsLabel": "引导的步骤",
+    "intro": "先花一分钟定下几件事。每一步都可以跳过，之后都能在设置里改。",
+    "welcome": "欢迎使用 {{name}}",
+    "reducedMotionOn": "减少动效",
+    "finish": "开始使用",
+    "changeLater": "这些都可以在“设置”里随时更改，也可以在“帮助”菜单里重新运行这个引导。",
+    "skip": "跳过这一步",
+    "back": "上一步",
+    "eyebrow": "初次设置",
+    "next": "继续"
   }
 }

@@ -325,14 +325,6 @@
     "download": {
       "button": "Download vanilla assets (about 45 MB, from Mojang's official servers)",
       "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com, resources.download.minecraft.net) and downloads the latest Minecraft Java Edition release client jar, plus a few dozen sound files the built-in templates commonly use (estimated under 2 MB), into this app's data folder on your computer. Only its textures and sounds are read. Later, the app fetches another sound's file from resources.download.minecraft.net only when you preview or pick that sound, or confirm fetching before an export. No personal information is sent, nothing updates automatically, and nothing is downloaded in bulk in the background.",
-      "running": "Downloading vanilla assets…",
-      "phase": {
-        "manifest": "Reading the version list",
-        "version": "Reading version info",
-        "jar": "Downloading the client",
-        "index": "Downloading the asset index",
-        "object": "Downloading asset files"
-      },
       "progress": "Download progress",
       "cancel": "Cancel download",
       "errors": {
@@ -367,7 +359,37 @@
       "later": "You can change this any time under “Assets”."
     },
     "close": "Close",
-    "drag": "Drag to reorder “{{name}}”"
+    "drag": "Drag to reorder “{{name}}”",
+    "progress": {
+      "activity": {
+        "index": "Downloading the asset index…",
+        "done": "Done",
+        "version": "Reading version info for {{version}}…",
+        "scan": "Reading the asset list inside the jar…",
+        "manifest": "Fetching the version list…",
+        "sounds": "Fetching sound files ({{done}} of {{total}})…",
+        "stack": "Adding vanilla assets to the resource stack…",
+        "jar-cached": "The {{version}} client jar was already downloaded and verified",
+        "sounds-list": "Looking up common sounds…",
+        "jar": "Downloading the {{version}} client jar…"
+      },
+      "stages": {
+        "manifest": "Fetch version list",
+        "extract": "Extract assets",
+        "jar": "Download client jar",
+        "finalize": "Build asset index",
+        "sounds": "Fetch common sounds"
+      },
+      "etaMinutes": "about {{minutes}}:{{seconds}} left",
+      "etaSeconds": "about {{count}} s left",
+      "canceledAt": "Canceled at “{{stage}}”. No partial files were left behind.",
+      "stoppedAt": "Stopped at “{{stage}}”. Retrying won’t download files that were already verified.",
+      "items": "{{done}} of {{total}} files",
+      "stagesLabel": "Download stages",
+      "done": "Vanilla assets {{version}} are ready.",
+      "bytes": "{{received}} of {{total}}",
+      "speed": "{{speed}}/s"
+    }
   },
   "common": {
     "close": "Close",
@@ -423,7 +445,9 @@
       "assets": "Assets",
       "export": "Export",
       "shortcuts": "Shortcuts",
-      "about": "About"
+      "about": "About",
+      "appearance": "Appearance",
+      "folders": "Folders"
     },
     "language": "Language",
     "languages": {
@@ -446,7 +470,6 @@
     "cacheUsage": "{{files}} files, {{size}}",
     "clearCache": "Clear cache",
     "cacheCleared": "Cache cleared.",
-    "defaultOutput": "Output settings",
     "ffmpeg": "FFmpeg version",
     "ffmpegUnknown": "Unknown",
     "encoders": "H.264 encoder",
@@ -474,7 +497,88 @@
     "license": {
       "title": "License",
       "body": "This software is licensed under GPL-3.0-only. To use it in ways the GPL does not allow (for example in closed-source products), contact the copyright holder for a commercial license through the repository’s Issues: {{url}}. Videos you export with it are yours and are not covered by this license."
-    }
+    },
+    "languageHint": "“Follow system” picks Simplified Chinese or English from your Windows display language.",
+    "shortcuts": {
+      "categories": {
+        "export": "Export",
+        "file": "File",
+        "help": "Help",
+        "playback": "Playback",
+        "view": "View",
+        "other": "Other",
+        "edit": "Edit",
+        "templates": "Templates"
+      },
+      "replace": "Replace",
+      "reserved": {
+        "navigation": "{{key}} steps frames and moves through lists, so it can’t be assigned.",
+        "text": "{{key}} is needed for typing text and can’t be assigned.",
+        "system": "{{key}} is used by the system and can’t be assigned."
+      },
+      "changed": "(changed)",
+      "reset": "Restore the default shortcut for “{{command}}”",
+      "edit": "Change the shortcut for “{{command}}”",
+      "search": "Search commands or keys",
+      "resetCleared": "The default shortcut was taken by “{{command}}”; that command’s shortcut was cleared.",
+      "empty": "Nothing found for “{{query}}”.",
+      "duplicate": "Same shortcut as another command; only the one listed first works.",
+      "clear": "Clear the shortcut for “{{command}}”",
+      "conflict": "{{key}} is already used by “{{command}}”. Replacing it leaves that command without a shortcut.",
+      "pressKeys": "Press the new shortcut…",
+      "resetAll": "Restore all defaults",
+      "none": "None",
+      "recording": "Recording a shortcut for “{{command}}”"
+    },
+    "descriptions": {
+      "export": "The current project's output format and the encoders found. Where exports go is set under Folders.",
+      "assets": "Where vanilla assets come from, resource pack order, and the thumbnail cache.",
+      "folders": "Where new projects are saved and where exports go. Folders can only be picked in the system folder dialog.",
+      "general": "Interface language and the first-run setup.",
+      "shortcuts": "Click the key next to a command to record a new shortcut. Press Esc to cancel recording.",
+      "appearance": "Theme and motion. Changes apply right away."
+    },
+    "onboarding": {
+      "hint": "Go through language, theme, assets and folders again. Your current choices are kept.",
+      "rerun": "Run setup again",
+      "button": "Run setup",
+      "title": "First-run setup"
+    },
+    "assetsStack": "Resource stack",
+    "folders": {
+      "choose": "Choose…",
+      "problems": {
+        "missing": "This folder can’t be found (maybe an external drive isn’t connected). {{fallback}}",
+        "readonly": "This folder can’t be written to right now. {{fallback}}"
+      },
+      "export": {
+        "unset": "Not set (you’ll be asked on the first export)",
+        "hint": "Exports are written here; duplicate names get a number.",
+        "fallback": "Exporting will ask you to pick another folder first.",
+        "label": "Export folder"
+      },
+      "project": {
+        "fallback": "Saving falls back to the system default location.",
+        "unset": "Not set (system default location)",
+        "hint": "Save and Save As for new projects start here.",
+        "label": "Default project folder"
+      },
+      "chooseErrors": {
+        "missing": "This folder can’t be found. Choose another one.",
+        "readonly": "This folder can’t be written to. Choose another one."
+      },
+      "reset": "Clear this folder"
+    },
+    "themeHints": {
+      "dark": "Dark gray panels for long editing sessions",
+      "light": "Light gray panels for bright rooms"
+    },
+    "projectOutput": "Current project output",
+    "cacheTitle": "Cache",
+    "projectOutputHint": "Resolution and frame rate are saved in the project file and are the same as the Output tab in the properties panel. New projects start at 1920 × 1080, 60 fps.",
+    "encoderTitle": "Encoders",
+    "reducedMotionHint": "Turns off interface transitions; the mascot is shown still.",
+    "motionTitle": "Motion"
   },
   "shortcuts": {
     "keys": {
@@ -520,7 +624,8 @@
       "exportTaskGet": "Get export task",
       "exportTaskCancel": "Cancel export task",
       "projectOpenAssociated": "Open project from file",
-      "templatesInstallAssociated": "Install template from file"
+      "templatesInstallAssociated": "Install template from file",
+      "onboarding": "First-run setup"
     }
   },
   "editor": {
@@ -801,5 +906,77 @@
     "copy": "Copy diagnostics",
     "copied": "Diagnostics copied",
     "copyFailed": "Could not copy"
+  },
+  "onboarding": {
+    "assets": {
+      "local": {
+        "using": "Already using the installed game.",
+        "found": "Use Minecraft {{version}} on this computer",
+        "detail": "No Minecraft: Java Edition installation was found. You can point to the game folder (.minecraft) yourself.",
+        "title": "Use the game installed on this computer",
+        "foundDetail": "Found in {{dir}}. Read locally only; nothing is copied, uploaded or changed."
+      },
+      "summaryDownloading": "Downloading vanilla assets",
+      "summaryActive": "Vanilla assets {{version}}",
+      "download": {
+        "title": "Download vanilla assets",
+        "consent": "Clicking Start download means you agree to download from these three hosts as described above.",
+        "start": "Start download",
+        "detail": "About 45 MB from Mojang’s official servers. Nothing is downloaded until you click Start download."
+      },
+      "later": {
+        "title": "Decide later",
+        "detail": "Go without vanilla assets for now; missing textures show as placeholders. Add them later from the assets button in the top bar or in Settings."
+      },
+      "summaryNone": "No vanilla assets yet",
+      "active": "Using vanilla assets {{version}}",
+      "summaryLater": "Decide later"
+    },
+    "steps": {
+      "language": {
+        "name": "Language",
+        "title": "Choose the interface language",
+        "body": "Applies right away. “Follow system” follows your Windows display language."
+      },
+      "done": {
+        "name": "Done",
+        "body": "Here’s what you chose. Click Start editing to open the editor.",
+        "title": "All set"
+      },
+      "assets": {
+        "name": "Assets",
+        "title": "Where vanilla textures and sounds come from",
+        "body": "Templates draw blocks, items and text with Minecraft’s vanilla textures and sounds. This app doesn’t ship those files: download them from Mojang’s official servers, or read them from the game installed on this computer."
+      },
+      "appearance": {
+        "title": "Choose a theme",
+        "body": "Both themes have the same layering and contrast, only lighter or darker. If you’d rather skip transitions, turn on reduced motion below.",
+        "name": "Appearance"
+      },
+      "folders": {
+        "name": "Folders",
+        "body": "You can leave these unset: projects are saved to the system default location, and you’ll be asked on the first export.",
+        "title": "Where projects and exports go"
+      }
+    },
+    "folderDefault": {
+      "export": "Ask on export",
+      "project": "System default"
+    },
+    "language": {
+      "sample": "Pick, tweak, export",
+      "systemDetail": "Follow system ({{language}})"
+    },
+    "skipAll": "Skip setup",
+    "stepsLabel": "Setup steps",
+    "intro": "A minute to settle a few things. Every step can be skipped and changed later in Settings.",
+    "welcome": "Welcome to {{name}}",
+    "reducedMotionOn": "Reduced motion",
+    "finish": "Start editing",
+    "changeLater": "You can change all of this in Settings, or run this setup again from the Help menu.",
+    "skip": "Skip this step",
+    "back": "Back",
+    "eyebrow": "First-run setup",
+    "next": "Continue"
   }
 }
