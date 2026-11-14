@@ -456,7 +456,7 @@ async function ensureVoxelAllay(page: Page): Promise<void> {
   expect(ok).toBe(true);
 }
 
-test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首屏拼成体素悦灵（没有原版贴图时散成细尘、带路悦灵照常），到剪辑点、开源、页尾各重组成一件（字标对齐 DOM、字仍在只变透明），停手后落定', async () => {
+test('T-WEB-16 画布：全页一块共用的 3D 方块世界，背景方块在首屏可见；首屏拼成体素悦灵（没有原版贴图时不拼、带路悦灵照常），剪辑点、开源各拼出一件，页尾字标由方块拼好（字仍在只变透明），停手后落定', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   const world = page.getByTestId('world');
@@ -464,6 +464,10 @@ test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首�
   expect(await world.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
   expect(await world.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
   expect(Number(await world.getAttribute('data-instances'))).toBeGreaterThan(3000);
+  // 背景的方块（用户说“挺不错”的那一版）还在：首屏能看到能抓的方块
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 20_000 });
+  const visibleBlocks = await page.evaluate(() => (window as unknown as { __siteWorld: { blocks: () => unknown[] } }).__siteWorld.blocks().length);
+  expect(visibleBlocks).toBeGreaterThan(0);
   // 没有原版悦灵贴图：不拿近似的颜色凑，首屏散成细尘，带路的悦灵照常飞到首屏的锚点
   await expect(world).toHaveAttribute('data-allay-voxels', /ready|missing/, { timeout: 20_000 });
   if ((await world.getAttribute('data-allay-voxels')) === 'missing') {
@@ -484,10 +488,9 @@ test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首�
     await expect(world).toHaveAttribute('data-form', form, { timeout: 5000 });
     await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 5000 });
   }
-  // 页尾：字标由方块拼好（DOM 里的字仍在，只变透明）
+  // 页尾：字标由背景的方块拼好（DOM 里的字仍在，只变透明）
   const mark = page.locator('[data-voxel-wordmark]');
   await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
-  await expect(world).toHaveAttribute('data-form', 'word', { timeout: 5000 });
   await expect(mark).toHaveAttribute('data-voxel-ready', 'true', { timeout: 5000 });
   expect((await mark.textContent())?.trim().length).toBeGreaterThan(0);
   await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
@@ -537,12 +540,95 @@ test('T-WEB-17 体素雕塑能玩（真实的鼠标输入）：划过拨开方�
   await page.mouse.up();
   expect(await page.evaluate(() => document.documentElement.dataset.worldDrag)).toBe('false');
   await expect.poll(async () => Math.abs((await yaw()) - yaw0), { timeout: 4000 }).toBeLessThan(0.4);
-  // 点在字上不放冲击波；点在标题盒子右边的空白处放
+  // 点在字上不放冲击波；点在空白处（雕塑的框里，背景方块给它让了位）放
   const h1 = (await page.locator('h1').first().boundingBox())!;
   await page.mouse.click(h1.x + 30, h1.y + 30);
   expect(await shocks()).toBe(n0 + 1);
-  await page.mouse.click(box.x - 30, cy);
+  await page.mouse.click(box.x + 12, box.y + box.height - 12);
   expect(await shocks()).toBe(n0 + 2);
+});
+
+test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到另一块旁边像磁铁一样贴成一组、拖其中一块另一块随动、双击弹出一块；正文的点击和选中不受影响；拖动中滚轮照常滚页面', async () => {
+  const { page } = s;
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  const world = page.getByTestId('world');
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 20_000 });
+  type Blk = { id: number; x: number; y: number; r: number; group: number | null; size: number };
+  type SW = { blocks: () => Blk[]; groupOf: (id: number) => { id: number; size: number } | null; pos: (id: number) => { x: number; y: number } | null };
+  const blocks = () => page.evaluate(() => (window as unknown as { __siteWorld: SW }).__siteWorld.blocks());
+  const groupOf = (id: number) => page.evaluate((i) => (window as unknown as { __siteWorld: SW }).__siteWorld.groupOf(i), id);
+  const pos = (id: number) => page.evaluate((i) => (window as unknown as { __siteWorld: SW }).__siteWorld.pos(i), id);
+  const html = page.locator('html');
+  // 挑两块露在空白处、彼此离得开的方块
+  const free = (await blocks()).filter((b) => b.group === null).sort((a, b) => b.r - a.r);
+  expect(free.length).toBeGreaterThanOrEqual(2);
+  const A = free[0]!;
+  const B = free.find((b) => Math.hypot(b.x - A.x, b.y - A.y) > (A.r + b.r) * 2)!;
+  expect(B).toBeTruthy();
+  // 按住 A：没移动之前不算拖；移动超过几像素开始拖，光标是“抓紧”
+  await page.mouse.move(A.x, A.y);
+  await page.mouse.down();
+  await expect(html).not.toHaveAttribute('data-world-drag', 'true');
+  const tx = B.x - B.r * 2;
+  for (let i = 1; i <= 20; i++) {
+    await page.mouse.move(A.x + ((tx - A.x) * i) / 20, A.y + ((B.y - A.y) * i) / 20);
+    await page.waitForTimeout(25);
+  }
+  await expect(html).toHaveAttribute('data-world-drag', 'true');
+  // 靠近以后被吸过去，贴成一组（同一个组、两块）
+  await expect.poll(async () => { const ga = await groupOf(A.id); const gb = await groupOf(B.id); return !!ga && !!gb && ga.id === gb.id ? ga.size : 0; }, { timeout: 3000 }).toBe(2);
+  // 拖着整组到空白处松手：留在那里，不弹回原位
+  await page.mouse.move(470, 815, { steps: 12 });
+  await page.waitForTimeout(250);
+  await page.mouse.up();
+  await expect(html).toHaveAttribute('data-world-drag', 'false');
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  const a1 = (await pos(A.id))!;
+  const b1 = (await pos(B.id))!;
+  expect(Math.hypot(b1.x - B.x, b1.y - B.y)).toBeGreaterThan(80);
+  // 拖其中另一块（B）：A 跟着走同样的距离
+  await page.mouse.move(b1.x, b1.y);
+  await page.mouse.down();
+  await page.mouse.move(b1.x + 110, b1.y - 60, { steps: 10 });
+  await page.waitForTimeout(350);
+  const a2 = (await pos(A.id))!;
+  const b2 = (await pos(B.id))!;
+  expect(Math.hypot(b2.x - b1.x, b2.y - b1.y)).toBeGreaterThan(60);
+  expect(Math.hypot(a2.x - a1.x - (b2.x - b1.x), a2.y - a1.y - (b2.y - b1.y))).toBeLessThan(40);
+  await page.mouse.up();
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  // 双击一块：从组里弹出去，组变小
+  const before = (await groupOf(A.id))!.size;
+  const target = (await pos(A.id))!;
+  await page.mouse.dblclick(target.x, target.y);
+  await expect.poll(async () => { const ga = await groupOf(A.id); const gb = await groupOf(B.id); return ga?.id !== gb?.id || (ga?.size ?? 0) < before; }, { timeout: 2000 }).toBe(true);
+  // 正文：三击选中一段文字，不敲碎方块、不开始拖
+  const breaks = await world.getAttribute('data-breaks');
+  const pb = await page.evaluate(() => {
+    const el = [...document.querySelectorAll('main p')].find((e) => {
+      const r = e.getBoundingClientRect();
+      return r.top > 80 && r.bottom < innerHeight - 20 && (e.textContent ?? '').length > 40;
+    })!;
+    const r = el.getBoundingClientRect();
+    return { x: r.left, y: r.top };
+  });
+  await page.mouse.click(pb.x + 30, pb.y + 8, { clickCount: 3 });
+  expect((await page.evaluate(() => getSelection()?.toString() ?? '')).length).toBeGreaterThan(10);
+  expect(await world.getAttribute('data-breaks')).toBe(breaks);
+  await page.evaluate(() => getSelection()?.removeAllRanges());
+  // 拖动中滚轮：页面照常滚，拖的方块还在手上
+  const C = (await blocks()).sort((a, b) => b.r - a.r)[0]!;
+  await page.mouse.move(C.x, C.y);
+  await page.mouse.down();
+  await page.mouse.move(C.x - 20, C.y + 8, { steps: 4 });
+  await expect(html).toHaveAttribute('data-world-drag', 'true');
+  const y0 = await page.evaluate(() => window.scrollY);
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 3000 }).toBeGreaterThan(y0 + 200);
+  await expect(html).toHaveAttribute('data-world-drag', 'true');
+  await page.mouse.up();
+  await expect(html).toHaveAttribute('data-world-drag', 'false');
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
 
 test('T-WEB-14 文案不强调模板数量；开发者三张真实头像都是自托管的图片', async () => {
