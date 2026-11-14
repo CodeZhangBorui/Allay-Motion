@@ -10,6 +10,8 @@ import type { TemplateEntry } from '../../../../desktop/src/shared/templates';
 import { builtinEntries, defaultDuration } from '../../host/templates';
 import { SECTION } from '../links';
 import { usePrefs } from '../prefs';
+import { AllayLoader } from '@allay/mascot';
+import { BlockSkeleton } from '../motion/BlockSkeleton';
 import { PixelReveal } from '../motion/PixelReveal';
 import { Section, SectionHead } from './Section';
 import { requestOpenTemplate } from './SimulatorSection';
@@ -28,26 +30,41 @@ function useCovers(entries: TemplateEntry[], anchor: React.RefObject<HTMLElement
     if (!el) return;
     let off: (() => void) | null = null;
     let alive = true;
-    const io = new IntersectionObserver(
-      (es) => {
-        if (!es.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        void (async () => {
-          const rt = await import('../engine/runtime');
-          await rt.ensureRuntime();
-          if (!alive) return;
-          setKeyOf(() => (e: TemplateEntry) => rt.coverKey(e.id, e.version));
-          setCovers(rt.useCoverStore.getState().covers);
-          off = rt.useCoverStore.subscribe((s) => setCovers(s.covers));
-          if (rt.hasWebgl2()) rt.covers.ensure(entries);
-        })();
-      },
-      { rootMargin: '600px 0px' },
-    );
+    let started = false;
+    let idle = 0;
+    let timer = 0;
+    const start = () => {
+      if (started) return;
+      started = true;
+      io.disconnect();
+      void (async () => {
+        const rt = await import('../engine/runtime');
+        await rt.ensureRuntime();
+        if (!alive) return;
+        setKeyOf(() => (e: TemplateEntry) => rt.coverKey(e.id, e.version));
+        setCovers(rt.useCoverStore.getState().covers);
+        off = rt.useCoverStore.subscribe((s) => setCovers(s.covers));
+        if (rt.hasWebgl2()) rt.covers.ensure(entries);
+      })();
+    };
+    // 不等滚到这里：页面空闲下来就开始渲染（杂务 Worker 一个模板一个模板地排队，不和首屏抢），
+    // 访客滚到这里时多半已经好了；滚得快的话，离视口 1200 px 时也会开始
+    const io = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && start(), { rootMargin: '1200px 0px' });
     io.observe(el);
+    const onLoad = () => {
+      timer = window.setTimeout(() => {
+        if ('requestIdleCallback' in window) idle = window.requestIdleCallback(start, { timeout: 2500 });
+        else start();
+      }, 800);
+    };
+    if (document.readyState === 'complete') onLoad();
+    else window.addEventListener('load', onLoad, { once: true });
     return () => {
       alive = false;
       io.disconnect();
+      window.removeEventListener('load', onLoad);
+      window.clearTimeout(timer);
+      if (idle) window.cancelIdleCallback(idle);
       off?.();
     };
   }, [entries, anchor]);
@@ -106,16 +123,27 @@ function TemplateCardBig({ entry, cover, pending }: { entry: TemplateEntry; cove
   const category = t(`gallery.categories.${m.category}`);
   const visibleParams = m.params?.length ?? 0;
   return (
-    <article className="site-card group flex flex-col overflow-hidden" data-testid="template-card" data-template={entry.id}>
+    <article
+      className="site-card site-lift group flex h-full flex-col overflow-hidden"
+      data-testid="template-card"
+      data-template={entry.id}
+    >
       <div className="p-2">
         <div className="preview-checker relative aspect-video overflow-hidden rounded-[9px]">
-          {cover ? (
-            <SheetPlayer cover={cover} label={name} />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-[12px] text-fg-subtle" aria-busy={pending}>
-              {cover === null ? t('site.templates.failed') : t('site.templates.rendering')}
-            </div>
-          )}
+          <div className="absolute inset-0 transition-transform duration-[600ms] ease-(--ease-out) group-hover:scale-[1.04]">
+            {cover ? (
+              // 封面到了：从骨架像素溶解到真实的帧
+              <PixelReveal bg="--skeleton" variant="dissolve" immediate cell={12} duration={520} className="absolute inset-0">
+                <SheetPlayer cover={cover} label={name} />
+              </PixelReveal>
+            ) : cover === null ? (
+              <div className="absolute inset-0 flex items-center justify-center text-[12px] text-fg-subtle">{t('site.templates.failed')}</div>
+            ) : (
+              <div className="absolute inset-0" aria-busy={pending} aria-label={t('site.templates.rendering')} role="img">
+                <BlockSkeleton className="absolute inset-0 size-full" />
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex flex-1 flex-col px-5 pt-3 pb-5">
@@ -129,11 +157,11 @@ function TemplateCardBig({ entry, cover, pending }: { entry: TemplateEntry; cove
         <button
           type="button"
           onClick={() => requestOpenTemplate(entry.id, entry.version)}
-          className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-md text-[13px] font-medium text-primary-text hover:underline"
+          className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-md text-[13px] font-medium text-primary-text"
           data-testid="template-open"
         >
           {t('site.templates.openInSim')}
-          <ArrowRight size={14} />
+          <ArrowRight size={14} className="transition-transform duration-(--dur-2) ease-(--ease-out) group-hover:translate-x-1" />
         </button>
       </div>
     </article>
@@ -145,10 +173,19 @@ export function TemplatesSection() {
   const entries = useMemo(() => builtinEntries(), []);
   const grid = useRef<HTMLDivElement>(null);
   const { covers, keyOf } = useCovers(entries, grid);
+  const pendingCount = entries.filter((e) => {
+    const k = keyOf(e);
+    return !k || !(k in covers);
+  }).length;
   return (
     <Section id={SECTION.templates} tone="alt">
       <SectionHead tone="alt" kicker={t('site.templates.kicker')} title={t('site.templates.title', { count: entries.length })} lead={t('site.templates.lead')} />
-      <div ref={grid} className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div ref={grid} className="relative mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="pointer-events-none absolute inset-0 z-10" aria-hidden={pendingCount === 0}>
+          <AllayLoader loading={pendingCount > 0} label={t('site.templates.rendering')} priority="gallery" className="size-full">
+            <div />
+          </AllayLoader>
+        </div>
         {entries.map((e, i) => {
           const key = keyOf(e);
           return (

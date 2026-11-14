@@ -153,7 +153,7 @@ export function PixelReveal({ children, bg, variant = 'dissolve', cell = 10, dur
 
   const covering = phase === 'covered';
   return (
-    <div ref={wrap} className={`relative ${className ?? ''}`}>
+    <div ref={wrap} className={`${className?.includes('absolute') ? '' : 'relative '}${className ?? ''}`}>
       {children}
       {covering && <canvas ref={canvasRef} aria-hidden="true" data-reveal="" className="pointer-events-none absolute inset-0 h-full w-full" />}
     </div>

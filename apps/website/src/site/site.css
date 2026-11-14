@@ -207,3 +207,22 @@
 .site-scroll-x::-webkit-scrollbar {
   display: none;
 }
+
+/* 悬停时卡片微微浮起：真正“浮起”的东西才有阴影（06 6.1），缓动沿用应用的 --ease-out */
+.site-lift {
+  transition:
+    transform 320ms var(--ease-out),
+    box-shadow 320ms var(--ease-out);
+}
+@media (hover: hover) {
+  .site-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-float);
+  }
+}
+[data-reduced-motion='true'] .site-lift {
+  transition: none;
+}
+[data-reduced-motion='true'] .site-lift:hover {
+  transform: none;
+}
