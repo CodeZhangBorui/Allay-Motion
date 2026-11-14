@@ -36,6 +36,10 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
 
+      # Electron 45 没有 postinstall，二进制在第一次用时才下载；先取好，免得并行的测试同时去启动一个还在下载的 Electron
+      - name: 取 Electron 二进制
+        run: pnpm exec tsx scripts/ensure-electron-dist.ts
+
       # 固定版本的 FFmpeg，校验 SHA-256（scripts/ffmpeg-build.ts）；test:export、e2e 都要用
       - name: pnpm ffmpeg:fetch
         run: pnpm ffmpeg:fetch
@@ -73,6 +77,10 @@ jobs:
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
+
+      # Electron 45 没有 postinstall，二进制在第一次用时才下载；先取好，免得并行的测试同时去启动一个还在下载的 Electron
+      - name: 取 Electron 二进制
+        run: pnpm exec tsx scripts/ensure-electron-dist.ts
 
       - name: pnpm ffmpeg:fetch
         run: pnpm ffmpeg:fetch
