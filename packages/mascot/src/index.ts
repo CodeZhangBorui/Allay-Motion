@@ -11,6 +11,6 @@ export { AllayDelivery, DELIVERY_MS, type AllayDeliveryProps } from './AllayDeli
 export { useReducedMotion, isReducedMotion } from './reduced';
 export { MASCOT_PRIORITY, MascotSlotHeld, MascotStage, mascotClaimCount, useMascotSlot, type MascotPriority } from './stage';
 export { mascotFrameStats, resetMascotFrameStats, type MascotFrameStats } from './ticker';
-export { AtlasJsonSchema, mascotAssets, whenMascotAssetsSettled, pickSheetSize, pickHeadSize, type MascotAssets } from './assets';
+export { AtlasJsonSchema, declareMascotAssetsMissing, mascotAssets, whenMascotAssetsSettled, pickSheetSize, pickHeadSize, type MascotAssets } from './assets';
 export { LoaderTimeline, LOADER_DELAY, LOADER_EXIT_MS, LOADER_EXIT_REDUCED_MS, LOADER_MIN_VISIBLE, type Clock, type LoaderPhase } from './timing';
 export { enterPose, flightPose, flightSize, ENTER_MS, type FlightPose } from './flight';

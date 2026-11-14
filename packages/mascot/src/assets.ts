@@ -55,6 +55,16 @@ function start(): void {
   })();
 }
 
+/**
+ * 宿主声明“这里没有烘焙产物”：不去读 mascot/，组件直接用 CSS 占位实现。
+ * 给官网用（产物是原版贴图的派生图像，不随官网分发，docs/decisions.md 官网）；桌面应用不调用它，行为不变。
+ * 要在任何悦灵组件渲染之前调用。
+ */
+export function declareMascotAssetsMissing(): void {
+  started = true;
+  set({ status: 'missing' });
+}
+
 function subscribe(fn: () => void): () => void {
   start();
   listeners.add(fn);
