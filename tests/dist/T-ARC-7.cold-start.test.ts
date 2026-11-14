@@ -24,6 +24,11 @@ const EXE = join(ROOT, 'apps/desktop/release/win-unpacked/AllayMotion.exe');
 const HIDDEN_DESKTOP = join(ROOT, 'scripts/hidden-desktop.ps1');
 const RUNS = 5;
 const SPLASH_BUDGET_MS = 500;
+/**
+ * 只记数字、不按预算判定（docs/decisions.md M8）：发版工作流在 GitHub 的共享 Windows 机器上跑，它不是规格说的参考机器，
+ * 速度也不稳定。只有那里设这个变量；本机或参考机器上跑 pnpm dist 时照常按预算判定。
+ */
+const REPORT_ONLY = process.env.ALLAY_T_ARC_7_REPORT_ONLY === '1';
 const INTERACTIVE_BUDGET_MS = 3000;
 
 const APPDATA = process.env.APPDATA ?? '';
@@ -87,6 +92,12 @@ describe.runIf(process.platform === 'win32')('T-ARC-7 打包后的冷启动', ()
     }
     const table = runs.map((r, i) => `  #${i + 1}${i === 0 ? '（第一次启动）' : ''}：系统装载 ${r.loaderMs} ms，启动画面 ${r.splashMs} ms（进程启动后 ${r.splashFromStartMs} ms），可交互 ${r.interactiveMs} ms`).join('\n');
     console.log(`T-ARC-7 冷启动（从 CreateProcess 算起）：\n${table}\n  中位数：启动画面 ${median(runs.map((r) => r.splashMs))} ms（进程启动后 ${median(runs.map((r) => r.splashFromStartMs))} ms），可交互 ${median(runs.map((r) => r.interactiveMs))} ms`);
+    // 每次都要量出完整的时间线（启动画面、界面就绪、主窗口显示），量不出来就是应用没起来，照样失败
+    expect(runs).toHaveLength(RUNS);
+    if (REPORT_ONLY) {
+      console.log('T-ARC-7：ALLAY_T_ARC_7_REPORT_ONLY=1（CI 的共享机器不是参考机器），只记数字，不按预算判定');
+      return;
+    }
     for (const r of runs) expect(r.interactiveMs, table).toBeLessThan(INTERACTIVE_BUDGET_MS);
     expect(median(runs.map((r) => r.splashFromStartMs)), table).toBeLessThan(SPLASH_BUDGET_MS);
   }, 180_000);
