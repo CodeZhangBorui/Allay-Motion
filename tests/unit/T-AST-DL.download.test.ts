@@ -148,6 +148,8 @@ describe('T-AST-DL 运行时下载客户端 jar', () => {
     const got = await dl.downloadLatest({ onProgress: (p) => phases.add(p.phase) });
     expect(got.versionId).toBe('fx-9');
     expect(phases).toEqual(new Set(['manifest', 'version', 'jar', 'index']));
+    // 每次上报都能过 schema（DownloadTracker 只收合法的）
+
     expect(files(cacheDir())).toEqual(['indexes/fx.json', 'versions/fx-9/client.jar', 'versions/fx-9/version.json']);
     // 下载缓存当作原版层打开；音效对象不在本地，按需取
     const layer = await openVanillaLayer(got, { fetchObject: (h, s) => dl.fetchObject(h, s) });

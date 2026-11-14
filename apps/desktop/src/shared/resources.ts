@@ -44,12 +44,60 @@ export interface VanillaState {
   problem: 'missing' | 'jar-unreadable' | null;
 }
 
-export type DownloadErrorKind = 'network' | 'verify' | 'disk' | 'unknown';
+export const DOWNLOAD_ERROR_KINDS = ['network', 'verify', 'disk', 'unknown'] as const;
+export type DownloadErrorKind = (typeof DOWNLOAD_ERROR_KINDS)[number];
 
-export type DownloadState =
-  | { status: 'idle' }
-  | { status: 'running'; phase: 'manifest' | 'version' | 'jar' | 'index' | 'object'; received: number; total: number | null }
-  | { status: 'failed'; error: DownloadErrorKind };
+// ---- 下载原版资源的进度（docs/06-ui-design.md 6.12、docs/decisions.md 界面增强）----
+// 五个阶段按顺序走，各有自己的状态；整体进度按字节算（jar、资源索引、音效对象），只增不减，成功之前不到 100%。
+// 主进程算好，经 resources:changed 推给渲染进程；渲染进程收到时用 DownloadStateSchema 校验。
+
+/** 取版本清单 → 下载客户端 jar → 提取资源（资源索引、读 jar 的条目目录）→ 取常用音效 → 建立资源栈（完成） */
+export const DOWNLOAD_STAGES = ['manifest', 'jar', 'extract', 'sounds', 'finalize'] as const;
+export const DownloadStageSchema = z.enum(DOWNLOAD_STAGES);
+export type DownloadStage = z.infer<typeof DownloadStageSchema>;
+
+export const STAGE_STATUSES = ['pending', 'active', 'done', 'failed', 'canceled'] as const;
+export type StageStatus = (typeof STAGE_STATUSES)[number];
+
+/** 当前在做什么（界面上的一行字） */
+export const DOWNLOAD_ACTIVITIES = ['manifest', 'version', 'jar', 'jar-cached', 'index', 'scan', 'sounds-list', 'sounds', 'stack', 'done'] as const;
+export type DownloadActivity = (typeof DOWNLOAD_ACTIVITIES)[number];
+
+const Bytes = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+
+export const DownloadProgressViewSchema = z.strictObject({
+  stage: DownloadStageSchema,
+  stages: z
+    .array(z.strictObject({ id: DownloadStageSchema, status: z.enum(STAGE_STATUSES), received: Bytes, total: Bytes.nullable() }))
+    .length(DOWNLOAD_STAGES.length)
+    .refine((list) => list.every((s, i) => s.id === DOWNLOAD_STAGES[i]), 'stages out of order'),
+  /** 整体：已收到的字节（含已缓存、跳过的文件）和目前已知的总字节；版本 JSON 读到之前总数未知 */
+  received: Bytes,
+  total: Bytes.nullable(),
+  /** 0–1，只增不减；完成之前最多 0.99 */
+  fraction: z.number().min(0).max(1),
+  /** 最近约 3 秒的平均速度（字节/秒）；数据不够时为 null */
+  bytesPerSecond: z.number().nonnegative().finite().nullable(),
+  /** 剩下的字节按当前速度还要多少秒；不知道时为 null */
+  etaSeconds: z.number().nonnegative().finite().nullable(),
+  /** 读到版本 JSON 之后才有 */
+  versionId: z.string().max(64).nullable(),
+  activity: z.enum(DOWNLOAD_ACTIVITIES),
+  /** 音效阶段：第几个文件 / 一共几个 */
+  items: z.strictObject({ done: z.number().int().nonnegative(), total: z.number().int().nonnegative() }).nullable(),
+});
+export type DownloadProgressView = z.infer<typeof DownloadProgressViewSchema>;
+
+export const DownloadStateSchema = z.discriminatedUnion('status', [
+  z.strictObject({ status: z.literal('idle') }),
+  z.strictObject({ status: z.literal('running'), progress: DownloadProgressViewSchema }),
+  /** 成功：留着最后的进度，直到下一次下载（引导页用它显示“完成”） */
+  z.strictObject({ status: z.literal('done'), progress: DownloadProgressViewSchema }),
+  /** 失败、取消：progress.stage 是停下的那一步，那一步的状态是 failed / canceled */
+  z.strictObject({ status: z.literal('failed'), error: z.enum(DOWNLOAD_ERROR_KINDS), progress: DownloadProgressViewSchema }),
+  z.strictObject({ status: z.literal('canceled'), progress: DownloadProgressViewSchema }),
+]);
+export type DownloadState = z.infer<typeof DownloadStateSchema>;
 
 export interface ResourceState {
   /** 资源栈指纹（3.2）：变了，引擎缓存和缩略图缓存一起失效 */
