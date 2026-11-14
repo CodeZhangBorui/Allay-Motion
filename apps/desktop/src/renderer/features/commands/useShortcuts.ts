@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
-import { commandEnabled, getCommand, trigger, useRegistry } from '../../app/registry';
-import { SHORTCUT_ALIASES, stepFrames } from './commands';
+import { shortcutFromEvent } from '../../../shared/shortcuts';
+import { commandEnabled, getCommand, trigger } from '../../app/registry';
+import { stepFrames } from './commands';
+import { commandForShortcut } from './shortcutState';
+import { useUiStore } from '../../stores/uiStore';
 
-// 全局快捷键（6.7）：按注册表里各命令的 shortcut 匹配（核心命令和可选模块的命令一样）。
+// 全局快捷键（6.7）：按各命令生效的快捷键匹配（默认值加设置里的自定义，6.11；核心命令和可选模块的命令一样），
+// 执行一律经 dispatcher（trigger）。
 // 焦点在文本输入框里时，单字母和空格快捷键不生效；已经被控件处理过的按键（defaultPrevented，
 // 例如数字框和时间轴自己的方向键）不再处理。逐帧的左右方向键不是命令，在这里直接处理。
 
@@ -24,30 +28,13 @@ function inOverlay(el: Element | null): boolean {
   return !!el?.closest('[role="dialog"], [role="menu"], [role="listbox"], [data-slot="popover-content"]');
 }
 
-const KEY_NAMES: Record<string, string> = { Comma: ',', Period: '.', Slash: '/', Space: 'Space', Home: 'Home', End: 'End', Escape: 'Esc' };
-
-/** 按键 → 快捷键写法（'Ctrl+Shift+Z'、'Space'、'L'）；认不出的键返回 null */
-export function shortcutOf(e: Pick<KeyboardEvent, 'code' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>): string | null {
-  let k: string | undefined;
-  if (/^Key[A-Z]$/.test(e.code)) k = e.code.slice(3);
-  else if (/^Digit\d$/.test(e.code)) k = e.code.slice(5);
-  else if (/^F\d{1,2}$/.test(e.code)) k = e.code;
-  else k = KEY_NAMES[e.code];
-  if (!k) return null;
-  return [e.ctrlKey || e.metaKey ? 'Ctrl' : '', e.altKey ? 'Alt' : '', e.shiftKey ? 'Shift' : '', k].filter(Boolean).join('+');
-}
-
-/** 某个快捷键对应的命令 id */
-export function commandForShortcut(shortcut: string): string | undefined {
-  const alias = SHORTCUT_ALIASES[shortcut];
-  if (alias) return alias;
-  return Object.values(useRegistry.getState().commands).find((c) => c.shortcut === shortcut)?.id;
-}
-
 export function useShortcuts(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing) return;
+      // 首次启动引导开着时主界面的快捷键都不生效（6.10）
+      const ui = useUiStore.getState();
+      if (ui.onboardingOpen || !ui.settings.onboardingCompleted) return;
       const target = document.activeElement;
       const ctrl = e.ctrlKey || e.metaKey;
       if (!ctrl && !e.altKey) {
@@ -60,7 +47,7 @@ export function useShortcuts(): void {
         }
         if (e.code === 'Space' && isActivatable(target)) return;
       }
-      const shortcut = shortcutOf(e);
+      const shortcut = shortcutFromEvent(e);
       if (!shortcut) return;
       const id = commandForShortcut(shortcut);
       const cmd = id ? getCommand(id) : undefined;

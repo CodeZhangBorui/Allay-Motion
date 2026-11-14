@@ -18,7 +18,7 @@ import { useStore } from 'zustand';
 import { useTranslation } from 'react-i18next';
 import { EXPORT_PRESETS } from '../../shared/export';
 import { ExportFormatItems } from '../features/export/ExportFormatMenu';
-import { shortcutLabel } from '../features/commands/commands';
+import { shortcutLabel, useShortcutFor } from '../features/commands/shortcutState';
 import { ResourceButton } from '../features/resources/ResourceButton';
 import { usePreviewStore } from '../stores/previewStore';
 import { isDirty, redo, undo, useProjectStore } from '../stores/projectStore';
@@ -44,12 +44,13 @@ function RegistryMenuItem({ item }: { item: MenuItemDef }) {
   const command = useRegistry((s) => (item.command ? s.commands[item.command] : undefined));
   // 可用条件依赖撤销历史等状态：订阅一下，让菜单打开时是最新的
   useStore(useProjectStore.temporal, (s) => s.pastStates.length + s.futureStates.length);
+  const shortcut = useShortcutFor(item.command ?? '');
   if (item.component) return <item.component />;
   if (!command) return null;
   return (
     <DropdownMenuItem onClick={() => trigger(command.id, item.input)} data-testid={item.testId} disabled={!commandEnabled(command)}>
       {t(item.titleKey ?? command.titleKey)}
-      {command.shortcut && item.input === undefined && <DropdownMenuShortcut>{shortcutLabel(command.shortcut)}</DropdownMenuShortcut>}
+      {shortcut && item.input === undefined && <DropdownMenuShortcut>{shortcutLabel(shortcut)}</DropdownMenuShortcut>}
     </DropdownMenuItem>
   );
 }
@@ -76,12 +77,14 @@ function RegistryMenu({ id, titleKey, testId }: { id: MenuId; titleKey: string; 
   );
 }
 
-function IconButton({ label, shortcut, ...props }: { label: string; shortcut: string } & Parameters<typeof Button>[0]) {
+/** 带工具提示的图标按钮；提示里的快捷键取自命令生效的快捷键（6.11） */
+function IconButton({ label, command, ...props }: { label: string; command: string } & Parameters<typeof Button>[0]) {
+  const shortcut = useShortcutFor(command);
   return (
     <Tooltip>
       <TooltipTrigger render={<Button variant="ghost" size="icon" className="app-no-drag" aria-label={label} {...props} />} />
       <TooltipContent side="bottom">
-        {label} <span className="num text-fg-subtle">{shortcut}</span>
+        {label} {shortcut && <span className="num text-fg-subtle">{shortcutLabel(shortcut)}</span>}
       </TooltipContent>
     </Tooltip>
   );
@@ -156,13 +159,13 @@ export function TopBar() {
       <div data-testid="drag-region" className="h-full min-w-4 flex-1" />
 
       <ResourceButton />
-      <IconButton label={t('topbar.undo')} shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo} data-testid="topbar-undo">
+      <IconButton label={t('topbar.undo')} command="undo" disabled={!canUndo} onClick={undo} data-testid="topbar-undo">
         <ArrowUUpLeft size={ICON.md} />
       </IconButton>
-      <IconButton label={t('topbar.redo')} shortcut="Ctrl+Shift+Z" disabled={!canRedo} onClick={redo} data-testid="topbar-redo">
+      <IconButton label={t('topbar.redo')} command="redo" disabled={!canRedo} onClick={redo} data-testid="topbar-redo">
         <ArrowUUpRight size={ICON.md} />
       </IconButton>
-      <IconButton label={t('topbar.settings')} shortcut="Ctrl+," onClick={() => useUiStore.getState().openDialog('settings', 'general')} data-testid="topbar-settings">
+      <IconButton label={t('topbar.settings')} command="settings" onClick={() => useUiStore.getState().openDialog('settings', 'general')} data-testid="topbar-settings">
         <GearSix size={ICON.md} weight={ICON_WEIGHT.normal} />
       </IconButton>
       <ExportButton />
