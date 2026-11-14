@@ -6,8 +6,10 @@
 // 2. 方舟像素字体（兜底字形，OFL-1.1）以文本打进仿真器的代码块；OFL 要求随字体附带许可全文，
 //    构建时把 resources/fonts/ark-pixel/OFL.txt 原样放进产物的 licenses/ 下。
 import { existsSync, readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
+import { PIXEL_FONT_PATH } from '../src/host/paths';
 import { bundleTemplate, readTemplateManifest, templateDirs } from '../../../scripts/build-templates';
 
 const VIRTUAL = 'virtual:allay-builtin-templates';
@@ -48,6 +50,31 @@ export function websiteMc(): Plugin {
       this.addWatchFile(MC_INDEX);
       const index = JSON.parse(readFileSync(MC_INDEX, 'utf8')) as { gameVersion: string; files: { path: string }[] };
       return `export default ${JSON.stringify({ gameVersion: index.gameVersion, files: index.files.map((f) => f.path) })};`;
+    },
+  };
+}
+
+/**
+ * 兜底像素字体（方舟像素字体的 BDF，原样不改）作为单独的文件随产物发出，不打进 JS：
+ * 只在引擎第一次要它（带文字的模板）时才下载。外面套一层 gzip，不管静态托管会不会压缩 .bdf，下载量都约 560 KB；
+ * 页面里用 DecompressionStream 解开（src/host/browser-host.ts）。
+ */
+export { PIXEL_FONT_PATH };
+const pixelFontGz = () => gzipSync(readFileSync(resolve(ROOT, 'resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf')), { level: 9 });
+
+export function pixelFont(): Plugin {
+  return {
+    name: 'allay-website-pixel-font',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: PIXEL_FONT_PATH, source: pixelFontGz() });
+    },
+    configureServer(server) {
+      let cached: Buffer | null = null;
+      server.middlewares.use(`/${PIXEL_FONT_PATH}`, (_req, res) => {
+        cached ??= pixelFontGz();
+        res.setHeader('content-type', 'application/octet-stream');
+        res.end(cached);
+      });
     },
   };
 }

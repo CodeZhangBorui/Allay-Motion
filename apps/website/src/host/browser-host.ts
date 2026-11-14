@@ -19,6 +19,7 @@ import desktopPackage from '../../../desktop/package.json';
 import type { DesktopOnlyFeature, SiteLanguage } from './bridge';
 import { demoTexture } from './demo-pack';
 import { mcGameVersion, mcTexture } from './mc-pack';
+import { PIXEL_FONT_PATH } from './paths';
 import { builtinBundle, builtinEntries } from './templates';
 
 /** 宿主里给人看的几句话（文案在官网的语言文件里，由调用方传入） */
@@ -86,10 +87,23 @@ function randomHex(bytes: number): string {
 }
 
 let fontTables: Promise<BitmapFontTables | null> | null = null;
-/** 兜底像素字体（方舟像素字体，OFL-1.1，仓库里已登记来源）：第一次要时才加载这个 3.6 MB 的文本 */
+/** 读兜底像素字体：外面是一层 gzip；托管方已经替我们解过（带了 Content-Encoding）时直接当文本 */
+async function loadPixelFont(): Promise<string> {
+  const res = await fetch(new URL(PIXEL_FONT_PATH, document.baseURI));
+  if (!res.ok) throw new Error(`pixel font ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return new TextDecoder().decode(bytes);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Response(stream).text();
+}
+
+/**
+ * 兜底像素字体（方舟像素字体，OFL-1.1，仓库里已登记来源）：一个单独的字体文件，
+ * 只在引擎第一次要它（带文字的模板）时才下载，不在首屏的关键路径上。
+ */
 function fallbackFont(): Promise<BitmapFontTables | null> {
-  fontTables ??= import('../../../../resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf?raw')
-    .then((m) => parseBdf(m.default))
+  fontTables ??= loadPixelFont()
+    .then((text) => parseBdf(text))
     .catch((error: unknown) => {
       console.warn('[web-host] fallback font unavailable', error);
       return null;
