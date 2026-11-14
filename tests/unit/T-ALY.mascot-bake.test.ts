@@ -11,7 +11,7 @@ import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { ALLAY_PARTS } from '../../packages/mascot/model/allay.model';
 import { CLIP_ORDER, CLIPS } from '../../packages/mascot/model/allay.motions';
-import { ATLAS_COLUMNS, ATLAS_SIZES, GENERATED_DIR, GENERATED_FILES, ICO_SIZES, type AtlasJson } from '../../packages/mascot/src/index';
+import { ATLAS_COLUMNS, ATLAS_SIZES, COMMITTED_FILES, GENERATED_DIR, GENERATED_FILES, ICO_SIZES, type AtlasJson } from '../../packages/mascot/src/index';
 import { decodePng, encodePng, type Rgba } from '../../scripts/mascot-bake/png';
 
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -200,14 +200,17 @@ describe('烘焙的确定性', () => {
 describe('T-ALY-7 仓库扫描', () => {
   const git = (...args: string[]) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', windowsHide: true });
 
-  test('packages/mascot 里没有任何提交进仓库的图片文件', () => {
+  // 判定按用户 2026-11-13 的决定再改一次（docs/decisions.md M8）：运行时和打包用到的烘焙产物提交进仓库，
+  // 除此之外 packages/mascot 里没有任何图片；应用图标的各尺寸 PNG 和评审材料仍被忽略
+  test('packages/mascot 里提交的图片只有 generated/ 下约定的那几个烘焙产物', () => {
     const tracked = git('ls-files', '-z', '--', 'packages/mascot').split('\0').filter(Boolean);
-    const images = tracked.filter((f) => /\.(png|apng|jpe?g|gif|webp|bmp|tga|ico|icns|svg|avif)$/i.test(f));
-    expect(images).toEqual([]);
+    const images = tracked.filter((f) => /\.(png|apng|jpe?g|gif|webp|bmp|tga|ico|icns|svg|avif)$/i.test(f)).sort();
+    const allowed = COMMITTED_FILES.filter((f) => !f.endsWith('.json')).map((f) => `packages/mascot/${GENERATED_DIR}/${f}`).sort();
+    expect(images.filter((f) => !allowed.includes(f))).toEqual([]);
   });
 
-  test('烘焙产物和评审材料的目录被 git 忽略', () => {
-    for (const p of [`packages/mascot/${GENERATED_DIR}/allay-288.png`, `packages/mascot/${GENERATED_DIR}/icon.ico`, 'docs/review/M5a/out/mascot-contact-sheet.png']) {
+  test('应用图标的各尺寸 PNG 和评审材料被 git 忽略', () => {
+    for (const p of [`packages/mascot/${GENERATED_DIR}/icon-256.png`, 'docs/review/M5a/out/mascot-contact-sheet.png']) {
       expect(git('check-ignore', '--no-index', p).trim()).toBe(p);
     }
   });

@@ -25,8 +25,9 @@ release/
 *.7z
 
 # ---- 悦灵的烘焙产物（原版贴图的派生图像）----
-# 由 pnpm mascot:bake 重新生成，不提交（docs/decisions.md M5a）
-packages/mascot/generated/
+# 运行时和打包用到的那几个按用户决定提交进仓库（packages/mascot/src/atlas.ts 的 COMMITTED_FILES，
+# 来源登记见 ASSETS_PROVENANCE.json，docs/decisions.md M8）；应用图标的各尺寸 PNG 只是中间产物，不提交
+packages/mascot/generated/icon-*.png
 # pnpm dist 时从烘焙产物复制过去（scripts/mascot-dist.ts），不提交（docs/decisions.md M5b）
 apps/desktop/build/mascot/
 apps/desktop/build/icon.ico

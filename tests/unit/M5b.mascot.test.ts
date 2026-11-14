@@ -9,7 +9,7 @@ import { parseThemeVars, splashFiles, splashHtml } from '../../apps/desktop/src/
 import { CLIP_ORDER, CLIPS } from '../../packages/mascot/model/allay.motions';
 import { allHandAnchors } from '../../packages/mascot/model/allay.rig';
 import { AtlasJsonSchema, pickHeadSize, pickSheetSize } from '../../packages/mascot/src/assets';
-import { ATLAS_COLUMNS, ATLAS_SIZES, GENERATED_FILES } from '../../packages/mascot/src/atlas';
+import { ATLAS_COLUMNS, ATLAS_SIZES, COMMITTED_FILES } from '../../packages/mascot/src/atlas';
 import { MascotStage } from '../../packages/mascot/src/stage';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
 import { RUNTIME_FILES, stageMascot } from '../../scripts/mascot-dist';
@@ -159,7 +159,8 @@ describe('pnpm dist 前放产物（scripts/mascot-dist.ts）', () => {
     expect(r.mode).toBe('placeholder');
     expect(readdirSync(join(build, 'mascot'))).toEqual([]);
     expect(existsSync(join(build, 'icon.ico'))).toBe(false);
-    for (const f of GENERATED_FILES) writeFileSync(join(generated, f), f);
+    // 只有提交进仓库的那几个（没有应用图标的各尺寸 PNG）就够打包（M8）
+    for (const f of COMMITTED_FILES) writeFileSync(join(generated, f), f);
     expect(stageMascot({ generated, build, allowPlaceholder: false }).mode).toBe('baked');
     expect(readdirSync(join(build, 'mascot')).sort()).toEqual([...RUNTIME_FILES].sort());
     expect(readFileSync(join(build, 'icon.ico'), 'utf8')).toBe('icon.ico');

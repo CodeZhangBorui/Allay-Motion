@@ -93,6 +93,16 @@ describe('check-provenance（9.6）', () => {
     expect(ProvenanceSchema.safeParse([{ path: 'x', origin: 'rendered', generator: 'node evil.js', license: 'x' }]).success).toBe(false);
   });
 
+  it('vanilla-derived（悦灵的烘焙产物）只能在 packages/mascot/generated/ 下，要写明游戏版本和批准日期（docs/decisions.md M8）', () => {
+    const base = { origin: 'vanilla-derived', generator: 'pnpm mascot:bake', source: 'allay.png', gameVersion: '1.21.1', approvedBy: 'u', approvedOn: '2026-11-13', license: 'x' };
+    const e = ProvenanceSchema.parse([{ path: '**/*.png', ...base }]);
+    expect(checkFiles(['packages/mascot/generated/allay-288.png'], e)).toEqual([]);
+    expect(checkFiles(['docs/review/M5a/allay.png'], e)).toHaveLength(1);
+    expect(checkFiles(['resources/builtin-pack/assets/minecraft/textures/entity/allay/allay.png'], e)).toHaveLength(1);
+    expect(ProvenanceSchema.safeParse([{ path: 'x', ...base, approvedOn: 'yesterday' }]).success).toBe(false);
+    expect(ProvenanceSchema.safeParse([{ path: 'x', ...base, gameVersion: undefined }]).success).toBe(false);
+  });
+
   it('不覆盖任何文件的记录被报出来', () => {
     expect(findUnusedEntries(['docs/review/M0/dark.png'], entries).map((e) => e.path)).toEqual([
       'resources/builtin-pack/**',

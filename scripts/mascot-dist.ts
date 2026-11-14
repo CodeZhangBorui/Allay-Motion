@@ -1,7 +1,7 @@
 // pnpm dist 的前置步骤（docs/decisions.md M5b）：把悦灵的烘焙产物放到 electron-builder 取用的位置。
 //
-// 烘焙产物是原版贴图的派生图像，不在仓库里（M5a），由 pnpm mascot:bake 生成到 packages/mascot/generated/。
-// 按用户决定它们进安装包：
+// 烘焙产物是原版贴图的派生图像，由 pnpm mascot:bake 生成到 packages/mascot/generated/；按用户决定（M8），
+// 运行时和打包用到的那几个（COMMITTED_FILES）提交在仓库里，CI 直接用，不需要游戏。它们进安装包：
 //   apps/desktop/build/mascot/  ← 图集、atlas.json、头像（extraResources → 安装目录的 resources/mascot）
 //   apps/desktop/build/icon.ico ← 应用图标（electron-builder 默认从 buildResources 取 icon.ico，安装程序的图标也用它）
 // 两处都被 git 忽略，每次先清空再复制，不会带上上一次的旧文件。
@@ -11,7 +11,7 @@
 // （electron-builder 用 Electron 的默认图标），应用运行时自动退回占位实现，并打印醒目的警告。
 import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { ATLAS_SIZES, GENERATED_FILES, HEAD_SIZES } from '../packages/mascot/src/atlas';
+import { ATLAS_SIZES, COMMITTED_FILES, HEAD_SIZES } from '../packages/mascot/src/atlas';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERATED = join(ROOT, 'packages/mascot/generated');
@@ -34,7 +34,7 @@ export function stageMascot(opts: { generated?: string; build?: string; allowPla
   rmSync(stage, { recursive: true, force: true });
   rmSync(icon, { force: true });
   mkdirSync(stage, { recursive: true });
-  const missing = GENERATED_FILES.filter((f) => !existsSync(join(generated, f)));
+  const missing = COMMITTED_FILES.filter((f) => !existsSync(join(generated, f)));
   if (missing.length > 0) {
     if (!opts.allowPlaceholder) {
       throw new Error(

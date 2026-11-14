@@ -7,6 +7,8 @@
 //    生成器约定：以环境变量 ALLAY_GEN_OUT=<临时目录> 运行时，把产物按仓库相对路径写进那个目录。
 // 4. origin 为 rendered 的记录（模板的渲染基准图，docs/decisions.md M3）：由脚本用显卡渲染重新生成，
 //    不同显卡的输出不逐字节相同，所以不比对；只要求生成命令存在，且只能放在测试夹具目录下。
+// 5. origin 为 vanilla-derived 的记录（悦灵的烘焙产物，用户批准的例外，docs/decisions.md M8）：
+//    只能在 packages/mascot/generated/ 下；重新生成要原版 jar，不比对，记录里写明游戏版本、批准的人和日期。
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -52,6 +54,19 @@ const EntrySchema = z.discriminatedUnion('origin', [
     license: z.string().min(1),
     note: z.string().optional(),
   }),
+  // 由 Minecraft 原版贴图派生的图像（悦灵的烘焙产物）：用户批准并承担风险后才提交（docs/decisions.md M8）。
+  // 只能放在 packages/mascot/generated/ 下；重新生成要原版 jar，CI 上没有，所以不比对，记下游戏版本和批准的人与日期
+  z.strictObject({
+    path: z.string().min(1),
+    origin: z.literal('vanilla-derived'),
+    generator: z.string().regex(/^pnpm [\w:-]+$/),
+    source: z.string().min(1),
+    gameVersion: z.string().regex(/^\d+\.\d+(\.\d+)?$/),
+    approvedBy: z.string().min(1),
+    approvedOn: z.iso.date(),
+    license: z.string().min(1),
+    note: z.string().optional(),
+  }),
   // 项目自己做的、无法由脚本重新生成的文件（比如评审截图）
   z.strictObject({
     path: z.string().min(1),
@@ -67,6 +82,8 @@ export type ProvenanceEntry = z.infer<typeof EntrySchema>;
 /** 测试夹具目录：只放脚本生成的假数据 */
 const FIXTURE_DIRS = ['tests/fixtures/'];
 const BUILTIN_PACK = 'resources/builtin-pack/';
+/** 唯一允许放原版贴图派生图像的目录（用户批准的例外，AGENTS.md 硬性规则 1） */
+const MASCOT_DERIVED_DIR = 'packages/mascot/generated/';
 
 export function isBinaryAsset(path: string): boolean {
   const dot = path.lastIndexOf('.');
@@ -105,6 +122,9 @@ export function checkFiles(files: readonly string[], entries: readonly Provenanc
     }
     if (covering.entry.origin === 'rendered' && !FIXTURE_DIRS.some((d) => lower.startsWith(d))) {
       problems.push({ path, problem: 'origin: rendered 只用于测试夹具目录下的基准图' });
+    }
+    if (covering.entry.origin === 'vanilla-derived' && !lower.startsWith(MASCOT_DERIVED_DIR)) {
+      problems.push({ path, problem: `origin: vanilla-derived 只允许在 ${MASCOT_DERIVED_DIR} 下（悦灵的烘焙产物，docs/decisions.md M8）` });
     }
   }
   return problems;
