@@ -31,6 +31,9 @@ export function h264EncoderArgs(encoder: string, width: number, height: number, 
     case 'h264_mf':
     case 'libopenh264':
       return ['-b:v', String(h264Bitrate(width, height, fps))];
+    // macOS 的系统编码器：码率与 h264_mf 相同；没有硬件编码器的机器（虚拟机）上允许退到 VideoToolbox 自带的软件编码器
+    case 'h264_videotoolbox':
+      return ['-b:v', String(h264Bitrate(width, height, fps)), '-allow_sw', '1'];
     case 'libx264':
       return ['-crf', '16', '-preset', 'medium'];
     default:

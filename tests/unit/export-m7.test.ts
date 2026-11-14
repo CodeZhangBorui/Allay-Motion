@@ -115,6 +115,7 @@ describe('FFmpeg 命令行（5.3）', () => {
     expect(h264EncoderArgs('h264_amf', 1920, 1080, 60)).toEqual(['-rc', 'cqp', '-qp_i', '18', '-qp_p', '18']);
     expect(h264EncoderArgs('libx264', 1920, 1080, 60)).toEqual(['-crf', '16', '-preset', 'medium']);
     expect(h264EncoderArgs('libopenh264', 1920, 1080, 60)).toEqual(['-b:v', '20000000']);
+    expect(h264EncoderArgs('h264_videotoolbox', 1920, 1080, 60)).toEqual(['-b:v', '20000000', '-allow_sw', '1']);
     expect(h264Bitrate(1920, 1080, 60)).toBe(20_000_000);
     expect(h264Bitrate(3840, 2160, 60)).toBe(80_000_000);
     expect(h264Bitrate(1920, 1080, 30)).toBe(10_000_000);

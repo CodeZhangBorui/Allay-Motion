@@ -138,8 +138,11 @@ export type ExportStartResult = { ok: true; job: ExportStarted } | { ok: false; 
 
 // ---------------------------------------------------------------- H.264 编码器探测（5.3）
 
-/** 探测顺序（5.3 的表）。libx264、libopenh264 只在所用构建里有时才试；libopenh264 是否保留由人决定（H-H264，默认保留、排最后） */
-export const H264_ENCODERS = ['h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_mf', 'libx264', 'libopenh264'] as const;
+/**
+ * 探测顺序（5.3 的表）。libx264、libopenh264 只在所用构建里有时才试；libopenh264 是否保留由人决定（H-H264，默认保留、排最后）。
+ * h264_videotoolbox 是 macOS 的系统编码器（只在 macOS 的构建里有）；前四个只在 Windows 的构建里有，顺序互不影响。
+ */
+export const H264_ENCODERS = ['h264_nvenc', 'h264_qsv', 'h264_amf', 'h264_mf', 'h264_videotoolbox', 'libx264', 'libopenh264'] as const;
 export type H264Encoder = (typeof H264_ENCODERS)[number];
 
 export const EncoderAttemptSchema = z.strictObject({
