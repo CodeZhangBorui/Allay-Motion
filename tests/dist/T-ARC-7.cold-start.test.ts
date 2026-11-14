@@ -130,9 +130,16 @@ async function launchMacOnce(exe: string, screenshot: string | null): Promise<Ru
       const log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : '';
       if (/\[startup\] window-shown /.test(log) && /\[startup\] renderer-ready /.test(log)) {
         if (screenshot) {
-          // 等淡出和首帧画完再截
+          // 等淡出和首帧画完再截；隔几秒再截一张，看画面是否稳定
           await new Promise((r) => setTimeout(r, 1500));
-          spawnSync('screencapture', ['-x', screenshot]);
+          spawnSync('screencapture', ['-x', `${screenshot}-1.png`]);
+          await new Promise((r) => setTimeout(r, 5000));
+          spawnSync('screencapture', ['-x', `${screenshot}-2.png`]);
+          // 日志里的警告和错误（含渲染进程的 error 级控制台消息）一并打印，便于对照截图
+          const notable = readFileSync(logFile, 'utf8')
+            .split('\n')
+            .filter((l) => /\b(WARN|ERROR|warn|error)\b/.test(l));
+          console.log(`首次启动日志里的警告和错误（${notable.length} 行）：\n${notable.slice(0, 40).join('\n')}`);
         }
         return parseRun(readFileSync(logFile, 'utf8'), spawnedAt);
       }
@@ -168,7 +175,8 @@ describe.runIf(process.platform === 'darwin')('T-ARC-7 打包后的冷启动（m
     const runs: Run[] = [];
     try {
       for (let i = 0; i < RUNS; i++) {
-        runs.push(await launchMacOnce(exe, shots && i === 0 ? join(shots, `macos-${process.arch}-first-launch.png`) : null));
+        const shot = shots && i < 2 ? join(shots, `macos-${process.arch}-launch-${i + 1}`) : null;
+        runs.push(await launchMacOnce(exe, shot));
         rmSync(join(MAC_USER_DATA, 'logs'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
       }
     } finally {
