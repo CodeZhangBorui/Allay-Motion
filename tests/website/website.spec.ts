@@ -275,17 +275,43 @@ test('T-WEB-7 窄屏降级：不加载完整编辑器，留实时预览和模板
   }
 });
 
-test('T-WEB-8 减少动效：没有出场盖层，内容一开始就完整可读，过场停成静止的分界', async () => {
+test('T-WEB-8 减少动效：没有出场盖层和整幅过场，内容一开始就完整可读', async () => {
   const { page } = s;
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.reload();
   await expect(page.getByTestId('site-nav')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dataset.reducedMotion)).toBe('true');
   await scrollThrough(page);
-  // 任何时刻都没有盖在内容上的像素层
+  // 任何时刻都没有盖在内容上的像素层，也没有整幅的分节过场
   await expect(page.locator('canvas[data-reveal]')).toHaveCount(0);
+  await expect(page.getByTestId('scene-wall')).toHaveCount(0);
   for (const h of await page.locator('h1, h2').all()) await expect(h).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+});
+
+test('T-WEB-12 整幅分节过场：分界线在视口正中时方块墙铺满，走过之后完全散开；往回滚又铺满（跟着滚动、可逆）', async () => {
+  const { page } = s;
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  const boundary = await page.evaluate(() => document.getElementById('templates')!.getBoundingClientRect().top + window.scrollY);
+  const vh = await page.evaluate(() => window.innerHeight);
+  /** 墙上 3×3 个取样点里不透明的个数 */
+  const opaque = () =>
+    page.evaluate(() => {
+      const c = document.querySelector<HTMLCanvasElement>('[data-testid="scene-wall"]');
+      const g = c?.getContext('2d');
+      if (!c || !g) return -1;
+      let n = 0;
+      for (const fx of [0.2, 0.5, 0.8]) for (const fy of [0.2, 0.5, 0.8]) if (g.getImageData(Math.floor(c.width * fx), Math.floor(c.height * fy), 1, 1).data[3]! > 0) n++;
+      return n;
+    });
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), boundary - vh * 0.5);
+  await expect.poll(opaque, { timeout: 5000 }).toBe(9);
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), boundary);
+  await expect.poll(opaque, { timeout: 5000 }).toBe(0);
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), boundary - vh * 0.5);
+  await expect.poll(opaque, { timeout: 5000 }).toBe(9);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect.poll(opaque, { timeout: 5000 }).toBe(0);
 });
 
 test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被拦、requestAnimationFrame 不跑（像后台标签页）', async () => {

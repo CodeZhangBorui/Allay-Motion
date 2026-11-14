@@ -178,7 +178,7 @@ export function TemplatesSection() {
     return !k || !(k in covers);
   }).length;
   return (
-    <Section id={SECTION.templates} tone="alt">
+    <Section id={SECTION.templates} tone="alt" label={`02  ${t('site.templates.kicker')}`}>
       <SectionHead tone="alt" kicker={t('site.templates.kicker')} title={t('site.templates.title', { count: entries.length })} lead={t('site.templates.lead')} />
       <div ref={grid} className="relative mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="pointer-events-none absolute inset-0 z-10" aria-hidden={pendingCount === 0}>

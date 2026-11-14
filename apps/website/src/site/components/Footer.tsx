@@ -6,7 +6,7 @@ import { LICENSE_NAME, REPO_URL } from '../links';
 export function Footer() {
   const { t } = useTranslation();
   return (
-    <footer className="bg-site-alt pt-14 pb-10" data-tone="alt" data-testid="site-footer">
+    <footer className="bg-site-alt pt-16 pb-10" data-tone="alt" data-scene="alt" data-testid="site-footer">
       <div className="site-container">
         <div className="site-card p-6 sm:p-8" data-testid="disclaimer-box">
           <p className="site-kicker">{t('site.footer.disclaimerLabel')}</p>

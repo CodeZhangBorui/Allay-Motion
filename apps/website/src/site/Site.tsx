@@ -10,7 +10,7 @@ import { OpenSourceSection } from './components/OpenSourceSection';
 import { SimulatorSection } from './components/SimulatorSection';
 import { TemplatesSection } from './components/TemplatesSection';
 import { WorkflowSection } from './components/WorkflowSection';
-import { BlockBand } from './motion/BlockBand';
+import { SceneWall } from './motion/SceneWall';
 import { usePrefs } from './prefs';
 
 /** 标题和描述跟着语言走 */
@@ -35,18 +35,14 @@ export function Site() {
       <main>
         <Hero />
         <SimulatorSection />
-        {/* 分节之间的过场：方块擦除、像素溶解、方块坠落，和模板同一套转场语言 */}
-        <BlockBand variant="wipe" from="--site-bg" to="--site-alt" seed={1} />
         <TemplatesSection />
-        <BlockBand variant="dissolve" from="--site-alt" to="--site-bg" seed={2} />
         <FeaturesSection />
-        <BlockBand variant="fall" from="--site-bg" to="--site-alt" seed={3} />
         <WorkflowSection />
-        <BlockBand variant="wipe" from="--site-alt" to="--site-bg" seed={4} />
         <OpenSourceSection />
-        <BlockBand variant="dissolve" from="--site-bg" to="--site-alt" seed={5} height={80} />
       </main>
       <Footer />
+      {/* 分节之间整幅的过场：方块墙随滚动铺满再散开（方块擦除、像素溶解、方块坠落轮换） */}
+      <SceneWall />
     </IconContext.Provider>
   );
 }

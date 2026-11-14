@@ -17,7 +17,7 @@ function Initial({ name }: { name: string }) {
 export function OpenSourceSection() {
   const { t } = useTranslation();
   return (
-    <Section id={SECTION.open}>
+    <Section id={SECTION.open} label={`05  ${t('site.open.kicker')}`}>
       <div className="grid items-start gap-12 lg:grid-cols-[1.1fr_1fr]">
         <div>
           <SectionHead kicker={t('site.open.kicker')} title={t('site.open.title')} lead={t('site.open.lead')} />

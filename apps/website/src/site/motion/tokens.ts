@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react';
 const cache = new Map<string, string>();
 let probe: HTMLSpanElement | null = null;
 
-/** 设计变量的实际颜色（浏览器解析成 rgb() 的结果） */
-export function tokenColor(name: string): string {
-  const hit = cache.get(name);
+/** 设计变量（`--xxx`）或任意 CSS 颜色表达式（如 color-mix(...)）的实际颜色（浏览器解析后的结果） */
+export function tokenColor(nameOrExpr: string): string {
+  const hit = cache.get(nameOrExpr);
   if (hit) return hit;
   probe ??= Object.assign(document.createElement('span'), { hidden: true });
   if (!probe.isConnected) document.body.appendChild(probe);
-  probe.style.color = `var(${name})`;
+  probe.style.color = nameOrExpr.startsWith('--') ? `var(${nameOrExpr})` : nameOrExpr;
   const c = getComputedStyle(probe).color;
-  cache.set(name, c);
+  cache.set(nameOrExpr, c);
   return c;
 }
 
