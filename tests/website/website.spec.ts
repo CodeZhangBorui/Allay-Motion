@@ -382,12 +382,23 @@ test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点�
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.waitForTimeout(2000);
   await page.locator('a[data-clip-link][href="#templates"]').click();
+  // 先等锚点的平滑滚动停下（“停手后”从这里算起），再看各段是不是终态
+  await expect
+    .poll(
+      async () => {
+        const a = await page.evaluate(() => window.scrollY);
+        await page.waitForTimeout(250);
+        return a > 0 && a === (await page.evaluate(() => window.scrollY));
+      },
+      { timeout: 6000 },
+    )
+    .toBe(true);
   await expect.poll(allSettled, { timeout: 3000 }).toBe(true);
   expect(await cutState(page)).toBe('done');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
 
-test('T-WEB-13 悦灵：用的是应用的烘焙图集，首屏飞到主视觉旁；滚完全页任何时刻页面上最多一只全身悦灵', async () => {
+test('T-WEB-13 悦灵：首屏是方块拼成的体素悦灵，往下由带路的悦灵（应用的烘焙图集）接着飞；滚完全页任何时刻页面上最多一只全身悦灵', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
@@ -395,41 +406,112 @@ test('T-WEB-13 悦灵：用的是应用的烘焙图集，首屏飞到主视觉�
   await expect(guide).toHaveAttribute('data-granted', 'true', { timeout: 15_000 });
   // 3D 世界装好图集后，带路的悦灵由世界来画（应用同一份烘焙图集）；世界没起来时是 DOM 里的 <Allay>
   await expect(guide).toHaveAttribute('data-render', '3d', { timeout: 20_000 });
-  /** 页面上画着的全身悦灵：DOM 里的 + 世界里那一只（出场时） */
+  /** 页面上画着的全身悦灵：DOM 里的 + 世界里带路的那一只（出场时）+ 首屏方块拼成的体素悦灵（拼着或拼好时） */
   const count = () =>
     page.evaluate(() => {
       const g = document.querySelector<HTMLElement>('[data-testid="allay-guide"]');
       const in3d = g?.dataset.render === '3d' && g.dataset.shown === 'true' ? 1 : 0;
-      return document.querySelectorAll('[data-allay="body"]').length + in3d;
+      const voxel = document.querySelector<HTMLElement>('[data-testid="world"]')?.dataset.sculpture === 'true' ? 1 : 0;
+      const dom = [...document.querySelectorAll('[data-allay="body"]')].map((e) => e.closest<HTMLElement>('[data-testid]')?.dataset.testid ?? '?');
+      return { n: dom.length + in3d + voxel, what: `y=${Math.round(window.scrollY)} dom=[${dom.join(',')}] guide3d=${in3d} voxel=${voxel}` };
     });
   let max = 0;
+  let worst = '';
   const total = await page.evaluate(() => document.documentElement.scrollHeight);
   for (let y = 0; y < total; y += 450) {
     await page.evaluate((v) => window.scrollTo({ top: v, behavior: 'instant' }), y);
     await page.waitForTimeout(120);
-    max = Math.max(max, await count());
+    const c = await count();
+    if (c.n > max) {
+      max = c.n;
+      worst = c.what;
+    }
   }
-  expect(max).toBeLessThanOrEqual(1);
+  expect(max, worst).toBeLessThanOrEqual(1);
   // 悦灵不挡点击
   expect(await guide.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
 
-test('T-WEB-16 画布：全页只有一块共用的 3D 世界画布；走到页尾时字标由方块拼好（DOM 里的字仍在，只变透明），停手后落定', async () => {
+test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首屏拼成体素悦灵，到剪辑点、开源、页尾各重组成一件（字标对齐 DOM、字仍在只变透明），停手后落定', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   const world = page.getByTestId('world');
   await expect(world).toHaveCount(1);
   expect(await world.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
   expect(await world.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
-  // 字标：拼好以后 DOM 里的字变透明，但文字还在（可选中、可被读屏读到）
+  // 首屏：方块拼成体素悦灵（上万块是一次实例化绘制），拼好后落定；它在场时带路的悦灵不出场
+  await expect(world).toHaveAttribute('data-form', 'allay', { timeout: 20_000 });
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  expect(Number(await world.getAttribute('data-instances'))).toBeGreaterThan(3000);
+  await expect(page.getByTestId('allay-guide')).not.toHaveAttribute('data-shown', 'true');
+  // 往下各节：占位框露出来时重组成那一节的那一件（触发后自己播完），停手后落定
+  for (const [slot, form] of [
+    ['cut', 'cut'],
+    ['timeline', 'timeline'],
+  ] as const) {
+    await page.locator(`[data-voxel-slot="${slot}"]`).evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await expect(world).toHaveAttribute('data-form', form, { timeout: 5000 });
+    await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 5000 });
+  }
+  // 页尾：字标由方块拼好（DOM 里的字仍在，只变透明）
   const mark = page.locator('[data-voxel-wordmark]');
   await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
-  await expect(mark).toHaveAttribute('data-voxel-ready', 'true', { timeout: 10_000 });
+  await expect(world).toHaveAttribute('data-form', 'word', { timeout: 5000 });
+  await expect(mark).toHaveAttribute('data-voxel-ready', 'true', { timeout: 5000 });
   expect((await mark.textContent())?.trim().length).toBeGreaterThan(0);
   await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  // 回到首屏：重新拼回体素悦灵，字标的字恢复显示
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(mark).toHaveAttribute('data-voxel-ready', 'false');
+  await expect(world).toHaveAttribute('data-form', 'allay', { timeout: 5000 });
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+});
+
+test('T-WEB-17 体素雕塑能玩（真实的鼠标输入）：划过拨开方块、在雕塑上光标可抓、按住拖动转它松手弹回、点空白处放冲击波、点在字上不算', async () => {
+  const { page } = s;
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  const world = page.getByTestId('world');
+  await expect(world).toHaveAttribute('data-form', 'allay', { timeout: 20_000 });
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  type W = { stir: () => number; yaw: () => number };
+  const stir = () => page.evaluate(() => (window as unknown as { __siteWorld: W }).__siteWorld.stir());
+  const yaw = () => page.evaluate(() => (window as unknown as { __siteWorld: W }).__siteWorld.yaw());
+  const shocks = async () => Number((await world.getAttribute('data-shocks')) ?? 0);
+  const box = (await page.locator('[data-voxel-slot="allay"]').boundingBox())!;
+  const cy = box.y + box.height / 2;
+  // 停着不动：只有指针所在处的一点凹陷
+  await page.mouse.move(20, 880);
+  await page.waitForTimeout(1800);
+  const idle = await stir();
+  // 快速划过悦灵：留下一道拨开的轨迹（轨迹的总强度明显上去），一秒多以后流回原位
+  await page.mouse.move(box.x - 40, cy);
+  await page.mouse.move(box.x + box.width + 40, cy + 20, { steps: 14 });
+  expect(await stir()).toBeGreaterThan(idle + 1);
+  await expect.poll(stir, { timeout: 3000 }).toBeLessThan(idle + 0.2);
+  // 指针在雕塑的框里：光标是“可抓”
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.3, { steps: 5 });
+  await expect(page.locator('html')).toHaveAttribute('data-world-hover', 'true');
+  expect(await page.evaluate(() => getComputedStyle(document.body).cursor)).toBe('grab');
+  // 按住拖动：雕塑跟着转（按下的那一下也放出一圈冲击波）；松手后弹回
+  await page.waitForTimeout(800);
+  const yaw0 = await yaw();
+  const n0 = await shocks();
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 240, box.y + box.height * 0.3, { steps: 16 });
+  await page.waitForTimeout(450);
+  expect(await page.evaluate(() => document.documentElement.dataset.worldDrag)).toBe('true');
+  expect(Math.abs((await yaw()) - yaw0)).toBeGreaterThan(0.8);
+  expect(await shocks()).toBe(n0 + 1);
+  await page.mouse.up();
+  expect(await page.evaluate(() => document.documentElement.dataset.worldDrag)).toBe('false');
+  await expect.poll(async () => Math.abs((await yaw()) - yaw0), { timeout: 4000 }).toBeLessThan(0.4);
+  // 点在字上不放冲击波；点在标题盒子右边的空白处放
+  const h1 = (await page.locator('h1').first().boundingBox())!;
+  await page.mouse.click(h1.x + 30, h1.y + 30);
+  expect(await shocks()).toBe(n0 + 1);
+  await page.mouse.click(box.x - 30, cy);
+  expect(await shocks()).toBe(n0 + 2);
 });
 
 test('T-WEB-14 文案不强调模板数量；开发者三张真实头像都是自托管的图片', async () => {
