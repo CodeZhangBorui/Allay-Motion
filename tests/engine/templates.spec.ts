@@ -11,7 +11,7 @@ import { decodePng, encodePng } from '../../scripts/mascot-bake/png';
 import { TemplateManifestSchema, type FrameQuality, type TemplateManifest } from '../../packages/template-sdk/src/index';
 import type { Harness } from './harness/harness';
 import { prng, randomParamSets } from './random-params';
-import { isSoftwareRenderer, SOFTWARE_LIMITS } from './software';
+import { isSoftwareRenderer } from './software';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const ELECTRON = createRequire(join(ROOT, 'apps/desktop/package.json'))('electron') as string;
@@ -54,11 +54,11 @@ const ASPECTS = [
 /** 4.6 第 6 条 */
 const DURATION_RANGE = [0.1, 30] as const;
 
-/** 软件渲染（CI）下的时限和剪辑点判定（tests/engine/software.ts）；显卡上照旧 */
-async function rendererRules(): Promise<{ software: boolean; gpu: string; cutMin: number }> {
+/** 软件渲染（CI 的 WARP）只放宽测试自身的时限（tests/engine/software.ts）；判定和显卡上一样 */
+async function rendererRules(): Promise<{ software: boolean; gpu: string }> {
   const gpu = await call('gpu');
   const software = isSoftwareRenderer(gpu);
-  return { software, gpu, cutMin: software ? SOFTWARE_LIMITS.cutMinAlpha : 255 };
+  return { software, gpu };
 }
 
 /** 剪辑点没盖满时把位置打进日志（CI 上看是边缘还是内部，docs/decisions.md M8） */
@@ -69,9 +69,9 @@ function reportCut(where: string, width: number, height: number, cut: { min: num
 
 test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通过 T-ENG-1，首末帧全透明，剪辑点完全不透明', async () => {
   const rules = await rendererRules();
-  // SwiftShader 上同样的工作量慢二三十倍
+  // WARP 上同样的工作量慢二三十倍
   test.setTimeout(rules.software ? 3_600_000 : 600_000);
-  test.info().annotations.push({ type: 'renderer', description: `${rules.gpu}（剪辑点最小 alpha ≥ ${rules.cutMin}）` });
+  test.info().annotations.push({ type: 'renderer', description: rules.gpu });
   expect(Object.keys(builtins).length).toBeGreaterThan(0);
   for (const [id, manifest] of Object.entries(builtins)) {
     for (const a of ASPECTS) {
@@ -91,7 +91,7 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
       reportCut(where, a.width, a.height, r.cut);
       if (manifest.category === 'transition') {
         expect(r.cut, `${where} has a cut`).not.toBeNull();
-        expect(r.cut!.min, `${where} cut frame`).toBeGreaterThanOrEqual(rules.cutMin);
+        expect(r.cut!.min, `${where} cut frame`).toBe(255);
       }
       test.info().annotations.push({ type: where, description: `duration ${r.duration}, cut ${r.cutTime}, ${r.total} frames, ${r.cues} cues` });
     }
@@ -101,7 +101,7 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
 test('T-TPL-4 每个内置模板 50 组随机合法参数：不抛错，三条断言仍成立，duration 在规定范围内', async () => {
   const rules = await rendererRules();
   test.setTimeout(rules.software ? 3_600_000 : 1_800_000);
-  test.info().annotations.push({ type: 'renderer', description: `${rules.gpu}（剪辑点最小 alpha ≥ ${rules.cutMin}）` });
+  test.info().annotations.push({ type: 'renderer', description: rules.gpu });
   for (const [id, manifest] of Object.entries(builtins)) {
     const sets = randomParamSets(manifest.params ?? [], 50, 20261113);
     const r = prng(7);
@@ -121,7 +121,7 @@ test('T-TPL-4 每个内置模板 50 组随机合法参数：不抛错，三条�
       expect(res.first.max, `${where} first frame`).toBe(0);
       expect(res.last.max, `${where} last frame`).toBe(0);
       reportCut(where, output.width, output.height, res.cut);
-      if (manifest.category === 'transition') expect(res.cut?.min, `${where} cut frame`).toBeGreaterThanOrEqual(rules.cutMin);
+      if (manifest.category === 'transition') expect(res.cut?.min, `${where} cut frame`).toBe(255);
     }
   }
 });
