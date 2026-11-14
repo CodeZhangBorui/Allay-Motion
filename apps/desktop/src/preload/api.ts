@@ -42,6 +42,8 @@ export interface AllayApi {
   };
   window: {
     setTitleBarColors(colors: TitleBarColors): Promise<void>;
+    /** 重新载入界面（错误页用；未保存的改动会丢） */
+    reload(): Promise<void>;
   };
   files: {
     /** 弹出主进程的文件对话框；取消时为 null */

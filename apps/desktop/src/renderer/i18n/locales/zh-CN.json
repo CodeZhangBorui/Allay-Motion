@@ -774,5 +774,17 @@
     "diagnostics": "诊断信息",
     "copy": "复制诊断信息",
     "copied": "已复制"
+  },
+  "errorBoundary": {
+    "title": "界面出错了",
+    "panelTitle": "这一块出错了",
+    "hint": "出错的部分已经停下，其余部分不受影响。已保存的工程不会丢；重新载入后未保存的改动会丢失。",
+    "panelHint": "可以先重试这一块；还不行就重新载入界面。",
+    "reason": "原因：",
+    "reload": "重新载入",
+    "retry": "重试",
+    "copy": "复制诊断信息",
+    "copied": "诊断信息已复制",
+    "copyFailed": "复制失败"
   }
 }

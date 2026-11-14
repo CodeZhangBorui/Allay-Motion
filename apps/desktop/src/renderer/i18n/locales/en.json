@@ -774,5 +774,17 @@
     "diagnostics": "Diagnostics",
     "copy": "Copy diagnostics",
     "copied": "Copied"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "panelTitle": "This part ran into a problem",
+    "hint": "The part that failed has stopped; the rest is unaffected. Saved projects are safe; unsaved changes are lost when you reload.",
+    "panelHint": "Try this part again first; if that doesn’t help, reload the interface.",
+    "reason": "Reason: ",
+    "reload": "Reload",
+    "retry": "Try again",
+    "copy": "Copy diagnostics",
+    "copied": "Diagnostics copied",
+    "copyFailed": "Could not copy"
   }
 }

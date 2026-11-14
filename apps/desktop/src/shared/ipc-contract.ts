@@ -58,6 +58,7 @@ export const IPC_ARGS = {
   [IPC.settings.get]: z.tuple([]),
   [IPC.settings.set]: z.tuple([UiSettingsPatchSchema]),
   [IPC.window.setTitleBarColors]: z.tuple([TitleBarColorsSchema]),
+  [IPC.window.reload]: z.tuple([]),
   [IPC.files.pickImage]: z.tuple([]),
   [IPC.files.read]: z.tuple([FileRefSchema]),
   [IPC.export.start]: z.tuple([ExportStartSchema]),

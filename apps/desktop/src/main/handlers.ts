@@ -81,6 +81,11 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
     win.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_OVERLAY_HEIGHT });
   });
 
+  // 只重新载入发起请求的那个窗口的页面（同一个 app:// 地址，不经导航拦截之外的任何路）
+  handle(IPC.window.reload, (event) => {
+    event.sender.reload();
+  });
+
   handle(IPC.files.pickImage, async (): Promise<PickedFile | null> => {
     const win = getMainWindow();
     if (!win) return null;
