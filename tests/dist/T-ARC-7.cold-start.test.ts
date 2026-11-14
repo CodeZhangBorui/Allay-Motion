@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 // 怎么量（docs/decisions.md M8“冷启动的测量”）：
 // - 打包后的应用不认任何测试开关，窗口照常显示。为了不在用户正在用的桌面上弹窗、抢焦点，用 scripts/hidden-desktop.ps1
 //   在同一个窗口站里另建一个桌面，把 exe 放到那里启动（窗口、显卡照常工作，只是不在当前桌面上）。
+// - 有任何 AllayMotion.exe 在运行时拒绝测量（会变成它的第二实例，数据目录也正被它占着）。
 // - 打包后的应用写的是真正的 %APPDATA%\AllayMotion。原来有的话先改名放到一边，量完删掉测试写的、再改回来；
 //   上次没能改回来（留着备份）时拒绝运行，不碰它。
 // - 时间都从“测试调用 CreateProcess 的那一刻”算起，到应用日志里的 [startup] 记录（主进程按 performance.timeOrigin 记，
@@ -58,12 +59,19 @@ function launchOnce(): Run {
   return { splashMs: marks['splash-shown']!, splashFromStartMs: marks['splash-shown']! - (origin - spawnedAt), interactiveMs: Math.max(marks['renderer-ready']!, marks['window-shown']!), loaderMs: origin - spawnedAt, marks };
 }
 
+/** 正在运行的本应用（任何位置的 AllayMotion.exe）：测量会成为它的第二实例、去碰用户的窗口和数据，所以这时不量 */
+function runningInstances(): number {
+  const r = spawnSync('tasklist.exe', ['/FI', 'IMAGENAME eq AllayMotion.exe', '/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true });
+  return (r.stdout.match(/"AllayMotion\.exe"/gi) ?? []).length;
+}
+
 const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]!;
 
 describe.runIf(process.platform === 'win32')('T-ARC-7 打包后的冷启动', () => {
   it(`启动画面 ${SPLASH_BUDGET_MS} ms 内出现，${INTERACTIVE_BUDGET_MS} ms 内主界面可交互`, () => {
     expect(existsSync(EXE), EXE).toBe(true);
     expect(APPDATA).not.toBe('');
+    if (runningInstances() > 0) throw new Error('AllayMotion.exe 正在运行。关掉它再运行 T-ARC-7：测量会变成它的第二实例，并且要临时挪开它正在用的数据目录。');
     if (existsSync(BACKUP)) throw new Error(`上次测量留下了 ${BACKUP}（原来的用户数据）。请先确认并手动改回 ${USER_DATA}，再运行。`);
     const hadUserData = existsSync(USER_DATA);
     if (hadUserData) renameSync(USER_DATA, BACKUP);
