@@ -98,7 +98,9 @@ function fallbackFont(): Promise<BitmapFontTables | null> {
 }
 
 export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; applySettings(patch: UiSettingsPatch): void } {
+  // 网页里默认静音（访客没点过任何东西就出声不礼貌）；用户可以在界面里打开
   let settings: UiSettings = { ...defaultUiSettings(), ...opts.settings };
+  settings.editor = { ...settings.editor, muted: true };
   const settingsChanged = emitter<UiSettings>();
   const resourcesChanged = emitter<ResourceState>();
   const thumbs = new Map<string, Uint8Array>();

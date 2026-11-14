@@ -16,6 +16,8 @@ export const ToSimulatorSchema = z.discriminatedUnion('type', [
   z.strictObject({ channel: z.literal('allay-site'), type: z.literal('settings'), theme: SiteThemeSchema, language: SiteLanguageSchema, reducedMotion: z.boolean() }),
   /** 在仿真器里选中一个模板（落地页的模板卡片上点了“在仿真器里打开”） */
   z.strictObject({ channel: z.literal('allay-site'), type: z.literal('select'), id: z.string().min(1).max(128), version: z.string().min(1).max(64) }),
+  /** 仿真器窗口是否在视口里：进来时自动循环播放，出去时暂停（不占显卡） */
+  z.strictObject({ channel: z.literal('allay-site'), type: z.literal('visibility'), visible: z.boolean() }),
 ]);
 export type ToSimulator = z.infer<typeof ToSimulatorSchema>;
 

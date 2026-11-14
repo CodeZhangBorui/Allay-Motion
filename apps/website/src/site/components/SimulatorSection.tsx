@@ -118,6 +118,15 @@ function SimulatorWindow() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  // 窗口在不在视口里：进来自动循环播放，出去暂停
+  useEffect(() => {
+    const el = outer.current;
+    if (!ready || !el) return;
+    const io = new IntersectionObserver((es) => post({ channel: 'allay-site', type: 'visibility', visible: es.some((e) => e.isIntersecting) }), { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ready]);
+
   // 官网的主题、语言变了：告诉仿真器
   useEffect(() => {
     if (ready) post({ channel: 'allay-site', type: 'settings', theme: prefs.theme, language: prefs.language, reducedMotion: prefs.reducedMotion });

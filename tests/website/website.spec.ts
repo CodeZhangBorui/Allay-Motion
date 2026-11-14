@@ -124,6 +124,33 @@ test('T-WEB-2 仿真器挂载桌面版编辑器，预览画布由真实引擎渲
   expect(builtins).toHaveLength(TEMPLATE_COUNT);
 });
 
+test('T-WEB-11 仿真器进入视口就从剪辑点循环播放，画面不是空的；鼠标在预览区上滚轮，落地页照常滚动', async () => {
+  const { page } = s;
+  const frame = await simulator(page);
+  await upToDate(frame);
+  await expect.poll(() => frame.evaluate(() => window.__allayTest!.transport().playing), { timeout: 10_000 }).toBe(true);
+  const tr = await frame.evaluate(() => window.__allayTest!.transport());
+  expect(tr.time).toBeGreaterThan(0);
+  expect((await frame.evaluate((t) => window.__allayTest!.previewStats(t), tr.cutTime ?? tr.duration / 2)).maxAlpha).toBeGreaterThan(0);
+
+  // 预览区中央滚两格：落地页往下走，不被 iframe 吃掉
+  const stage = frame.getByTestId('preview-stage');
+  const box = await stage.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  const y0 = await page.evaluate(() => window.scrollY);
+  await page.mouse.wheel(0, 240);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(y0 + 100);
+  await page.mouse.wheel(0, -240);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(y0 + 100);
+
+  // 滚出视口就暂停（不占显卡），滚回来接着播
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect.poll(() => frame.evaluate(() => window.__allayTest!.transport().playing)).toBe(false);
+  await simulator(page);
+  await expect.poll(() => frame.evaluate(() => window.__allayTest!.transport().playing)).toBe(true);
+});
+
 test('T-WEB-3 切换模板、拖动参数后画面变化（仿真器与首屏预览）', async () => {
   const { page } = s;
   const frame = await simulator(page);
