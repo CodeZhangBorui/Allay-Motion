@@ -57,3 +57,17 @@ export function defaultDuration(manifest: TemplateManifest): number | null {
 export function templateName(manifest: TemplateManifest, locale: string): string {
   return localize(manifest.name, locale);
 }
+
+/**
+ * 官网展示用的顺序：先放画面最有代表性的几个，其余（包括以后新加的）按 id 排在后面。
+ * 这只是一个偏好，不是清单：packages/templates 下新加的模板不用改这里也会出现。
+ */
+const SHOWCASE_FIRST = ['allay.builtin.block-wipe', 'allay.builtin.block-fall', 'allay.builtin.item-stinger', 'allay.builtin.pixel-dissolve', 'allay.builtin.loading-screen', 'allay.builtin.advancement-toast'];
+
+export function showcaseEntries(): TemplateEntry[] {
+  const rank = (id: string) => {
+    const i = SHOWCASE_FIRST.indexOf(id);
+    return i < 0 ? SHOWCASE_FIRST.length : i;
+  };
+  return [...builtinEntries()].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
+}

@@ -4,7 +4,7 @@
     "description": "Pick a template, tweak it, preview in real time, and export transition clips with an alpha channel. A free, open-source desktop app."
   },
   "nav": {
-    "label": "Main navigation",
+    "label": "Main navigation: this page’s timeline",
     "home": "Back to top",
     "try": "Try it",
     "templates": "Templates",
@@ -12,22 +12,27 @@
     "workflow": "Workflow",
     "openSource": "Open source",
     "github": "GitHub",
-    "theme": "Toggle theme",
     "toLight": "Switch to light theme",
     "toDark": "Switch to dark theme",
-    "language": "语言",
-    "switchLanguage": "切换到中文"
+    "switchLanguage": "切换到中文",
+    "intro": "Intro",
+    "cut": "The cut (the page’s only transition)",
+    "timecode": "This page’s timecode (follows your scroll)"
   },
   "hero": {
     "eyebrow": "Transitions for Minecraft video creators",
-    "titleA": "Make every transition",
-    "titleB": "feel like it happens in-game.",
-    "lead": "{{name}} is a desktop app: pick a template, tweak a few parameters, preview in real time, and export a short clip with an alpha channel to drop over the cut in your editor.",
+    "titleA": "Make every",
+    "titleB": "transition feel ",
+    "lead": "{{name}} is a desktop app: pick a template, tweak a few parameters, preview in real time, and export a clip with an alpha channel to lay over the cut between two shots.",
     "primary": "Get it on GitHub",
     "secondary": "Try it in your browser",
-    "facts": "Free & open source · Windows · Fully offline",
+    "facts": [
+      "Free & open source",
+      "Windows",
+      "Fully offline",
+      "Alpha-channel export"
+    ],
     "viewerLabel": "Preview",
-    "viewerNote": "Rendered live in your browser by the app’s own engine.",
     "demoAssets": "The web version uses flat demo colors; the desktop app reads your installed game and resource packs.",
     "pick": "Choose a template",
     "play": "Play",
@@ -35,10 +40,13 @@
     "scrub": "Time",
     "starting": "Starting the render engine…",
     "noWebgl": "This browser doesn’t support WebGL2, so the live preview can’t run.",
-    "mcAssets": "Block and item textures on this page come from Minecraft {{version}}, © Mojang / Microsoft, and are shown here for demonstration only. The desktop app reads your installed game and resource packs; no game files ship with it."
+    "mcAssets": "Block and item textures on this page come from Minecraft {{version}}, © Mojang / Microsoft, and are shown here for demonstration only. The desktop app reads your installed game and resource packs; no game files ship with it.",
+    "titleC": "in‑game.",
+    "factsLabel": "Highlights",
+    "scrollCue": "Scroll down — you’re dragging this page’s playhead"
   },
   "sim": {
-    "kicker": "Simulator",
+    "kicker": "Try it · simulator",
     "title": "Try it before you install.",
     "lead": "The window below is the desktop editor itself: the same interface code, the same render engine, the same built-in templates. Pick a template, drag parameters, scrub the timeline, press Space to play — all of it runs in your browser.",
     "start": "Start the editor",
@@ -69,25 +77,36 @@
     "frameLabel": "Simulator: the desktop editor"
   },
   "templates": {
-    "kicker": "Templates",
-    "title": "{{count}} built-in templates, all rendered live.",
-    "lead": "Each card plays frames the render engine just drew in your browser — not screenshots, not videos. Built-in templates load through the same path as the ones you write yourself.",
-    "meta": "{{category}} · {{duration}} s · {{count}} parameters",
-    "metaNoDuration": "{{category}} · {{count}} parameters",
+    "kicker": "Templates · a selection",
+    "title": "Start with these.",
+    "lead": "Every tile plays frames the render engine just drew in your browser — not screenshots, not videos. It’s only a selection: the library keeps growing, and you can write your own templates in TypeScript; they load through the same path as the built-in ones.",
+    "featured": "Featured",
+    "meta": "{{category}} · {{duration}} s",
+    "metaNoDuration": "{{category}}",
     "rendering": "Rendering…",
     "failed": "This one didn’t render.",
-    "openInSim": "Open in the simulator"
+    "openInSim": "Open in the simulator",
+    "moreTitle": "More templates on the way.",
+    "moreBody": "A template is a manifest plus a script. Follow the authoring guide, add it to your library, and it previews and exports just like the built-in ones.",
+    "moreLink": "Template authoring guide"
   },
   "features": {
     "kicker": "Features",
     "title": "Every detail, built for editing.",
     "alpha": {
       "title": "Exports with an alpha channel",
-      "body": "Lay it on a track above your footage — no keying needed. Four formats:"
+      "body": "Lay it on a track above your footage — no keying needed.",
+      "transparent": "Transparent",
+      "over": "Over footage",
+      "drag": "Drag to compare",
+      "footage": "Your footage"
     },
     "frames": {
       "title": "The preview is the render",
-      "body": "Every frame is a pure function of time. Preview and export run the same rendering code, so each exported frame matches what you saw — with optional subframe motion blur."
+      "body": "Every frame is a pure function of time. Preview and export run the same rendering code, frame for frame — with optional subframe motion blur.",
+      "preview": "Preview",
+      "export": "Export",
+      "same": "Same frame"
     },
     "stack": {
       "title": "Bring your own assets",
@@ -96,7 +115,8 @@
         "Resource packs",
         "Vanilla assets",
         "Built-in"
-      ]
+      ],
+      "hint": "Hover or focus a layer"
     },
     "offline": {
       "title": "Fully offline",
@@ -105,39 +125,21 @@
     },
     "extend": {
       "title": "Extensible templates",
-      "body": "Presets, derived templates, template package import and export, and script templates written in TypeScript. The properties panel is generated from each template’s manifest."
+      "body": "Presets, derived templates, template package import and export, and script templates written in TypeScript. One parameter in the manifest is one control in the properties panel."
     },
-    "bilingual": {
-      "title": "Chinese and English, dark and light",
-      "body": "Two languages and two themes that follow your system — or switch them yourself."
-    }
-  },
-  "workflow": {
-    "kicker": "Workflow",
-    "title": "Three steps, from launch to export.",
-    "lead": "The design goal: under 30 seconds from opening the app to exporting your first transition, with no manual to read.",
-    "steps": {
-      "pick": {
-        "title": "Pick a template",
-        "body": "Transitions or overlays. Covers in the library come alive when you hover them."
-      },
-      "tune": {
-        "title": "Tweak it",
-        "body": "Blocks, order, timing, easing… every change shows up in the preview on the next frame, and one undo takes it back."
-      },
-      "export": {
-        "title": "Export",
-        "body": "Choose a format, resolution and frame rate, drop the clip into your editor and line up the cut point."
-      }
+    "formats": {
+      "title": "Export formats",
+      "body": "The list comes straight from the app: alpha channel for editors that read it, green screen for the ones that don’t."
     }
   },
   "open": {
-    "kicker": "Open source",
+    "kicker": "Open source · credits",
     "title": "Open, free, and built together.",
     "lead": "The source code is public on GitHub under the GPL-3.0 license. Issues, templates and pull requests are all welcome.",
     "repo": "View the source",
     "team": "Developers",
-    "license": "License"
+    "license": "License",
+    "credits": "Credits"
   },
   "footer": {
     "disclaimerLabel": "Disclaimer",
@@ -145,7 +147,9 @@
     "fonts": "Interface fonts IBM Plex Sans, IBM Plex Mono and Noto Sans SC, and the Ark Pixel Font, all under the SIL OFL 1.1.",
     "fontLicense": "Pixel font license",
     "source": "Source code",
-    "noTracking": "This site uses no cookies, analytics or third-party resources."
+    "noTracking": "This site uses no cookies, analytics or third-party resources.",
+    "end": "Fin.",
+    "tcOut": "TC out"
   },
   "host": {
     "demoPackName": "Web demo colors",
@@ -153,5 +157,37 @@
     "exportTarget": "Web demo: every frame was rendered, but there is no FFmpeg in the browser, so no file was written",
     "mcPackName": "Vanilla {{version}}",
     "mcPackDescription": "Website demo only: from the licensed game, © Mojang / Microsoft"
+  },
+  "story": {
+    "kicker": "Workflow · three steps",
+    "title": "Three steps, from launch to export.",
+    "lead": "The design goal: under 30 seconds from opening the app to exporting your first transition, with no manual to read. The preview on the right is rendering live the whole time — scrolling is operating it.",
+    "panel": "Properties",
+    "cutFrame": "Cut point: frame {{frame}}",
+    "steps": {
+      "pick": {
+        "kicker": "Step one",
+        "title": "Pick a template.",
+        "body": "Transitions or overlays. Scroll and the preview switches templates — every frame is being rendered in your browser right now.",
+        "more": "Just a few of them — the library keeps growing"
+      },
+      "tune": {
+        "kicker": "Step two",
+        "title": "Tweak a few parameters.",
+        "body": "Columns, order, flip… every change lands in the preview on the next frame. The properties panel is generated from the template’s manifest."
+      },
+      "export": {
+        "kicker": "Step three",
+        "title": "Export, drop it in your editor.",
+        "body": "Choose format, resolution and frame rate. Every exported frame matches the preview; put the clip on an upper track and line the cut point up with the seam between two shots."
+      }
+    }
+  },
+  "cut": {
+    "kicker": "The cut",
+    "titleA": "That was the cut.",
+    "titleB": "Now it’s your turn.",
+    "body": "What just covered your screen was the {{template}} template itself, rendered live in your browser by the app’s engine — your scroll was its playhead. Below is the desktop editor, also running right here in your browser.",
+    "hud": "The cut · {{template}} · rendered live"
   }
 }

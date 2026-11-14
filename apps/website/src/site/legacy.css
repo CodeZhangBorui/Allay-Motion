@@ -1,0 +1,251 @@
+/* 临时：旧版组件的样式，新组件全部接上后删除 */
+.site-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+@media (max-width: 640px) {
+  .site-container {
+    padding-inline: 16px;
+  }
+}
+
+.site-section {
+  padding-block: 96px;
+}
+@media (max-width: 640px) {
+  .site-section {
+    padding-block: 72px;
+  }
+}
+
+/* 排版尺度：标题收紧字距，层级靠字号、字重和三级灰 */
+.site-display {
+  font-size: clamp(40px, 6.2vw, 76px);
+  line-height: 1.04;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+:lang(zh-CN) .site-display {
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+}
+.site-h2 {
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+:lang(zh-CN) .site-h2 {
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+.site-h3 {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.site-lead {
+  font-size: clamp(16px, 1.6vw, 18.5px);
+  line-height: 1.65;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+.site-body {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+.site-kicker {
+  font-family: var(--font-num);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-text);
+}
+
+/* 营销页的按钮：沿用 ui 的 Button 变体，只放大尺寸 */
+.site-btn {
+  height: 40px;
+  padding-inline: 16px;
+  font-size: 14px;
+  border-radius: 8px;
+  gap: 8px;
+}
+
+.site-card {
+  background: var(--site-card);
+  border-radius: 14px;
+}
+[data-tone='alt'] .site-card {
+  background: var(--site-card-alt);
+}
+
+/* 像素图：整数倍放大，不糊（6.2 像素图的显示） */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* 悬浮在画面下方的工具条（应用里预览工具条的样子） */
+.site-float {
+  background: var(--surface-2);
+  border-radius: 12px;
+  box-shadow: var(--shadow-float);
+}
+
+/* 仿 Electron 窗口：真正浮起的东西，才有阴影 */
+.site-window {
+  border-radius: 12px;
+  background: var(--background);
+  box-shadow: var(--shadow-dialog);
+  outline: 1px solid var(--control);
+  overflow: hidden;
+}
+
+/* 首屏标题的逐行出场：只做透明度和极小的位移，用应用的缓动 */
+@keyframes site-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 只在确认页面在逐帧渲染之后才做（main.tsx 在第一帧里给 <html> 加 motion-ok）：后台标签页里不会先变透明再卡住 */
+.motion-ok .site-rise {
+  animation: site-rise 720ms var(--ease-out) both;
+}
+[data-reduced-motion='true'] .site-rise {
+  animation: none;
+}
+
+/* 播放头的平滑：位置由脚本每帧写 transform */
+.site-playhead {
+  will-change: transform;
+}
+
+/* 横向滚动的工具条：不显示滚动条（窄屏上模板切换按钮可以左右滑） */
+.site-scroll-x {
+  scrollbar-width: none;
+}
+.site-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* 悬停时卡片微微浮起：真正“浮起”的东西才有阴影（06 6.1），缓动沿用应用的 --ease-out */
+.site-lift {
+  transition:
+    transform 320ms var(--ease-out),
+    box-shadow 320ms var(--ease-out);
+}
+@media (hover: hover) {
+  .site-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-float);
+  }
+}
+[data-reduced-motion='true'] .site-lift {
+  transition: none;
+}
+[data-reduced-motion='true'] .site-lift:hover {
+  transform: none;
+}
+
+/*
+ * 进视口时的交错出场（motion/useInView 打 data-armed / data-shown）。
+ * 只做透明度和很小的位移，缓动用应用的 --ease-out；没武装（已在视口里、后台标签页、减少动效）时就是终态。
+ */
+.site-stagger > * {
+  transition:
+    opacity 560ms var(--ease-out),
+    transform 560ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+[data-armed='true'][data-shown='false'] .site-stagger > *,
+[data-armed='true'][data-shown='false'].site-stagger > * {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.site-slide > * {
+  transition: transform 640ms var(--ease-out), opacity 640ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+[data-armed='true'][data-shown='false'] .site-slide > * {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+/* “预览就是成片”：两行刻度用同一个节奏点亮，一眼看出逐帧一致 */
+@keyframes site-tick {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  12% {
+    filter: brightness(1.9);
+  }
+}
+.site-ticks > span {
+  animation: site-tick 2.4s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--i, 0) * 120ms);
+}
+[data-shown='false'] .site-ticks > span {
+  animation-play-state: paused;
+}
+
+/* “完全离线”：被删掉的全局一个个划掉 */
+.site-strike > li {
+  position: relative;
+}
+.site-strike > li::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 28px;
+  top: 50%;
+  height: 1px;
+  background: var(--fg-subtle);
+  transform-origin: left;
+  transform: scaleX(1);
+  transition: transform 420ms var(--ease-out);
+  transition-delay: calc(240ms + var(--i, 0) * 80ms);
+}
+[data-armed='true'][data-shown='false'] .site-strike > li::after {
+  transform: scaleX(0);
+}
+
+/* 工作流：滚动推进的三段进度条，各步在走到时点亮 */
+.site-step .site-steps-bar > span {
+  transform-origin: left;
+  transform: scaleX(var(--fill, 1));
+}
+.site-step[data-active='false'] .site-step-num {
+  color: var(--fg-subtle);
+}
+.site-step-num,
+.site-step-icon {
+  transition:
+    color 320ms var(--ease-out),
+    background-color 320ms var(--ease-out);
+}
+.site-step[data-active='true'] .site-step-icon {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+[data-reduced-motion='true'] .site-stagger > *,
+[data-reduced-motion='true'] .site-slide > *,
+[data-reduced-motion='true'] .site-strike > li::after {
+  transition: none;
+}
+[data-reduced-motion='true'] .site-ticks > span {
+  animation: none;
+}

@@ -39,3 +39,9 @@ export function mcTexture(id: string): Promise<{ png: Uint8Array; mcmeta: string
   // 调用方会把缓冲转移给 Worker，每次给一份新的
   return p.then((r) => (r ? { png: r.png.slice(), mcmeta: r.mcmeta } : null));
 }
+
+/** 贴图 ID 对应的图片地址（页面里直接 <img> 显示用）；这里没有时为 null */
+export function mcTextureUrl(id: string): string | null {
+  const path = textureIdToPath(id);
+  return path && files.has(path) ? url(path) : null;
+}

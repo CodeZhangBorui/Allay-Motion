@@ -1,8 +1,9 @@
-// 实时预览面板：长得像应用的预览面板（左上“预览 · 模板名”、右上规格读数、棋盘格背景、悬浮工具条、阶段轨），
-// 画面由桌面版的引擎 Worker 实时渲染。首屏和窄屏的仿真器都用它。
+// 实时预览面板：应用的预览面板的样子（左上“预览 · 模板名”、右上规格读数、棋盘格背景、悬浮工具条、阶段轨和剪辑点），
+// 画面由桌面版的引擎 Worker 实时渲染。首屏到分镜的主视觉、窄屏的仿真器都用它。
+// 可以由外面驱动（分镜：选哪个模板、改哪些参数、播放头停在哪），也可以自己播（首屏：自动轮换）。
 import { AllayLoader } from '@allay/mascot';
 import { Skeleton } from '@allay/ui/components/misc';
-import { localize } from '@allay/template-sdk';
+import { localize, type ParamValues } from '@allay/template-sdk';
 import { Pause, Play } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,23 +12,34 @@ import { mcGameVersion } from '../../host/mc-pack';
 import { builtinEntries } from '../../host/templates';
 import { usePrefs } from '../prefs';
 import type { LivePreview, LiveState } from '../engine/runtime';
-import { publishLiveTick } from '../motion/HeroField';
+
+export interface LiveViewerControl {
+  /** 外面选中的模板（分镜第一步） */
+  templateId?: string | null;
+  /** 覆盖的参数（分镜第二步） */
+  params?: ParamValues | null;
+  /** 播放头停在整段的这个比例上（0–1）；null 时照常播放（分镜第三步：渲染到第几帧） */
+  scrub?: number | null;
+}
 
 interface Props {
   /** 自动轮换模板（首屏）；用户点了任何一个就停 */
   autoCycle?: boolean;
-  /** 显示时间轴（可拖） */
+  /** 时间轴可拖 */
   scrubbable?: boolean;
   testId?: string;
-  /** 被选中的模板（外部控制，例如模板卡片里点“在预览里看”） */
   initialId?: string;
-  /** 把播放进度广播出去（首屏四周的方块场跟着它动） */
-  publish?: boolean;
+  control?: LiveViewerControl;
+  /** 用户自己点了模板 */
+  onPick?: (id: string) => void;
+  className?: string;
 }
 
 type Status = 'starting' | 'ready' | 'unsupported' | 'failed';
 
-export function LiveViewer({ autoCycle = false, scrubbable = false, testId, initialId, publish = false }: Props) {
+const STAGE_COLORS = ['var(--stage-enter)', 'var(--stage-hold)', 'var(--stage-exit)'];
+
+export function LiveViewer({ autoCycle = false, scrubbable = false, testId, initialId, control, onPick, className }: Props) {
   const { t } = useTranslation();
   const { language } = usePrefs();
   const entries = useMemo(() => builtinEntries(), []);
@@ -40,9 +52,8 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
   const liveRef = useRef<LivePreview | null>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLSpanElement>(null);
+  const chipsRef = useRef<HTMLDivElement>(null);
   const entry: TemplateEntry | undefined = entries[index];
-  /** 当前模板各段结束处占总时长的比例（给 publish 用，引擎回调里读最新的） */
-  const marksRef = useRef<number[]>([]);
 
   // 引擎：懒加载 runtime（three 和引擎在单独的代码块里），挂到画布上
   useEffect(() => {
@@ -75,10 +86,9 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
       live.subscribe((s) => {
         // 播放头每帧走：直接写 transform，不触发 React 重渲染
         const p = s.duration > 0 ? Math.min(1, s.time / s.duration) : 0;
-        if (playheadRef.current) playheadRef.current.style.transform = `translateX(${p * 100}%)`;
+        if (playheadRef.current) playheadRef.current.style.transform = `translateX(${(p * 100).toFixed(3)}%)`;
         if (timeRef.current) timeRef.current.textContent = `${Math.min(s.time, s.duration).toFixed(2)} / ${s.duration.toFixed(2)} s`;
         setState((prev) => (prev.duration === s.duration && prev.playing === s.playing && prev.cutTime === s.cutTime ? prev : s));
-        if (publish) publishLiveTick({ time: s.time, duration: s.duration, marks: marksRef.current });
       });
       const stage = stageRef.current;
       if (stage) {
@@ -92,14 +102,49 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
       liveRef.current = null;
       live?.dispose();
     };
-  }, [entries.length, publish]);
+  }, [entries.length]);
 
-  // 换模板、换语言（带文字的模板跟着换）
+  // 外面选了模板
+  const controlledId = control?.templateId ?? null;
+  useEffect(() => {
+    if (!controlledId) return;
+    const i = entries.findIndex((e) => e.id === controlledId);
+    if (i >= 0) {
+      cycling.current = false;
+      setIndex(i);
+    }
+  }, [controlledId, entries]);
+
+  // 换模板、换语言（带文字的模板跟着换）。参数覆盖在装载时一并带上
+  const overridesRef = useRef<ParamValues | null>(null);
+  overridesRef.current = control?.params ?? null;
   useEffect(() => {
     const live = liveRef.current;
     if (status !== 'ready' || !live || !entry) return;
-    void live.show(entry, language).catch((error: unknown) => console.warn('[live] load failed', error));
+    void live.show(entry, language, overridesRef.current ?? undefined).catch((error: unknown) => console.warn('[live] load failed', error));
   }, [status, entry, language]);
+
+  // 参数变了（分镜第二步）：走 setParams，和应用里拖属性面板一样
+  const paramsKey = control?.params ? JSON.stringify(control.params) : '';
+  useEffect(() => {
+    const live = liveRef.current;
+    if (status !== 'ready' || !live || !paramsKey) return;
+    if (live.templateId !== entry?.id) return;
+    live.setParams(JSON.parse(paramsKey) as ParamValues);
+  }, [status, paramsKey, entry?.id]);
+
+  // 播放头由外面定（分镜第三步）
+  const scrub = control?.scrub ?? null;
+  useEffect(() => {
+    const live = liveRef.current;
+    if (status !== 'ready' || !live) return;
+    if (scrub === null) {
+      if (!live.userPaused) live.setPlaying(true);
+      return;
+    }
+    live.setPlaying(false);
+    live.seek(scrub * state.duration);
+  }, [status, scrub, state.duration]);
 
   // 画布尺寸跟着面板走；不在视口里不画
   useEffect(() => {
@@ -118,73 +163,84 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
     };
   }, [status]);
 
+  // 选中的模板按钮滚进工具条可见处（模板多了以后工具条可以横向滑）
+  useEffect(() => {
+    const bar = chipsRef.current;
+    const chip = bar?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!bar || !chip) return;
+    const left = chip.offsetLeft - bar.clientWidth / 2 + chip.clientWidth / 2;
+    bar.scrollTo({ left, behavior: document.documentElement.dataset.reducedMotion === 'true' ? 'auto' : 'smooth' });
+  }, [index]);
+
   const pick = (i: number) => {
     cycling.current = false;
     setIndex(i);
+    const id = entries[i]?.id;
+    if (id) onPick?.(id);
   };
 
   const segments = useMemo(() => {
     const m = entry?.manifest;
     if (!m?.timeline) return [];
     const items = m.timeline.segments.map((s) => {
+      const fromControl = control?.params?.[s.param];
       const def = (m.params ?? []).find((p) => p.key === s.param);
-      return { key: s.param, label: localize(s.label, language), value: typeof def?.default === 'number' ? def.default : 0 };
+      const value = typeof fromControl === 'number' ? fromControl : typeof def?.default === 'number' ? def.default : 0;
+      return { key: s.param, label: localize(s.label, language), value };
     });
     const total = items.reduce((n, s) => n + s.value, 0) || 1;
     return items.map((s) => ({ ...s, share: s.value / total }));
-  }, [entry, language]);
-  useEffect(() => {
-    let acc = 0;
-    marksRef.current = segments.map((sg) => (acc += sg.share));
-  }, [segments]);
-  const stageColors = ['var(--stage-enter)', 'var(--stage-hold)', 'var(--stage-exit)'];
+  }, [entry, language, control?.params]);
 
   const scrubTo = (clientX: number, el: HTMLElement) => {
     const r = el.getBoundingClientRect();
     const live = liveRef.current;
     if (!live) return;
     cycling.current = false;
-    live.setPlaying(false);
+    live.setPlaying(false, true);
     live.seek(((clientX - r.left) / r.width) * state.duration);
   };
 
+  const name = entry ? localize(entry.manifest.name, language) : '';
+  const cutShare = state.cutTime !== null && state.duration > 0 ? state.cutTime / state.duration : null;
+
   return (
-    <div className="panel bg-viewer" data-testid={testId} data-status={status}>
-      <div className="flex h-11 items-center gap-2 px-4 text-[13px]">
+    <div className={`monitor p-2 sm:p-2.5 ${className ?? ''}`} data-testid={testId} data-status={status}>
+      <div className="flex h-10 items-center gap-2.5 px-2.5 text-[13px]">
+        <span className="relative flex size-2" aria-hidden="true">
+          <span className="absolute inset-0 animate-ping rounded-full bg-primary opacity-60 motion-reduce:hidden" />
+          <span className="relative size-2 rounded-full bg-primary" />
+        </span>
         <span className="font-semibold">{t('site.hero.viewerLabel')}</span>
         <span className="truncate text-fg-muted" data-testid="live-template-name">
-          {entry ? localize(entry.manifest.name, language) : ''}
+          {name}
         </span>
-        <span className="num ml-auto text-[12px] text-fg-subtle">1920 × 1080 · 60 fps</span>
+        <span className="t-mono ml-auto hidden text-[10.5px] text-fg-subtle sm:inline">1920 × 1080 · 60 fps</span>
       </div>
 
-      <div className="px-3 sm:px-6">
-        <div ref={stageRef} className="preview-checker relative aspect-video w-full overflow-hidden rounded-lg" data-testid="live-stage">
-          <canvas ref={canvasRef} className="absolute inset-0 size-full" aria-label={entry ? localize(entry.manifest.name, language) : undefined} role="img" />
-          {status === 'starting' && (
-            <AllayLoader loading label={t('site.hero.starting')} priority="preview" className="absolute inset-0">
-              <div className="flex size-full flex-col items-center justify-center gap-3">
-                <Skeleton className="h-[52%] w-[56%]" />
-                <span className="text-[12px] text-fg-subtle">{t('site.hero.starting')}</span>
-              </div>
-            </AllayLoader>
-          )}
-          {(status === 'unsupported' || status === 'failed') && (
-            <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-fg-muted">{t('site.hero.noWebgl')}</div>
-          )}
-        </div>
+      <div ref={stageRef} className="preview-checker relative aspect-video w-full overflow-hidden rounded-[11px]" data-testid="live-stage">
+        <canvas ref={canvasRef} className="absolute inset-0 size-full" aria-label={name || undefined} role="img" />
+        {status === 'starting' && (
+          <AllayLoader loading label={t('site.hero.starting')} priority="preview" className="absolute inset-0">
+            <div className="flex size-full flex-col items-center justify-center gap-3">
+              <Skeleton className="h-[52%] w-[56%]" />
+              <span className="text-[12px] text-fg-subtle">{t('site.hero.starting')}</span>
+            </div>
+          </AllayLoader>
+        )}
+        {(status === 'unsupported' || status === 'failed') && <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[13px] text-fg-muted">{t('site.hero.noWebgl')}</div>}
       </div>
 
       {/* 悬浮工具条：播放和模板切换 */}
       <div className="relative z-10 -mt-6 flex justify-center px-3">
-        <div className="site-float site-scroll-x flex max-w-full items-center gap-1 overflow-x-auto p-1" role="toolbar" aria-label={t('site.hero.pick')}>
+        <div ref={chipsRef} className="site-float site-scroll-x flex max-w-full items-center gap-1 overflow-x-auto p-1" role="toolbar" aria-label={t('site.hero.pick')}>
           <button
             type="button"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-foreground transition-colors duration-(--dur-1) hover:bg-control"
+            className="link-focus flex size-8 shrink-0 items-center justify-center rounded-md text-foreground transition-colors duration-150 hover:bg-control"
             aria-label={state.playing ? t('site.hero.pause') : t('site.hero.play')}
             data-testid="live-play"
             disabled={status !== 'ready'}
-            onClick={() => liveRef.current?.setPlaying(!state.playing)}
+            onClick={() => liveRef.current?.setPlaying(!state.playing, true)}
           >
             {state.playing ? <Pause size={15} weight="fill" /> : <Play size={15} weight="fill" />}
           </button>
@@ -197,7 +253,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
               data-testid="live-chip"
               data-template={e.id}
               onClick={() => pick(i)}
-              className={`h-8 shrink-0 rounded-md px-3 text-[12.5px] whitespace-nowrap transition-colors duration-(--dur-1) ${
+              className={`link-focus h-8 shrink-0 rounded-md px-3 text-[12.5px] whitespace-nowrap transition-colors duration-150 ${
                 i === index ? 'bg-control-hi font-medium text-foreground' : 'text-fg-muted hover:bg-control hover:text-foreground'
               }`}
             >
@@ -207,8 +263,8 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
         </div>
       </div>
 
-      {/* 阶段轨：进入 / 停留 / 退出，按默认时长分段；播放头和剪辑点 */}
-      <div className="px-3 pt-4 pb-4 sm:px-6">
+      {/* 阶段轨：进入 / 停留 / 退出，播放头和剪辑点 */}
+      <div className="px-1.5 pt-3.5 pb-1.5 sm:px-2.5">
         <div
           className={`relative ${scrubbable ? 'cursor-ew-resize touch-none' : ''}`}
           onPointerDown={
@@ -230,27 +286,30 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
           data-testid="live-timeline"
           aria-label={scrubbable ? t('site.hero.scrub') : undefined}
         >
-          <div className="flex h-7 gap-[3px] rounded-md bg-well p-[3px]">
+          <div className="flex h-7 gap-[3px] rounded-[8px] bg-well p-[3px]">
             {segments.map((s, i) => (
               <div
                 key={s.key}
-                className="flex min-w-0 items-center justify-between overflow-hidden rounded-[5px] px-2 text-[11px] text-stage-foreground"
-                style={{ flexGrow: s.share, flexBasis: 0, background: stageColors[i % 3] }}
+                className="flex min-w-0 items-center justify-between overflow-hidden rounded-[5px] px-2 text-[11px] text-stage-foreground transition-[flex-grow] duration-300"
+                style={{ flexGrow: s.share, flexBasis: 0, background: STAGE_COLORS[i % 3] }}
               >
                 <span className="truncate">{s.label}</span>
-                <span className="num hidden opacity-80 sm:inline">{s.value.toFixed(2)}s</span>
+                <span className="t-tab hidden opacity-80 sm:inline">{s.value.toFixed(2)}s</span>
               </div>
             ))}
           </div>
-          <div className="pointer-events-none absolute inset-y-[-3px] left-0 right-0">
+          {cutShare !== null && <span className="cut-mark !bottom-auto top-[-6px]" style={{ left: `${cutShare * 100}%` }} aria-hidden="true" />}
+          <div className="pointer-events-none absolute inset-y-[-4px] left-0 right-0">
             <div ref={playheadRef} className="site-playhead absolute inset-y-0 left-0 w-full">
-              <div className="absolute inset-y-0 left-0 w-[1.5px] -translate-x-1/2 bg-primary" />
+              <div className="absolute inset-y-0 left-0 w-[2px] -translate-x-1/2 rounded-full bg-primary" style={{ boxShadow: '0 0 8px rgb(var(--glow) / .9)' }} />
             </div>
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between text-[11.5px] text-fg-subtle">
-          <span data-testid="assets-note">{mcGameVersion ? t('site.hero.mcAssets', { version: mcGameVersion }) : t('site.hero.demoAssets')}</span>
-          <span ref={timeRef} className="num hidden shrink-0 pl-4 sm:inline" />
+        <div className="mt-2 flex items-center justify-between gap-4 text-[11px] text-fg-subtle">
+          <span data-testid="assets-note" className="line-clamp-2">
+            {mcGameVersion ? t('site.hero.mcAssets', { version: mcGameVersion }) : t('site.hero.demoAssets')}
+          </span>
+          <span ref={timeRef} className="t-tab hidden shrink-0 sm:inline" />
         </div>
       </div>
     </div>

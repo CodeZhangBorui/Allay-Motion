@@ -77,6 +77,12 @@ export class LivePreview {
   private loading: Promise<void> = Promise.resolve();
   private disposed = false;
   private source: TemplateSource | null = null;
+  private params: ParamValues = {};
+  private pendingParams: ParamValues | null = null;
+  private loadedId: string | null = null;
+  locale: SiteLanguage = 'en';
+  /** 播完一遍后不循环，停在片尾（剪辑点的整幅转场由滚动驱动，不自己播） */
+  loop = true;
   private listeners = new Set<(s: LiveState) => void>();
   /** 每播完一遍调用（首屏用它自动换下一个模板） */
   onLoop: (() => void) | null = null;
@@ -108,27 +114,71 @@ export class LivePreview {
     for (const l of this.listeners) l(s);
   }
 
-  /** 换模板（参数取默认值，语言影响带文字的模板） */
-  show(entry: TemplateEntry, locale: SiteLanguage, params?: ParamValues): Promise<void> {
+  /**
+   * 换模板（参数取默认值，overrides 覆盖其中几项；语言影响带文字的模板）。
+   * output 默认是应用的 1920×1080、60 fps；剪辑点的整幅转场按视口的宽高比装载。
+   */
+  show(entry: TemplateEntry, locale: SiteLanguage, overrides?: ParamValues, output?: { width: number; height: number }): Promise<void> {
+    this.pendingParams = null;
     return this.queue(async () => {
       const host = this.host;
       const source = templateSource(entry);
       if (!host || !source || this.disposed) return;
       this.source = source;
+      this.locale = locale;
+      const params = { ...defaultParams(source.params, { locale }), ...overrides };
       const result = await host.load({
         manifest: source.manifest,
         code: source.code,
-        params: params ?? defaultParams(source.params, { locale }),
-        output: { width: 1920, height: 1080, fps: 60 },
+        params,
+        output: { width: output?.width ?? 1920, height: output?.height ?? 1080, fps: 60 },
         resourceStamp: loadStamp(source.assets),
         locale,
       });
+      this.params = params;
+      this.loadedId = entry.id;
       this.duration = result.duration;
       this.cutTime = result.cutTime;
-      this.time = 0;
+      this.time = Math.min(this.time, this.duration);
       this.dirty = true;
       this.emit();
     });
+  }
+
+  /** 当前装着的模板 */
+  get templateId(): string | null {
+    return this.loadedId;
+  }
+
+  /**
+   * 改几项参数（不换模板）：和应用里拖属性面板一样走引擎的 setParams。
+   * 滚动驱动时调用得很密，这里只保留最新的一份，前一次没做完的不排队。
+   */
+  setParams(overrides: ParamValues): void {
+    const first = this.pendingParams === null;
+    this.pendingParams = { ...this.params, ...overrides };
+    if (!first) return;
+    void this.queue(async () => {
+      const next = this.pendingParams;
+      this.pendingParams = null;
+      if (!next || !this.host) return;
+      const result = await this.host.setParams(next);
+      this.params = next;
+      this.duration = result.duration;
+      this.cutTime = result.cutTime;
+      this.time = Math.min(this.time, this.duration);
+      this.dirty = true;
+      this.emit();
+    });
+  }
+
+  /** 读预览画布在 t 时刻的像素（测试用：整幅转场在剪辑点是不是铺满） */
+  async readPixels(t: number): Promise<Uint8Array | null> {
+    let out: Uint8Array | null = null;
+    await this.queue(async () => {
+      out = (await this.host?.readPreview(t)) ?? null;
+    });
+    return out;
   }
 
   /** 引擎调用排成一队（装载、resize、渲染不交错）；一步失败不连累后面的 */
@@ -150,8 +200,12 @@ export class LivePreview {
     });
   }
 
-  setPlaying(playing: boolean): void {
+  /** 用户自己按了暂停（外面的驱动不再替他恢复播放） */
+  userPaused = false;
+
+  setPlaying(playing: boolean, byUser = false): void {
     this.playing = playing;
+    if (byUser) this.userPaused = !playing;
     this.last = performance.now();
     this.emit();
   }
@@ -182,6 +236,7 @@ export class LivePreview {
         t %= span;
         this.onLoop?.();
       }
+      if (!this.loop && t >= this.duration) t = this.duration;
       this.time = t;
       this.dirty = true;
       this.emit();

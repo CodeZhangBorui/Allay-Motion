@@ -1,8 +1,11 @@
 /*
- * 官网的样式：直接用 packages/ui 的设计变量、字体和 Tailwind 主题（与应用同源），
- * 这里只加营销页需要的排版尺度、版心和三个页面级的面色。不另起配色、不加渐变、模糊、发光（06-ui-design.md 6.1）。
+ * 官网的样式（第三版，docs/decisions.md 官网 · 第三版）。
+ * 颜色、圆角、缓动全部从 packages/ui 的设计变量派生（color-mix），不另起配色。
+ * 与应用的不同只有一处，而且只在官网：允许品牌蓝的光晕、细腻的渐变和玻璃感（应用界面按 06 6.1 禁止这些）。
+ * 品牌蓝（--allay / --primary）是全页唯一的光源色。
  */
 @import "@allay/ui/styles.css";
+@import "./legacy.css";
 
 @source "../../../../packages/ui/src";
 @source "../../../../packages/mascot/src";
@@ -10,37 +13,54 @@
 
 /*
  * 字体：英文与数字照旧是 IBM Plex Sans / Mono（与应用相同，体积小，构建时预加载）。
- * 中文先用系统自带的黑体（苹方、微软雅黑等），Noto Sans SC 只在系统没有中文字体时才下载：
- * 它按 unicode-range 切成上百个分片，中文首屏要下载约 1.4 MB（docs/decisions.md 官网 · 字体）。
- * 仿真器 iframe 里是应用自己的样式，仍然用 Noto Sans SC。
+ * 中文先用系统自带的黑体（苹方、微软雅黑等），Noto Sans SC 只在系统没有中文字体时才下载（docs/decisions.md 官网 · 字体）。
  */
 :root {
   --font-ui: "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC", system-ui, sans-serif;
   --font-num: "IBM Plex Mono", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", Consolas, monospace;
+  --nav-h: 64px;
+  --gutter: clamp(16px, 4vw, 56px);
+  --ease-spring: cubic-bezier(.2, 1.3, .3, 1);
+  --ease-expo: cubic-bezier(.16, 1, .3, 1);
 }
 
-/* 页面级的面色：深色沿用窗口底色和面板色；浅色用面板色做页面底（不用纯白大面积），凹槽色做交替节 */
+/* ---------- 页面级的面色与光 ---------- */
 :root,
 [data-theme='dark'] {
   --site-bg: var(--background);
-  --site-alt: var(--surface-1);
-  --site-card: var(--surface-1);
-  --site-card-alt: var(--surface-2);
-  --site-line: var(--divider);
+  /* 更深的一层（工作室、页脚） */
+  --site-deep: color-mix(in oklab, var(--background) 70%, black);
+  --site-raise: color-mix(in oklab, var(--surface-1) 78%, transparent);
+  --site-card: color-mix(in oklab, var(--surface-1) 86%, transparent);
+  --site-line: color-mix(in srgb, var(--foreground) 9%, transparent);
+  --site-line-hi: color-mix(in srgb, var(--foreground) 16%, transparent);
+  --site-edge: rgb(255 255 255 / .1);
+  /* 光：品牌蓝 */
+  --glow: 60 183 244;
+  --glow-a: .22;
+  --dot: color-mix(in srgb, var(--foreground) 11%, transparent);
+  --grain-a: .05;
+  --display-fg: var(--foreground);
 }
 [data-theme='light'] {
   --site-bg: var(--surface-1);
-  --site-alt: var(--well);
-  --site-card: var(--surface-2);
-  --site-card-alt: var(--surface-2);
-  --site-line: var(--control-hi);
+  --site-deep: var(--background);
+  --site-raise: color-mix(in oklab, var(--surface-2) 80%, transparent);
+  --site-card: color-mix(in oklab, var(--surface-2) 92%, transparent);
+  --site-line: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --site-line-hi: color-mix(in srgb, var(--foreground) 18%, transparent);
+  --site-edge: rgb(255 255 255 / .9);
+  --glow: 11 106 166;
+  --glow-a: .14;
+  --dot: color-mix(in srgb, var(--foreground) 13%, transparent);
+  --grain-a: .035;
+  --display-fg: var(--foreground);
 }
 
 @theme inline {
   --color-site: var(--site-bg);
-  --color-site-alt: var(--site-alt);
+  --color-site-deep: var(--site-deep);
   --color-site-card: var(--site-card);
-  --color-site-card-alt: var(--site-card-alt);
   --color-site-line: var(--site-line);
 }
 
@@ -52,269 +72,541 @@
     overflow: visible;
   }
   html {
-    scroll-behavior: smooth;
-    scroll-padding-top: 72px;
+    scroll-padding-top: calc(var(--nav-h) + 16px);
     background: var(--site-bg);
-  }
-  [data-reduced-motion='true'] {
-    scroll-behavior: auto;
   }
   body {
     background: var(--site-bg);
-    font-size: 15px;
-    line-height: 1.55;
+    font-size: 16px;
+    line-height: 1.6;
     user-select: text;
     overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: rgb(var(--glow) / .35);
   }
 }
 
-.site-container {
+/* ---------- 版心 ---------- */
+.wrap {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1440px;
   margin-inline: auto;
-  padding-inline: 24px;
-}
-@media (max-width: 640px) {
-  .site-container {
-    padding-inline: 16px;
-  }
+  padding-inline: var(--gutter);
 }
 
-.site-section {
-  padding-block: 96px;
+/* ---------- 排版：超大字号与小号等宽标注的强对比 ---------- */
+.t-display {
+  font-size: clamp(48px, 8.4vw, 150px);
+  line-height: .9;
+  font-weight: 600;
+  letter-spacing: -.058em;
+  color: var(--display-fg);
 }
-@media (max-width: 640px) {
-  .site-section {
-    padding-block: 72px;
-  }
-}
-
-/* 排版尺度：标题收紧字距，层级靠字号、字重和三级灰 */
-.site-display {
-  font-size: clamp(40px, 6.2vw, 76px);
+:lang(zh-CN) .t-display {
+  font-size: clamp(44px, 7.6vw, 132px);
   line-height: 1.04;
+  letter-spacing: -.035em;
+}
+.t-h2 {
+  font-size: clamp(38px, 5.4vw, 92px);
+  line-height: .94;
   font-weight: 600;
-  letter-spacing: -0.035em;
+  letter-spacing: -.05em;
   text-wrap: balance;
 }
-:lang(zh-CN) .site-display {
-  letter-spacing: -0.01em;
-  line-height: 1.12;
-}
-.site-h2 {
-  font-size: clamp(30px, 4vw, 46px);
+:lang(zh-CN) .t-h2 {
+  font-size: clamp(34px, 4.8vw, 80px);
   line-height: 1.1;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
+  letter-spacing: -.03em;
 }
-:lang(zh-CN) .site-h2 {
-  letter-spacing: -0.005em;
+.t-h3 {
+  font-size: clamp(20px, 1.7vw, 26px);
   line-height: 1.2;
-}
-.site-h3 {
-  font-size: 17px;
-  line-height: 1.35;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -.025em;
 }
-.site-lead {
-  font-size: clamp(16px, 1.6vw, 18.5px);
+:lang(zh-CN) .t-h3 {
+  letter-spacing: -.01em;
+  line-height: 1.3;
+}
+.t-lead {
+  font-size: clamp(17px, 1.3vw, 20px);
+  line-height: 1.6;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+.t-body {
+  font-size: 15px;
   line-height: 1.65;
   color: var(--fg-muted);
   text-wrap: pretty;
 }
-.site-body {
-  font-size: 14.5px;
-  line-height: 1.65;
-  color: var(--fg-muted);
-  text-wrap: pretty;
-}
-.site-kicker {
+/* 等宽小标注：时间码、编号、规格 */
+.t-mono {
   font-family: var(--font-num);
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: .14em;
   text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+:lang(zh-CN) .t-mono {
+  letter-spacing: .1em;
+}
+.t-tab {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+/* 描边大数字（分镜的编号） */
+.t-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+.accent {
   color: var(--primary-text);
 }
-
-/* 营销页的按钮：沿用 ui 的 Button 变体，只放大尺寸 */
-.site-btn {
-  height: 40px;
-  padding-inline: 16px;
-  font-size: 14px;
-  border-radius: 8px;
-  gap: 8px;
+/* 标题里一段带光的字：品牌蓝从左下透进来 */
+.t-glow {
+  background: linear-gradient(100deg, var(--foreground) 10%, color-mix(in oklab, var(--allay) 70%, var(--foreground)) 55%, var(--allay-light) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+[data-theme='light'] .t-glow {
+  background: linear-gradient(100deg, var(--foreground) 10%, var(--primary) 70%, var(--allay-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
-.site-card {
+/* ---------- 底纹：点阵、网格、颗粒、光晕 ---------- */
+.bg-dots {
+  background-image: radial-gradient(circle at center, var(--dot) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+.bg-grid {
+  background-image:
+    linear-gradient(var(--site-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--site-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+.fade-mask {
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 80%);
+}
+.fade-mask-b {
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+/* 一团品牌蓝的光（绝对定位，放在内容后面） */
+.halo {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgb(var(--glow) / var(--glow-a)), rgb(var(--glow) / 0));
+}
+/* 整页的胶片颗粒（固定在视口上，静止，不随滚动重画） */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: var(--grain-a);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1.4 -.2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+
+/* 光标附近的光：一团跟着指针走的品牌蓝（位置由脚本写 transform） */
+.cursor-light {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 720px;
+  height: 720px;
+  margin: -360px 0 0 -360px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgb(var(--glow) / calc(var(--glow-a) * .55)), rgb(var(--glow) / 0));
+  opacity: 0;
+  transition: opacity 600ms var(--ease-out);
+  will-change: transform;
+}
+.cursor-light[data-on='true'] {
+  opacity: 1;
+}
+
+/* ---------- 卡片：描边高光 + 跟随指针的光 ---------- */
+.card {
+  position: relative;
+  isolation: isolate;
+  border-radius: 20px;
   background: var(--site-card);
-  border-radius: 14px;
+  box-shadow:
+    inset 0 0 0 1px var(--site-line),
+    inset 0 1px 0 0 var(--site-edge);
+  overflow: hidden;
 }
-[data-tone='alt'] .site-card {
-  background: var(--site-card-alt);
+[data-theme='light'] .card {
+  box-shadow:
+    inset 0 0 0 1px var(--site-line),
+    0 1px 2px rgb(0 0 0 / .05),
+    0 12px 32px -18px rgb(0 0 0 / .18);
+}
+/* 指针附近的光和描边（--mx、--my 由 Spotlight 写） */
+.spot::before,
+.spot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out);
+}
+.spot::before {
+  z-index: -1;
+  background: radial-gradient(520px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--glow) / calc(var(--glow-a) * .7)), transparent 55%);
+}
+.spot::after {
+  z-index: 3;
+  padding: 1px;
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 0%), rgb(var(--glow) / .75), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.spot[data-hot='true']::before,
+.spot[data-hot='true']::after {
+  opacity: 1;
 }
 
-/* 像素图：整数倍放大，不糊（6.2 像素图的显示） */
-.pixelated {
-  image-rendering: pixelated;
+/* ---------- 按钮 ---------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding-inline: 22px 24px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  transition:
+    background-color 200ms var(--ease-out),
+    box-shadow 300ms var(--ease-out),
+    color 200ms var(--ease-out);
+  will-change: transform;
+}
+.btn-primary {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  box-shadow:
+    0 0 0 1px rgb(var(--glow) / .5),
+    0 10px 40px -10px rgb(var(--glow) / .8),
+    inset 0 1px 0 rgb(255 255 255 / .35);
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+  box-shadow:
+    0 0 0 1px rgb(var(--glow) / .6),
+    0 14px 56px -8px rgb(var(--glow) / .95),
+    inset 0 1px 0 rgb(255 255 255 / .4);
+}
+.btn-ghost {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--site-line-hi);
+  backdrop-filter: blur(12px);
+}
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--foreground) 11%, transparent);
+}
+.btn .btn-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  will-change: transform;
+}
+.btn:focus-visible,
+.link-focus:focus-visible {
+  outline: var(--focus-width) solid var(--ring);
+  outline-offset: var(--focus-offset);
+}
+.btn-sm {
+  height: 36px;
+  padding-inline: 14px;
+  font-size: 13px;
+  gap: 7px;
+}
+
+/* ---------- 导航：玻璃 + 时间轴 ---------- */
+.nav-glass {
+  background: color-mix(in oklab, var(--site-bg) 62%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow:
+    inset 0 -1px 0 var(--site-line),
+    0 12px 32px -24px rgb(0 0 0 / .6);
+}
+.nav-clip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  padding-inline: 10px;
+  color: var(--fg-subtle);
+  transition: color 200ms var(--ease-out);
+}
+.nav-clip:hover,
+.nav-clip[data-current='true'] {
+  color: var(--foreground);
+}
+.nav-clip .nav-clip-bar {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--clip, var(--stage-hold)) 55%, transparent);
+  transition: background-color 300ms var(--ease-out), height 300ms var(--ease-out);
+}
+.nav-clip[data-current='true'] .nav-clip-bar {
+  background: var(--clip, var(--stage-hold));
+  height: 4px;
+}
+.playhead-line {
+  position: absolute;
+  top: 6px;
+  bottom: 4px;
+  left: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--primary);
+  box-shadow: 0 0 12px rgb(var(--glow) / .9);
+  will-change: transform;
+}
+.playhead-line::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 10px;
+  height: 7px;
+  margin-left: -5px;
+  background: var(--primary);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+/* 剪辑点：琥珀色的菱形（与应用时间轴上剪辑点的颜色相同） */
+.cut-mark {
+  position: absolute;
+  bottom: 6px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  background: var(--mark);
+  transform: rotate(45deg);
+  border-radius: 1.5px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--mark) 70%, transparent);
+}
+
+/* ---------- 分节之间安静的过渡：一条带刻度的标尺（剪辑点以外的分界） ---------- */
+.ruler {
+  height: 28px;
+  background-image:
+    linear-gradient(90deg, var(--site-line-hi) 1px, transparent 1px),
+    linear-gradient(90deg, var(--site-line) 1px, transparent 1px);
+  background-size: 120px 14px, 12px 7px;
+  background-repeat: repeat-x;
+  background-position: 0 100%, 0 100%;
+  border-bottom: 1px solid var(--site-line);
+}
+
+/* ---------- 预览面板（应用的预览面板的样子） ---------- */
+.monitor {
+  position: relative;
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--surface-1) 92%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--site-line-hi),
+    inset 0 1px 0 var(--site-edge),
+    0 40px 120px -40px rgb(var(--glow) / .5),
+    0 30px 80px -30px rgb(0 0 0 / .7);
+}
+[data-theme='light'] .monitor {
+  box-shadow:
+    inset 0 0 0 1px var(--site-line-hi),
+    0 40px 100px -40px rgb(var(--glow) / .4),
+    0 24px 60px -30px rgb(0 0 0 / .35);
 }
 
 /* 悬浮在画面下方的工具条（应用里预览工具条的样子） */
 .site-float {
-  background: var(--surface-2);
+  background: color-mix(in oklab, var(--surface-2) 88%, transparent);
+  backdrop-filter: blur(14px);
   border-radius: 12px;
-  box-shadow: var(--shadow-float);
+  box-shadow:
+    inset 0 0 0 1px var(--site-line),
+    var(--shadow-float);
 }
 
-/* 仿 Electron 窗口：真正浮起的东西，才有阴影 */
+/* 仿 Electron 窗口 */
 .site-window {
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--background);
-  box-shadow: var(--shadow-dialog);
-  outline: 1px solid var(--control);
+  box-shadow:
+    0 0 0 1px var(--site-line-hi),
+    0 60px 160px -60px rgb(var(--glow) / .55),
+    var(--shadow-dialog);
   overflow: hidden;
 }
 
-/* 首屏标题的逐行出场：只做透明度和极小的位移，用应用的缓动 */
-@keyframes site-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* 像素图：整数倍放大，不糊 */
+.pixelated {
+  image-rendering: pixelated;
 }
-/* 只在确认页面在逐帧渲染之后才做（main.tsx 在第一帧里给 <html> 加 motion-ok）：后台标签页里不会先变透明再卡住 */
-.motion-ok .site-rise {
-  animation: site-rise 720ms var(--ease-out) both;
-}
-[data-reduced-motion='true'] .site-rise {
-  animation: none;
-}
-
-/* 播放头的平滑：位置由脚本每帧写 transform */
-.site-playhead {
-  will-change: transform;
-}
-
-/* 横向滚动的工具条：不显示滚动条（窄屏上模板切换按钮可以左右滑） */
 .site-scroll-x {
   scrollbar-width: none;
 }
 .site-scroll-x::-webkit-scrollbar {
   display: none;
 }
-
-/* 悬停时卡片微微浮起：真正“浮起”的东西才有阴影（06 6.1），缓动沿用应用的 --ease-out */
-.site-lift {
-  transition:
-    transform 320ms var(--ease-out),
-    box-shadow 320ms var(--ease-out);
+.site-playhead {
+  will-change: transform;
 }
-@media (hover: hover) {
-  .site-lift:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-float);
+
+/* ---------- 入场：遮罩里升起（只在确认页面逐帧渲染后才做，失败即显示） ---------- */
+@keyframes rise-in {
+  from {
+    transform: translateY(105%);
+  }
+  to {
+    transform: none;
   }
 }
-[data-reduced-motion='true'] .site-lift {
-  transition: none;
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
-[data-reduced-motion='true'] .site-lift:hover {
-  transform: none;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: .08em;
+  margin-bottom: -.08em;
+}
+.line-mask > span {
+  display: block;
+}
+.motion-ok .intro .line-mask > span {
+  animation: rise-in 1100ms var(--ease-expo) both;
+  animation-delay: calc(120ms + var(--i, 0) * 110ms);
+}
+.motion-ok .intro .intro-fade {
+  animation: fade-up 900ms var(--ease-expo) both;
+  animation-delay: calc(420ms + var(--i, 0) * 90ms);
 }
 
 /*
- * 进视口时的交错出场（motion/useInView 打 data-armed / data-shown）。
- * 只做透明度和很小的位移，缓动用应用的 --ease-out；没武装（已在视口里、后台标签页、减少动效）时就是终态。
+ * 进视口时的编排（motion/Reveal 打 data-armed / data-shown）。没武装（已在视口里、后台标签页、减少动效）时就是终态。
  */
-.site-stagger > * {
+.reveal > * {
   transition:
-    opacity 560ms var(--ease-out),
-    transform 560ms var(--ease-out);
-  transition-delay: calc(var(--i, 0) * 70ms);
+    opacity 900ms var(--ease-expo),
+    transform 900ms var(--ease-expo);
+  transition-delay: calc(var(--i, 0) * 80ms);
 }
-[data-armed='true'][data-shown='false'] .site-stagger > *,
-[data-armed='true'][data-shown='false'].site-stagger > * {
+[data-armed='true'][data-shown='false'].reveal > * {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(28px);
 }
-.site-slide > * {
-  transition: transform 640ms var(--ease-out), opacity 640ms var(--ease-out);
+.reveal-lines .line-mask > span {
+  transition: transform 1000ms var(--ease-expo);
   transition-delay: calc(var(--i, 0) * 90ms);
 }
-[data-armed='true'][data-shown='false'] .site-slide > * {
-  opacity: 0;
-  transform: translateX(-24px);
+[data-armed='true'][data-shown='false'].reveal-lines .line-mask > span {
+  transform: translateY(105%);
 }
 
-/* “预览就是成片”：两行刻度用同一个节奏点亮，一眼看出逐帧一致 */
-@keyframes site-tick {
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-  12% {
-    filter: brightness(1.9);
-  }
-}
-.site-ticks > span {
-  animation: site-tick 2.4s var(--ease-in-out) infinite;
-  animation-delay: calc(var(--i, 0) * 120ms);
-}
-[data-shown='false'] .site-ticks > span {
-  animation-play-state: paused;
-}
-
-/* “完全离线”：被删掉的全局一个个划掉 */
-.site-strike > li {
-  position: relative;
-}
-.site-strike > li::after {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 28px;
-  top: 50%;
-  height: 1px;
-  background: var(--fg-subtle);
-  transform-origin: left;
-  transform: scaleX(1);
-  transition: transform 420ms var(--ease-out);
-  transition-delay: calc(240ms + var(--i, 0) * 80ms);
-}
-[data-armed='true'][data-shown='false'] .site-strike > li::after {
-  transform: scaleX(0);
-}
-
-/* 工作流：滚动推进的三段进度条，各步在走到时点亮 */
-.site-step .site-steps-bar > span {
-  transform-origin: left;
-  transform: scaleX(var(--fill, 1));
-}
-.site-step[data-active='false'] .site-step-num {
-  color: var(--fg-subtle);
-}
-.site-step-num,
-.site-step-icon {
+/* 悬停时卡片微微浮起 */
+.lift {
   transition:
-    color 320ms var(--ease-out),
-    background-color 320ms var(--ease-out);
+    transform 500ms var(--ease-expo),
+    box-shadow 500ms var(--ease-expo);
 }
-.site-step[data-active='true'] .site-step-icon {
-  background: var(--primary-soft);
-  color: var(--primary-text);
+@media (hover: hover) {
+  .lift:hover {
+    transform: translateY(-4px);
+  }
 }
 
-[data-reduced-motion='true'] .site-stagger > *,
-[data-reduced-motion='true'] .site-slide > *,
-[data-reduced-motion='true'] .site-strike > li::after {
+/* ---------- 减少动效：所有入场、过渡都是终态 ---------- */
+[data-reduced-motion='true'] .intro .line-mask > span,
+[data-reduced-motion='true'] .intro .intro-fade {
+  animation: none !important;
+}
+[data-reduced-motion='true'] .reveal > *,
+[data-reduced-motion='true'] .reveal-lines .line-mask > span,
+[data-reduced-motion='true'] .lift {
+  transition: none !important;
+}
+[data-reduced-motion='true'] .lift:hover {
+  transform: none;
+}
+[data-reduced-motion='true'] .cursor-light {
+  display: none;
+}
+
+@keyframes scroll-cue {
+  0% {
+    transform: translateY(-100%);
+  }
+  60%,
+  100% {
+    transform: translateY(260%);
+  }
+}
+
+.cut-overlay[data-active='false'] {
+  visibility: hidden;
+}
+
+/* 分镜：不在当前这一步的文字退到后面（滚动时上一步的尾巴和下一步的开头不会挤在一起） */
+[data-step] {
+  transition: opacity 600ms var(--ease-out), filter 600ms var(--ease-out);
+}
+[data-step][data-active='false'] {
+  opacity: .14;
+  filter: blur(1px);
+}
+[data-reduced-motion='true'] [data-step] {
   transition: none;
 }
-[data-reduced-motion='true'] .site-ticks > span {
-  animation: none;
+
+/* 剪辑点：跟着波前扫过的一道光（叠加在引擎画面上，只在转场进行时可见） */
+.cut-wave {
+  background: radial-gradient(70% 50% at 50% 50%, rgb(var(--glow) / .85), rgb(var(--glow) / .25) 45%, transparent 75%);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+[data-theme='light'] .cut-wave {
+  mix-blend-mode: multiply;
+  background: radial-gradient(70% 50% at 50% 50%, rgb(var(--glow) / .35), rgb(var(--glow) / .1) 45%, transparent 75%);
 }

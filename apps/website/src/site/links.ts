@@ -17,6 +17,8 @@ export const DEVELOPERS: readonly Developer[] = [
 
 /** 页内各节的锚点 */
 export const SECTION = {
+  top: 'top',
+  cut: 'cut',
   try: 'try',
   templates: 'templates',
   features: 'features',

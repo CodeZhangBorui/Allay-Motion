@@ -1,54 +1,166 @@
+// 导航就是这一页的时间轴：每一节是轨道上的一段片段（宽度按这一节在页面里的长度），滚动位置是播放头，
+// 右边是这一页的时间码；剪辑点（页面中段唯一的转场）用应用时间轴上同样的琥珀色菱形标出来。
+// 片段是普通的锚点链接（键盘可达，当前一段带 aria-current）。窄屏只留一条细的进度轨和时间码。
+// 位置只在尺寸变化时量；每帧只按 scrollY 写播放头的 transform 和时间码文字。
 import { AllayHead } from '@allay/mascot';
-import { Button, buttonVariants } from '@allay/ui/components/button';
 import { GithubLogo, Moon, Sun } from '@phosphor-icons/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { REPO_URL, SECTION } from '../links';
+import { REPO_URL } from '../links';
+import { clamp01, maxScroll, onFrame, onGeometryChange, track, type Geometry } from '../motion/frame';
 import { setLanguage, setTheme, usePrefs } from '../prefs';
+
+/** 页面时间码：60 fps，每滚 6 px 走一帧 */
+const PX_PER_FRAME = 6;
+const FPS = 60;
+
+export function timecode(y: number): string {
+  const f = Math.max(0, Math.round(y / PX_PER_FRAME));
+  const s = Math.floor(f / FPS);
+  const m = Math.floor(s / 60);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(m)}:${pad(s % 60)}:${pad(f % FPS)}`;
+}
+
+interface Clip {
+  id: string;
+  label: string;
+  color: string;
+  geometry: Geometry;
+}
+
+/** 从页面上带 data-clip 的元素收集片段（文档顺序） */
+function useClips(): { clips: Clip[]; cut: Geometry | null } {
+  const { t, i18n } = useTranslation();
+  const [state, setState] = useState<{ clips: Clip[]; cut: Geometry | null }>({ clips: [], cut: null });
+  useEffect(() => {
+    const els = [...document.querySelectorAll<HTMLElement>('[data-clip]')];
+    const handles = els.map((el) => track(el));
+    const cutEl = document.querySelector<HTMLElement>('[data-cut]');
+    const cutHandle = cutEl ? track(cutEl) : null;
+    setState({
+      clips: els.map((el, i) => ({ id: el.id, label: t(`site.nav.${el.dataset.clip}`), color: el.dataset.clipColor ?? 'var(--stage-hold)', geometry: handles[i]!.geometry })),
+      cut: cutHandle?.geometry ?? null,
+    });
+    return () => {
+      handles.forEach((h) => h.untrack());
+      cutHandle?.untrack();
+    };
+  }, [t, i18n.language]);
+  return state;
+}
+
+/** 片段 i 在时间轴上的起点（滚动位置）：这一节的上沿走到视口 40% 处 */
+function clipStart(g: Geometry, vh: number, max: number): number {
+  return Math.min(max, Math.max(0, g.top - vh * 0.4));
+}
 
 export function Nav() {
   const { t } = useTranslation();
   const prefs = usePrefs();
-  const [scrolled, setScrolled] = useState(false);
+  const { clips, cut } = useClips();
+  const trackRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  const miniHeadRef = useRef<HTMLDivElement>(null);
+  const tcRef = useRef<HTMLSpanElement>(null);
+  const [shares, setShares] = useState<{ grow: number[]; cutAt: number | null }>({ grow: [], cutAt: null });
 
+  // 片段宽度和剪辑点位置：尺寸变化时重算
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+    if (clips.length === 0) return;
+    const compute = () => {
+      const vh = window.innerHeight;
+      const max = maxScroll();
+      const starts = clips.map((c) => clipStart(c.geometry, vh, max));
+      starts[0] = 0;
+      const grow = starts.map((s, i) => Math.max(0.0001, (i + 1 < starts.length ? starts[i + 1]! : max) - s) / max);
+      setShares({ grow, cutAt: cut ? clamp01(cut.top / max) : null });
+    };
+    compute();
+    return onGeometryChange(compute);
+  }, [clips, cut]);
 
-  const links: [string, string][] = [
-    [SECTION.try, t('site.nav.try')],
-    [SECTION.templates, t('site.nav.templates')],
-    [SECTION.features, t('site.nav.features')],
-    [SECTION.workflow, t('site.nav.workflow')],
-    [SECTION.open, t('site.nav.openSource')],
-  ];
+  // 播放头、当前片段、时间码：每帧按 scrollY 写
+  useEffect(() => {
+    if (clips.length === 0) return;
+    let lastTc = '';
+    let lastCurrent = -1;
+    let trackW = trackRef.current?.clientWidth ?? 0;
+    const ro = new ResizeObserver(() => (trackW = trackRef.current?.clientWidth ?? 0));
+    if (trackRef.current) ro.observe(trackRef.current);
+    const links = () => [...(trackRef.current?.querySelectorAll<HTMLAnchorElement>('a[data-clip-link]') ?? [])];
+    const off = onFrame((s) => {
+      const max = maxScroll();
+      const p = clamp01(s.y / max);
+      if (headRef.current) headRef.current.style.transform = `translate3d(${(p * trackW).toFixed(1)}px, 0, 0)`;
+      if (miniHeadRef.current) miniHeadRef.current.style.transform = `scaleX(${p.toFixed(4)})`;
+      const tc = timecode(s.y);
+      if (tc !== lastTc && tcRef.current) {
+        tcRef.current.textContent = tc;
+        lastTc = tc;
+      }
+      let current = 0;
+      clips.forEach((c, i) => {
+        if (s.y >= (i === 0 ? 0 : clipStart(c.geometry, s.vh, max))) current = i;
+      });
+      if (current !== lastCurrent) {
+        lastCurrent = current;
+        links().forEach((a, i) => {
+          a.dataset.current = String(i === current);
+          if (i === current) a.setAttribute('aria-current', 'true');
+          else a.removeAttribute('aria-current');
+        });
+      }
+    });
+    return () => {
+      off();
+      ro.disconnect();
+    };
+  }, [clips]);
+
   const nextLang = prefs.language === 'zh-CN' ? 'en' : 'zh-CN';
+  const iconBtn = 'link-focus flex size-9 items-center justify-center rounded-full text-fg-muted transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] hover:text-foreground';
 
   return (
-    <header
-      data-testid="site-nav"
-      className="sticky top-0 z-40 bg-site transition-[box-shadow] duration-(--dur-2)"
-      style={{ boxShadow: scrolled ? '0 1px 0 var(--site-line)' : undefined }}
-    >
-      <div className="site-container flex h-14 items-center gap-3">
-        <a href="#top" className="flex items-center gap-2 rounded-md" aria-label={t('site.nav.home')}>
-          <AllayHead size={22} label={t('brand.name')} />
-          <span className="text-[14.5px] font-semibold tracking-[-0.01em]">{t('brand.wordmark')}</span>
+    <header data-testid="site-nav" className="nav-glass fixed inset-x-0 top-0 z-50" style={{ height: 'var(--nav-h)' }}>
+      <div className="wrap flex h-full items-center gap-4 lg:gap-6">
+        <a href="#top" className="link-focus flex shrink-0 items-center gap-2.5 rounded-md" aria-label={t('site.nav.home')}>
+          <AllayHead size={24} label={t('brand.name')} />
+          <span className="text-[15px] font-semibold tracking-[-0.02em]">{t('brand.wordmark')}</span>
         </a>
-        <nav aria-label={t('site.nav.label')} className="ml-6 hidden items-center gap-1 md:flex">
-          {links.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="rounded-md px-2.5 py-1.5 text-[13.5px] text-fg-muted transition-colors duration-(--dur-1) hover:bg-control hover:text-foreground">
-              {label}
-            </a>
-          ))}
+
+        {/* 时间轴：片段 + 播放头 + 剪辑点 */}
+        <nav aria-label={t('site.nav.label')} className="relative hidden h-full min-w-0 flex-1 lg:block">
+          <div ref={trackRef} className="relative flex h-full">
+            {clips.map((c, i) => (
+              <a
+                key={c.id}
+                href={`#${c.id}`}
+                data-clip-link
+                data-current={i === 0 ? 'true' : 'false'}
+                className="nav-clip link-focus rounded-md"
+                style={{ flexGrow: shares.grow[i] ?? 1, flexBasis: 0, '--clip': c.color } as CSSProperties}
+              >
+                <span className="t-mono truncate text-[10px] opacity-60">{String(i + 1).padStart(2, '0')}</span>
+                <span className="-mt-0.5 truncate pb-2 text-[13px] font-medium">{c.label}</span>
+                <span className="nav-clip-bar" aria-hidden="true" />
+              </a>
+            ))}
+            {shares.cutAt !== null && <span className="cut-mark" style={{ left: `${shares.cutAt * 100}%` }} title={t('site.nav.cut')} aria-hidden="true" />}
+            <div ref={headRef} className="pointer-events-none absolute inset-y-0 left-0" aria-hidden="true">
+              <div className="playhead-line" />
+            </div>
+          </div>
         </nav>
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            className="h-8 px-2.5 text-[13px]"
+
+        <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
+          <span className="t-mono mr-2 hidden rounded-full px-2.5 py-1 text-[11px] text-fg-muted sm:inline-flex" style={{ boxShadow: 'inset 0 0 0 1px var(--site-line)' }} aria-label={t('site.nav.timecode')}>
+            <span className="mr-1.5 inline-block size-1.5 translate-y-[3px] rounded-full bg-primary" aria-hidden="true" />
+            <span ref={tcRef}>00:00:00</span>
+          </span>
+          <button
+            type="button"
+            className={`${iconBtn} w-auto px-3 text-[13px] font-medium`}
             data-testid="toggle-language"
             aria-label={t('site.nav.switchLanguage')}
             title={t('site.nav.switchLanguage')}
@@ -56,23 +168,26 @@ export function Nav() {
             onClick={() => setLanguage(nextLang)}
           >
             {nextLang === 'en' ? 'EN' : '中文'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
+          </button>
+          <button
+            type="button"
+            className={iconBtn}
             data-testid="toggle-theme"
             aria-label={prefs.theme === 'dark' ? t('site.nav.toLight') : t('site.nav.toDark')}
             title={prefs.theme === 'dark' ? t('site.nav.toLight') : t('site.nav.toDark')}
             onClick={() => setTheme(prefs.theme === 'dark' ? 'light' : 'dark')}
           >
-            {prefs.theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-          </Button>
-          <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ variant: 'secondary', className: 'ml-1 h-8 gap-1.5 px-3 text-[13px]' })}>
+            {prefs.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className="btn btn-ghost btn-sm link-focus ml-1">
             <GithubLogo size={16} weight="fill" />
             <span className="hidden sm:inline">{t('site.nav.github')}</span>
           </a>
         </div>
+      </div>
+      {/* 窄屏：一条细的进度轨 */}
+      <div className="absolute inset-x-0 bottom-0 h-[2px] lg:hidden" aria-hidden="true">
+        <div ref={miniHeadRef} className="h-full origin-left bg-primary" style={{ transform: 'scaleX(0)', boxShadow: '0 0 10px rgb(var(--glow) / .9)' }} />
       </div>
     </header>
   );

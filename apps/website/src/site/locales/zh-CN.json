@@ -4,7 +4,7 @@
     "description": "选模板、调参数、实时预览，导出带透明通道的转场短片。免费开源的桌面应用。"
   },
   "nav": {
-    "label": "主导航",
+    "label": "主导航：这一页的时间轴",
     "home": "回到页首",
     "try": "试用",
     "templates": "模板",
@@ -12,22 +12,27 @@
     "workflow": "工作流",
     "openSource": "开源",
     "github": "GitHub",
-    "theme": "切换主题",
     "toLight": "切换到浅色主题",
     "toDark": "切换到深色主题",
-    "language": "Language",
-    "switchLanguage": "Switch to English"
+    "switchLanguage": "Switch to English",
+    "intro": "开场",
+    "cut": "剪辑点（全页唯一的转场）",
+    "timecode": "这一页的时间码（随滚动走）"
   },
   "hero": {
     "eyebrow": "给 Minecraft 视频创作者的转场工具",
-    "titleA": "让每一次转场，",
-    "titleB": "都像在游戏里发生。",
-    "lead": "{{name}}是一个桌面应用：选一个模板，调几个参数，实时预览，导出带透明通道的短片，拖进剪辑软件，盖在两段素材的接缝上。",
+    "titleA": "让每一次转场",
+    "titleB": "都像在游戏里",
+    "lead": "{{name}}是一个桌面应用：选一个模板，调几个参数，实时预览，导出带透明通道的短片，盖在两段素材的接缝上。",
     "primary": "在 GitHub 上获取",
     "secondary": "在浏览器里试用",
-    "facts": "免费开源 · Windows · 完全离线",
+    "facts": [
+      "免费开源",
+      "Windows",
+      "完全离线",
+      "导出带透明通道"
+    ],
     "viewerLabel": "预览",
-    "viewerNote": "画面由应用自己的渲染引擎在你的浏览器里实时渲染。",
     "demoAssets": "网页里用的是纯色演示素材；桌面版读取你本机的游戏和资源包。",
     "pick": "选择模板",
     "play": "播放",
@@ -35,10 +40,13 @@
     "scrub": "时间",
     "starting": "正在启动渲染引擎…",
     "noWebgl": "这个浏览器不支持 WebGL2，看不到实时画面。",
-    "mcAssets": "网页里的方块和物品贴图取自 Minecraft {{version}}，版权归 Mojang / Microsoft，仅用于官网展示；桌面版读取你本机的游戏和资源包，安装包里不含任何游戏文件。"
+    "mcAssets": "网页里的方块和物品贴图取自 Minecraft {{version}}，版权归 Mojang / Microsoft，仅用于官网展示；桌面版读取你本机的游戏和资源包，安装包里不含任何游戏文件。",
+    "titleC": "发生。",
+    "factsLabel": "要点",
+    "scrollCue": "向下滚动——你在拖动这一页的播放头"
   },
   "sim": {
-    "kicker": "仿真器",
+    "kicker": "试用 · 仿真器",
     "title": "不用安装，先上手试试。",
     "lead": "下面这个窗口里就是桌面版的编辑器：同一份界面代码、同一个渲染引擎、同样的内置模板。选模板、拖参数、拖时间轴、按空格播放，一切都在你的浏览器里运行。",
     "start": "启动编辑器",
@@ -69,25 +77,36 @@
     "frameLabel": "仿真器：桌面版编辑器"
   },
   "templates": {
-    "kicker": "模板",
-    "title": "{{count}} 个内置模板，全部实时渲染。",
-    "lead": "每张卡片里播放的，都是渲染引擎刚刚在你的浏览器里画出来的帧，不是截图，也不是视频。内置模板和你自己写的模板走同一条装载路径。",
-    "meta": "{{category}} · {{duration}} 秒 · {{count}} 个参数",
-    "metaNoDuration": "{{category}} · {{count}} 个参数",
+    "kicker": "模板 · 精选",
+    "title": "从这几个开始。",
+    "lead": "每一格里播放的，都是渲染引擎刚刚在你浏览器里画出来的帧，不是截图，也不是视频。这只是一部分：模板库会持续增加，你也可以用 TypeScript 写自己的模板，和内置模板走同一条装载路径。",
+    "featured": "精选",
+    "meta": "{{category}} · {{duration}} 秒",
+    "metaNoDuration": "{{category}}",
     "rendering": "正在渲染…",
     "failed": "这张没渲染出来。",
-    "openInSim": "在仿真器里打开"
+    "openInSim": "在仿真器里打开",
+    "moreTitle": "更多模板，持续加入。",
+    "moreBody": "模板就是一份 manifest 加一段脚本。照着编写指南写一个，装进模板库，和内置模板一样实时预览、导出。",
+    "moreLink": "模板编写指南"
   },
   "features": {
     "kicker": "特性",
     "title": "为剪辑而做的每一个细节。",
     "alpha": {
       "title": "导出带透明通道",
-      "body": "直接盖在剪辑软件的上层轨道，不用抠像。四种格式："
+      "body": "直接盖在剪辑软件的上层轨道，不用抠像。",
+      "transparent": "透明背景",
+      "over": "叠在素材上",
+      "drag": "拖动对比",
+      "footage": "你的素材"
     },
     "frames": {
       "title": "预览就是成片",
-      "body": "画面是时间的纯函数。预览和导出走同一份渲染代码，导出的每一帧都和预览里看到的一样，还能加子帧采样的运动模糊。"
+      "body": "画面是时间的纯函数。预览和导出走同一份渲染代码，逐帧一致，还能加子帧采样的运动模糊。",
+      "preview": "预览",
+      "export": "导出",
+      "same": "同一帧"
     },
     "stack": {
       "title": "用你自己的素材",
@@ -96,7 +115,8 @@
         "资源包",
         "原版素材",
         "内置层"
-      ]
+      ],
+      "hint": "悬停或聚焦查看每一层"
     },
     "offline": {
       "title": "完全离线",
@@ -105,39 +125,21 @@
     },
     "extend": {
       "title": "模板可以扩展",
-      "body": "预设、派生模板、模板包的导入导出，以及用 TypeScript 写的脚本模板。属性面板由模板的 manifest 自动生成。"
+      "body": "预设、派生模板、模板包的导入导出，以及用 TypeScript 写的脚本模板。manifest 里的一条参数定义，就是属性面板里的一个控件。"
     },
-    "bilingual": {
-      "title": "中文和英文，深色和浅色",
-      "body": "界面两种语言、两套主题，跟随系统，也可以手动切换。"
-    }
-  },
-  "workflow": {
-    "kicker": "工作流",
-    "title": "三步，从打开到导出。",
-    "lead": "设计目标：从打开应用到导出第一个转场，不超过 30 秒，不需要读说明。",
-    "steps": {
-      "pick": {
-        "title": "选模板",
-        "body": "转场或叠加层。模板库里的封面悬停就会动起来。"
-      },
-      "tune": {
-        "title": "调参数",
-        "body": "方块、顺序、时长、缓动……每个改动都在下一帧出现在预览里，撤销一步就回去。"
-      },
-      "export": {
-        "title": "导出",
-        "body": "选格式、分辨率和帧率，把成片拖进剪辑软件，对齐剪辑点。"
-      }
+    "formats": {
+      "title": "导出格式",
+      "body": "格式清单直接取自应用：透明通道给能认它的软件，绿幕给不认的。"
     }
   },
   "open": {
-    "kicker": "开源",
+    "kicker": "开源 · 片尾",
     "title": "开源、免费，欢迎一起做。",
     "lead": "源代码以 GPL-3.0 许可证在 GitHub 上公开。提 issue、写模板、改代码，都欢迎。",
     "repo": "查看源代码",
     "team": "开发者",
-    "license": "许可证"
+    "license": "许可证",
+    "credits": "片尾字幕"
   },
   "footer": {
     "disclaimerLabel": "非官方声明",
@@ -145,7 +147,9 @@
     "fonts": "界面字体 IBM Plex Sans、IBM Plex Mono、Noto Sans SC 与像素字体“方舟像素字体”均以 SIL OFL 1.1 授权。",
     "fontLicense": "像素字体许可全文",
     "source": "源代码",
-    "noTracking": "本站不使用 Cookie、统计或任何第三方资源。"
+    "noTracking": "本站不使用 Cookie、统计或任何第三方资源。",
+    "end": "完",
+    "tcOut": "出点"
   },
   "host": {
     "demoPackName": "网页演示色块",
@@ -153,5 +157,37 @@
     "exportTarget": "网页演示：每一帧都已渲染，但浏览器里没有 FFmpeg，没有写出文件",
     "mcPackName": "原版贴图 {{version}}",
     "mcPackDescription": "官网展示用：取自正版游戏，版权归 Mojang / Microsoft"
+  },
+  "story": {
+    "kicker": "工作流 · 三步",
+    "title": "从打开到导出，三步。",
+    "lead": "设计目标：从打开应用到导出第一个转场，不超过 30 秒，不需要读说明。右边的预览一直在实时渲染，往下滚就是在操作它。",
+    "panel": "属性",
+    "cutFrame": "剪辑点：第 {{frame}} 帧",
+    "steps": {
+      "pick": {
+        "kicker": "第一步",
+        "title": "选一个模板。",
+        "body": "转场或叠加层。往下滚，右边就换一个模板——每一帧都是此刻在你浏览器里渲染出来的。",
+        "more": "这只是其中几个，模板库会持续增加"
+      },
+      "tune": {
+        "kicker": "第二步",
+        "title": "调几个参数。",
+        "body": "列数、出场顺序、翻转方式……每个改动都在下一帧出现在预览里。属性面板由模板的 manifest 自动生成。"
+      },
+      "export": {
+        "kicker": "第三步",
+        "title": "导出，拖进剪辑软件。",
+        "body": "选格式、分辨率和帧率。导出的每一帧都和预览里一样；把成片放在上方轨道，让剪辑点对齐两段素材的接缝。"
+      }
+    }
+  },
+  "cut": {
+    "kicker": "剪辑点",
+    "titleA": "这就是剪辑点。",
+    "titleB": "现在，轮到你。",
+    "body": "刚才盖住整个屏幕的，就是「{{template}}」模板本身：应用的渲染引擎在你的浏览器里实时画出来，滚动就是它的播放头。下面是桌面版的编辑器，同样跑在你的浏览器里。",
+    "hud": "剪辑点 · {{template}} · 实时渲染"
   }
 }
