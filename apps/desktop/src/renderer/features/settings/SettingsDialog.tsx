@@ -4,6 +4,7 @@ import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ErrorBoundary } from '../../app/ErrorBoundary';
 import { useSettingsPages } from '../../app/registry';
 import { useUiStore } from '../../stores/uiStore';
 
@@ -68,7 +69,12 @@ export function SettingsDialog() {
         <div ref={scroller} className="flex min-w-0 flex-1 flex-col">
           <ScrollArea className="h-full">
             <div id="settings-page" role="tabpanel" aria-label={current ? t(current.titleKey) : undefined} className="px-7 pt-5 pb-7" data-page={current?.id}>
-              {current && <current.component key={current.id} />}
+              {/* 每一页单独兜底：一页出错只换成这一页的错误块，侧栏和其他页照常可用 */}
+              {current && (
+                <ErrorBoundary scope={`settings.${current.id}`} resetKey={current.id}>
+                  <current.component key={current.id} />
+                </ErrorBoundary>
+              )}
             </div>
           </ScrollArea>
         </div>
