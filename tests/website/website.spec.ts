@@ -433,18 +433,48 @@ test('T-WEB-13 悦灵：首屏是方块拼成的体素悦灵，往下由带路�
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
 
-test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首屏拼成体素悦灵，到剪辑点、开源、页尾各重组成一件（字标对齐 DOM、字仍在只变透明），停手后落定', async () => {
+/**
+ * 体素悦灵的颜色逐像素取自原版悦灵贴图（官网的 public/mc/ 里有才拼）。测试不依赖它：没有时先检查退路，
+ * 再在页面里画一张合成的 32×32 贴图（不是原版文件）交给世界，把体素悦灵这条路走一遍。
+ */
+async function ensureVoxelAllay(page: Page): Promise<void> {
+  const world = page.getByTestId('world');
+  await expect(world).toHaveAttribute('data-allay-voxels', /ready|missing/, { timeout: 20_000 });
+  if ((await world.getAttribute('data-allay-voxels')) === 'ready') return;
+  const ok = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 32;
+    c.height = 32;
+    const g = c.getContext('2d')!;
+    for (let i = 0; i < 1024; i++) {
+      g.fillStyle = `hsl(${(i * 47) % 360} 60% ${40 + (i % 5) * 8}%)`;
+      g.fillRect(i % 32, Math.floor(i / 32), 1, 1);
+    }
+    const b64 = c.toDataURL('image/png').split(',')[1]!;
+    return (window as unknown as { __siteWorld: { setAllayTexture: (b: string) => Promise<boolean> } }).__siteWorld.setAllayTexture(b64);
+  });
+  expect(ok).toBe(true);
+}
+
+test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首屏拼成体素悦灵（没有原版贴图时散成细尘、带路悦灵照常），到剪辑点、开源、页尾各重组成一件（字标对齐 DOM、字仍在只变透明），停手后落定', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   const world = page.getByTestId('world');
   await expect(world).toHaveCount(1);
   expect(await world.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
   expect(await world.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
-  // 首屏：方块拼成体素悦灵（上万块是一次实例化绘制），拼好后落定；它在场时带路的悦灵不出场
-  await expect(world).toHaveAttribute('data-form', 'allay', { timeout: 20_000 });
-  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
   expect(Number(await world.getAttribute('data-instances'))).toBeGreaterThan(3000);
-  await expect(page.getByTestId('allay-guide')).not.toHaveAttribute('data-shown', 'true');
+  // 没有原版悦灵贴图：不拿近似的颜色凑，首屏散成细尘，带路的悦灵照常飞到首屏的锚点
+  await expect(world).toHaveAttribute('data-allay-voxels', /ready|missing/, { timeout: 20_000 });
+  if ((await world.getAttribute('data-allay-voxels')) === 'missing') {
+    await expect(world).toHaveAttribute('data-form', 'rest');
+    await expect(page.getByTestId('allay-guide')).toHaveAttribute('data-shown', 'true', { timeout: 6000 });
+  }
+  // 有贴图（或换上合成贴图）：方块拼成体素悦灵并落定，它在场时带路的悦灵不出场
+  await ensureVoxelAllay(page);
+  await expect(world).toHaveAttribute('data-form', 'allay', { timeout: 6000 });
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  await expect(page.getByTestId('allay-guide')).toHaveAttribute('data-shown', 'false', { timeout: 3000 });
   // 往下各节：占位框露出来时重组成那一节的那一件（触发后自己播完），停手后落定
   for (const [slot, form] of [
     ['cut', 'cut'],
@@ -471,6 +501,7 @@ test('T-WEB-16 画布：全页一块共用的 3D 画布上的体素雕塑；首�
 test('T-WEB-17 体素雕塑能玩（真实的鼠标输入）：划过拨开方块、在雕塑上光标可抓、按住拖动转它松手弹回、点空白处放冲击波、点在字上不算', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await ensureVoxelAllay(page);
   const world = page.getByTestId('world');
   await expect(world).toHaveAttribute('data-form', 'allay', { timeout: 20_000 });
   await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
