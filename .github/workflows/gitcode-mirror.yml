@@ -49,12 +49,13 @@ jobs:
 
       # 始终运行默认分支中的同步脚本，避免把其他分支或标签的代码当成同步脚本执行。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        id: checkout
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: 同步分支和标签
+      - name: 同步分支
         shell: bash
         run: |
           set -euo pipefail
@@ -73,16 +74,43 @@ jobs:
 
           target="https://gitcode.com/$GITCODE_REPO.git"
           default_branch="${{ github.event.repository.default_branch }}"
+          mirror_branch() {
+            local ref="$1" branch="${1#refs/remotes/origin/}" dest old
+            dest="refs/heads/$branch"
+            # 正常快进优先；重写历史时只覆盖已确认来自 GitHub 的旧提交。
+            if git push "$target" "$ref:$dest"; then return; fi
+            old="$(git ls-remote --heads "$target" "$dest" | awk -v ref="$dest" '$2 == ref { print $1 }')"
+            if [[ ! "$old" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::无法读取 GitCode 分支 $branch；不覆盖现有引用"
+              return 1
+            fi
+            if ! gh api "repos/$GH_REPO/commits/$old" --silent; then
+              echo "::error::GitCode 分支 $branch 包含无法确认来自 GitHub 的提交；请人工检查"
+              return 1
+            fi
+            # lease 确保查询之后 GitCode 分支未被其他人修改。
+            git push --force-with-lease="$dest:$old" "$target" "$ref:$dest"
+          }
+
+          failed=0
           # 空仓库首次推送时先创建默认分支。
-          git push "$target" "refs/remotes/origin/$default_branch:refs/heads/$default_branch"
+          mirror_branch "refs/remotes/origin/$default_branch" || failed=1
           mapfile -t refs < <(git for-each-ref --format='%(refname)' refs/remotes/origin/ |
             grep -v -F -x -e "refs/remotes/origin/$default_branch" -e 'refs/remotes/origin/HEAD' || true)
-          refspecs=()
           for ref in "${refs[@]}"; do
-            refspecs+=("$ref:refs/heads/${ref#refs/remotes/origin/}")
+            mirror_branch "$ref" || failed=1
           done
-          if ((${#refspecs[@]})); then git push "$target" "${refspecs[@]}"; fi
-          git push "$target" --tags
+          exit "$failed"
+
+      - name: 同步标签
+        id: tags
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_ASKPASS="$RUNNER_TEMP/gitcode-askpass" GIT_TERMINAL_PROMPT=0
+          git push "https://gitcode.com/$GITCODE_REPO.git" --tags
 
       - name: 同步已发布的 Release 和附件
+        if: ${{ !cancelled() && steps.tags.outcome == 'success' }}
         run: node scripts/sync-gitcode-release.mjs

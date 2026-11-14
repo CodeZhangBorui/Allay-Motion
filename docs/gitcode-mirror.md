@@ -9,7 +9,7 @@ GitHub 是源仓库，[GitCode](https://gitcode.com/Mystic-Stars/Allay-Motion) �
 3. 在 GitHub 仓库 **Settings → Secrets and variables → Actions → New repository secret** 中新增 `GITCODE_TOKEN`，值为刚创建的令牌。只保存在 GitHub Secrets，不要提交到仓库或粘贴到公开聊天中。
 4. 将这些工作流和脚本提交到 GitHub 默认分支。在 **Actions → 同步到 GitCode → Run workflow** 手动运行一次，并查看运行日志。留空 `tag` 会检查全部已发布版本；填写标签可只补传该版本。首次同步包含全部分支和标签。
 
-如果 GitCode 当前有独立提交、同名标签或受保护分支，推送可能被拒绝；Actions 不会强推或删除 GitCode 的分支、标签。先检查两边差异并处理，再重跑工作流。工作流不会同步 GitHub Issue、PR、仓库设置，也不会自动删除 GitCode 上的历史发行版或附件。
+如果 GitHub 分支被重写，工作流只在确认 GitCode 分支原提交存在于 GitHub 时，用 `--force-with-lease` 跟随更新；来源不明的独立提交、同名标签冲突或受保护分支可能被拒绝，先检查两边差异并处理，再重跑工作流。工作流不会删除 GitCode 的分支、标签、历史发行版或附件，也不会同步 Issue、PR 和仓库设置。分支同步失败时仍会尝试同步标签和发行版；标签同步失败时不会同步发行版，以免版本指向错误提交。
 
 ## 自动运行
 
