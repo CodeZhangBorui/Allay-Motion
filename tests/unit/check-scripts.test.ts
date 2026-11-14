@@ -98,7 +98,11 @@ describe('check-provenance（9.6）', () => {
     const e = ProvenanceSchema.parse([{ path: '**/*.png', ...base }]);
     expect(checkFiles(['packages/mascot/generated/allay-288.png'], e)).toEqual([]);
     expect(checkFiles(['docs/review/M5a/allay.png'], e)).toHaveLength(1);
-    expect(checkFiles(['resources/builtin-pack/assets/minecraft/textures/entity/allay/allay.png'], e)).toHaveLength(1);
+    // 内置素材包里的原版同名文件：既不是 generated，也不在允许的目录下，两条都报
+    expect(checkFiles(['resources/builtin-pack/assets/minecraft/textures/entity/allay/allay.png'], e).map((p) => p.problem)).toEqual([
+      expect.stringContaining('origin: generated'),
+      expect.stringContaining('vanilla-derived'),
+    ]);
     expect(ProvenanceSchema.safeParse([{ path: 'x', ...base, approvedOn: 'yesterday' }]).success).toBe(false);
     expect(ProvenanceSchema.safeParse([{ path: 'x', ...base, gameVersion: undefined }]).success).toBe(false);
   });
