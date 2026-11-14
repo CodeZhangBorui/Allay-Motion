@@ -122,6 +122,11 @@ const api = {
     commandResult: invoke(IPC.host.commandResult),
     ready: invoke(IPC.host.ready),
   },
+  folders: {
+    get: invoke(IPC.folders.get),
+    choose: invoke(IPC.folders.choose),
+    reset: invoke(IPC.folders.reset),
+  },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),
     putThumb: invoke(IPC.cache.putThumb),

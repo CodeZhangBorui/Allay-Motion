@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { join } from 'node:path';
-import { app, clipboard, dialog, powerSaveBlocker, shell, type BrowserWindow } from 'electron';
+import { app, clipboard, powerSaveBlocker, shell, type BrowserWindow } from 'electron';
 import {
   PRESET_EXTENSION,
   sanitizeFileName,
@@ -19,6 +19,7 @@ import {
 } from '../../shared/export';
 import type { Logger } from '../logger';
 import type { SettingsStore } from '../settings-store';
+import type { FolderService } from '../folders';
 import { probeH264 } from './encoder-probe';
 import { buildInfo, locateFfmpeg, probeCaps, type FfmpegCaps } from './ffmpeg-locate';
 import { ExportJob, ExportJobError, uniquePath } from './export-job';
@@ -34,6 +35,8 @@ export interface ExportServiceOptions {
   testTarget: string | null;
   /** 未打包时测试用的 H.264 候选列表（代替 5.3 的表） */
   h264Candidates: string[] | null;
+  /** 输出文件夹的检查与选择（和设置页共用一套，界面增强） */
+  folders: FolderService;
 }
 
 interface Running {
@@ -113,16 +116,11 @@ export class ExportService {
     }
   }
 
-  /** 主进程的文件夹对话框；选中的文件夹记进设置 */
+  /** 主进程的文件夹对话框；选中的文件夹可写才记进设置（选了不能写的文件夹算取消，设置页会说明原因） */
   async chooseFolder(): Promise<ChooseFolderResult> {
-    const win = this.opts.getMainWindow();
-    if (!win || win.isDestroyed()) return { canceled: true };
-    const current = this.outputFolder();
-    const result = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], ...(current ? { defaultPath: current } : {}) });
-    const folder = result.filePaths[0];
-    if (result.canceled || !folder) return { canceled: true };
-    await this.opts.settings.updateExport({ folder });
-    return { canceled: false, folder };
+    const result = await this.opts.folders.choose('export');
+    if ('canceled' in result || !result.ok || !result.info.path) return { canceled: true };
+    return { canceled: false, folder: result.info.path };
   }
 
   async start(req: ExportStartRequest): Promise<ExportStartResult> {
@@ -148,7 +146,8 @@ export class ExportService {
       return { ok: false, error: { code: 'encoder-unavailable', detail: `audio encoder ${audioEncoder} not in ffmpeg -encoders` } };
     }
 
-    let folder = this.outputFolder();
+    // 设置里的文件夹不存在或不可写时，和没选过一样先问（docs/decisions.md 界面增强）
+    let folder = this.opts.testTarget ?? (await this.opts.folders.usable('export'));
     if (!folder) {
       const chosen = await this.chooseFolder();
       if (chosen.canceled) return { ok: false, canceled: true };

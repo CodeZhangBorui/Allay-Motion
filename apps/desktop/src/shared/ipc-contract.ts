@@ -18,6 +18,7 @@ import {
 import { HostCommandResultSchema } from './host-commands';
 import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
+import { FolderKindSchema } from './folders';
 import {
   AssetPathSchema,
   CopyBuiltinSchema,
@@ -119,6 +120,9 @@ export const IPC_ARGS = {
   [IPC.project.recents]: z.tuple([]),
   [IPC.host.commandResult]: z.tuple([HostCommandResultSchema]),
   [IPC.host.ready]: z.tuple([]),
+  [IPC.folders.get]: z.tuple([]),
+  [IPC.folders.choose]: z.tuple([FolderKindSchema]),
+  [IPC.folders.reset]: z.tuple([FolderKindSchema]),
   [IPC.cache.getThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema]),
   [IPC.cache.putThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema, ThumbPngSchema]),
   [IPC.cache.clear]: z.tuple([]),

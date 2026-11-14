@@ -19,6 +19,7 @@ import type { TemplateService } from './templates/service';
 import type { TemplateDevService } from './templates/dev-service';
 import type { HostCommandChannel } from './host-commands';
 import type { OpenFileQueue } from './open-files';
+import type { FolderService } from './folders';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -34,6 +35,8 @@ export interface HandlerDeps {
   hostCommands: HostCommandChannel;
   /** 文件关联与第二实例参数（M8）：令牌换路径 */
   openFiles: OpenFileQueue;
+  /** 默认文件夹（界面增强） */
+  folders: FolderService;
   /** 界面就绪（host.ready） */
   onRendererReady(): void;
   presets: PresetStore;
@@ -61,7 +64,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -199,13 +202,15 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
     if (projectPathForTests) return projectPathForTests;
     const win = getMainWindow();
     if (!win) return null;
-    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Project', extensions: [PROJECT_EXTENSION] }] });
+    const defaultPath = await folders.projectOpenPath();
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Project', extensions: [PROJECT_EXTENSION] }], ...(defaultPath ? { defaultPath } : {}) });
     const path = result.filePaths[0];
     return result.canceled || !path ? null : path;
   };
+  // 新工程的“保存”“另存为”：对话框从默认保存文件夹开始（能用时，6.11）
   const pickProjectToSave = async (name: string): Promise<string | null> => {
     if (projectPathForTests) return projectPathForTests;
-    return pickSavePath(getMainWindow(), `${name.replace(/[\\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`, PROJECT_EXTENSION);
+    return pickSavePath(getMainWindow(), await folders.projectSavePath(`${name.replace(/[\\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`), PROJECT_EXTENSION);
   };
   handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
     const path = await pickProjectToOpen();
@@ -256,6 +261,11 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   });
   handle(IPC.cache.clear, () => thumbs.clear());
   handle(IPC.cache.usage, () => thumbs.usage());
+
+  // ---- folders（6.11）：渲染进程只说哪一个，路径来自主进程的文件夹对话框 ----
+  handle(IPC.folders.get, () => folders.all());
+  handle(IPC.folders.choose, (_event, kind) => folders.choose(kind));
+  handle(IPC.folders.reset, (_event, kind) => folders.reset(kind));
 
   handle(IPC.export.ffmpegInfo, () => exports.ffmpegInfo());
   handle(IPC.export.start, (_event, req) => exports.start(req));

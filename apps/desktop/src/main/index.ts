@@ -13,6 +13,7 @@ import { createVanillaDownloader, MOJANG_HOSTS } from './resources/download';
 import { ResourceService } from './resources/service';
 import { APP_ENTRY_URL, APP_ORIGIN, assertLocalDevOrigin } from './security-policy';
 import { hardenSession, installGlobalHardening } from './security';
+import { FolderService } from './folders';
 import { SettingsStore } from './settings-store';
 import { readTestSwitches } from './test-switches';
 import { ThumbCache } from './thumb-cache';
@@ -68,7 +69,9 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   let mainWindow: BrowserWindow | null = null;
   const settings = new SettingsStore(join(app.getPath('userData'), 'settings.json'), log);
+  const folders = new FolderService({ settings, log, getMainWindow: () => mainWindow, pickForTests: testSwitches.pickFolder });
   const exports = new ExportService({
+    folders,
     log,
     settings,
     getMainWindow: () => mainWindow,
@@ -194,6 +197,7 @@ if (!app.requestSingleInstanceLock()) {
       templateDev,
       hostCommands,
       openFiles,
+      folders,
       onRendererReady: () => {
         startup.mark('renderer-ready');
         openFiles.markReady();

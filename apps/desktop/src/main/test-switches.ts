@@ -25,10 +25,12 @@ export interface TestSwitches {
   splash: boolean;
   /** 关掉 GPU 和软件渲染的兜底，测 WebGL2 不可用时的说明页（M8） */
   noWebgl: boolean;
+  /** 默认文件夹的对话框不弹出，直接“选中”这个路径（界面增强的 e2e） */
+  pickFolder: string | null;
 }
 
 export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<string, string | undefined>>): TestSwitches {
-  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false };
+  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false, pickFolder: null };
   const origin = env.ALLAY_E2E_MOJANG_ORIGIN;
   return {
     userDataDir: env.ALLAY_USER_DATA_DIR ? env.ALLAY_USER_DATA_DIR : null,
@@ -44,6 +46,7 @@ export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<strin
     mascotDir: env.ALLAY_E2E_MASCOT_DIR ? env.ALLAY_E2E_MASCOT_DIR : null,
     splash: env.ALLAY_E2E_SPLASH === '1',
     noWebgl: env.ALLAY_E2E_NO_WEBGL === '1',
+    pickFolder: env.ALLAY_E2E_PICK_FOLDER ? env.ALLAY_E2E_PICK_FOLDER : null,
   };
 }
 
