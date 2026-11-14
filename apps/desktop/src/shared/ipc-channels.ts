@@ -8,7 +8,8 @@
 // M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
 // MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）；
-// M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）。
+// M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）；
+// 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）。
 
 export const IPC = {
   app: {
@@ -22,6 +23,8 @@ export const IPC = {
   },
   window: {
     setTitleBarColors: 'window:setTitleBarColors',
+    /** 重新载入界面（错误页的“重新载入”）：渲染进程自己的 location.reload 被导航拦截挡住（1.6），由主进程 reload */
+    reload: 'window:reload',
   },
   files: {
     pickImage: 'files:pickImage',
@@ -125,6 +128,7 @@ export const INVOKE_CHANNELS = [
   IPC.settings.get,
   IPC.settings.set,
   IPC.window.setTitleBarColors,
+  IPC.window.reload,
   IPC.files.pickImage,
   IPC.files.read,
   IPC.export.start,

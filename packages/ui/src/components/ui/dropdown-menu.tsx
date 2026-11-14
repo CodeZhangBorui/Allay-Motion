@@ -58,8 +58,17 @@ function DropdownMenuRadioItem({ className, children, ...props }: MenuPrimitive.
   );
 }
 
+/**
+ * 一组菜单项的标题。**必须放在 DropdownMenuGroup（或 RadioGroup）里**：Base UI 的 GroupLabel 在组外渲染时直接抛错
+ * （错误 #31），整棵界面会卸载。菜单里只想放一行说明文字（“没有预设”之类）时用 DropdownMenuEmpty。
+ */
 function DropdownMenuLabel({ className, ...props }: MenuPrimitive.GroupLabel.Props) {
   return <MenuPrimitive.GroupLabel className={cn('px-2 py-1 text-xs text-fg-subtle', className)} {...props} />;
+}
+
+/** 菜单里的一行说明文字（空列表的提示等）：不是菜单项，不依赖分组，放在哪里都行 */
+function DropdownMenuEmpty({ className, ...props }: ComponentProps<'div'>) {
+  return <div role="presentation" className={cn('px-2 py-1 text-xs text-fg-subtle', className)} {...props} />;
 }
 
 function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.Props) {
@@ -93,6 +102,7 @@ export {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuEmpty,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,

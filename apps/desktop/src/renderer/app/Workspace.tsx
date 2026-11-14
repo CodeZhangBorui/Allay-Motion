@@ -7,6 +7,7 @@ import { TimelinePanel } from '../features/transport/TransportBar';
 import { useUiStore, type Side } from '../stores/uiStore';
 import { layout } from '../features/commands/commands';
 import { usePanels } from './registry';
+import { ErrorBoundary } from './ErrorBoundary';
 import { TabbedPanel } from './TabbedPanel';
 
 // 主区（6.3）：一组留缝（6 px）的圆角面板，坐在底色上。
@@ -93,10 +94,14 @@ export function Workspace() {
             </ResizablePanel>
             <ResizableHandle data-testid="handle-left" aria-label={t('layout.resizeHandle')} />
             <ResizablePanel id="center" minSize={320}>
-              <PreviewArea />
+              <ErrorBoundary scope="preview">
+                <PreviewArea />
+              </ErrorBoundary>
             </ResizablePanel>
           </ResizablePanelGroup>
-          <TimelinePanel />
+          <ErrorBoundary scope="timeline">
+            <TimelinePanel />
+          </ErrorBoundary>
         </div>
       </ResizablePanel>
       {docked.map((p) => (
@@ -105,7 +110,9 @@ export function Workspace() {
           <ResizablePanel id={`dock-${p.id}`} minSize={240} data-testid={p.testId}>
             <div className="h-full pl-gap">
               <section aria-label={t(p.titleKey)} className="h-full min-w-0 overflow-hidden rounded-xl bg-surface-1">
-                <p.component />
+                <ErrorBoundary scope={`dock.${p.id}`}>
+                  <p.component />
+                </ErrorBoundary>
               </section>
             </div>
           </ResizablePanel>

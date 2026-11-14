@@ -3,6 +3,7 @@ import { BrowserWindow, screen } from 'electron';
 import type { Theme } from '../shared/settings';
 import { THEME_CHROME_COLORS, TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import type { Logger } from './logger';
+import { rendererErrorLimiter } from './renderer-log';
 import { startup } from './startup-timing';
 import type { SettingsStore } from './settings-store';
 import { MIN_WINDOW, restoreBounds } from './window-state';
@@ -117,5 +118,20 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     log.error('window', 'renderer process gone', { reason: details.reason, exitCode: details.exitCode });
   });
 
+  // 渲染进程的 error 级控制台消息写进日志：未捕获的异常、Promise 拒绝、错误边界接住的渲染错误都经这里
+  // （docs/decisions.md “试用版的三个崩溃”）。限流，免得一个循环里的错误把日志写满。
+  const limiter = rendererErrorLimiter();
+  win.webContents.on('console-message', (event) => {
+    if (event.level !== 'error') return;
+    const verdict = limiter(Date.now());
+    if (verdict === 'drop') return;
+    if (verdict === 'notice') {
+      log.warn('renderer', 'too many renderer errors; dropping the rest for a minute');
+      return;
+    }
+    log.error('renderer', event.message, { source: event.sourceId, line: event.lineNumber });
+  });
+
   return win;
 }
+

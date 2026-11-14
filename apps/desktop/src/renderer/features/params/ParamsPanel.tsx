@@ -4,7 +4,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
+  DropdownMenuEmpty,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -158,7 +158,7 @@ export function PropsTab() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             {presets.length === 0 ? (
-              <DropdownMenuLabel>{t('params.presets.none')}</DropdownMenuLabel>
+              <DropdownMenuEmpty data-testid="preset-none">{t('params.presets.none')}</DropdownMenuEmpty>
             ) : (
               presets.map((p) => (
                 <DropdownMenuItem

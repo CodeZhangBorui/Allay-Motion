@@ -102,7 +102,22 @@
     "diagnosticsFailed": "无法复制诊断信息。",
     "title": "预览",
     "toolbar": "预览工具",
-    "hqShort": "高质量"
+    "hqShort": "高质量",
+    "issues": {
+      "param": "参数“{{label}}”：{{problem}}",
+      "paramField": "参数“{{label}}”的 {{field}}：{{problem}}",
+      "field": "{{field}}：{{problem}}",
+      "more": "还有 {{count}} 处问题，详情见“复制诊断信息”",
+      "unknownGroup": "引用了不存在的分组“{{group}}”",
+      "unknownParam": "引用了不存在的参数“{{key}}”",
+      "duplicateKey": "和别的参数重名",
+      "badDefault": "默认值不合法",
+      "wrongType": "类型不对",
+      "tooBig": "超出上限",
+      "tooSmall": "低于下限",
+      "unknownField": "有不认识的字段",
+      "invalid": "取值不合法"
+    }
   },
   "transport": {
     "region": "播放条",
@@ -774,5 +789,17 @@
     "diagnostics": "诊断信息",
     "copy": "复制诊断信息",
     "copied": "已复制"
+  },
+  "errorBoundary": {
+    "title": "界面出错了",
+    "panelTitle": "这一块出错了",
+    "hint": "出错的部分已经停下，其余部分不受影响。已保存的工程不会丢；重新载入后未保存的改动会丢失。",
+    "panelHint": "可以先重试这一块；还不行就重新载入界面。",
+    "reason": "原因：",
+    "reload": "重新载入",
+    "retry": "重试",
+    "copy": "复制诊断信息",
+    "copied": "诊断信息已复制",
+    "copyFailed": "复制失败"
   }
 }

@@ -41,6 +41,7 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ color: '#000000', symbolColor: '#FFFFFF', height: 999 }],
     ['#000000', '#FFFFFF'],
   ],
+  'window.reload': [[1], [{ url: 'https://example.com' }], ['app://renderer/index.html']],
   'files.pickImage': [[1], [{ defaultPath: 'C:\\Windows' }], ['C:\\']],
   'files.read': [
     [],

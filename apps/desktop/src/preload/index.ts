@@ -35,6 +35,7 @@ const api = {
   },
   window: {
     setTitleBarColors: invoke(IPC.window.setTitleBarColors),
+    reload: invoke(IPC.window.reload),
   },
   files: {
     pickImage: invoke(IPC.files.pickImage),

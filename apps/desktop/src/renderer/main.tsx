@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import './app.css';
 import { App } from './app/App';
+import { installGlobalErrorLogging } from './app/diagnostics';
+import { ErrorBoundary } from './app/ErrorBoundary';
 import { hasWebGL2, NoWebGL } from './app/NoWebGL';
 import { registerCore } from './app/core';
 import { applyThemeToDocument } from './app/useThemeSync';
@@ -15,6 +17,8 @@ import { useResourceStore } from './stores/resourceStore';
 import { useUiStore } from './stores/uiStore';
 
 async function bootstrap(): Promise<void> {
+  // 未捕获的异常和 Promise 拒绝写进日志（经 console.error，主进程收进 logs/main.log）
+  installGlobalErrorLogging();
   const [settings, info, resources] = await Promise.all([window.allay.settings.get(), window.allay.app.info(), window.allay.resources.layers()]);
   useUiStore.getState().replace(settings);
   // 先拿到资源栈（和它的 stamp）再装载模板，免得用空栈白装一次
@@ -46,7 +50,10 @@ async function bootstrap(): Promise<void> {
   createRoot(container).render(
     <StrictMode>
       <I18nextProvider i18n={i18n}>
-        {webgl2 ? <App /> : <NoWebGL info={info} />}
+        {/* 最外层的错误边界：渲染时抛错显示错误页，不再整棵卸载成黑屏 */}
+        <ErrorBoundary scope="app" variant="app">
+          {webgl2 ? <App /> : <NoWebGL info={info} />}
+        </ErrorBoundary>
       </I18nextProvider>
     </StrictMode>,
   );
