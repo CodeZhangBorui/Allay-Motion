@@ -1,7 +1,9 @@
 # 发版（docs/decisions.md M8）：推 v* 标签或手动触发时，在 Windows 上构建 NSIS 安装包，上传为工作流产物，
 # 再建一个**草稿** Release，挂上安装包和 SHA-256 校验和。
 #
-# - 永远是草稿：由人在 docs/release-checklist.md 全部确认后自己点“发布”（品牌、名称、许可、签名等 ★ 项都还没人确认）。
+# - 工作流只建草稿：构建和打包后的检查都通过、安装包和 SHA256SUMS.txt 都挂上之后，由人核对再改为公开发布
+#   （gh release edit <标签> --draft=false）。构建失败或缺文件的 Release 不会被发布出去。v0.1.0 由仓库所有者
+#   于 2026-11-14 决定公开发布；当时发布清单（docs/release-checklist.md）里品牌、名称、签名等 ★ 项尚未逐项确认。
 # - 安装包没有代码签名（H-SIGN），工作流里没有任何证书或密钥；不配置自动更新（electron-builder 的 publish 为 null）。
 # - 悦灵的图集和图标用仓库里提交的烘焙产物（packages/mascot/generated），不从 Mojang 下载、不现场烘焙。
 # - 权限最小化：构建作业只读仓库；只有建草稿 Release 的作业有 contents: write，用的是 GitHub 自带的 GITHUB_TOKEN。
@@ -106,10 +108,10 @@ jobs:
           > **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.**
           > 本软件不是 Minecraft 官方产品，未经 Mojang 或 Microsoft 批准，也与它们无关。
 
-          **草稿，未发布。** 发布前要逐项确认仓库里的 `docs/release-checklist.md`（品牌、名称、许可、代码签名等还没有人确认）。
+          由仓库所有者决定发布。发布清单（`docs/release-checklist.md`）里品牌、名称、代码签名等项尚未逐项确认。
 
           - 安装包**没有代码签名**：Windows SmartScreen 会提示“未知发布者”。
           - 校验和见 `SHA256SUMS.txt`。
           - 更新记录见 `CHANGELOG.md`。
           EOF
-          gh release create "$TAG" dist/*-x64-setup.exe dist/SHA256SUMS.txt --draft $PRE --target "$SHA" --title "$TAG（草稿）" --notes-file notes.md
+          gh release create "$TAG" dist/*-x64-setup.exe dist/SHA256SUMS.txt --draft $PRE --target "$SHA" --title "$TAG" --notes-file notes.md

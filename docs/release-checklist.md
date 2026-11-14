@@ -6,6 +6,8 @@
 
 整理于 2026-11-14（M8）。安装包：`pnpm dist` 生成的 `Allay Motion-0.1.0-x64-setup.exe`，未签名；以后由 GitHub Actions 的发版工作流构建（见第四节）。
 
+> **v0.1.0 的发布决定（2026-11-14）**：仓库所有者决定公开发布 v0.1.0（原话“直接公开发布”）。这是所有者对上面“不对外发布”规则的决定，**不代表下面各项已经确认**：发布时 ★ 项里 H-BRAND 的方案、H-NAME、H-LICENSE 的细节、商业授权与 Mojang 的内容、H-SIGN、H-DOWNLOAD、FFmpeg 的 LGPL 义务仍是待确认，状态照实保留。
+
 ## 一、阻塞发布的（★）
 
 | 编号 | 事项 | 状态 | 要人判断什么 | 材料 |
@@ -51,8 +53,9 @@
 
 用户决定（2026-11-13）：代码放在公开仓库 `Mystic-Stars/Allay-Motion`，安装包由 GitHub Actions 构建（`.github/workflows/release.yml`）。
 
-- 推 `v*` 标签或手动触发发版工作流：构建 NSIS 安装包，作为工作流产物上传，并建一个**草稿** Release（挂安装包和 `SHA256SUMS.txt`）。工作流**永远只建草稿**，不会自动发布。
-- **上面一、二节还有“待确认”时，不要点“发布”**：草稿只有仓库的维护者看得到，点了发布就是对外分发。现在 ★ 项（H-BRAND 的方案、H-NAME、H-LICENSE 的细节、商业授权与 Mojang 的内容、H-SIGN、H-DOWNLOAD、FFmpeg 的 LGPL 义务）都还没有人确认。
+- 推 `v*` 标签或手动触发发版工作流：构建 NSIS 安装包，作为工作流产物上传，并建一个**草稿** Release（挂安装包和 `SHA256SUMS.txt`）。工作流只建草稿，不会自动发布：构建或打包后的检查失败时根本不会有 Release，草稿也不会被公开。
+- 改为公开发布是单独的一步（`gh release edit <标签> --draft=false`），由人核对过草稿上的安装包和校验和之后做。草稿只有仓库的维护者看得到，公开就是对外分发。
+- 本清单的原则是“★ 项都确认之后再公开”。v0.1.0 是仓库所有者在 ★ 项（H-BRAND 的方案、H-NAME、H-LICENSE 的细节、商业授权与 Mojang 的内容、H-SIGN、H-DOWNLOAD、FFmpeg 的 LGPL 义务）尚未确认时决定公开发布的（2026-11-14），见本文开头。
 - 安装包没有代码签名，工作流里也没有任何证书或密钥；没有自动更新。
 - PR 和 `main` 上的 CI（`.github/workflows/ci.yml`）跑 `pnpm check` 和 `pnpm check:removable`。发版工作流里的 `pnpm dist` 跑打包后的检查；T-ARC-7 在 CI 的共享机器上只记数字、不按预算判定（不是参考机器）。
 
@@ -61,4 +64,4 @@
 1. 确认 `main` 上 CI 全绿，发版工作流跑通。
 2. 按 H-SIGN 的决定签名（或明确以“未签名”发布并在 Release 页说明）。
 3. Release 页带 9.5 的非官方声明（中英文；工作流写的草稿说明里已经有）。
-4. 更新 `CHANGELOG.md` 的版本和日期，推 `v<版本>` 标签，检查生成的草稿，再点发布。
+4. 更新 `CHANGELOG.md` 的版本和日期，推 `v<版本>` 标签，检查生成的草稿，再改为公开发布。
