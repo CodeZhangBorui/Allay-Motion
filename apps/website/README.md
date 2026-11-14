@@ -14,7 +14,7 @@
 | 原版贴图 | `public/mc/`、`src/host/mc-pack.ts` | 官网专用：`pnpm website:mc` 从本机正版游戏的 jar 里提取的方块、物品、界面贴图（见下文） |
 | 演示素材 | `src/host/demo-pack.ts` | 没有提取原版贴图时，页面里现场生成的纯色色块 |
 | 内置模板 | `build/plugins.ts` | 构建时用 `scripts/build-templates.ts` 的同一组函数把 `packages/templates/*` 打包 |
-| 动效 | `src/site/motion/` | 全页共享的帧循环；全页一块体素雕塑（three，`motion/world/`：同一批上万块方块在各节重组成体素悦灵（从应用那只 3D 悦灵的同一份模型和原版贴图精确生成，`public/mc/` 里没有原版悦灵贴图时不拼）、剪辑点 ◆、时间线、页尾字标，放在各节 `data-voxel-slot` 留的空白里，能拨、能拖、能点出冲击波）；带路的悦灵。全页唯一的转场在 `src/site/components/CutScene.tsx`（应用的方块擦除模板，引擎实时渲染） |
+| 动效 | `src/site/motion/` | 全页共享的帧循环；全页一块 3D 方块世界（three，`motion/world/`）：背景方块随各节的机位飞、给正文让位，能拖、能像磁铁一样贴成一组；上面一层体素雕塑——首屏的体素悦灵（从应用那只 3D 悦灵的同一份模型和原版贴图精确生成，`public/mc/` 里没有原版悦灵贴图时不拼）、剪辑点 ◆、时间线；页尾字标由方块拼成；带路的悦灵。全页唯一的转场在 `src/site/components/CutScene.tsx`（应用的方块擦除模板，引擎实时渲染） |
 
 哪些是真实代码、哪些是仿写、为什么，见 `docs/decisions.md` 的“官网”一节；第三版的概念（这一页就是一段正在剪辑的片子）和取舍见其中“第三版”。
 
@@ -79,7 +79,7 @@ pnpm website:preview
 pnpm test:website
 ```
 
-先构建，再用 `vite preview` 起 4180 端口，在 Electron 自带的 Chromium 里跑冒烟测试 `tests/website/website.spec.ts`（T-WEB-1 至 T-WEB-17；T-WEB-18 是单元测试）。已包含在 `pnpm check` 里。
+先构建，再用 `vite preview` 起 4180 端口，在 Electron 自带的 Chromium 里跑冒烟测试 `tests/website/website.spec.ts`（T-WEB-1 至 T-WEB-19；T-WEB-18 是单元测试）。已包含在 `pnpm check` 里。
 
 仿真器的地址带 `?e2e` 时会装上桌面版同一套测试钩子（`window.__allayTest`），测试用它读预览画布的像素。
 
