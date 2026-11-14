@@ -3,6 +3,7 @@ import { BrowserWindow, screen } from 'electron';
 import type { Theme } from '../shared/settings';
 import { THEME_CHROME_COLORS, TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import type { Logger } from './logger';
+import { startup } from './startup-timing';
 import type { SettingsStore } from './settings-store';
 import { MIN_WINDOW, restoreBounds } from './window-state';
 
@@ -57,6 +58,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     },
   });
 
+  startup.mark('window-created');
   // 记的是内容区尺寸：无边框加 overlay 的窗口外框在高 DPI 下有 1 px 的取整误差，用外框尺寸会越存越大；
   // 构造参数 useContentSize 在这种窗口上也不准（实测差 1–3 px），创建后再设内容区尺寸是准的（见 docs/decisions.md）
   if (saved && bounds.x !== undefined) win.setContentSize(bounds.width, bounds.height);
@@ -72,6 +74,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
         if (win.isDestroyed()) return;
         if (saved?.maximized) win.maximize();
         else win.show();
+        startup.mark('window-shown');
         opts.onShown?.();
       });
     });
