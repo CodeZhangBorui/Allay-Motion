@@ -66,6 +66,9 @@ async function closeOverlays(page: Page): Promise<void> {
   // 帮助菜单、命令面板里的“首次启动引导”会打开整页的引导，主界面随之 inert：跳过它（引导本身由 walkOnboarding 走）
   const skip = page.getByTestId('onboarding-skip-all');
   if (await skip.isVisible().catch(() => false)) await skip.click().catch(() => undefined);
+  // 新手引导（6.14）同样盖住主界面：跳过（走完由 ux-wave.spec.ts 的 T-UX-11 覆盖）
+  const skipTour = page.getByTestId('tour-skip');
+  if (await skipTour.isVisible().catch(() => false)) await skipTour.click().catch(() => undefined);
   for (let i = 0; i < 6; i++) {
     const open = await page.evaluate((sel) => !!document.querySelector(sel), OVERLAY);
     if (!open) return;
@@ -289,6 +292,9 @@ async function walkPalette(page: Page, r: Runner): Promise<void> {
       // “首次启动引导”会盖住整个主界面：跳过它（引导本身由 walkOnboarding 走）
       const skip = page.getByTestId('onboarding-skip-all');
       if (await skip.isVisible().catch(() => false)) await skip.click();
+      // “新手引导”同理
+      const skipTour = page.getByTestId('tour-skip');
+      if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
     });
   }
 }

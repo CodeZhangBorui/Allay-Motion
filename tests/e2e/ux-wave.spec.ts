@@ -11,11 +11,12 @@ import { launchApp, makeUserDataDir, removeUserDataDir } from './helpers';
 // T-UX-6 引导里下载原版资源的分阶段进度（本机假服务器：取消、失败、成功）；
 // T-UX-7 改快捷键后命令能被新按键触发（经 dispatcher），冲突、保留键、菜单里的显示、重启后保留、全部恢复默认；
 // T-UX-8 默认文件夹（只经主进程的文件夹对话框；不存在、清除）。
+// T-UX-11 新手引导（6.14）：出现、翻页、跳过、不再出现、从帮助菜单和设置里再看；开着时快捷键不穿透；快捷键设置页不列一次性流程的命令。
 // 全部在隐藏窗口里跑；下载只连本机假服务器，文件夹对话框由测试开关代替。
 
 const REQUIRED = requiredTextures().map((r) => ({ id: r.id, path: r.anyOf[0]! }));
 
-function readSettings(dir: string): { ui: { onboardingCompleted?: boolean; shortcuts?: Record<string, string | null>; theme?: string; language?: string }; project?: { folder: string | null }; export?: { folder: string | null } } {
+function readSettings(dir: string): { ui: { onboardingCompleted?: boolean; tourCompleted?: boolean; shortcuts?: Record<string, string | null>; theme?: string; language?: string }; project?: { folder: string | null }; export?: { folder: string | null } } {
   return JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')) as ReturnType<typeof readSettings>;
 }
 
@@ -91,6 +92,13 @@ test('T-UX-5 首次启动引导：完整流程、返回、跳过，完成后不�
     await expect.poll(() => readSettings(dir).ui.onboardingCompleted).toBe(true);
     expect(readSettings(dir).ui.theme).toBe('light');
     expect(readSettings(dir).project?.folder).toBe(picked);
+    // 接着自动出现新手引导（6.14），开着时主界面的快捷键同样不生效；跳过它
+    await expect(page.getByTestId('tour')).toHaveAttribute('data-step', 'welcome');
+    await page.keyboard.press('Control+Comma');
+    await expect(page.getByTestId('settings-dialog')).toHaveCount(0);
+    await page.getByTestId('tour-skip').click();
+    await expect(page.getByTestId('tour')).toHaveCount(0);
+    await expect.poll(() => readSettings(dir).ui.tourCompleted).toBe(true);
     // 主界面的快捷键恢复
     await page.keyboard.press('Control+Comma');
     await expect(page.getByTestId('settings-dialog')).toBeVisible();
@@ -114,6 +122,97 @@ test('T-UX-5 首次启动引导：完整流程、返回、跳过，完成后不�
     await page.getByTestId('onboarding-skip-all').click();
     await expect(page.getByTestId('onboarding')).toHaveCount(0);
     expect(readSettings(dir).ui.onboardingCompleted).toBe(true);
+    // 新手引导已经看过：重新运行首次启动引导之后不再跟着出现
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId('tour')).toHaveCount(0);
+    await app.close();
+  } finally {
+    removeUserDataDir(dir);
+  }
+});
+
+test('T-UX-11 新手引导：首次启动引导之后出现，翻页、跳过；记进设置、重启不再出现；帮助菜单和设置里可以再看并走完', async () => {
+  const dir = makeUserDataDir();
+  try {
+    let { app, page } = await launchApp(dir, {}, { firstRun: true, waitFor: '[data-testid="onboarding"]' });
+    const errors = watchErrors(page);
+    await page.waitForFunction(() => window.__allayTest?.previewUpToDate() === true, undefined, { timeout: 30_000 });
+    // 跳过整个首次启动引导也接着出现新手引导
+    await page.getByTestId('onboarding-skip-all').click();
+    const tour = page.getByTestId('tour');
+    await expect(tour).toHaveAttribute('data-step', 'welcome');
+    await expect(page.getByTestId('tour-back')).toBeDisabled();
+    // 开着时全局快捷键不穿透：空格不播放、Ctrl+E 不开导出、Ctrl+K 不开命令面板；主界面不可交互
+    // （先让焦点离开“下一步”按钮，否则空格是按这个按钮）
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Control+KeyE');
+    await page.keyboard.press('Control+KeyK');
+    await page.waitForTimeout(200);
+    expect((await page.evaluate(() => window.__allayTest!.transport())).playing).toBe(false);
+    await expect(page.getByTestId('export-dialog')).toHaveCount(0);
+    await expect(page.getByTestId('command-palette')).toHaveCount(0);
+    expect(await page.evaluate(() => document.querySelector('[data-testid="topbar"]')?.closest('[inert]') !== null)).toBe(true);
+
+    // 翻页：按钮、方向键；模板和预设那一步同时圈出左边的两个标签和属性面板的预设下拉
+    await page.getByTestId('tour-next').click();
+    await expect(tour).toHaveAttribute('data-step', 'templates');
+    await expect(page.getByTestId('tour-spotlight')).toHaveCount(1);
+    await page.keyboard.press('ArrowRight');
+    await expect(tour).toHaveAttribute('data-step', 'templateVsPreset');
+    await expect(page.getByTestId('tour-spotlight')).toHaveCount(2);
+    await expect(page.getByTestId('tour-body')).not.toBeEmpty();
+    await page.keyboard.press('ArrowLeft');
+    await expect(tour).toHaveAttribute('data-step', 'templates');
+    await page.getByTestId('tour-back').click();
+    await expect(tour).toHaveAttribute('data-step', 'welcome');
+    // 跳过：记进设置
+    await page.getByTestId('tour-skip').click();
+    await expect(tour).toHaveCount(0);
+    await expect.poll(() => readSettings(dir).ui.tourCompleted).toBe(true);
+    // 快捷键恢复
+    await page.keyboard.press('Control+KeyK');
+    await expect(page.getByTestId('command-palette')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await app.close();
+
+    // 重启：不再出现
+    ({ app, page } = await launchApp(dir, {}, { firstRun: true }));
+    await page.waitForTimeout(500);
+    await expect(page.getByTestId('tour')).toHaveCount(0);
+    // 帮助菜单（顶栏菜单的最后一个）里再看；Esc 跳过
+    await page.locator('[data-testid="topbar"] nav > :last-child').click();
+    await page.getByTestId('menu-tour').click();
+    await expect(page.getByTestId('tour')).toHaveAttribute('data-step', 'welcome');
+    // 减少动效：吉祥物不漂浮，气泡不弹出（T-ALY-4 的同一条判定）
+    await page.evaluate(() => (document.documentElement.dataset.reducedMotion = 'true'));
+    expect(await page.evaluate(() => [...document.querySelectorAll('[data-testid="tour"] .companion-float, [data-testid="tour"] .companion-bubble')].map((el) => getComputedStyle(el).animationName))).toEqual(['none', 'none']);
+    await page.evaluate(() => (document.documentElement.dataset.reducedMotion = 'false'));
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('tour')).toHaveCount(0);
+    // 设置“通用”里再看，一路走完
+    await page.keyboard.press('Control+Comma');
+    await page.getByTestId('settings-tab-general').click();
+    await page.getByTestId('settings-rerun-tour').click();
+    await expect(page.getByTestId('settings-dialog')).toHaveCount(0);
+    const steps: string[] = [];
+    while ((await page.getByTestId('tour-finish').count()) === 0) {
+      steps.push((await page.getByTestId('tour').getAttribute('data-step')) ?? '');
+      await page.getByTestId('tour-next').click();
+    }
+    steps.push((await page.getByTestId('tour').getAttribute('data-step')) ?? '');
+    expect(steps).toEqual(['welcome', 'templates', 'templateVsPreset', 'preview', 'params', 'timeline', 'resources', 'export', 'help']);
+    await page.getByTestId('tour-finish').click();
+    await expect(page.getByTestId('tour')).toHaveCount(0);
+    expect(readSettings(dir).ui.tourCompleted).toBe(true);
+
+    // 快捷键设置页里没有这两个一次性整页流程的命令（T-UX-9），其他照常列出
+    await page.keyboard.press('Control+Comma');
+    await page.getByTestId('settings-tab-shortcuts').click();
+    await expect(page.getByTestId('shortcut-row-playPause')).toBeVisible();
+    await expect(page.getByTestId('shortcut-row-onboarding')).toHaveCount(0);
+    await expect(page.getByTestId('shortcut-row-tour')).toHaveCount(0);
+    expect(errors, '页面没有未捕获的错误').toEqual([]);
     await app.close();
   } finally {
     removeUserDataDir(dir);
