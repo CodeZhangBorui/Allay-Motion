@@ -548,7 +548,7 @@ test('T-WEB-17 体素雕塑能玩（真实的鼠标输入）：划过拨开方�
   expect(await shocks()).toBe(n0 + 2);
 });
 
-test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到另一块旁边像磁铁一样贴成一组、拖其中一块另一块随动、双击弹出一块；正文的点击和选中不受影响；拖动中滚轮照常滚页面', async () => {
+test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到与另一块平齐的旁边，另一块被吸过来贴成一组、拖其中一块另一块随动、双击弹出一块；正文的点击和选中不受影响；拖动中滚轮照常滚页面', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   const world = page.getByTestId('world');
@@ -575,8 +575,8 @@ test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到另一块�
     await page.waitForTimeout(25);
   }
   await expect(html).toHaveAttribute('data-world-drag', 'true');
-  // 靠近以后被吸过去，贴成一组（同一个组、两块）
-  await expect.poll(async () => { const ga = await groupOf(A.id); const gb = await groupOf(B.id); return !!ga && !!gb && ga.id === gb.id ? ga.size : 0; }, { timeout: 3000 }).toBe(2);
+  // 平齐地靠近以后，B 被手里的 A 吸过来，贴成一组（同一个组，至少两块：同一水平带里的别的方块也可能一起被吸上）
+  await expect.poll(async () => { const ga = await groupOf(A.id); const gb = await groupOf(B.id); return !!ga && !!gb && ga.id === gb.id && ga.size >= 2; }, { timeout: 4000 }).toBe(true);
   // 拖着整组到空白处松手：留在那里，不弹回原位
   await page.mouse.move(470, 815, { steps: 12 });
   await page.waitForTimeout(250);
