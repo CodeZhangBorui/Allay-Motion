@@ -19,7 +19,8 @@ jobs:
   check:
     name: pnpm check
     runs-on: windows-latest
-    timeout-minutes: 60
+    # CI 的 WebGL 是软件渲染（SwiftShader），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,7 +63,8 @@ jobs:
     # 把 packages/optional 移走后再跑一遍完整的 pnpm check，跑完放回
     name: pnpm check:removable
     runs-on: windows-latest
-    timeout-minutes: 60
+    # CI 的 WebGL 是软件渲染（SwiftShader），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
