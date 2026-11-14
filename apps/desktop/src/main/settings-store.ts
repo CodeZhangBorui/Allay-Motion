@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync, renameSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
@@ -50,20 +51,49 @@ export class SettingsStore {
       this.current = defaultSettingsFile();
       return this.current;
     }
+    const bad = this.accept(raw);
+    if (bad) await this.quarantine(bad);
+    return this.current;
+  }
+
+  /**
+   * 同步版本，只在启动时用（M8）：启动画面要按主题和语言挑页面，同步读省掉一次线程池往返，
+   * 启动画面早一点建（T-ARC-7，docs/decisions.md M8）。文件只有几 KB。
+   */
+  loadSync(): SettingsFile {
+    let raw: string;
+    try {
+      raw = readFileSync(this.file, 'utf8');
+    } catch {
+      this.current = defaultSettingsFile();
+      return this.current;
+    }
+    const bad = this.accept(raw);
+    if (bad) {
+      const backup = `${this.file}.bad-${Date.now()}`;
+      this.log.warn('settings', 'settings file unusable, using defaults', { reason: bad, backup });
+      try {
+        renameSync(this.file, backup);
+      } catch {
+        // 留档失败就算了
+      }
+      this.current = defaultSettingsFile();
+    }
+    return this.current;
+  }
+
+  /** 解析读到的内容；能用就换上并返回 null，不能用时返回原因（不改 current） */
+  private accept(raw: string): string | null {
     let json: unknown;
     try {
       json = JSON.parse(raw);
     } catch {
-      await this.quarantine('invalid JSON');
-      return this.current;
+      return 'invalid JSON';
     }
     const parsed = SettingsFileSchema.safeParse(json);
-    if (!parsed.success) {
-      await this.quarantine(`schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`);
-      return this.current;
-    }
+    if (!parsed.success) return `schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`;
     this.current = parsed.data;
-    return this.current;
+    return null;
   }
 
   private async quarantine(reason: string): Promise<void> {

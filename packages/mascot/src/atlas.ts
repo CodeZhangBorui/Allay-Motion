@@ -1,6 +1,7 @@
 // 悦灵烘焙产物的约定（docs/07-allay-mascot.md 7.3）。只有常量和类型，不导入任何烘焙产物：
-// 产物是原版贴图的派生图像，由 pnpm mascot:bake 生成到 packages/mascot/generated/（被 git 忽略、不提交），
-// 所以产物缺失时这个包照样能通过类型检查和测试。组件读取产物在 M4/M5 后半接入。
+// 产物是原版贴图的派生图像，由 pnpm mascot:bake 生成到 packages/mascot/generated/。按用户决定（2026-11-13，docs/decisions.md M8），
+// 运行时和打包用到的那几个（COMMITTED_FILES）提交进仓库；应用图标的各尺寸 PNG 只是中间产物，仍被 git 忽略。
+// 这个包不导入任何产物，产物缺失时照样能通过类型检查和测试。
 import type { ClipName } from '../model/allay.motions';
 
 export type { ClipName };
@@ -40,3 +41,6 @@ export const GENERATED_FILES: readonly string[] = [
   ...ICON_SIZES.map((s) => `icon-${s}.png`),
   'icon.ico',
 ];
+
+/** 提交进仓库的产物（运行时的图集、atlas.json、头像，加上打包用的 icon.ico）；pnpm dist 只要求这些 */
+export const COMMITTED_FILES: readonly string[] = GENERATED_FILES.filter((f) => !/^icon-\d+\.png$/.test(f));

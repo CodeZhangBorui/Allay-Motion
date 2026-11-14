@@ -552,6 +552,10 @@ T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定
 - **H-ALY（2026-11-13，用户确认）**：看过 `docs/review/M5a/out/` 的联络图和四段动作后，用户答复“还不错，要”——悦灵的样子和动作可以接受，闭眼（眯眼）版头像保留。M5 后半可以把悦灵接到全部位置。
 - **H-M1**：待确认（导出的 MOV 在真实剪辑软件里的边缘、颜色、首尾）。
 - **M2 的人工确认**（开关原版层时预览会变）：待确认。
+- **代码上 GitHub、由 Actions 构建安装包（2026-11-13，用户在主控会话里决定，经主控转达原话）**：“不要在本机上进行构建测试了，代码直接上GitHub，仓库：https://github.com/Mystic-Stars/Allay-Motion 自行配置 gitignore 然后配置actions自动化发版流程，通过actions构建出安装包”。仓库是公开的。这改变了硬性规则 11（不对外发布）的前提：代码公开，安装包由 Actions 构建、挂在**草稿** Release 上，正式发布仍由人在发布清单全部确认后自己点。
+- **悦灵的模型代码和烘焙产物公开（2026-11-13，用户决定，经主控转达原话）**：`packages/mascot/model/` 下照原版悦灵做的模型、骨架、动作代码，“这些可以上传，风险我自己承担”；烘焙出来的悦灵图片选了“也提交进仓库”。只限运行时和打包用到的那几个产物（`COMMITTED_FILES`），原版贴图本身、jar、下载缓存、`docs/review/*/out/` 仍不提交。这是硬性规则 1 的又一处例外（M5a 的例外是“进安装包”，这次是“进公开仓库”）。
+- **提交作者邮箱（2026-11-13，用户决定）**：公开后历史里的作者邮箱选了“保留这个邮箱”，不改写历史。
+- **项目许可：GPL-3.0 + 商业授权（2026-11-14，用户决定，经主控转达原话）**：“先用GPL-3.0 + 商业授权，防止下游闭源”；许可范围：“开源协议和商业授权不包含Minecraft资源包”。远程仓库建仓时的 GPL-3.0 `LICENSE` 保留原文，用合并（不是强推）接上本地历史。H-LICENSE 因此定了；`-only` 还是 `-or-later` 用户没说，写了更保守的 `GPL-3.0-only`，待用户确认。
 
 ## 发布前待人确认的事项（汇总，M8 写入 `docs/release-checklist.md`）
 
@@ -559,7 +563,7 @@ T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定
 
 - ★ **H-DOWNLOAD**：运行时从 Mojang 官方服务器下载客户端 jar 是否符合其条款（M2a）。
 - ★ **H-BRAND 加重**：安装包带有由原版悦灵贴图派生的图集、头像和应用图标（用户决定并担责，M5a）。
-- 打包产物里有 Electron 自带的 `resources/default_app.asar`（`electronDist` 指向已安装的 Electron 后带进来的），M8 打包时去掉。
+- 打包产物里有 Electron 自带的 `resources/default_app.asar`（`electronDist` 指向已安装的 Electron 后带进来的），M8 打包时去掉。**（M8 已处理。全部待确认事项和当前状态见 `docs/release-checklist.md`。）**
 
 ## 界面重设计（“方块工作台”）
 
@@ -1055,3 +1059,149 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 带音轨的 WebM、MP4、ProRes 都没在真实剪辑软件或播放器里打开听过；AAC、Opus 开头的编码延迟（priming）只按 ffprobe 的包时长核对，没核对与画面的听感同步。
 - 悦灵在新对话框里的位置、大小与设计稿是否一致，没有人看过；减少动效下的编排只跑了 M5b 原有的 T-ALY-4。
 - 音频编码器缺失时的报错只按代码路径写了，没有造一个缺 `aac` 的 FFmpeg 来测。
+
+## M8 打包与发布准备
+
+### 安装包
+
+- **`default_app.asar`**（M0 起的遗留项）：`electronDist` 指向工作区里的 Electron 时，electron-builder 把整个目录复制过来，其中有 Electron 自带的示例应用。`apps/desktop/scripts/after-pack.mjs`（afterPack 钩子）在打成安装包之前删掉它。`tests/dist/M8.package.test.ts` 核对解包目录和安装包里都没有。钩子是 `.mjs`：`.cjs` 过不了仓库的 eslint 配置（`require`、`exports` 未定义）。
+- **检查安装包本身**：用 electron-builder 缓存里的 7-Zip（`%LOCALAPPDATA%\electron-builder\Cache\7zip*`，打包本来就要它）列出安装包内嵌的 7z 载荷，只读、不安装。安装脚本（文件关联、欢迎页的 include）核对的是 electron-builder 写进 `release/builder-debug.yml` 的 NSIS 脚本；按用户安装、快捷方式这些开关以 `-D` 传给 makensis，不在脚本里，以 `electron-builder.yml` 为准。
+- **文件关联**：`fileAssociations` 两项（`AllayMotion.Project`、`AllayMotion.Template`），图标用应用图标，没有单独做文档图标。关联里的 `description`（资源管理器“类型”一栏）和动词“Open with Allay Motion”含产品名：它们和 `productName` 一样属于构建配置，换品牌时一起改（M0 已记 `productName` 的例外）。
+- **欢迎页的声明**（9.5）：electron-builder 的 assisted 安装程序有 `customWelcomePage` 宏。`scripts/dist-extras.ts` 从 `packages/ui/src/brand` 生成 `apps/desktop/build/installer.nsh`（带 BOM 的 UTF-8，中英文都写，安装程序不跟应用的语言设置走），`nsis.include` 引入。产品名和声明仍只写在品牌目录里。
+- **`THIRD_PARTY_NOTICES.txt`**：同一个脚本从提交的许可清单生成纯文本，`extraFiles` 放在安装目录的根上（和 `LICENSES.chromium.html` 在一起）。两份生成物都被 git 忽略。
+- **快捷方式与卸载**：开始菜单和桌面快捷方式（electron-builder 默认值，写明在配置里）；卸载时保留 `%APPDATA%\AllayMotion`（`deleteAppDataOnUninstall: false`，默认值）。规格没说卸载要不要删用户数据，选了不删（工程、预设、下载的原版资源都在那里）。
+- **`.gitignore` 的 `dist/`** 把 `tests/dist/` 也忽略了，M0 写的打包后检查（T-ARC-2）一直没有提交，各分支是从主检出手工复制的。加了 `!tests/dist/`。
+- 安装包大小：约 174 MiB（182.6 MB），解包后 343 MB；大头是 Electron 本身（exe 250 MB）。
+
+### 文件关联与第二实例参数
+
+- 规格 1.8 写的是 `app.onOpenFile` 事件；任务说明要求经 MD-b 留好的命令通道（H11）。按后者做，**没有加 `app.onOpenFile`**。
+- **路径不经过渲染进程**（1.6 第 6 条只认三种路径来源，关联文件不在其中）：主进程（`main/open-files.ts`）从启动参数或 `second-instance` 的参数里挑出 `.allay` / `.allaytpl`（跳过第 0 项和开关，相对路径按启动目录解析，一次最多 16 个），每个换成一次性的 UUID 令牌，经命令通道请界面执行 `project.openAssociated` / `templates.installAssociated`（命令面板里不列出）。界面拿令牌调新加的 `project.openRequested(token)` / `templates.installRequested(token)`，主进程按令牌找回路径，走和对话框打开同一条路（`ProjectService.openPath`、`TemplateService.stage`，之后的试运行、提交与“导入模板…”相同）。令牌种类要对上、只能用一次，命令结束就作废；不认识的令牌得到“文件不存在”或 `staging-expired`。日志里只记种类，不记路径。
+- **界面就绪信号** `host.ready`（新 IPC，无参数）：首屏画完（两次 rAF）、初始模板装好之后调用一次。之前来的请求排队；页面重新加载时重新等。没有它的话，启动参数里的工程会和初始模板的装载互相覆盖。它同时是 T-ARC-7 的“可交互”时间点。
+- **命令时限**：打开工程前可能要问“放弃未保存的改动？”，等的是用户。命令通道原来固定 15 秒，超时后令牌作废、用户再点“放弃”只会得到“文件不存在”。`HostCommandChannel.run` 加了可选的单次时限，文件关联用 30 分钟。
+- 先装模板再开工程时，装好的模板被选中（与“导入模板…”相同），工程因此算有改动，打开工程会先问一句。照现有行为保留。
+- T-ARC-6 的畸形参数表补了三个新方法。
+
+### 关于页与第三方许可
+
+- **清单的来源**：`scripts/third-party.ts` 复用 `check-licenses.ts` 的 `pnpm -r licenses list --prod`（加了安装路径、作者、主页），读每个包里的许可文件原文；另加构建时编进 CSS 的 `tailwindcss`、`shadcn`，以及 Electron（Chromium 的许可全文太大，指向安装目录的 `LICENSES.chromium.html`）、FFmpeg、方舟像素字体。生成的 `third-party-licenses.json`（约 130 KB，75 项）**提交进仓库**，关于页按需加载成单独的块；单元测试 `M8.third-party` 重新生成一遍和提交的比对，依赖变了忘了 `pnpm licenses:gen` 就失败，并核对每项都在允许列表里、LGPL 只有 FFmpeg。有一个包（`react-remove-scroll-bar`）里没有许可文件，清单照实写“包里没有许可文件；按 MIT 授权”。
+- **FFmpeg 的来源**：固定的构建从 `fetch-ffmpeg.ts` 挪到 `scripts/ffmpeg-build.ts`（`fetch-ffmpeg.ts` 一导入就会运行，没法复用），加了 FFmpeg 自己的版本和提交（`n9.0.2-57-gd838f9f9ae`）。关于页和 `THIRD_PARTY_NOTICES.txt` 写明构建来源、版本、SHA-256、源码（FFmpeg 官方仓库的这个提交）和构建脚本的去处。**是否满足 LGPLv3 的“提供对应源码”**，列进了发布清单待人确认。
+- **悦灵图像的来源**：起初是单独的文案键 `brand.mascotCredit`；许可定下来以后并进了 `brand.licenseScope`（见“项目许可”），不再单独写一处。
+- **使用准则的链接**（9.3）：关于页显示地址文本，可以选中复制，**不做成可点的链接**：1.8 的 `shell.openLink` 一直没有实现，为它新开一条打开外部浏览器的 IPC 不值得。
+- 原来那几行许可摘要保留在清单上面；FFmpeg 一行加了“可以自行替换 ffmpeg.exe”。
+
+### WebGL2 不可用时的说明页
+
+- 渲染进程启动时在主线程用 `OffscreenCanvas` 取一次 `webgl2`（引擎在 Worker 里也是这样取），取不到就不渲染主界面，换成说明页：原因、三条建议（更新驱动、换一块显卡、远程桌面和虚拟机）、诊断信息（版本、平台、UA、WebGL1/2、OffscreenCanvas）和“复制诊断信息”（复用 `export.copyDiagnostics`）。仍然发 `host.ready`。
+- **测试开关 `ALLAY_E2E_NO_WEBGL`**（只在未打包时）：`--disable-webgl` 在这个 Electron 上拦不住 WebGL2（实测仍能取到上下文），改成 `--disable-gpu` 加 `--disable-software-rasterizer`，模拟“没有可用的显卡”。e2e 里点“复制诊断信息”会写系统剪贴板，测试先记下原来的内容、测完放回。
+
+### 冷启动（T-ARC-7）
+
+- **怎么量**：打包后的应用不认任何测试开关，窗口照常显示。为了不在用户的桌面上弹窗、抢焦点，`scripts/hidden-desktop.ps1` 用 `CreateDesktop` 在同一个窗口站里另建一个桌面，`CreateProcess` 把 exe 放到那里启动（窗口、显卡照常工作，只是不在当前桌面上），到时间后结束进程树、关掉桌面。打包后的应用写真实的 `%APPDATA%\AllayMotion`：测试先把已有的改名放到一边，量完删掉测试写的、再改回来；留着备份时拒绝运行。主进程新加的启动时间线（`main/startup-timing.ts`，按 `performance.timeOrigin` 记，写进 `[startup]` 日志，打包后也记）给出各节点；测试把它们换算成从 CreateProcess 算起的时间。跑 5 次，第一次是全新的数据目录。脚本要带 BOM：Windows PowerShell 5 按 ANSI 代码页读没有 BOM 的脚本，中文注释会把语法搞坏。
+- **瓶颈**（量出来的，这台机器，热缓存）：CreateProcess 到 Node 启动 60–95 ms（系统装载 250 MB 的 exe；安装后第一次约 360–440 ms，杀毒扫描和冷缓存）；Electron 跑到我们的主脚本约 67–75 ms；我们的主进程包求值约 13 ms；到 `ready` 约 40 ms；`ready` 到建启动画面约 35 ms；**建窗口到第一帧约 250–300 ms**，其中页面加载完约 145 ms，加载完到第一帧约 135 ms（合成器出第一帧）。试过、没有可量的改善而撤回的：启动画面不透明、压缩主进程的包、去掉启动画面的悦灵图集（判断图片解码不在关键路径上）。保留的两处：设置在启动时同步读；**主进程等启动画面第一帧（最多 1 秒）再起 FFmpeg、读 jar、建主窗口**——实测这些在主线程上卡 40–260 ms，交错对比 5 组里 4 组快了约 20 ms，主窗口显示的时间不变（它本来就要等启动画面显示满 600 ms）。
+- **偏离**：启动画面的 0.5 秒按**进程启动**算（中位数），不按 CreateProcess 算；可交互的 3 秒按 CreateProcess 算，每次都要满足。CreateProcess 到进程启动是系统装载 exe，应用改不了；两种算法的数字测试都打印。规格没定义“参考机器”，这条连同实测数字列进发布清单待人确认。
+- **实测**（2026-11-14，这台机器，热缓存，T-ARC-7 跑 5 次，第 1 次是全新数据目录；这一版还没有“等启动画面第一帧”和同步读设置）：从 CreateProcess 算，启动画面 1156 / 535 / 507 / 591 / 508 ms（系统装载 444 / 76 / 84 / 95 / 90 ms；从进程启动算 712 / 459 / 423 / 496 / 418 ms，中位数 459 ms），可交互 1788 / 1139 / 1110 / 1194 / 1113 ms。这是本机上的最后一次测量；之后改由 CI 构建（见下一小节），最终提交上没有在本机再量。
+- **CI 上只记数字**：发版工作流在 GitHub 的共享 Windows 机器上跑 `pnpm dist`，那台机器不是参考机器、速度也不稳定，设 `ALLAY_T_ARC_7_REPORT_ONLY=1`：照样启动 5 次、量不出完整时间线就失败，但不按预算判定，数字留在运行日志里。本机或参考机器上跑 `pnpm dist` 时照常判定。GitHub 托管的 Windows 机器上能不能 `CreateDesktop` 没有验证过。
+- 有任何 `AllayMotion.exe` 在运行时 T-ARC-7 拒绝测量：最后一次本机 `pnpm dist` 时用户正开着 main 检出里的打包版试用，测量会变成它的第二实例，数据目录也被它占着（改名失败，没有动到它）。
+
+### 上 GitHub 与 Actions 发版（用户决定，2026-11-13）
+
+- **做法变了**：用户决定不在本机构建和测试，代码放到公开仓库 `Mystic-Stars/Allay-Motion`，由 Actions 构建安装包（原话见“人工确认记录”）。本机只跑秒级的静态检查（类型检查、lint、来源登记检查）；`pnpm check`、`pnpm check:removable`、`pnpm dist` 的最终结果以 CI 为准。M8 原任务里“三项检查在最终提交上本机各跑一遍”因此没有做：本机上 `pnpm check` 在提交 f664309 上通过过一次（单元 437、引擎 35、导出 41、端到端 83），之后的提交只在 CI 上验证。
+- **`.gitignore`** 按公开仓库补全：安装包与发版产物、jar、`.ogg`、下载缓存和游戏目录、密钥与证书、`.env`、`.claude/`、编辑器目录。
+- **悦灵的烘焙产物提交进仓库**（用户决定）：只提交 `packages/mascot/src/atlas.ts` 的 `COMMITTED_FILES`（两张图集、`allay.atlas.json`、十张头像、`icon.ico`），应用图标的各尺寸 PNG 仍忽略；`pnpm dist` 只要求这些，CI 不需要游戏、不现场烘焙、不用占位开关。来源检查新增 `origin: vanilla-derived`：只允许在 `packages/mascot/generated/` 下，必须写明游戏版本、批准的人和日期；重新生成要原版 jar，所以不比对。T-ALY-7 改为“`packages/mascot` 里提交的图片只能是约定的烘焙产物”。**这些产物是 2026-11-13 21:39 从本机 1.21.1 的 jar 烘焙的**；之后烘焙代码只改过 e5fe329（给内部模板声明它用到的参数，配合同一提交里引擎开始的参数清洗），按代码看输出不变，但没有重新烘焙逐字节核对（用户要求不在本机再跑构建）。
+- **工作流**：`ci.yml` 在 PR 和 main 上跑 `pnpm check`、`pnpm check:removable` 两个作业；`release.yml` 在推 `v*` 标签或手动触发时 `pnpm dist`，上传安装包和 `SHA256SUMS.txt`，再建**草稿** Release（手动触发时标签名是 `v<版本>-draft.<运行号>`，草稿不会真的建标签）。权限：工作流默认 `contents: read`，只有建草稿的作业 `contents: write`，用 GitHub 自带的令牌，没有任何证书或密钥；不签名、不配置自动更新。第三方 action 固定到提交哈希：checkout v7.0.1、setup-node v7.1.0、upload-artifact v7.0.2、download-artifact v8.0.2；pnpm/action-setup 的最新版 v6.1.1 发布不满两周，用 v6.1.0。草稿 Release 用 runner 自带的 `gh` 建，不引入第三方的发版 action。
+- **远程仓库不是空的**：`main` 上有一个与本地历史无关的提交 `da808f1`（“Initial commit”，只有一个 GPL-3.0 的 `LICENSE`）。用户定了许可之后选了合并：新建分支 `claude/main-merged` = 本地 `main`（f06fe18）加 `git merge --allow-unrelated-histories da808f1`，`LICENSE` 原文不改；推到远程的 `main`。本机的 `main` 分支不动（主检出正用着它），M8 分支变基到这个合并提交上。
+
+### 项目许可（用户决定，2026-11-14）
+
+- **GPL-3.0-only + 商业授权**：`LICENSE` 是 GPL-3.0 全文；各 `package.json` 的 `license` 字段统一为 `GPL-3.0-only`（`pnpm licenses list --prod` 不列 workspace 自己的包，许可检查和第三方清单都不受影响）。商业授权的联系方式只写“通过仓库的 Issues 联系”，不写邮箱。用本软件导出的视频归使用者所有，不受本许可约束。
+- **许可范围只写一段**：README“许可”一节（中英）、关于页（`brand.licenseScope`，提到悦灵，所以放在品牌目录里）、`THIRD_PARTY_NOTICES.txt` 用同一段话：两种授权只覆盖本项目自己的代码和原创素材，都不包含 Minecraft 的名称与商标、运行时下载或从本机游戏读取的原版资源、用户添加的资源包，以及由它们派生的内容（照原版悦灵做的模型数据、由原版贴图渲染的悦灵图像）。原来单独的 `brand.mascotCredit` 并进这一段。`ASSETS_PROVENANCE.json` 里 13 条 `vanilla-derived` 的许可字段写成“不在本项目的 GPL-3.0 和商业授权范围内”。
+- **依赖的理由改了，规则没改**：原来是“按可以闭源分发的标准选”，现在是“必须同时兼容 GPL-3.0 和将来的商业授权”，所以仍然不得引入 GPL、AGPL 的第三方依赖；允许列表和 `check-licenses.ts` 的行为都不变（`09-compliance.md` 9.8）。
+- **贡献者许可协议**：`CONTRIBUTING.md` 写明外部贡献要同意 CLA（允许版权人在 GPL 之外另行授权）才合并；没有协议正文，没有配 CLA 机器人。
+- 发布清单新增一条待确认：商业授权一收费，悦灵相关的模型、图像、图标和名称风险更高，建议收费版本排除或替换。
+- **规则文字**：`AGENTS.md` 硬性规则 1（悦灵烘焙产物进仓库的例外）和 11（代码公开、安装包只建草稿）要按上面的决定改，等用户在实现会话里亲自确认后再改。
+
+### 第一次在 CI 上跑：软件渲染与几处测试的假设
+
+GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染器字符串是 “ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)”（不是 SwiftShader，早先的记录写错了）。本机可以用 `ALLAY_ENGINE_ANGLE=d3d11-warp` 让引擎测试也走 WARP（`tests/engine/electron-main.mjs`，不设时用显卡）。软件渲染的判定只看渲染器自己报的名字（`WEBGL_debug_renderer_info` 的 `UNMASKED_RENDERER_WEBGL`，正则 `/swiftshader|llvmpipe|software|basic render/i`，`tests/engine/software.ts`），不看环境变量或 `CI=true`，有显卡的机器上判定一条都不变。
+
+**剪辑点整帧 254 是引擎缺陷，已修（不是容差问题）。**
+
+- 现象：T-TPL-4 的方块坠落 #27（240×135、30 fps、N = 16、快门 2°、27 列、`seed` 641917 等）在 CI 上剪辑点 32400 个像素里 29544 个 alpha 是 254，整行整行都是，在方块内部，不在接缝上。本机 WARP 原样复现；N = 8、16 出现，N ≤ 4 没有，与快门角无关；显卡上是 255。
+- 查法：在 resolve 里临时输出 (1 − a) × 4096，看累积前每层的 alpha。显卡和 WARP 上、每个 N 都一样：这 29544 个像素的 alpha 少了至少 2⁻¹²（半浮点里存成 0.99951，是 1 下面最近的那个数），只有 2856 个像素（两块重叠的地方）是精确的 1。再逐项排除：着色器里把 alpha 写死为 1 → 全是 1；只用贴图的 alpha → 全是 1；只用逐实例不透明度且用 `flat` → 全是 1；逐实例不透明度不用 `flat` → 少；`flat` 但按原来的乘法链 → 仍然少。差别落在 Three r187 的 `color_fragment`：`diffuseColor *= vColor` 连 alpha 一起乘，而 `vColor` 是按透视插值的 varying，每个顶点上 alpha 都是 1.0，三角形内部插出来略小于 1。
+- 为什么只在 WARP 上露出来：每层 0.99951 乘 1/N 累加 N 次，显卡的半浮点混合按就近取整，结果仍落在 254.5/255 以上，取整回 255；WARP 按截断写半浮点，N ≥ 8 时累计损失超过半级，掉到 254。缺陷本身（不透明方块写出的 alpha 不是 1）在所有显卡上都有。
+- 修法（从结构上保证，不用阈值吸附）：方块材质的顶点颜色只有 RGB（面明暗和染色），`color_fragment` 改成只乘 RGB，alpha 不经过任何插值；逐实例不透明度对一个实例是常数，改成 `flat`（`packages/engine/src/blocks.ts`）。物品的材质不走透明队列，Three 对它直接写 alpha = 1，不受影响。
+- 修后：本机 WARP 与显卡（NVIDIA RTX 5070）上，新测试 `tests/engine/cut-opacity.spec.ts`（这组参数，N = 16/8/4/2/1 × 快门 2°/180°）全部 min 255、没有一个像素低于 255；修前 WARP 上 N = 16、8 是 min 254、29544 个像素。显卡上全部 36 个引擎测试通过（T-ENG-1、T-ENG-3、T-ENG-4、T-TPL-3、T-TPL-4、T-TPL-5 在内），T-TPL-5 的基准图不用重新生成；WARP 上 T-TPL-3 也全部 255。`cutMinAlpha` 的放宽删掉了，T-TPL-3、T-TPL-4 都回到必须 255。
+- 副作用：透明 WebM 的末帧 alpha 从 0 变成最大 2（VP9 的 alpha 有损，末帧紧跟在有画面的帧后面，帧间预测留下残差；输入变了一点，残差跟着变）。T-EXP-7 的“首末帧 alpha 为 0”在规格里只针对预设 ①；M7 给 WebM 加的同类检查原来要求恰好 0，改为按 T-EXP-1 ③ 的 alpha 容差（≤ 16）判，首帧仍要求 0。
+
+**放宽的最终清单**（只在识别出软件渲染时生效；有显卡时一律按原判定）：
+
+| 测试 | 有显卡时 | 软件渲染（WARP）时 | 依据 |
+|---|---|---|---|
+| T-ENG-4 alpha ≥ 128 的直通颜色差 | ≤ 1 | ≤ 2 | 实测 alpha = 128、颜色 147 的像素，正确的 8 位预乘值是 147 × 128 / 255 = 73.79 → 74，WARP 写 73，换算回直通 145，差 2：WARP 写 8 位画布时截断。另外两项（alpha = 255、预乘域）不放宽 |
+| T-TPL-5 基准图平均误差 | ≤ 1.5/255 | ≤ 4/255 | 规格 4.11 原有 |
+| T-EXP-7（两处）总耗时 ≤ 20 秒 | 判定 | 只记数字（写进测试注解）不判定 | 性能预算针对参考机器；CI 上 PNG/WebM/MP4 约 55 秒。预算数字不改 |
+| T-ARC-7 冷启动 | 判定 | 发版工作流设 `ALLAY_T_ARC_7_REPORT_ONLY=1`，只记数字 | 同上（这一处是按工作流设的开关，不是按渲染器：打包后的应用里拿不到渲染器名字） |
+| 测试自身的时限 | 不变 | 引擎 T-TPL-3、T-TPL-4 放到 60 分钟；e2e 经 `launchApp` 启动的测试时限 × 5；CI 作业 180 分钟 | WARP 上同样的工作量慢二三十倍（T-TPL-3：显卡 32 秒，CI 超过 10 分钟） |
+
+**其余为过 CI 改的测试与工作流**（都不是放宽判定）：
+
+- `tests/unit/template-dev.test.ts`：runner 的 TEMP 是 8.3 短名（`C:\Users\RUNNER~1\…`），被测代码按真实路径（长名 `runneradmin`）比较。测试先用 `realpathSync.native` 取临时目录的真实路径。
+- 工作流在跑检查前先取 Electron 二进制（`scripts/ensure-electron-dist.ts`）：Electron 45 没有 postinstall，并行的测试碰上还在下载的二进制会 “Process failed to launch”。
+- 启动画面的 e2e：按设计，启动画面在“显示满 600 ms 且主窗口就绪”后关闭（日志里的 `visibleMs` 照样核对 ≥ 600）。CI 上测试逐项问它要八次往返，问到一半它就关了（整个测试 2.8 秒，不是 20 秒放弃计时触发的）。改成先从主进程取 webPreferences、再在页面里一次取齐，判定不变。是测试时序，不是产品问题。
+- T-UI-5：runner 默认的显示分辨率放不下 1440×902 的窗口，截图是 1120×720。工作流在检查前把显示分辨率设成 1920×1080（`Set-DisplayResolution`），不跳过比对；软件渲染下的像素差如果超出现有容差，报给主控定。
+
+**只在软件渲染下验证、没有在 CI 上以显卡标准验证的**：CI 上的全部引擎测试（含 T-ENG-1…5、T-TPL-3/4/5 和新加的剪辑点测试）、全部 e2e。显卡标准的最近一次全量通过是本机 main `f06fe18` 上的 `pnpm check`；M8 改动后在本机显卡上跑过的是全部引擎测试和下面列出的 e2e。
+
+### 没验证的
+
+- **没有在任何机器上实际安装、运行、卸载过安装包**（M8 的人工验收项）：不在这台用户正在用的机器上注册文件关联和快捷方式。欢迎页、快捷方式、文件关联、卸载时去掉关联，只核对了生成的安装脚本和安装包内容。
+- 应用图标在资源管理器、任务栏、文件关联里的样子没人看过。
+- 双击关联文件走的是 `"$appExe" "%1"`：端到端测试用同样形式的启动参数和真实的第二个进程验证了主进程到界面的整条路，但不是经资源管理器双击。
+- 冷启动只在这台机器上量过，文件缓存是热的（没法在测试里重启机器）；“参考机器”没有定义。
+- 安装包没有签名（H-SIGN）。
+- 两个工作流都还没有在 GitHub 上跑过（没有推送）：action 的版本、`windows-latest` 上的 `CreateDesktop`、草稿 Release 的建立都没有验证。
+- 最终提交上的 `pnpm check`、`pnpm check:removable`、`pnpm dist` 没有在本机跑（见上），只在 CI 上跑。
+
+## 试用版的三个崩溃（2026-11-14，分支 claude/fix-crashes）
+
+用户试用打包后的应用（main 的 f06fe18）时报了三个缺陷。三个都能在未打包的构建里复现，和打包无关。
+
+### 根因
+
+- **缺陷 1（属性面板的“预设”下拉一点就黑屏）**：没有预设时，下拉里那行“没有预设”用的是 `DropdownMenuLabel`（Base UI 的 `Menu.GroupLabel`），却没有放在 `DropdownMenuGroup` 里。Base UI 在组外渲染 GroupLabel 时直接抛错（生产构建里是“Base UI error #31”）；当时没有错误边界，整棵 React 树卸载，窗口只剩底色。
+- **缺陷 3（无法新建工程，一点就黑屏）**：同一个原因，在文件菜单的“最近的工程”子菜单里：全新安装没有最近的工程，子菜单里的“没有最近的工程”也是组外的 `DropdownMenuLabel`。子菜单是悬停打开的，从“文件”往下找“新建工程”时指针一经过它就崩。`newProject` 本身在有/没有未保存改动、各种模板下都正常（复现时逐一试过）。**这一条是按复现推断的**：用户说的是“点新建工程黑屏”，本机能复现的黑屏只有这一处；没有用户的操作录像，不能完全排除别的路径。
+- **缺陷 2（从 T1 另存出的用户模板 `user.08ba8e.234` 预览报 16 个 `unknown group`）**：`user.<6 位>.<名称>` 是“另存为模板”（`templates.saveDerived`）起的 id，这是一个**派生模板**。磁盘上的 manifest 是对的（派生模板本来就没有 `params` 和 `groups`）。丢的一步在装载：`template-sdk` 的 `resolveDerived` 只把基模板的参数定义和时间段带过来，`effectiveManifest` 用的是派生模板自己的其余字段，于是交给引擎的生效 manifest 里参数的 `group` 指向基模板的分组、分组本身却没有，引擎 `LoadRequestSchema.parse` 失败。`copyBuiltin`（复制内置模板）复制的是整份原始 manifest，不受影响；manifest 的序列化也没问题。M3 的 T-TPL-7 没抓到，是因为测试夹具的基模板没有分组。
+
+### 修复
+
+- `ResolvedTemplate` 多一个 `groups`（派生模板取基模板的），`effectiveManifest` 的参数定义、分组、时间段一律取 resolved 里的同一份，派生模板自己写的分组不混进来。**已经落在用户磁盘上的这类派生模板不用迁移**：文件本身合法，修复后装载时就带上分组，直接能打开。
+- `packages/ui` 的下拉菜单多一个 `DropdownMenuEmpty`（菜单里的一行说明文字，不依赖分组），两处空列表提示改用它；`DropdownMenuLabel` 的注释写明必须在分组里。单元测试扫描全部 `.tsx`，每个 `<DropdownMenuLabel>` 前面必须有未闭合的 `<DropdownMenuGroup>` / `<DropdownMenuRadioGroup>`。
+- **装载失败的提示**：Worker 传回来的 zod 错误只剩 name 和 message（issue 数组的 JSON）。预览控制器把它解析回 issue（`features/preview/loadIssues.ts`，zod 校验形状），预览状态里带上原始 issue；错误卡片按“参数‘名称’的 字段：问题”列最多 4 句，其余合成“还有 N 处问题”，两种语言。原始 issue 原样进“复制诊断信息”。只认几类常见问题（不存在的分组、不存在的参数、重名、默认值不合法、类型、上下限、多余字段），其余一律“取值不合法”。
+
+### 兜底：错误边界与日志
+
+- `app/ErrorBoundary.tsx`：最外层（`scope="app"`，整窗错误页，“重新载入”“复制诊断信息”），顶栏、整个主区、左右面板的每个标签页和它的操作、预览、时间轴、状态栏、停靠面板各一层（只换掉出错的那一块，多一个“重试”，换了模板自动重试），对话框一层（浮在界面上，多一个“关闭”）。错误页上写原因（错误的 message），文字两种语言，不含产品名（不需要放进品牌目录）。
+- 诊断信息：出错的块、错误和栈、组件栈、当前模板和参数、输出设置、预览状态、UA、时间，JSON。剪贴板仍用一次性选区复制（1.6 第 4 条拒绝一切权限请求）。
+- **日志**：渲染进程装上 `error` / `unhandledrejection` 的全局监听，错误边界在 `componentDidCatch` 里也打一行，都经 `console.error`；主进程在 `webContents` 的 `console-message` 里把 error 级消息写进 `logs/main.log`（scope `renderer`），每分钟最多 60 条，超出的换成一句提示。没有为此加 IPC 通道，没有改任何安全设置。
+- **“重新载入”多一个 IPC `window.reload`**（无参数，只认主窗口发来的调用，主进程 `event.sender.reload()`）：渲染进程自己的 `location.reload()` 是渲染进程发起的导航，被 `security.ts` 的 `will-navigate` 拦截挡住（试过，页面停在错误页），1.6 不放宽，所以改由主进程重新载入。T-ARC-6 的畸形参数表补了这一项。
+- 事件处理和异步代码里的异常不经过错误边界（React 的限制），只写日志、不换界面——这正是黑屏和“点了没反应”的区别。
+
+### 测试
+
+- `tests/unit/trial-crashes.test.ts`：缺陷 2（六个内置模板和由它们派生的模板，生效 manifest 都过得了 `LoadRequestSchema`；修复前 8 条全失败）、分组标题的源码检查（修复前报 `core.tsx`、`ParamsPanel.tsx` 两处）、装载失败提示的整理、诊断信息、日志限流。
+- `tests/e2e/trial-crashes.spec.ts`：三个缺陷各一条点出来的复现；装载失败的提示（用测试钩子 `loadUnchecked` 装一份去掉 `groups` 的 T1 manifest，即修复前的生效 manifest）；错误边界（测试钩子 `crashPanels` 让某一块下一次渲染时抛错：面板错误页、重试、复制诊断信息、写进日志、切换语言、整窗错误页和重新载入；未捕获的异常和 Promise 拒绝写进日志）。
+- `tests/e2e/smoke.spec.ts`（留在仓库里）：四种状态——内置模板（全新安装，没有任何素材层）、没选模板（测试钩子 `clearTemplate`）、用户模板（复制内置模板）、派生模板（另存为模板）——下各走一遍：主界面上每个会弹出东西的控件（下拉、菜单、弹层）打开一次、列表再选一个没选中的选项、菜单再悬停每个子菜单；每个对话框打开、点每个标签页、打开里面每个下拉；顶栏每个菜单的每一项和子菜单里的每一项；命令面板里的每条命令。每步之后断言没有 pageerror、没有控制台 error、`#root` 没空、顶栏还在、没有落到错误边界。主进程的系统对话框和 `shell` 换成立即取消的假实现，不弹窗、不开资源管理器。发现问题不立刻停，记下来、重新载入、重建状态接着走，最后一起报告。“没有素材层”没有单独做成一种状态：e2e 的默认就是全新安装（没有原版、没有资源包，内置层是空的），测试开头断言了这一点；有素材层的那一面由既有的 M2 e2e 覆盖，冒烟没有走。
+
+### 自查（冒烟测试）查出来的
+
+- 修复前：四种状态里只有“最近的工程”子菜单（缺陷 3）、预设下拉（缺陷 1）、派生模板装载（缺陷 2）三处出错；“内置模板”“用户模板”两种状态的第一轮跑到一半被测试自己的问题卡住（菜单关闭后残留的 inert 遮罩挡住下一次点击、设置对话框切换标签页时数到上一页的控件），所以修复前的清单不一定完整。测试修好后，修复后的构建在四种状态下全部通过（各 45～63 步，共约 3.5 分钟）。
+- 错误边界自己的测试查出一处：整窗错误页的“重新载入”用 `location.reload()` 被导航拦截挡住，改成经主进程（见上）。
+- 除此之外没有发现别的下拉、菜单项、对话框或命令出错。
+
+### 没验证的
+
+- **没有在打包后的应用里手工点过**：三处修复都只在未打包的构建（`apps/desktop/out`）上经 e2e 验证。用户机器上已经存着的派生模板没有拿来实测；按代码，它们的 manifest 是合法的，修复后直接能打开。
+- 缺陷 3 的根因是按复现推断的（见上）。
+- 本机只跑了静态检查、相关的单元测试和这两个 e2e 文件；完整的 `pnpm check`、`pnpm check:removable` 以 CI 为准。
+- 冒烟没有走“有素材层”的状态，也不点会真的弹系统窗口、开资源管理器的路径之后的界面（主进程里换成了立即取消）。

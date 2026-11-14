@@ -19,11 +19,12 @@ import { thumbnails, type ThumbKind, type ThumbSize } from './features/thumbnail
 import type { ResourceState } from '../shared/resources';
 import { useResourceStore } from './stores/resourceStore';
 import { usePreviewStore, type PreviewStatus } from './stores/previewStore';
-import { useProjectStore } from './stores/projectStore';
+import { clearHistory, useProjectStore } from './stores/projectStore';
 import { useTransportStore } from './stores/transportStore';
 import { useTemplateStore } from './stores/templateStore';
-import { DEFAULT_TEMPLATE_ID } from './templates/catalog';
+import { DEFAULT_TEMPLATE_ID, type TemplateSource } from './templates/catalog';
 import { optionalModules } from './app/core';
+import { useCrashRequests } from './app/ErrorBoundary';
 import { renderStillPng } from './engine-host/still';
 import { useDevStore, type ReloadPhase, type ReloadRecord, type TemplateRef } from './stores/devStore';
 import { undoInfo, type UndoOrigin } from './stores/projectStore';
@@ -105,6 +106,15 @@ export interface AllayTestHooks {
   undoInfo(): { undo: UndoOrigin | null; redo: UndoOrigin | null };
   /** 经统一的静帧接口（H4）把当前模板、当前参数在 t 时刻渲染成 PNG（base64） */
   renderStill(t: number, maxEdge?: number): Promise<{ width: number; height: number; pngBase64: string }>;
+  /** 清掉当前模板（“没选模板”的界面状态，冒烟测试用）：工程里没有模板，预览回到起始状态 */
+  clearTemplate(): void;
+  /**
+   * 不经 schema 校验，把一份（可能不合法的）manifest 和代码当成当前模板交给预览：复现“已经落在磁盘上的坏模板”
+   * 在引擎里装载失败时界面怎么提示。manifest 里的 params 照原样当参数定义用
+   */
+  loadUnchecked(manifest: unknown, code: string): void;
+  /** 让某一块（错误边界的 scope，如 app、preview、right.props）在下一次渲染时抛错；空数组清掉 */
+  crashPanels(scopes: string[]): void;
   /** 可选模块：这次构建发现的、启用中的 */
   optionalModules(): { available: string[]; active: string[]; failures: Record<string, string> };
   // ---- 悦灵（M5b）----
@@ -254,6 +264,19 @@ export function installTestHooks(): void {
       return { past: s.pastStates.length, future: s.futureStates.length };
     },
     missingKeys: () => [...missingKeys],
+    clearTemplate() {
+      useProjectStore.setState({ template: null, params: {} });
+      clearHistory();
+      usePreviewStore.getState().setStatus({ kind: 'starting' });
+    },
+    loadUnchecked(manifest, code) {
+      const m = manifest as TemplateSource['manifest'];
+      useProjectStore.getState().setTemplate({ ref: { id: m.id, version: m.version }, manifest: m, params: m.params ?? [], hidden: [], code, assets: null }, {}, i18next.language);
+      previewEngine.retry();
+    },
+    crashPanels(scopes) {
+      useCrashRequests.setState({ scopes: [...scopes] });
+    },
     copyBuiltinTemplate: (req) => window.allay.templates.copyBuiltin(req),
     writeTemplateDevFiles: (id, version) => window.allay.templates.writeDevFiles(id, version),
     devState() {

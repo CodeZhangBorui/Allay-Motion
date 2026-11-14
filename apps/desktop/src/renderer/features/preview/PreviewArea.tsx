@@ -22,6 +22,8 @@ import { ResourceOnboarding, useShowOnboarding } from '../resources/ResourceOnbo
 import { previewEngine } from './previewEngine';
 import { useDebugLoading } from './debugLoading';
 import { DevOverlay } from './DevOverlay';
+import { describeLoadIssues, MAX_SHOWN_ISSUES } from './loadIssues';
+import { copyText } from '../../app/diagnostics';
 
 // 中间：预览面板（6.4）。左上“预览”和模板名，右上规格读数（等宽）；画布按输出比例等比缩放、居中，
 // 上面让出标题行、下面让出悬浮工具条（PREVIEW_INSET）。工具条悬浮在画面下方居中：缩放、背景、参考线、高质量预览。
@@ -34,20 +36,6 @@ function fit(availW: number, availH: number, outW: number, outH: number, dpr: nu
   const cssHeight = Math.max(1, Math.floor(outH * scale));
   const k = Math.min(1, (cssWidth * dpr) / outW);
   return { cssWidth, cssHeight, pixelWidth: Math.max(1, Math.round(outW * k)), pixelHeight: Math.max(1, Math.round(outH * k)) };
-}
-
-/** “复制诊断信息”：Electron 拒绝一切权限请求（1.6 第 4 条），不用异步剪贴板 API，用一次性的选区复制 */
-function copyText(text: string): boolean {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.setAttribute('readonly', '');
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  const ok = document.execCommand('copy');
-  ta.remove();
-  return ok;
 }
 
 /** 悬浮在画面下方居中的预览工具条：缩放、三种背景、参考线、高质量预览 */
@@ -142,6 +130,7 @@ function ErrorCard() {
   const status = usePreviewStore((s) => s.status);
   if (status.kind !== 'error' && status.kind !== 'unresponsive' && status.kind !== 'crashed') return null;
   const title = status.kind === 'unresponsive' ? t('preview.unresponsive') : status.kind === 'crashed' ? t('preview.crashed') : t('preview.templateError');
+  const issues = status.kind === 'error' && status.issues ? describeLoadIssues(status.issues, useProjectStore.getState().template?.manifest ?? null, (key, vars) => t(key, vars ?? {}), i18n.language) : null;
   const detail = status.kind === 'unresponsive' ? t('preview.unresponsiveHint') : status.message;
   const resetParams = () => {
     const s = useProjectStore.getState();
@@ -172,7 +161,16 @@ function ErrorCard() {
       <Allay clip="sad" size={48} priority="error" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <p className="text-base font-semibold text-danger">{title}</p>
-        <p className="line-clamp-4 num text-xs break-words text-fg-muted">{detail}</p>
+        {issues ? (
+          <ul className="flex flex-col gap-1 text-xs break-words text-fg-muted" data-testid="preview-error-issues">
+            {issues.slice(0, MAX_SHOWN_ISSUES).map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+            {issues.length > MAX_SHOWN_ISSUES && <li>{t('preview.issues.more', { count: issues.length - MAX_SHOWN_ISSUES })}</li>}
+          </ul>
+        ) : (
+          <p className="line-clamp-4 num text-xs break-words text-fg-muted">{detail}</p>
+        )}
         <div className="mt-1 flex flex-wrap gap-2">
           {status.kind === 'error' ? (
             <Button variant="secondary" onClick={resetParams} data-testid="preview-reset-params">

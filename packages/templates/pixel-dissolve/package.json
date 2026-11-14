@@ -2,6 +2,7 @@
   "name": "@allay/template-pixel-dissolve",
   "version": "1.0.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "description": "T5 像素溶解（allay.builtin.pixel-dissolve），由 pnpm templates:build 打成 .allaytpl",
   "scripts": {

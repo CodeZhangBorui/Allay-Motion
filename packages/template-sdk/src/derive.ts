@@ -50,6 +50,11 @@ export interface ResolvedTemplate {
   hidden: string[];
   /** 时间段：派生模板沿用基模板的 */
   timeline: TemplateManifest['timeline'];
+  /**
+   * 参数分组：派生模板沿用基模板的。参数定义里的 group 指向这些分组，两者必须一起带走，
+   * 否则生效 manifest 过不了 schema（试用版的缺陷：派生模板的预览报 unknown group，docs/decisions.md）
+   */
+  groups: TemplateManifest['groups'];
   /** 代码来自哪个脚本模板 */
   codeFrom: { id: string; version: string };
 }
@@ -67,7 +72,7 @@ export class DeriveError extends Error {
 /** 脚本模板：原样 */
 export function resolveScript(manifest: TemplateManifest): ResolvedTemplate {
   if (manifest.extends) throw new DeriveError('not-derived', 'expected a script template');
-  return { manifest, params: manifest.params ?? [], hidden: [], timeline: manifest.timeline, codeFrom: { id: manifest.id, version: manifest.version } };
+  return { manifest, params: manifest.params ?? [], hidden: [], timeline: manifest.timeline, groups: manifest.groups, codeFrom: { id: manifest.id, version: manifest.version } };
 }
 
 /**
@@ -90,7 +95,7 @@ export function resolveDerived(derived: TemplateManifest, base: TemplateManifest
   });
   const keys = new Set(params.map((p) => p.key));
   const hidden = [...new Set(derived.overrides?.hidden ?? [])].filter((k) => keys.has(k));
-  return { manifest: derived, params, hidden, timeline: base.timeline, codeFrom: { id: base.id, version: base.version } };
+  return { manifest: derived, params, hidden, timeline: base.timeline, groups: base.groups, codeFrom: { id: base.id, version: base.version } };
 }
 
 /** 从已安装的版本里挑满足范围的最高版本 */
@@ -99,10 +104,18 @@ export function pickVersion(versions: readonly string[], range: string, compare:
   return ok.at(-1) ?? null;
 }
 
-/** 生效 manifest：给引擎的 load 用（参数定义是生效的那份，code 来自基模板） */
+/**
+ * 生效 manifest：给引擎的 load 用（参数定义是生效的那份，code 来自基模板）。
+ * 参数定义、分组、时间段三者互相引用，一律取 resolved 里的同一份（派生模板的是基模板的），不混用派生模板自己的。
+ */
 export function effectiveManifest(resolved: ResolvedTemplate): TemplateManifest {
-  const { extends: _e, overrides: _o, ...rest } = resolved.manifest;
-  return { ...rest, params: resolved.params, ...(resolved.timeline ? { timeline: resolved.timeline } : {}) };
+  const { extends: _e, overrides: _o, groups: _g, timeline: _t, ...rest } = resolved.manifest;
+  return {
+    ...rest,
+    params: resolved.params,
+    ...(resolved.groups ? { groups: resolved.groups } : {}),
+    ...(resolved.timeline ? { timeline: resolved.timeline } : {}),
+  };
 }
 
 export const TemplateRefSchema = z.strictObject({ id: z.string().max(128), version: z.string().max(64) });

@@ -35,6 +35,7 @@ const api = {
   },
   window: {
     setTitleBarColors: invoke(IPC.window.setTitleBarColors),
+    reload: invoke(IPC.window.reload),
   },
   files: {
     pickImage: invoke(IPC.files.pickImage),
@@ -87,6 +88,7 @@ const api = {
     readAsset: invoke(IPC.templates.readAsset),
     install: invoke(IPC.templates.install),
     // 1.6 第 6 条：同 addDroppedPack，只接受 File，路径由 webUtils 取
+    installRequested: invoke(IPC.templates.installRequested),
     installDropped: (file: unknown): Promise<unknown> => {
       if (!(file instanceof File)) return Promise.reject(new TypeError('expected a File'));
       return ipcRenderer.invoke(IPC.templates.installDropped, webUtils.getPathForFile(file));
@@ -110,6 +112,7 @@ const api = {
   },
   project: {
     open: invoke(IPC.project.open),
+    openRequested: invoke(IPC.project.openRequested),
     openRecent: invoke(IPC.project.openRecent),
     save: invoke(IPC.project.save),
     saveAs: invoke(IPC.project.saveAs),
@@ -118,6 +121,7 @@ const api = {
   host: {
     onCommand: subscribe<HostCommandRequest>(IPC.host.command),
     commandResult: invoke(IPC.host.commandResult),
+    ready: invoke(IPC.host.ready),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

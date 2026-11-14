@@ -2,6 +2,7 @@
   "name": "@allay/template-block-fall",
   "version": "1.0.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "description": "T2 方块坠落（allay.builtin.block-fall），由 pnpm templates:build 打成 .allaytpl",
   "scripts": {

@@ -95,6 +95,12 @@ export async function openProject(): Promise<boolean> {
   return applyOpened(await window.allay.project.open());
 }
 
+/** 双击关联的 .allay（M8）：主进程经命令通道发来一次性令牌，路径不经过界面 */
+export async function openAssociatedProject(token: string): Promise<boolean> {
+  if (!(await confirmDiscard())) return false;
+  return applyOpened(await window.allay.project.openRequested(token));
+}
+
 export async function openRecent(id: string): Promise<boolean> {
   if (!(await confirmDiscard())) return false;
   return applyOpened(await window.allay.project.openRecent(id));

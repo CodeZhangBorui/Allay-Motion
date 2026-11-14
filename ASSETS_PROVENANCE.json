@@ -34,5 +34,148 @@
     "author": "Allay Motion 项目（界面设计稿，由同目录下的 HTML 设计稿渲染）",
     "license": "项目自有",
     "note": "界面方向的设计稿截图；画面里的方块与缩略图是 CSS 色块示意，不含任何原版贴图；不进安装包"
+  },
+  {
+    "path": "packages/mascot/generated/allay-288.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵四个动作的图集（帧边长 288）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-96.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵四个动作的图集（帧边长 96）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-16.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 16px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-16-closed.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 16px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-20.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 20px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-20-closed.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 20px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-24.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 24px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-24-closed.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 24px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-32.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 32px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-32-closed.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 32px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-48.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 48px。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/allay-head-48-closed.png",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "悦灵正面头像 48px，眯眼版（从原图派生，没有画新像素，docs/decisions.md M5a）。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
+  },
+  {
+    "path": "packages/mascot/generated/icon.ico",
+    "origin": "vanilla-derived",
+    "generator": "pnpm mascot:bake",
+    "source": "Minecraft Java 版客户端 jar 里的 assets/minecraft/textures/entity/allay/allay.png（本机安装的游戏，只读），经 scripts/mascot-bake 按 packages/mascot/model 的模型和动作渲染",
+    "gameVersion": "1.21.1",
+    "approvedBy": "项目负责人（用户），经主控会话转达",
+    "approvedOn": "2026-11-13",
+    "license": "不在本项目的 GPL-3.0 和商业授权范围内：派生自 Mojang 的贴图，权利属于 Mojang，本项目未获授权；用户知悉并承担风险",
+    "note": "应用图标（悦灵头像，16–256px），安装包和 exe 用。2026-11-13 21:39 烘焙；运行时和打包用（packages/mascot/src/atlas.ts 的 COMMITTED_FILES），不对外单独分发"
   }
 ]

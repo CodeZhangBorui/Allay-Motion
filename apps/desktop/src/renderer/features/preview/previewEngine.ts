@@ -10,6 +10,7 @@ import { TemplateCodeError } from '../../../shared/template-code';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
+import { loadIssuesOf } from './loadIssues';
 
 interface Viewport {
   cssWidth: number;
@@ -386,7 +387,8 @@ export class PreviewEngine {
     if (error instanceof EngineUnresponsiveError || error instanceof EngineCrashedError) return;
     useTransportStore.getState().setPlaying(false);
     const text = error instanceof TemplateCodeError ? `${error.problem}: ${error.message}` : message(error);
-    usePreviewStore.getState().setStatus({ kind: 'error', message: text });
+    const issues = loadIssuesOf(error);
+    usePreviewStore.getState().setStatus(issues ? { kind: 'error', message: text, issues } : { kind: 'error', message: text });
   }
 }
 

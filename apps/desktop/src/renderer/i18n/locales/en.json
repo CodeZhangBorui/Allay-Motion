@@ -102,7 +102,22 @@
     "diagnosticsFailed": "Couldn’t copy the diagnostics.",
     "title": "Preview",
     "toolbar": "Preview tools",
-    "hqShort": "HQ"
+    "hqShort": "HQ",
+    "issues": {
+      "param": "Parameter “{{label}}”: {{problem}}",
+      "paramField": "Parameter “{{label}}”, {{field}}: {{problem}}",
+      "field": "{{field}}: {{problem}}",
+      "more": "{{count}} more problems — see “Copy diagnostics”",
+      "unknownGroup": "refers to a group “{{group}}” that does not exist",
+      "unknownParam": "refers to a parameter “{{key}}” that does not exist",
+      "duplicateKey": "has the same key as another parameter",
+      "badDefault": "has an invalid default value",
+      "wrongType": "has the wrong type",
+      "tooBig": "is above the maximum",
+      "tooSmall": "is below the minimum",
+      "unknownField": "has unrecognized fields",
+      "invalid": "is not valid"
+    }
   },
   "transport": {
     "region": "Transport",
@@ -439,7 +454,7 @@
     "version": "Version {{version}}",
     "thirdParty": "Third-party licenses",
     "licenses": {
-      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process; the full license ships with the installer.",
+      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process (ffmpeg.exe in the install folder, which you may replace); the full license ships with the installer.",
       "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
       "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
@@ -448,7 +463,18 @@
     },
     "encoderNone": "None works",
     "encoderNotProbed": "Not checked yet",
-    "encoderProbing": "Checking…"
+    "encoderProbing": "Checking…",
+    "guidelines": "If your exported videos show Minecraft content, follow the Minecraft Usage Guidelines yourself: {{url}}",
+    "ffmpegSource": "FFmpeg build: {{version}} from {{repo}}, release {{tag}} ({{asset}}). Source code: https://git.ffmpeg.org/ffmpeg.git at commit {{commit}}; build scripts: https://github.com/{{repo}}.",
+    "noticesFile": "The same list with full license texts is in THIRD_PARTY_NOTICES.txt in the install folder.",
+    "thirdPartyAll": "All components ({{count}})",
+    "thirdPartyLoading": "Loading the list…",
+    "licenseInFile": "Full license text: {{file}} in the install folder.",
+    "noLicenseFile": "The package has no license file; licensed under {{license}}.",
+    "license": {
+      "title": "License",
+      "body": "This software is licensed under GPL-3.0-only. To use it in ways the GPL does not allow (for example in closed-source products), contact the copyright holder for a commercial license through the repository’s Issues: {{url}}. Videos you export with it are yours and are not covered by this license."
+    }
   },
   "shortcuts": {
     "keys": {
@@ -492,7 +518,9 @@
       "projectSetParams": "Set parameters (with revision)",
       "exportTaskStart": "Start export task",
       "exportTaskGet": "Get export task",
-      "exportTaskCancel": "Cancel export task"
+      "exportTaskCancel": "Cancel export task",
+      "projectOpenAssociated": "Open project from file",
+      "templatesInstallAssociated": "Install template from file"
     }
   },
   "editor": {
@@ -749,5 +777,29 @@
   },
   "splash": {
     "starting": "Starting…"
+  },
+  "noWebgl": {
+    "title": "Your graphics card or driver does not support WebGL 2",
+    "body": "Preview and export both render with WebGL 2. Without it the app cannot draw anything, so it stops here instead of showing a blank window.",
+    "tips": {
+      "driver": "Update the graphics driver from your GPU vendor (NVIDIA, AMD, Intel), then restart the app.",
+      "gpu": "On laptops with two GPUs, try running the app on the other one (Windows Settings → System → Display → Graphics).",
+      "remote": "Remote desktop sessions and some virtual machines have no WebGL 2; run the app on the machine itself."
+    },
+    "diagnostics": "Diagnostics",
+    "copy": "Copy diagnostics",
+    "copied": "Copied"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "panelTitle": "This part ran into a problem",
+    "hint": "The part that failed has stopped; the rest is unaffected. Saved projects are safe; unsaved changes are lost when you reload.",
+    "panelHint": "Try this part again first; if that doesn’t help, reload the interface.",
+    "reason": "Reason: ",
+    "reload": "Reload",
+    "retry": "Try again",
+    "copy": "Copy diagnostics",
+    "copied": "Diagnostics copied",
+    "copyFailed": "Could not copy"
   }
 }

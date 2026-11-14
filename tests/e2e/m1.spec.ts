@@ -4,7 +4,8 @@ import type * as NodePath from 'node:path';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { decodeAllRgba, probe, processAlive } from '../export/ffmpeg';
-import { ROOT, launchApp, makeUserDataDir, readFixture, readMainLog, removeUserDataDir, requirePinnedFfmpeg, type Launched } from './helpers';
+import { ROOT, launchApp, makeUserDataDir, readFixture, readMainLog, removeUserDataDir, rendererOf, requirePinnedFfmpeg, type Launched } from './helpers';
+import { isSoftwareRenderer } from '../engine/software';
 
 type Locale = { preview: { unresponsive: string }; export: { errors: Record<string, string> } };
 const locale = (name: string): Locale => JSON.parse(readFileSync(join(ROOT, 'apps/desktop/src/renderer/i18n/locales', name), 'utf8')) as Locale;
@@ -296,8 +297,11 @@ test.describe('导出', () => {
       const result = page.getByTestId('export-result');
       await expect(result).toHaveAttribute('data-kind', 'done', { timeout: 60_000 });
       const seconds = (Date.now() - started) / 1000;
-      // 预算：1080p60、2 秒、标准画质 ≤ 20 秒（2.11）；T1 默认参数只有 1.1 秒，用同一个上限
-      expect(seconds).toBeLessThanOrEqual(20);
+      // 预算：1080p60、2 秒、标准画质 ≤ 20 秒（2.11）；T1 默认参数只有 1.1 秒，用同一个上限。
+      // 软件渲染（CI 的 WARP）不是参考机器，只记数字、不判定（同 T-ARC-7，docs/decisions.md M8）
+      const gpu = await rendererOf(page);
+      test.info().annotations.push({ type: 'T-EXP-7 seconds', description: `${gpu}; ${seconds.toFixed(2)}` });
+      if (!isSoftwareRenderer(gpu)) expect(seconds).toBeLessThanOrEqual(20);
       const path = (await page.getByTestId('export-path').textContent())!;
       expect(path.startsWith(out)).toBe(true);
       expect(path).toMatch(/_1920x1080_60fps\.mov$/);
