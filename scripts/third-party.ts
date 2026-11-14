@@ -9,7 +9,8 @@
 // - 生产依赖（pnpm -r licenses list --prod，和 check-licenses 同一个来源），带包里的许可文件原文；
 // - 构建时编进 CSS 的两个开发依赖（tailwindcss 的基础样式、shadcn 的 tailwind.css）；
 // - Electron（Chromium 的许可全文在安装目录的 LICENSES.chromium.html，太大，这里只指过去）；
-// - FFmpeg（LGPLv3，独立进程；许可全文是 ffmpeg/win32-x64/LICENSE.txt，写明构建来源、版本和取得源码的方式）；
+// - FFmpeg（LGPLv3，独立进程；许可全文是 ffmpeg/<平台>/LICENSE.txt，写明构建来源、版本和取得源码的方式；
+//   Windows 用 FFmpeg-Builds 的构建，macOS 用本项目从官方源码编译的，两份的来源都记在清单里）；
 // - 方舟像素字体（OFL-1.1，原样分发）。
 //
 // 用法：tsx scripts/third-party.ts           重新生成提交的 JSON
@@ -18,7 +19,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } fr
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isLicenseAllowed, listProductionPackages } from './check-licenses';
-import { FFMPEG_BUILD } from './ffmpeg-build';
+import { FFMPEG_BUILD, FFMPEG_MACOS } from './ffmpeg-build';
 
 export const ROOT = resolve(import.meta.dirname, '..');
 export const THIRD_PARTY_JSON = join(ROOT, 'apps/desktop/src/renderer/features/settings/third-party-licenses.json');
@@ -39,11 +40,23 @@ export interface ThirdPartyEntry {
   seeFile: string | null;
 }
 
+/** macOS 版随包的 FFmpeg：本项目从官方源码编译（scripts/ffmpeg-macos.ts），静态链接的 libvpx、libopus 也列出来 */
+export interface FfmpegMacosInfo {
+  version: string;
+  license: string;
+  buildScript: string;
+  sources: { name: string; version: string; url: string; sha256: string; license: string }[];
+}
+
 export interface ThirdPartyFile {
   formatVersion: 1;
   ffmpeg: { version: string; commit: string; buildRepo: string; buildTag: string; asset: string; sha256: string };
+  ffmpegMacos: FfmpegMacosInfo;
   entries: ThirdPartyEntry[];
 }
+
+/** 打包的目标平台（决定 THIRD_PARTY_NOTICES.txt 里写哪一份 FFmpeg） */
+export type NoticesTarget = 'win32-x64' | 'darwin-arm64' | 'darwin-x64';
 
 /** 构建时编进渲染进程 CSS 的开发依赖（它们的代码不进安装包，生成的样式进） */
 const BUILD_PACKAGES: { name: string; from: string }[] = [
@@ -141,8 +154,32 @@ export function collectThirdParty(root: string = ROOT): ThirdPartyFile {
   return {
     formatVersion: 1,
     ffmpeg: { version: FFMPEG_BUILD.version, commit: FFMPEG_BUILD.commit, buildRepo: FFMPEG_BUILD.repo, buildTag: FFMPEG_BUILD.tag, asset: FFMPEG_BUILD.asset, sha256: FFMPEG_BUILD.sha256 },
+    ffmpegMacos: {
+      version: FFMPEG_MACOS.version,
+      license: 'LGPL-3.0-or-later',
+      buildScript: 'scripts/ffmpeg-macos.ts',
+      sources: FFMPEG_MACOS.sources.map(({ name, version, url, sha256, license }) => ({ name, version, url, sha256, license })),
+    },
     entries,
   };
+}
+
+/** THIRD_PARTY_NOTICES.txt 开头关于 FFmpeg 的几行：按打包的平台写对应的那一份构建 */
+export function ffmpegNoticeLines(file: ThirdPartyFile, target: NoticesTarget): string[] {
+  if (target === 'win32-x64') {
+    return [
+      `FFmpeg ${file.ffmpeg.version} (LGPL-3.0-or-later) is called as a separate process (resources/ffmpeg/win32-x64/ffmpeg.exe) and may be replaced by the user.`,
+      `Build: ${file.ffmpeg.buildRepo}, release ${file.ffmpeg.buildTag}, ${file.ffmpeg.asset} (SHA-256 ${file.ffmpeg.sha256}).`,
+      `Source: https://git.ffmpeg.org/ffmpeg.git at commit ${file.ffmpeg.commit}; build scripts: https://github.com/${file.ffmpeg.buildRepo}/tree/${file.ffmpeg.buildTag}.`,
+    ];
+  }
+  const m = file.ffmpegMacos;
+  return [
+    `FFmpeg ${m.version} (${m.license}) is called as a separate process (Contents/Resources/ffmpeg/${target}/ffmpeg) and may be replaced by the user.`,
+    `Build: compiled by this project from the official source release with an LGPL-only configuration (${m.buildScript} in the source repository), statically linking libvpx and libopus (BSD-3-Clause).`,
+    ...m.sources.map((s) => `Source: ${s.name} ${s.version}, ${s.url} (SHA-256 ${s.sha256}), ${s.license}.`),
+    `Full license texts of FFmpeg, libvpx and libopus: Contents/Resources/ffmpeg/${target}/LICENSE.txt.`,
+  ];
 }
 
 /** 许可是否合规：FFmpeg 是唯一允许的 LGPL（独立进程，9.8）；其余按 check-licenses 的允许列表 */
@@ -157,19 +194,16 @@ export function serialize(file: ThirdPartyFile): string {
 }
 
 /** 安装目录里的纯文本版本 */
-export function renderNotices(file: ThirdPartyFile, header: string): string {
+export function renderNotices(file: ThirdPartyFile, header: string, target: NoticesTarget = 'win32-x64'): string {
   const lines: string[] = [header, '', 'Third-party software included in this application / 本应用包含的第三方软件', ''];
-  lines.push(
-    `FFmpeg ${file.ffmpeg.version} (LGPL-3.0-or-later) is called as a separate process (resources/ffmpeg/win32-x64/ffmpeg.exe) and may be replaced by the user.`,
-    `Build: ${file.ffmpeg.buildRepo}, release ${file.ffmpeg.buildTag}, ${file.ffmpeg.asset} (SHA-256 ${file.ffmpeg.sha256}).`,
-    `Source: https://git.ffmpeg.org/ffmpeg.git at commit ${file.ffmpeg.commit}; build scripts: https://github.com/${file.ffmpeg.buildRepo}/tree/${file.ffmpeg.buildTag}.`,
-    '',
-  );
+  lines.push(...ffmpegNoticeLines(file, target), '');
   for (const e of file.entries) {
     lines.push('='.repeat(78), `${e.name} ${e.version} — ${e.license}`);
     if (e.author) lines.push(`Author: ${e.author}`);
     if (e.homepage) lines.push(`Homepage: ${e.homepage}`);
-    if (e.seeFile) lines.push(`Full license text: ${e.seeFile}`);
+    // FFmpeg 的许可全文随平台的构建放在不同位置（清单里记的是 Windows 的）
+    const seeFile = e.kind === 'binary' && e.name === 'FFmpeg' && target !== 'win32-x64' ? `Contents/Resources/ffmpeg/${target}/LICENSE.txt` : e.seeFile;
+    if (seeFile) lines.push(`Full license text: ${seeFile}`);
     lines.push('');
     if (e.text) lines.push(e.text, '');
     else if (!e.seeFile) lines.push(`(No license file in the package; licensed under ${e.license}.)`, '');

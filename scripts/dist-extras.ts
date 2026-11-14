@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { brandMessages } from '../packages/ui/src/brand/messages';
-import { renderNotices, THIRD_PARTY_JSON, type ThirdPartyFile } from './third-party';
+import { renderNotices, THIRD_PARTY_JSON, type NoticesTarget, type ThirdPartyFile } from './third-party';
 
 const BOM = String.fromCharCode(0xfeff);
 const ROOT = resolve(import.meta.dirname, '..');
@@ -45,15 +45,25 @@ export const PROJECT_LICENSE = [
   '本软件以 GNU 通用公共许可证第 3 版（GPL-3.0-only）授权；需要不受 GPL 约束地使用（例如闭源），请通过仓库的 Issues 联系版权人取得商业授权。',
 ].join('\n');
 
-export function noticesText(file: ThirdPartyFile): string {
-  return renderNotices(file, `${brandMessages.en.name} / ${brandMessages['zh-CN'].name}\n\n${brandMessages['zh-CN'].disclaimer}\n\n${PROJECT_LICENSE}\n\n${brandMessages.en.licenseScope}\n\n${brandMessages['zh-CN'].licenseScope}`);
+export function noticesText(file: ThirdPartyFile, target: NoticesTarget = 'win32-x64'): string {
+  return renderNotices(
+    file,
+    `${brandMessages.en.name} / ${brandMessages['zh-CN'].name}\n\n${brandMessages['zh-CN'].disclaimer}\n\n${PROJECT_LICENSE}\n\n${brandMessages.en.licenseScope}\n\n${brandMessages['zh-CN'].licenseScope}`,
+    target,
+  );
+}
+
+/** 当前机器打的包（scripts/dist.mjs 按当前机器选平台和架构） */
+export function currentTarget(): NoticesTarget {
+  if (process.platform === 'darwin') return process.arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64';
+  return 'win32-x64';
 }
 
 function main(): void {
   mkdirSync(BUILD_DIR, { recursive: true });
   writeFileSync(join(BUILD_DIR, 'installer.nsh'), installerScript(), 'utf8');
   const file = JSON.parse(readFileSync(THIRD_PARTY_JSON, 'utf8')) as ThirdPartyFile;
-  writeFileSync(join(BUILD_DIR, 'THIRD_PARTY_NOTICES.txt'), noticesText(file), 'utf8');
+  writeFileSync(join(BUILD_DIR, 'THIRD_PARTY_NOTICES.txt'), noticesText(file, currentTarget()), 'utf8');
   console.log(`dist-extras: 写入 ${join(BUILD_DIR, 'installer.nsh')} 和 THIRD_PARTY_NOTICES.txt（${file.entries.length} 项）`);
 }
 

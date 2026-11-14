@@ -24,6 +24,8 @@ interface Entry {
 
 interface ThirdPartyData {
   ffmpeg: { version: string; commit: string; buildRepo: string; buildTag: string; asset: string; sha256: string };
+  /** macOS 版随包的 FFmpeg（本项目从官方源码编译，scripts/ffmpeg-macos.ts） */
+  ffmpegMacos: { version: string; buildScript: string; sources: { name: string; version: string; url: string; sha256: string }[] };
   entries: Entry[];
 }
 
@@ -40,11 +42,18 @@ export function ThirdPartyList() {
     };
   }, []);
   if (!data) return <p className="text-xs text-fg-subtle">{t('settings.thirdPartyLoading')}</p>;
-  const { ffmpeg } = data;
+  const { ffmpeg, ffmpegMacos } = data;
   return (
     <div className="flex flex-col gap-2">
       <p className="text-xs text-fg-muted select-text" data-testid="about-ffmpeg-source">
         {t('settings.ffmpegSource', { version: ffmpeg.version, repo: ffmpeg.buildRepo, tag: ffmpeg.buildTag, asset: ffmpeg.asset, commit: ffmpeg.commit })}
+      </p>
+      <p className="text-xs break-all text-fg-muted select-text" data-testid="about-ffmpeg-source-macos">
+        {t('settings.ffmpegSourceMacos', {
+          version: ffmpegMacos.version,
+          script: ffmpegMacos.buildScript,
+          sources: ffmpegMacos.sources.map((s) => `${s.name} ${s.version} ${s.url} (SHA-256 ${s.sha256})`).join('; '),
+        })}
       </p>
       <p className="text-xs text-fg-muted">{t('settings.noticesFile')}</p>
       <h4 className="text-xs font-semibold text-fg-subtle">{t('settings.thirdPartyAll', { count: data.entries.length })}</h4>

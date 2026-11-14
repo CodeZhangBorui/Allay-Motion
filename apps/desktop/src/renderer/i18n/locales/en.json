@@ -489,6 +489,7 @@
     "encoderProbing": "Checking…",
     "guidelines": "If your exported videos show Minecraft content, follow the Minecraft Usage Guidelines yourself: {{url}}",
     "ffmpegSource": "FFmpeg build: {{version}} from {{repo}}, release {{tag}} ({{asset}}). Source code: https://git.ffmpeg.org/ffmpeg.git at commit {{commit}}; build scripts: https://github.com/{{repo}}.",
+    "ffmpegSourceMacos": "On macOS, FFmpeg {{version}} (LGPL 3.0) is compiled by this project from the official source release, statically linking libvpx and libopus (BSD); build script: {{script}} in the source repository. Source packages: {{sources}}. Full license texts: LICENSE.txt under Contents/Resources/ffmpeg in the app bundle.",
     "noticesFile": "The same list with full license texts is in THIRD_PARTY_NOTICES.txt in the install folder.",
     "thirdPartyAll": "All components ({{count}})",
     "thirdPartyLoading": "Loading the list…",

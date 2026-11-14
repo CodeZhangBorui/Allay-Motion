@@ -489,6 +489,7 @@
     "encoderProbing": "正在检测…",
     "guidelines": "导出的视频里出现 Minecraft 的内容时，请自行参照 Minecraft 使用准则：{{url}}",
     "ffmpegSource": "FFmpeg 构建：{{version}}，来自 {{repo}} 的发布 {{tag}}（{{asset}}）。源码：https://git.ffmpeg.org/ffmpeg.git 的提交 {{commit}}；构建脚本：https://github.com/{{repo}}。",
+    "ffmpegSourceMacos": "macOS 版的 FFmpeg {{version}}（LGPL 3.0）由本项目从官方源码编译，静态链接 libvpx 和 libopus（BSD），构建脚本是源码仓库里的 {{script}}。源码包：{{sources}}。许可全文在应用包的 Contents/Resources/ffmpeg 下的 LICENSE.txt。",
     "noticesFile": "同样的清单连同许可全文在安装目录的 THIRD_PARTY_NOTICES.txt 里。",
     "thirdPartyAll": "全部组件（{{count}}）",
     "thirdPartyLoading": "正在读取清单…",

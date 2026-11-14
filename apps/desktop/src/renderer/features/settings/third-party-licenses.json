@@ -8,6 +8,34 @@
   "asset": "ffmpeg-n9.0.2-57-gd838f9f9ae-win64-lgpl-9.0.zip",
   "sha256": "7a7d4b2adafe4b2de2a0fe0077a37e3d1dae43de28df38538ca79bc5d861e33e"
  },
+ "ffmpegMacos": {
+  "version": "9.0.2",
+  "license": "LGPL-3.0-or-later",
+  "buildScript": "scripts/ffmpeg-macos.ts",
+  "sources": [
+   {
+    "name": "ffmpeg",
+    "version": "9.0.2",
+    "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+    "sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
+    "license": "LGPL-3.0-or-later"
+   },
+   {
+    "name": "libvpx",
+    "version": "1.17.0",
+    "url": "https://github.com/webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz",
+    "sha256": "1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a",
+    "license": "BSD-3-Clause"
+   },
+   {
+    "name": "opus",
+    "version": "1.6.1",
+    "url": "https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz",
+    "sha256": "6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1",
+    "license": "BSD-3-Clause"
+   }
+  ]
+ },
  "entries": [
   {
    "name": "@babel/runtime",

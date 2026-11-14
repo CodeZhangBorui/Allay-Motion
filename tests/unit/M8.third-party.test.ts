@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
 import { installerScript, noticesText, nsisString } from '../../scripts/dist-extras';
-import { FFMPEG_BUILD } from '../../scripts/ffmpeg-build';
+import { FFMPEG_BUILD, FFMPEG_MACOS } from '../../scripts/ffmpeg-build';
 import { collectThirdParty, entryAllowed, serialize, THIRD_PARTY_JSON, type ThirdPartyFile } from '../../scripts/third-party';
 
 // M8 第三方许可清单（09-compliance.md 9.7–9.9）与安装程序欢迎页的声明（9.5）。
@@ -35,11 +35,29 @@ describe('M8 第三方许可清单', () => {
     expect(FFMPEG_BUILD.version.endsWith(`g${FFMPEG_BUILD.commit}`)).toBe(true);
   });
 
+  it('macOS 的 FFmpeg 来源与 scripts/ffmpeg-build.ts 的 FFMPEG_MACOS 一致', () => {
+    expect(file.ffmpegMacos.version).toBe(FFMPEG_MACOS.version);
+    expect(file.ffmpegMacos.license).toBe('LGPL-3.0-or-later');
+    expect(file.ffmpegMacos.sources).toEqual(FFMPEG_MACOS.sources.map(({ name, version, url, sha256, license }) => ({ name, version, url, sha256, license })));
+  });
+
   it('纯文本版带声明、FFmpeg 的源码去处和每一项', () => {
     const text = noticesText(file);
     expect(text).toContain(brandMessages.en.disclaimer);
     expect(text).toContain(`commit ${FFMPEG_BUILD.commit}`);
+    expect(text).toContain('resources/ffmpeg/win32-x64/ffmpeg.exe');
     for (const e of file.entries) expect(text).toContain(`${e.name} ${e.version} — ${e.license}`);
+  });
+
+  it('macOS 的纯文本版写的是本项目编译的那一份：每个源码包的地址和 SHA-256、许可全文的位置', () => {
+    for (const target of ['darwin-arm64', 'darwin-x64'] as const) {
+      const text = noticesText(file, target);
+      expect(text).toContain(brandMessages.en.disclaimer);
+      expect(text).not.toContain('win32-x64');
+      expect(text).toContain(`Contents/Resources/ffmpeg/${target}/LICENSE.txt`);
+      for (const s of FFMPEG_MACOS.sources) expect(text).toContain(`${s.url} (SHA-256 ${s.sha256})`);
+      for (const e of file.entries) expect(text).toContain(`${e.name} ${e.version} — ${e.license}`);
+    }
   });
 });
 
