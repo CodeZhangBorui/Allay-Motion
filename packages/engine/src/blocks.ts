@@ -69,17 +69,28 @@ function buildCubeGeometry(groups: readonly Group[], textureIds: readonly string
   return g;
 }
 
-/** 逐实例不透明度：在 alphaTest 之后乘上，这样 cutout 的阈值只看贴图本身的 alpha */
-function withInstanceOpacity(material: THREE.MeshBasicMaterial): THREE.MeshBasicMaterial {
+/**
+ * 方块材质的着色器修补（docs/decisions.md M8“剪辑点整帧 254”）：
+ *
+ * 1. 顶点颜色只有 RGB（面明暗和染色），但 Three 的 color_fragment 是 `diffuseColor *= vColor`，连 alpha 一起乘；
+ *    vColor.a 在每个顶点上都是 1.0，可它是按透视插值的 varying，三角形内部插出来略小于 1（实测约 1e-4），
+ *    不透明方块写进 sceneRT 的 alpha 因此不是 1（半浮点存成 0.99951）。在显卡上累积后还能取整回 255，
+ *    在按截断写半浮点的渲染器（WARP）上 8 个以上子帧就掉到 254。改成只乘 RGB，alpha 不经过任何插值。
+ * 2. 实例化方块的逐实例不透明度在 alphaTest 之后乘上（cutout 的阈值只看贴图本身的 alpha）；
+ *    它对一个实例是常数，用 flat，不做插值，同样避免 1.0 插成 0.9999。
+ */
+function patchBlockShader(material: THREE.MeshBasicMaterial, instanced: boolean): THREE.MeshBasicMaterial {
   material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', '#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )\n\tdiffuseColor.rgb *= vColor.rgb;\n#endif');
+    if (!instanced) return;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute float instanceOpacity;\nvarying float vInstanceOpacity;')
+      .replace('#include <common>', '#include <common>\nattribute float instanceOpacity;\nflat varying float vInstanceOpacity;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvInstanceOpacity = instanceOpacity;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vInstanceOpacity;')
+      .replace('#include <common>', '#include <common>\nflat varying float vInstanceOpacity;')
       .replace('#include <alphatest_fragment>', '#include <alphatest_fragment>\nif (vInstanceOpacity <= 0.0) discard;\ndiffuseColor.a *= vInstanceOpacity;');
   };
-  material.customProgramCacheKey = () => 'allay-instance-opacity';
+  material.customProgramCacheKey = () => (instanced ? 'allay-block-instanced' : 'allay-block');
   return material;
 }
 
@@ -94,7 +105,7 @@ function makeMaterial(map: THREE.Texture, render: RenderType, overlay: boolean, 
   }
   // 逐实例不透明度要混合，所以实例化的方块一律走透明队列（不透明度为 1 时结果与不透明一样）
   m.transparent = instanced || render === 'translucent';
-  return instanced ? withInstanceOpacity(m) : m;
+  return patchBlockShader(m, instanced);
 }
 
 interface BlockParts {

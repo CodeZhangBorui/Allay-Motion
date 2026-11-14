@@ -14,6 +14,14 @@ const CSP = [...expr.matchAll(/"([^"]*)"/g)].map((m) => m[1]).join('');
 if (!CSP.startsWith("default-src 'none'")) throw new Error(`unexpected CSP: ${CSP}`);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 
+// 本机复现 CI 的软件渲染（docs/decisions.md M8）：ALLAY_ENGINE_ANGLE=d3d11-warp 让 Chromium 走 WARP
+// （CI 上的 Microsoft Basic Render Driver），swiftshader 走 SwiftShader。不设时用显卡，和以前一样
+const ANGLE_BACKENDS = new Set(['d3d11-warp', 'swiftshader']);
+if (ANGLE_BACKENDS.has(process.env.ALLAY_ENGINE_ANGLE ?? '')) {
+  app.commandLine.appendSwitch('use-gl', 'angle');
+  app.commandLine.appendSwitch('use-angle', process.env.ALLAY_ENGINE_ANGLE);
+}
+
 protocol.registerSchemesAsPrivileged([{ scheme: 'harness', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 app.setPath('userData', join(app.getPath('temp'), `allay-engine-harness-${process.pid}`));
 
