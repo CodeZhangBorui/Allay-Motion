@@ -1,6 +1,5 @@
 // 仿真器的入口（在落地页的 iframe 里）：先装上浏览器版的 window.allay，再启动桌面版渲染进程的真实入口
 // apps/desktop/src/renderer/main.tsx。之后的界面、Zustand 状态、引擎 Worker、模板装载、导出管线全是桌面版的代码。
-import { declareMascotAssetsMissing } from '@allay/mascot';
 import { z } from 'zod';
 import { FromSimulatorSchema, SiteLanguageSchema, SiteThemeSchema, ToSimulatorSchema, readMessage, type FromSimulator } from '../host/bridge';
 import { createBrowserHost, installBrowserHost } from '../host/browser-host';
@@ -8,8 +7,6 @@ import { hostMessages } from '../site/i18n';
 import { useTransportStore } from '../../../desktop/src/renderer/stores/transportStore';
 import './simulator.css';
 
-// 悦灵的烘焙图集不随官网分发，组件用 CSS 占位实现（docs/decisions.md 官网）
-declareMascotAssetsMissing();
 
 const params = new URLSearchParams(window.location.search);
 const theme = SiteThemeSchema.catch('dark').parse(params.get('theme'));

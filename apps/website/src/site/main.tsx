@@ -1,4 +1,3 @@
-import { declareMascotAssetsMissing } from '@allay/mascot';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
@@ -7,8 +6,6 @@ import { initSiteI18n, missingKeys } from './i18n';
 import { initPrefs } from './prefs';
 import { Site } from './Site';
 
-// 悦灵的烘焙图集是原版贴图的派生图像，不随官网分发：组件用 CSS 占位实现（docs/decisions.md 官网）
-declareMascotAssetsMissing();
 
 async function bootstrap(): Promise<void> {
   const prefs = initPrefs();

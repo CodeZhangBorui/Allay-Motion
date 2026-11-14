@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { PIXEL_FONT_PATH } from '../src/host/paths';
+import { GENERATED_FILES } from '../../../packages/mascot/src/atlas';
 import { bundleTemplate, readTemplateManifest, templateDirs } from '../../../scripts/build-templates';
 
 const VIRTUAL = 'virtual:allay-builtin-templates';
@@ -74,6 +75,51 @@ export function pixelFont(): Plugin {
         cached ??= pixelFontGz();
         res.setHeader('content-type', 'application/octet-stream');
         res.end(cached);
+      });
+    },
+  };
+}
+
+/**
+ * 应用里那只 3D 悦灵：用 pnpm mascot:bake 烘焙出的同一份图集和头像（packages/mascot/generated/，git 忽略，M5a）。
+ * 和桌面版一样放在页面同源的 mascot/ 下（packages/mascot 的组件从 mascot/allay.atlas.json 读），
+ * 构建时复制进产物，开发服务器上直接提供。产物是原版贴图的派生图像：官网可以用（docs/decisions.md 官网 · 原版素材）。
+ * 缺产物时构建照常完成但打印醒目的警告（组件会退回 CSS 占位，官网上看得出来）。
+ */
+const MASCOT_GENERATED = resolve(ROOT, 'packages/mascot/generated');
+/** 图集、atlas.json、头像，加两张应用图标（标签页图标和高分屏图标用；.ico 和其余尺寸不需要） */
+export const MASCOT_FILES: readonly string[] = GENERATED_FILES.filter((f) => !f.startsWith('icon') || f === 'icon-32.png' || f === 'icon-256.png');
+
+export function mascotAssets(): Plugin {
+  return {
+    name: 'allay-website-mascot',
+    buildStart() {
+      const missing = MASCOT_FILES.filter((f) => !existsSync(resolve(MASCOT_GENERATED, f)));
+      if (missing.length > 0) {
+        this.warn(`悦灵的烘焙产物缺 ${missing.length} 个文件（${missing.slice(0, 3).join('、')}…）：官网会退回 CSS 占位。先运行 pnpm mascot:bake（需要本机装有 Minecraft Java 版）。`);
+      }
+    },
+    generateBundle() {
+      for (const f of MASCOT_FILES) {
+        const p = resolve(MASCOT_GENERATED, f);
+        if (existsSync(p)) this.emitFile({ type: 'asset', fileName: `mascot/${f}`, source: readFileSync(p) });
+      }
+    },
+    // 有应用图标就用它做标签页图标（页面里原来是空的 data: 图标，免得请求 favicon.ico 得到 404）
+    transformIndexHtml(html) {
+      if (!existsSync(resolve(MASCOT_GENERATED, 'icon-32.png'))) return html;
+      return html.replace(
+        '<link rel="icon" href="data:," />',
+        ['<link rel="icon" type="image/png" href="./mascot/icon-32.png" />', '<link rel="apple-touch-icon" href="./mascot/icon-256.png" />'].join('\n    '),
+      );
+    },
+    configureServer(server) {
+      server.middlewares.use('/mascot/', (req, res, next) => {
+        const name = decodeURIComponent((req.url ?? '').split('?')[0]!.replace(/^\//, ''));
+        // 只认白名单里的文件名（扁平目录，没有路径）
+        if (!MASCOT_FILES.includes(name) || !existsSync(resolve(MASCOT_GENERATED, name))) return next();
+        res.setHeader('content-type', name.endsWith('.json') ? 'application/json' : 'image/png');
+        res.end(readFileSync(resolve(MASCOT_GENERATED, name)));
       });
     },
   };
