@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { decodeAllRgba, probe, processAlive } from '../export/ffmpeg';
 import { frameCount } from '../../packages/engine/src/frames';
-import { ROOT, launchApp, makeUserDataDir, readMainLog, removeUserDataDir, requirePinnedFfmpeg, type Launched } from './helpers';
+import { ROOT, launchApp, makeUserDataDir, readMainLog, removeUserDataDir, rendererOf, requirePinnedFfmpeg, type Launched } from './helpers';
+import { isSoftwareRenderer } from '../engine/software';
 
 // M7 导出完善的端到端测试（docs/05-export.md 5.10、docs/08-milestones.md M7）：
 // - 六个内置模板各以 1080p60 标准画质导出一次并通过自动检查；
@@ -139,6 +140,8 @@ test.describe('导出对话框与任务', () => {
     try {
       await waitReady(page);
       const cutFrame = Math.round(0.55 * 60);
+      const gpu = await rendererOf(page);
+      const software = isSoftwareRenderer(gpu);
       const timings: string[] = [];
 
       const exportVia = async (preset: string) => {
@@ -154,8 +157,8 @@ test.describe('导出对话框与任务', () => {
         await expect(result).toHaveAttribute('data-kind', 'done', { timeout: 60_000 });
         const seconds = (Date.now() - started) / 1000;
         timings.push(`${preset} ${seconds.toFixed(2)}`);
-        // 预算：1080p60、标准画质 ≤ 20 秒（2.11）
-        expect(seconds).toBeLessThanOrEqual(20);
+        // 预算：1080p60、标准画质 ≤ 20 秒（2.11）。软件渲染（CI 的 WARP）不是参考机器，只记数字、不判定（同 T-ARC-7，docs/decisions.md M8）
+        if (!software) expect(seconds).toBeLessThanOrEqual(20);
         await expect(page.getByTestId('export-cutpoint')).toContainText(String(cutFrame));
         const path = (await page.getByTestId('export-path').textContent())!;
         await page.getByTestId('export-close').click();
@@ -180,8 +183,10 @@ test.describe('导出对话框与任务', () => {
       const ws = await alphaStats(webm, 1920, 1080, ['-c:v', 'libvpx-vp9']);
       expect(ws).toHaveLength(67);
       expect(ws[0]!.max).toBe(0);
-      expect(ws[66]!.max).toBe(0);
-      // VP9 的 alpha 是有损的（T-EXP-1 ③ 允许 alpha 误差 16），剪辑点实测 254
+      // VP9 的 alpha 是有损的（T-EXP-1 ③ 允许 alpha 误差 16）。末帧紧跟在有画面的帧后面，帧间预测留下几级残差
+      // （M8 修了方块 alpha 的插值误差之后实测 2；之前恰好是 0），按 T-EXP-1 ③ 的容差判。首帧前面没有帧，仍要求 0
+      expect(ws[66]!.max).toBeLessThanOrEqual(16);
+      // 剪辑点实测 254
       expect(ws[cutFrame]!.min).toBeGreaterThanOrEqual(255 - 16);
 
       // ④ 绿幕 MP4：不透明，首末帧是纯底色
@@ -209,7 +214,7 @@ test.describe('导出对话框与任务', () => {
       }
       const encoder = /h264 encoders probed .*"encoder":"([^"]+)"/.exec(readMainLog(dir))?.[1];
       expect(encoder).toBeTruthy();
-      test.info().annotations.push({ type: 'T-EXP-7 seconds', description: `${timings.join(', ')}; h264=${encoder}; key error ${firstLast.map((f) => `#${f.i} max ${f.worst}, >4: ${f.over4}`).join(' / ')}` });
+      test.info().annotations.push({ type: 'T-EXP-7 seconds', description: `${gpu}; ${timings.join(', ')}; h264=${encoder}; key error ${firstLast.map((f) => `#${f.i} max ${f.worst}, >4: ${f.over4}`).join(' / ')}` });
       expect(readdirSync(out).filter((f) => f.includes('.partial'))).toEqual([]);
     } finally {
       await app.close();
