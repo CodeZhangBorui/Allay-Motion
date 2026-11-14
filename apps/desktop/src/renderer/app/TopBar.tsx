@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuItemIcon,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
@@ -45,11 +46,12 @@ function RegistryMenuItem({ item }: { item: MenuItemDef }) {
   // 可用条件依赖撤销历史等状态：订阅一下，让菜单打开时是最新的
   useStore(useProjectStore.temporal, (s) => s.pastStates.length + s.futureStates.length);
   const shortcut = useShortcutFor(item.command ?? '');
-  if (item.component) return <item.component />;
+  if (item.component) return <item.component icon={item.icon} />;
   if (!command) return null;
   return (
     <DropdownMenuItem onClick={() => trigger(command.id, item.input)} data-testid={item.testId} disabled={!commandEnabled(command)}>
-      {t(item.titleKey ?? command.titleKey)}
+      <DropdownMenuItemIcon icon={item.icon ?? command.icon} />
+      <span className="min-w-0 flex-1 truncate">{t(item.titleKey ?? command.titleKey)}</span>
       {shortcut && item.input === undefined && <DropdownMenuShortcut>{shortcutLabel(shortcut)}</DropdownMenuShortcut>}
     </DropdownMenuItem>
   );

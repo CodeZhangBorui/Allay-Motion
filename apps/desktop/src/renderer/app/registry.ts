@@ -88,9 +88,19 @@ export interface MenuItemDef {
   titleKey?: string;
   /** 执行命令时带的参数（经 dispatch 校验） */
   input?: unknown;
+  /**
+   * 菜单项左侧的图标（Phosphor）。指向命令的条目缺省用命令的 icon，这里只在菜单的说法和命令不同时覆盖；
+   * 自带组件的条目经 props 把它交给组件。都没有时留一个空的图标列，文字照样对齐
+   */
+  icon?: Icon;
   /** 不是一个命令的菜单项（子菜单、单选组）：直接给组件 */
-  component?: ComponentType;
+  component?: ComponentType<MenuItemComponentProps>;
   testId?: string;
+}
+
+/** 自带组件的菜单项拿到的 props */
+export interface MenuItemComponentProps {
+  icon?: Icon | undefined;
 }
 
 // ---------------------------------------------------------------- 设置页的分类

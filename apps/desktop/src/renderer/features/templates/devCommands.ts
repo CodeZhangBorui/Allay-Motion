@@ -1,6 +1,7 @@
 // 模板开发模式的入口（docs/08-milestones.md MD）：“打开模板文件夹”“复制当前内置模板来修改”。
 // 经注册表注册成命令（命令面板、菜单都从注册表读）；文件夹的路径由主进程按 id 和版本决定，渲染进程碰不到路径。
 import { localize } from '@allay/template-sdk';
+import { Copy, FolderUser } from '@phosphor-icons/react';
 import i18next from 'i18next';
 import { z } from 'zod';
 import { defineCommand, type AnyCommand } from '../../app/registry';
@@ -65,6 +66,7 @@ export const DEV_COMMANDS: AnyCommand[] = [
   defineCommand({
     id: 'openTemplateFolder',
     titleKey: key('openTemplateFolder'),
+    icon: FolderUser,
     effect: 'read',
     input: RefInput,
     output: z.boolean(),
@@ -74,6 +76,7 @@ export const DEV_COMMANDS: AnyCommand[] = [
   defineCommand({
     id: 'copyBuiltinTemplate',
     titleKey: key('copyBuiltinTemplate'),
+    icon: Copy,
     effect: 'write',
     undoLabelKey: 'history.template',
     input: RefInput,
