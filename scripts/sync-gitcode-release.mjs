@@ -54,7 +54,6 @@ export function createClient({ githubRepo, gitcodeRepo, githubToken, gitcodeToke
         return response;
       } catch {
         // 不输出可能包含令牌或预签名 URL 的网络异常。
-        // eslint-disable-next-line preserve-caught-error -- 原始异常可能包含访问令牌。
         if (!retry || attempt >= 3) throw new Error('访问平台 API 失败，请检查网络');
         await sleep(2000 * (attempt + 1));
       }
