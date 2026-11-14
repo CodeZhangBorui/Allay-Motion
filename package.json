@@ -36,6 +36,7 @@
     "review:md-b": "tsx scripts/review-md-b.ts",
     "review:m5b": "tsx scripts/review-m5b.ts",
     "review:m8": "tsx scripts/review-m8.ts",
+    "review:ux-wave": "tsx scripts/review-ux-wave.ts",
     "test:e2e:baselines": "pnpm build && playwright test tests/e2e/m4.spec.ts -g T-UI-5 --update-snapshots"
   },
   "devDependencies": {
