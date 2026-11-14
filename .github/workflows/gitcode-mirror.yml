@@ -23,22 +23,25 @@ on:
 permissions:
   contents: read
 
-# 每次都读取当前全部分支、标签和已发布版本；待处理运行被合并也不会漏同步。
-concurrency:
-  group: gitcode-mirror
-  cancel-in-progress: false
-
+# 分成两个作业，各自排队（2026-11-14：v0.1.1 的安装包跨境上传几个小时传不完，旧的单一作业把之后所有分支和标签的同步都堵在后面）：
+# - code：分支和标签，几十秒就完；
+# - releases：发行版和附件，可能要几个小时。并发组仍叫 gitcode-mirror（和旧版本的工作流同名），新旧运行不会同时上传同一个附件。
+# 两个组里都只保留一个待运行的：每次都读取当前全部分支、标签和已发布版本，待运行的被新的替换也不会漏同步。
 jobs:
-  sync:
-    name: 同步仓库和发行版
+  code:
+    name: 同步分支和标签
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 30
+    concurrency:
+      group: gitcode-mirror-code
+      cancel-in-progress: false
+    outputs:
+      tags: ${{ steps.tags.outcome }}
     env:
       GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
       GITHUB_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       GITCODE_REPO: Mystic-Stars/Allay-Motion
-      SELECTED_TAG: ${{ inputs.tag }}
     steps:
       - name: 检查令牌
         run: |
@@ -47,17 +50,12 @@ jobs:
             exit 1
           fi
 
-      # 始终运行默认分支中的同步脚本，避免把其他分支或标签的代码当成同步脚本执行。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         id: checkout
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: 检查 Release 同步逻辑
-        id: test
-        run: node --test tests/sync-gitcode-release.test.mjs
 
       - name: 同步分支
         shell: bash
@@ -106,15 +104,44 @@ jobs:
           done
           exit "$failed"
 
+      # 分支同步失败时仍同步标签（缺令牌、签出失败时不同步）
       - name: 同步标签
         id: tags
-        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
           export GIT_ASKPASS="$RUNNER_TEMP/gitcode-askpass" GIT_TERMINAL_PROMPT=0
           git push "https://gitcode.com/$GITCODE_REPO.git" --tags
 
+  # 标签同步失败时不同步发行版，以免版本指向错误提交
+  releases:
+    name: 同步发行版和附件
+    needs: code
+    if: ${{ !cancelled() && needs.code.outputs.tags == 'success' }}
+    runs-on: ubuntu-latest
+    # GitHub 托管机器的上限。没传完的附件下次运行接着补传（已有且摘要一致的跳过）
+    timeout-minutes: 360
+    concurrency:
+      group: gitcode-mirror
+      cancel-in-progress: false
+    env:
+      GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      GITCODE_REPO: Mystic-Stars/Allay-Motion
+      SELECTED_TAG: ${{ inputs.tag }}
+      GITCODE_UPLOAD_CONCURRENCY: '3'
+    steps:
+      # 始终运行默认分支中的同步脚本，避免把其他分支或标签的代码当成同步脚本执行。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: 检查 Release 同步逻辑
+        run: node --test tests/sync-gitcode-release.test.mjs
+
+      # 附件按“最新正式版优先、校验和与安装包优先”的顺序上传，几个同时传；每分钟在日志里记一次上传进度
       - name: 同步已发布的 Release 和附件
-        if: ${{ !cancelled() && steps.tags.outcome == 'success' }}
         run: node scripts/sync-gitcode-release.mjs

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import https from 'node:https';
 import { PassThrough, Readable } from 'node:stream';
 import { test } from 'node:test';
-import { createClient, main } from '../scripts/sync-gitcode-release.mjs';
+import { createClient, main, orderAssets } from '../scripts/sync-gitcode-release.mjs';
 
 const payload = Buffer.from('installer bytes');
 const digest = `sha256:${createHash('sha256').update(payload).digest('hex')}`;
@@ -15,6 +15,7 @@ const release = {
 const options = {
   githubRepo: 'Mystic-Stars/Allay-Motion', gitcodeRepo: 'Mystic-Stars/Allay-Motion',
   githubToken: 'github-test', gitcodeToken: 'gitcode-test',
+  retryDelayMs: 0, confirmDelayMs: 0,
 };
 const json = (value, status = 200) => new Response(JSON.stringify(value), {
   status, headers: { 'Content-Type': 'application/json' },
@@ -95,7 +96,6 @@ test('Windows 与 macOS 的全部安装包和 SHA256SUMS.txt 都同步，不按�
   }));
   const multi = { ...release, assets };
   let remote = null;
-  let pending = null;
   t.mock.method(globalThis, 'fetch', async (input, init) => {
     const url = new URL(input);
     const assetMatch = /\/releases\/assets\/(\d+)$/.exec(url.pathname);
@@ -108,20 +108,21 @@ test('Windows 与 macOS 的全部安装包和 SHA256SUMS.txt 都同步，不按�
       return json(remote);
     }
     if (url.pathname.endsWith('/upload_url')) {
-      pending = url.searchParams.get('file_name');
-      return json({ url: 'https://storage.example/file', headers: {} });
+      // 几个附件同时传：上传地址里带上文件名，按地址认是哪一个
+      return json({ url: `https://storage.example/${encodeURIComponent(url.searchParams.get('file_name'))}`, headers: {} });
     }
     throw new Error('unexpected request');
   });
-  t.mock.method(https, 'request', (_url, _options, callback) => {
+  t.mock.method(https, 'request', (target, _options, callback) => {
+    const name = decodeURIComponent(new URL(target).pathname.slice(1));
     const stream = new PassThrough();
     const chunks = [];
     stream.setTimeout = () => stream;
     stream.on('data', (chunk) => chunks.push(chunk));
     stream.on('finish', () => {
       const body = Buffer.concat(chunks);
-      assert.deepEqual(body, bytes.get(pending));
-      remote.assets.push({ id: 1000 + remote.assets.length, name: pending, size: body.length, digest: sha(body) });
+      assert.deepEqual(body, bytes.get(name));
+      remote.assets.push({ id: 1000 + remote.assets.length, name, size: body.length, digest: sha(body) });
       const response = Readable.from([]);
       response.statusCode = 200;
       callback(response);
@@ -131,6 +132,51 @@ test('Windows 与 macOS 的全部安装包和 SHA256SUMS.txt 都同步，不按�
 
   await createClient(options).syncRelease(multi, multi.tag_name);
   assert.deepEqual(remote.assets.map((a) => a.name).sort(), [...names].sort());
+});
+
+test('上传顺序：校验和、自动更新用的安装包、其他附件；同类小的先传', () => {
+  const list = [
+    { name: 'A-arm64-mac.zip', size: 1 },
+    { name: 'A-x64-setup.exe', size: 30 },
+    { name: 'A-x64.dmg', size: 20 },
+    { name: 'SHA256SUMS.txt', size: 500 },
+    { name: 'A-arm64.dmg', size: 10 },
+  ];
+  assert.deepEqual(orderAssets(list).map((a) => a.name), ['SHA256SUMS.txt', 'A-arm64.dmg', 'A-x64.dmg', 'A-x64-setup.exe', 'A-arm64-mac.zip']);
+});
+
+test('上传失败时确认没有登记，再换新的上传地址重试', async (t) => {
+  const remote = { name: release.name, body: release.body, prerelease: false, release_status: 'latest', assets: [] };
+  let uploadUrls = 0;
+  let puts = 0;
+  t.mock.method(globalThis, 'fetch', async (input) => {
+    const url = new URL(input);
+    if (url.host === 'api.github.com' && url.pathname.endsWith('/releases/assets/42')) return new Response(payload);
+    if (url.pathname.endsWith('/releases/tags/v1.0.0')) return json(remote);
+    if (url.pathname.endsWith('/upload_url')) {
+      uploadUrls++;
+      return json({ url: `https://storage.example/try-${uploadUrls}`, headers: {} });
+    }
+    throw new Error('unexpected request');
+  });
+  t.mock.method(https, 'request', (_target, _options, callback) => {
+    const stream = new PassThrough();
+    stream.setTimeout = () => stream;
+    stream.resume();
+    stream.on('finish', () => {
+      puts++;
+      // 第一次服务端出错，第二次成功并登记
+      if (puts > 1) remote.assets.push({ id: 7, name: asset.name, size: asset.size, digest });
+      const response = Readable.from([]);
+      response.statusCode = puts > 1 ? 200 : 500;
+      callback(response);
+    });
+    return stream;
+  });
+  await createClient(options).syncRelease(release, release.tag_name);
+  assert.equal(puts, 2);
+  assert.equal(uploadUrls, 2);
+  assert.equal(remote.assets.length, 1);
 });
 
 test('同名附件内容不同时失败，不删除或覆盖现有文件', async (t) => {
