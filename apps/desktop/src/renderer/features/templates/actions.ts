@@ -89,6 +89,11 @@ export async function installDroppedTemplate(t: TFunction, file: File, locale: s
   return afterInstall(t, outcome, locale);
 }
 
+/** 双击关联的 .allaytpl（M8）：主进程经命令通道发来一次性令牌，路径不经过界面；之后与“导入模板…”相同 */
+export async function installAssociatedTemplate(t: TFunction, token: string, locale: string): Promise<InstallOutcome> {
+  return afterInstall(t, await finishInstall(await window.allay.templates.installRequested(token), locale), locale);
+}
+
 /** 删除用户模板；当前正在用它时换回旗舰模板 */
 export async function removeTemplate(id: string, version: string, locale: string): Promise<boolean> {
   const removed = await window.allay.templates.remove(id, version);

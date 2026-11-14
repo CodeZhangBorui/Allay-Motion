@@ -22,8 +22,15 @@ import { TemplateDevService } from './templates/dev-service';
 import { TemplateWatcher } from './templates/dev-watcher';
 import { TEMPLATE_API_DTS } from './templates/template-api-dts';
 import { HostCommandChannel } from './host-commands';
+import { filesFromArgv, OpenFileQueue } from './open-files';
 import { Splash } from './splash';
 import { createMainWindow } from './window';
+import { startup } from './startup-timing';
+
+startup.mark('main-loaded');
+
+/** 主进程最多等启动画面的第一帧这么久，再继续启动（见 Splash.firstFrame） */
+const SPLASH_FIRST_FRAME_WAIT_MS = 1000;
 
 // ---- 必须在 ready 之前完成的事 ----
 
@@ -39,6 +46,12 @@ const hiddenForTests = testSwitches.hiddenWindow;
 // 可见窗口里这个等待不超过一帧（约 16 ms），隐藏窗口里会被拉长到将近 1 秒（docs/decisions.md M2b“T-ARC-5 的 1 秒空洞”）。
 // 测试窗口去掉帧率限制，让帧时钟和可见窗口一样快。只影响帧的节拍，不碰 1.6 的任何安全设置；打包后 hiddenForTests 恒为假。
 if (hiddenForTests) app.commandLine.appendSwitch('disable-frame-rate-limit');
+// 测 WebGL2 不可用时的说明页（M8）：只在未打包时、设了测试开关时模拟“没有可用的显卡”——关掉 GPU，
+// 也关掉软件渲染的兜底（SwiftShader），WebGL 因此取不到上下文。（--disable-webgl 在这个版本上拦不住 WebGL2，实测过）
+if (testSwitches.noWebgl) {
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+}
 
 registerAppScheme();
 app.enableSandbox();
@@ -48,6 +61,7 @@ const devOrigin = !app.isPackaged && process.env.ELECTRON_RENDERER_URL ? assertL
 
 const log = createLogger(join(app.getPath('userData'), 'logs'));
 installGlobalHardening(devOrigin, log);
+startup.attach(log);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -117,7 +131,13 @@ if (!app.requestSingleInstanceLock()) {
   });
   if (testSwitches.testHooks) (globalThis as { __allayHostCommands?: HostCommandChannel }).__allayHostCommands = hostCommands;
 
-  app.on('second-instance', () => {
+  // 文件关联与第二实例参数（M8）：路径换成一次性令牌，经命令通道请界面打开；界面就绪（host.ready）之前排队
+  const openFiles = new OpenFileQueue({ run: (command, input, opts) => hostCommands.run(command, input, opts), log });
+  if (testSwitches.testHooks) (globalThis as { __allayOpenFiles?: OpenFileQueue }).__allayOpenFiles = openFiles;
+  openFiles.enqueue(filesFromArgv(process.argv, process.cwd()));
+
+  app.on('second-instance', (_event, argv, workingDirectory) => {
+    openFiles.enqueue(filesFromArgv(argv, workingDirectory));
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
@@ -140,11 +160,14 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   void app.whenReady().then(async () => {
+    startup.mark('app-ready');
     log.info('app', 'starting', { version: app.getVersion(), packaged: app.isPackaged, dev: devOrigin !== null });
     hardenSession(session.defaultSession, devOrigin, log);
     handleAppProtocol(join(__dirname, '../renderer'), log, mascotDir);
 
-    await settings.load();
+    // 同步读：启动画面要按主题和语言挑页面，越早建越早出现（T-ARC-7）
+    settings.loadSync();
+    startup.mark('settings-loaded');
 
     // 启动画面（7.6 C）：设置读完就显示（要按主题和语言挑页面），主窗口就绪后淡出。后台测试默认不建，设了开关才建（不显示）
     let splash: Splash | null =
@@ -154,6 +177,7 @@ if (!app.requestSingleInstanceLock()) {
 
     const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
     // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
+    if (splash) await splash.firstFrame(SPLASH_FIRST_FRAME_WAIT_MS);
     await templatesReady;
     // 监视在模板列表就绪之后开始，不阻塞窗口（只读一遍现有用户模板的文件算哈希）
     void templateDev.start().catch((error: unknown) => log.warn('templates', 'template folder watcher did not start', { error: String(error) }));
@@ -169,6 +193,11 @@ if (!app.requestSingleInstanceLock()) {
       templates,
       templateDev,
       hostCommands,
+      openFiles,
+      onRendererReady: () => {
+        startup.mark('renderer-ready');
+        openFiles.markReady();
+      },
       presets,
       projects,
       projectPathForTests: testSwitches.projectPath,
@@ -201,8 +230,11 @@ if (!app.requestSingleInstanceLock()) {
     }
     // 文件夹形式的资源包：窗口重新获得焦点时重扫（3.5）
     mainWindow.on('focus', () => void resources.rescanFolders());
+    // 页面重新加载（开发时）：等新页面再次 host.ready 才继续执行文件关联的请求
+    mainWindow.webContents.on('did-start-loading', () => openFiles.markNotReady());
     mainWindow.on('closed', () => {
       mainWindow = null;
+      openFiles.markNotReady();
       hostCommands.cancelAll();
       splash?.close();
     });

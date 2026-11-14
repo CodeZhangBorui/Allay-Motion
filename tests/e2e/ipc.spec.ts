@@ -192,6 +192,10 @@ const MALFORMED: Record<string, unknown[][]> = {
   'presets.exportFile': [[], ['../x'], [42]],
   // 合法的 open、save（句柄为 null）、saveAs 会弹对话框，这里只有畸形参数
   'project.open': [[1], ['C:\\x.allay'], [{ path: 'C:\\x.allay' }]],
+  // 文件关联（M8）：只收主进程签发的令牌（UUID），不收路径
+  'project.openRequested': [[], [null], ['C:\\x.allay'], [{ token: '3f2504e0-4f89-41d3-9a0c-0305e82c3301' }], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
+  'templates.installRequested': [[], [null], ['C:\\x.allaytpl'], [{ path: 'C:\\x.allaytpl' }], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
+  'host.ready': [[1], ['C:\\x.allay']],
   'project.openRecent': [[], ['C:\\x.allay'], [42], ['3f2504e0-4f89-41d3-9a0c-0305e82c3301', 'extra']],
   'project.save': [
     [],

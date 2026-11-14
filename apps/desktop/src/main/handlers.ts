@@ -18,6 +18,7 @@ import { PROJECT_EXTENSION, type ProjectOpenResult, type ProjectSaveResult } fro
 import type { TemplateService } from './templates/service';
 import type { TemplateDevService } from './templates/dev-service';
 import type { HostCommandChannel } from './host-commands';
+import type { OpenFileQueue } from './open-files';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -31,6 +32,10 @@ export interface HandlerDeps {
   templates: TemplateService;
   templateDev: TemplateDevService;
   hostCommands: HostCommandChannel;
+  /** 文件关联与第二实例参数（M8）：令牌换路径 */
+  openFiles: OpenFileQueue;
+  /** 界面就绪（host.ready） */
+  onRendererReady(): void;
   presets: PresetStore;
   projects: ProjectService;
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
@@ -56,7 +61,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -162,6 +167,11 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
     if (!isAbsolute(path)) throw new IpcRejected('dropped file has no path');
     return templates.stage(path);
   });
+  // 文件关联（M8）：路径只在主进程，界面拿主进程签发的一次性令牌来换（1.6 第 6 条）
+  handle(IPC.templates.installRequested, (_event, token): Promise<StageResult> | StageResult => {
+    const path = openFiles.take(token, 'template');
+    return path ? templates.stage(path) : { ok: false, error: { code: 'staging-expired', detail: 'open request is unknown or already used' } };
+  });
   handle(IPC.templates.commitInstall, (_event, stagingId, report) => templates.commit(stagingId, report));
   handle(IPC.templates.cancelInstall, (_event, stagingId) => templates.cancel(stagingId));
   handle(IPC.templates.remove, (_event, id, version) => templates.remove(id, version));
@@ -182,6 +192,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
 
   // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
   handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));
+  handle(IPC.host.ready, () => onRendererReady());
 
   // ---- project（1.9）----
   const pickProjectToOpen = async (): Promise<string | null> => {
@@ -199,6 +210,10 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
     const path = await pickProjectToOpen();
     return path ? projects.openPath(path) : { canceled: true };
+  });
+  handle(IPC.project.openRequested, (_event, token): Promise<ProjectOpenResult> | ProjectOpenResult => {
+    const path = openFiles.take(token, 'project');
+    return path ? projects.openPath(path) : { ok: false, error: 'missing' };
   });
   handle(IPC.project.openRecent, (_event, id) => projects.openRecent(id));
   handle(IPC.project.save, async (_event, handle, data): Promise<ProjectSaveResult> => {

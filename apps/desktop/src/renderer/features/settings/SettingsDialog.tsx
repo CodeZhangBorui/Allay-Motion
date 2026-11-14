@@ -14,6 +14,7 @@ import { useCommands } from '../../app/registry';
 import { shortcutLabel } from '../commands/commands';
 import { ResourceStackPanel } from '../resources/ResourceStackPanel';
 import { OutputSettingsForm } from './OutputSettingsForm';
+import { GUIDELINES_URL, ThirdPartyList } from './ThirdPartyList';
 
 // 设置对话框（6.4）：通用（语言、主题、减少动效）、素材（资源栈、缓存占用与清除）、导出（默认输出设置、FFmpeg 版本、
 // 重新检测编码器）、快捷键、关于（版本、第三方许可、非官方声明）。
@@ -193,7 +194,13 @@ function About() {
       <p className="text-xs whitespace-pre-line text-fg-muted" data-testid="about-disclaimer">
         {t('brand.disclaimer')}
       </p>
-      <section className="flex flex-col gap-1.5 border-t border-divider pt-3">
+      <p className="text-xs whitespace-pre-line text-fg-muted" data-testid="about-mascot-credit">
+        {t('brand.mascotCredit')}
+      </p>
+      <p className="text-xs text-fg-muted select-text" data-testid="about-guidelines">
+        {t('settings.guidelines', { url: GUIDELINES_URL })}
+      </p>
+      <section className="flex flex-col gap-1.5 border-t border-divider pt-3" data-testid="about-third-party">
         <h3 className="text-xs font-semibold text-fg-subtle">{t('settings.thirdParty')}</h3>
         <ul className="flex flex-col gap-1 text-xs text-fg-muted">
           <li>{t('settings.licenses.ffmpeg')}</li>
@@ -203,6 +210,7 @@ function About() {
           <li>{t('settings.licenses.phosphor')}</li>
           <li>{t('settings.licenses.npm')}</li>
         </ul>
+        <ThirdPartyList />
       </section>
     </div>
   );

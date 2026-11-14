@@ -439,7 +439,7 @@
     "version": "版本 {{version}}",
     "thirdParty": "第三方许可",
     "licenses": {
-      "ffmpeg": "FFmpeg：LGPL 3.0，以独立进程调用，许可全文随安装包附带。",
+      "ffmpeg": "FFmpeg：LGPL 3.0，以独立进程调用（安装目录里的 ffmpeg.exe，可以自行替换），许可全文随安装包附带。",
       "ark": "方舟像素字体：SIL Open Font License 1.1。",
       "plex": "IBM Plex Sans、IBM Plex Mono 字体：SIL Open Font License 1.1。",
       "noto": "Noto Sans SC（思源黑体）字体：SIL Open Font License 1.1。",
@@ -448,7 +448,14 @@
     },
     "encoderNone": "没有可用的",
     "encoderNotProbed": "尚未检测",
-    "encoderProbing": "正在检测…"
+    "encoderProbing": "正在检测…",
+    "guidelines": "导出的视频里出现 Minecraft 的内容时，请自行参照 Minecraft 使用准则：{{url}}",
+    "ffmpegSource": "FFmpeg 构建：{{version}}，来自 {{repo}} 的发布 {{tag}}（{{asset}}）。源码：https://git.ffmpeg.org/ffmpeg.git 的提交 {{commit}}；构建脚本：https://github.com/{{repo}}。",
+    "noticesFile": "同样的清单连同许可全文在安装目录的 THIRD_PARTY_NOTICES.txt 里。",
+    "thirdPartyAll": "全部组件（{{count}}）",
+    "thirdPartyLoading": "正在读取清单…",
+    "licenseInFile": "许可全文：安装目录的 {{file}}。",
+    "noLicenseFile": "包里没有许可文件；按 {{license}} 授权。"
   },
   "shortcuts": {
     "keys": {
@@ -492,7 +499,9 @@
       "projectSetParams": "修改参数（带修订号）",
       "exportTaskStart": "启动导出任务",
       "exportTaskGet": "查询导出任务",
-      "exportTaskCancel": "取消导出任务"
+      "exportTaskCancel": "取消导出任务",
+      "projectOpenAssociated": "从文件打开工程",
+      "templatesInstallAssociated": "从文件安装模板"
     }
   },
   "editor": {
@@ -749,5 +758,17 @@
   },
   "splash": {
     "starting": "正在启动…"
+  },
+  "noWebgl": {
+    "title": "显卡或驱动不支持 WebGL 2",
+    "body": "预览和导出都用 WebGL 2 渲染。没有它就什么也画不出来，所以停在这一页，而不是显示一个空白窗口。",
+    "tips": {
+      "driver": "到显卡厂商（NVIDIA、AMD、Intel）的网站更新显卡驱动，然后重新打开应用。",
+      "gpu": "有两块显卡的笔记本：试试让应用用另一块（Windows 设置 → 系统 → 屏幕 → 显示卡）。",
+      "remote": "远程桌面和部分虚拟机里没有 WebGL 2，请在本机上运行。"
+    },
+    "diagnostics": "诊断信息",
+    "copy": "复制诊断信息",
+    "copied": "已复制"
   }
 }

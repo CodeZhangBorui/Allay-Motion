@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import type { RecentProject } from '../../shared/project';
 import { CORE_COMMANDS } from '../features/commands/commands';
 import { PROJECT_COMMANDS } from '../features/commands/projectCommands';
+import { OPEN_FILE_COMMANDS } from '../features/commands/openFileCommands';
 import { hotReloader } from '../features/preview/hotReload';
 import { DEV_COMMANDS } from '../features/templates/devCommands';
 import { EXPORT_TASK_COMMANDS } from '../features/export/exportTasks';
@@ -143,7 +144,7 @@ export const optionalModules = new OptionalModuleManager(discoveredModules(), cr
 export function registerCore(): void {
   if (registered) return;
   registered = true;
-  for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS]) registerCommand(c);
+  for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS, ...OPEN_FILE_COMMANDS]) registerCommand(c);
   for (const c of EXPORT_TASK_COMMANDS) registerCommand(c);
   registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
   registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });

@@ -7,7 +7,8 @@
 // M6b 加上 export.writeAudio 和 resources.soundVariants、soundLibrary、soundFiles（音效，docs/decisions.md M6b）；
 // M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
-// MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）。
+// MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）；
+// M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）。
 
 export const IPC = {
   app: {
@@ -69,6 +70,8 @@ export const IPC = {
     readAsset: 'templates:readAsset',
     install: 'templates:install',
     installDropped: 'templates:installDropped',
+    /** 文件关联（M8）：按主进程发来的一次性令牌暂存模板包 */
+    installRequested: 'templates:installRequested',
     commitInstall: 'templates:commitInstall',
     cancelInstall: 'templates:cancelInstall',
     remove: 'templates:remove',
@@ -89,6 +92,8 @@ export const IPC = {
   },
   project: {
     open: 'project:open',
+    /** 文件关联（M8）：按主进程发来的一次性令牌打开工程 */
+    openRequested: 'project:openRequested',
     openRecent: 'project:openRecent',
     save: 'project:save',
     saveAs: 'project:saveAs',
@@ -98,6 +103,8 @@ export const IPC = {
     /** 主进程 → 渲染进程的事件：请界面执行一个命令 */
     command: 'host:command',
     commandResult: 'host:commandResult',
+    /** 界面就绪（首屏画完、初始模板装好、命令通道接好）：主进程据此开始执行排队的文件关联请求，并记下启动时间 */
+    ready: 'host:ready',
   },
   cache: {
     getThumb: 'cache:getThumb',
@@ -156,6 +163,7 @@ export const INVOKE_CHANNELS = [
   IPC.templates.readAsset,
   IPC.templates.install,
   IPC.templates.installDropped,
+  IPC.templates.installRequested,
   IPC.templates.commitInstall,
   IPC.templates.cancelInstall,
   IPC.templates.remove,
@@ -170,11 +178,13 @@ export const INVOKE_CHANNELS = [
   IPC.presets.importFile,
   IPC.presets.exportFile,
   IPC.project.open,
+  IPC.project.openRequested,
   IPC.project.openRecent,
   IPC.project.save,
   IPC.project.saveAs,
   IPC.project.recents,
   IPC.host.commandResult,
+  IPC.host.ready,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

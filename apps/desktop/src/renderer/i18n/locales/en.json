@@ -439,7 +439,7 @@
     "version": "Version {{version}}",
     "thirdParty": "Third-party licenses",
     "licenses": {
-      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process; the full license ships with the installer.",
+      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process (ffmpeg.exe in the install folder, which you may replace); the full license ships with the installer.",
       "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
       "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
@@ -448,7 +448,14 @@
     },
     "encoderNone": "None works",
     "encoderNotProbed": "Not checked yet",
-    "encoderProbing": "Checking…"
+    "encoderProbing": "Checking…",
+    "guidelines": "If your exported videos show Minecraft content, follow the Minecraft Usage Guidelines yourself: {{url}}",
+    "ffmpegSource": "FFmpeg build: {{version}} from {{repo}}, release {{tag}} ({{asset}}). Source code: https://git.ffmpeg.org/ffmpeg.git at commit {{commit}}; build scripts: https://github.com/{{repo}}.",
+    "noticesFile": "The same list with full license texts is in THIRD_PARTY_NOTICES.txt in the install folder.",
+    "thirdPartyAll": "All components ({{count}})",
+    "thirdPartyLoading": "Loading the list…",
+    "licenseInFile": "Full license text: {{file}} in the install folder.",
+    "noLicenseFile": "The package has no license file; licensed under {{license}}."
   },
   "shortcuts": {
     "keys": {
@@ -492,7 +499,9 @@
       "projectSetParams": "Set parameters (with revision)",
       "exportTaskStart": "Start export task",
       "exportTaskGet": "Get export task",
-      "exportTaskCancel": "Cancel export task"
+      "exportTaskCancel": "Cancel export task",
+      "projectOpenAssociated": "Open project from file",
+      "templatesInstallAssociated": "Install template from file"
     }
   },
   "editor": {
@@ -749,5 +758,17 @@
   },
   "splash": {
     "starting": "Starting…"
+  },
+  "noWebgl": {
+    "title": "Your graphics card or driver does not support WebGL 2",
+    "body": "Preview and export both render with WebGL 2. Without it the app cannot draw anything, so it stops here instead of showing a blank window.",
+    "tips": {
+      "driver": "Update the graphics driver from your GPU vendor (NVIDIA, AMD, Intel), then restart the app.",
+      "gpu": "On laptops with two GPUs, try running the app on the other one (Windows Settings → System → Display → Graphics).",
+      "remote": "Remote desktop sessions and some virtual machines have no WebGL 2; run the app on the machine itself."
+    },
+    "diagnostics": "Diagnostics",
+    "copy": "Copy diagnostics",
+    "copied": "Copied"
   }
 }

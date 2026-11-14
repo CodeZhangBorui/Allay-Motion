@@ -30,7 +30,14 @@ export interface Launched {
 }
 
 /** 启动构建好的应用（apps/desktop/out），用独立的数据目录 */
-export async function launchApp(userDataDir: string, extraEnv: Record<string, string> = {}): Promise<Launched> {
+/** 启动参数（例如双击关联文件时系统带上的路径，M8）和等待哪个元素出现（缺省是顶栏） */
+export interface LaunchOptions {
+  args?: string[];
+  waitFor?: string;
+}
+
+/** 测试进程的环境变量，加上测试开关（launchApp 和直接起第二个实例的测试共用） */
+export function appEnv(userDataDir: string, extraEnv: Record<string, string> = {}): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
     if (v !== undefined && k !== 'ELECTRON_RENDERER_URL' && k !== 'ELECTRON_RUN_AS_NODE') env[k] = v;
@@ -48,9 +55,14 @@ export async function launchApp(userDataDir: string, extraEnv: Record<string, st
   // 不进任何测试和截图基线；需要图集的测试（m5b.spec.ts）自己生成假图集并覆盖这个变量
   env.ALLAY_E2E_MASCOT_DIR = join(userDataDir, 'no-mascot');
   Object.assign(env, extraEnv);
-  const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR], env, cwd: DESKTOP_DIR });
+  return env;
+}
+
+export async function launchApp(userDataDir: string, extraEnv: Record<string, string> = {}, opts: LaunchOptions = {}): Promise<Launched> {
+  const env = appEnv(userDataDir, extraEnv);
+  const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR, ...(opts.args ?? [])], env, cwd: DESKTOP_DIR });
   const page = await app.firstWindow();
-  await page.waitForSelector('[data-testid="topbar"]');
+  await page.waitForSelector(opts.waitFor ?? '[data-testid="topbar"]');
   return { app, page };
 }
 
