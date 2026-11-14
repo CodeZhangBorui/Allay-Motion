@@ -74,7 +74,7 @@ describe('设置读写（1.9）', () => {
     writeFileSync(file, '{ not json');
     const store = new SettingsStore(file, log);
     // 有设置文件就不是第一次启动：引导算走过（docs/decisions.md 界面增强）
-    expect((await store.load()).ui).toEqual({ ...defaultUiSettings(), onboardingCompleted: true });
+    expect((await store.load()).ui).toEqual({ ...defaultUiSettings(), onboardingCompleted: true, tourCompleted: true });
     expect(readdirSync(dir).some((f) => f.startsWith('settings.json.bad-'))).toBe(true);
   });
 
@@ -86,7 +86,7 @@ describe('设置读写（1.9）', () => {
     expect(ui.theme).toBe('light');
     expect(ui.language).toBe('en');
     writeFileSync(file, '{ not json');
-    expect(new SettingsStore(file, log).loadSync().ui).toEqual({ ...defaultUiSettings(), onboardingCompleted: true });
+    expect(new SettingsStore(file, log).loadSync().ui).toEqual({ ...defaultUiSettings(), onboardingCompleted: true, tourCompleted: true });
     expect(readdirSync(dir).some((f) => f.startsWith('settings.json.bad-'))).toBe(true);
   });
 

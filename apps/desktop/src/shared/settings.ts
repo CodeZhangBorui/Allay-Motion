@@ -116,6 +116,11 @@ export const UiSettingsSchema = z.strictObject({
    * 老用户升级后不被拉进引导
    */
   onboardingCompleted: z.boolean().catch(true).default(true),
+  /**
+   * 新手引导（6.14：首次启动引导之后带用户认一遍主界面）是否已经看完或跳过。新装时为 false；
+   * 没有这个字段的旧设置文件读成 true（migrateSettingsFile），老用户不被拉进来，可以从帮助菜单打开
+   */
+  tourCompleted: z.boolean().catch(true).default(true),
   shortcuts: ShortcutOverridesFileSchema.default({}),
 });
 export type UiSettings = z.infer<typeof UiSettingsSchema>;
@@ -129,6 +134,7 @@ export function defaultUiSettings(): UiSettings {
     editor: defaultEditorPrefs(),
     optionalModules: {},
     onboardingCompleted: false,
+    tourCompleted: false,
     shortcuts: {},
   };
 }
@@ -160,6 +166,7 @@ export const UiSettingsPatchSchema = z.strictObject({
   /** 可选模块的开关表：整体替换 */
   optionalModules: OptionalModulesSchema.optional(),
   onboardingCompleted: z.boolean().optional(),
+  tourCompleted: z.boolean().optional(),
   /** 自定义快捷键：整张表替换 */
   shortcuts: ShortcutOverridesPatchSchema.optional(),
 });
@@ -231,12 +238,13 @@ export function defaultSettingsFile(): SettingsFile {
  */
 export function fallbackSettingsFile(): SettingsFile {
   const s = defaultSettingsFile();
-  return { ...s, ui: { ...s.ui, onboardingCompleted: true } };
+  return { ...s, ui: { ...s.ui, onboardingCompleted: true, tourCompleted: true } };
 }
 
 /**
  * 读设置文件（JSON 解析之后）：校验每个字段并做平滑升级。formatVersion 没有变（新字段都可缺省）：
  * - 没有 ui.onboardingCompleted（引导上线之前写的文件，或 ui 整块坏了）：读成 true；
+ * - 没有 ui.tourCompleted（新手引导上线之前写的文件）：跟着 onboardingCompleted 明确记着的值，没有记就读成 true；
  * - 没有 ui.shortcuts、project：用默认值。
  * 整个不能用时返回 null（调用方把文件留档，换 fallbackSettingsFile）。
  */
@@ -244,9 +252,12 @@ export function migrateSettingsFile(json: unknown): SettingsFile | null {
   const parsed = SettingsFileSchema.safeParse(json);
   if (!parsed.success) return null;
   const rawUi = (json as { ui?: unknown }).ui;
-  const hadFlag = typeof rawUi === 'object' && rawUi !== null && typeof (rawUi as { onboardingCompleted?: unknown }).onboardingCompleted === 'boolean';
-  if (hadFlag) return parsed.data;
-  return { ...parsed.data, ui: { ...parsed.data.ui, onboardingCompleted: true } };
+  const hasFlag = (key: 'onboardingCompleted' | 'tourCompleted') => typeof rawUi === 'object' && rawUi !== null && typeof (rawUi as Record<string, unknown>)[key] === 'boolean';
+  const ui = { ...parsed.data.ui };
+  // 新手引导跟在首次启动引导后面：首次启动引导明确记着没走完（新装后中途退出）时，新手引导也还没看；否则算看过
+  if (!hasFlag('tourCompleted')) ui.tourCompleted = hasFlag('onboardingCompleted') ? ui.onboardingCompleted : true;
+  if (!hasFlag('onboardingCompleted')) ui.onboardingCompleted = true;
+  return { ...parsed.data, ui };
 }
 
 export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSettings {
@@ -261,6 +272,7 @@ export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSet
     editor: { ...current.editor, ...patch.editor },
     optionalModules: patch.optionalModules ?? current.optionalModules,
     onboardingCompleted: patch.onboardingCompleted ?? current.onboardingCompleted,
+    tourCompleted: patch.tourCompleted ?? current.tourCompleted,
     shortcuts: patch.shortcuts ?? current.shortcuts,
   };
 }
