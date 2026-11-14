@@ -9,7 +9,8 @@
 // - 导出：真实的导出 Worker 照常逐帧渲染，帧交到这里后直接丢弃（浏览器里没有 FFmpeg），结束时通知落地页；
 // - 文件、工程、资源包、游戏目录这类需要本机文件系统的操作：不做，通知落地页给出“下载桌面版”的引导。
 // 这里不发任何网络请求（AGENTS.md 硬性规则 10）。
-import { parseBdf, type BitmapFontTables } from '@allay/assets';
+import { type BitmapFontTables } from '@allay/assets';
+import { z } from 'zod';
 import type { AllayApi } from '../../../desktop/src/preload/api';
 import { EXPORT_PRESETS, type ExportPreset, type FfmpegInfo, type H264Probe, type PresetBlocker } from '../../../desktop/src/shared/export';
 import type { ResourceState } from '../../../desktop/src/shared/resources';
@@ -87,14 +88,39 @@ function randomHex(bytes: number): string {
 }
 
 let fontTables: Promise<BitmapFontTables | null> | null = null;
-/** 读兜底像素字体：外面是一层 gzip；托管方已经替我们解过（带了 Content-Encoding）时直接当文本 */
-async function loadPixelFont(): Promise<string> {
-  const res = await fetch(new URL(PIXEL_FONT_PATH, document.baseURI));
-  if (!res.ok) throw new Error(`pixel font ${res.status}`);
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return new TextDecoder().decode(bytes);
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return new Response(stream).text();
+/** Worker 交回来的结果（线程之间的边界照样过 schema） */
+const FontReplySchema = z.union([
+  z.object({
+    ok: z.literal(true),
+    tables: z.object({
+      ascent: z.number(),
+      descent: z.number(),
+      codepoints: z.instanceof(Uint32Array),
+      metrics: z.instanceof(Int16Array),
+      offsets: z.instanceof(Uint32Array),
+      bits: z.instanceof(Uint8Array),
+    }),
+  }),
+  z.object({ ok: z.literal(false), error: z.string() }),
+]);
+
+/** 下载、解压、解析都在 pixel-font.worker.ts 里做：3.6 MB 的 BDF 在主线程上解析会让首屏预览掉帧 */
+function loadPixelFont(): Promise<BitmapFontTables> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./pixel-font.worker.ts', import.meta.url), { type: 'module', name: 'pixel-font' });
+    worker.addEventListener('message', (event: MessageEvent<unknown>) => {
+      worker.terminate();
+      const reply = FontReplySchema.safeParse(event.data);
+      if (!reply.success) reject(new Error('pixel font worker sent an unreadable reply'));
+      else if (reply.data.ok) resolve(reply.data.tables);
+      else reject(new Error(reply.data.error));
+    });
+    worker.addEventListener('error', (event) => {
+      worker.terminate();
+      reject(new Error(event.message || 'pixel font worker failed'));
+    });
+    worker.postMessage(new URL(PIXEL_FONT_PATH, document.baseURI).href);
+  });
 }
 
 /**
@@ -103,7 +129,6 @@ async function loadPixelFont(): Promise<string> {
  */
 function fallbackFont(): Promise<BitmapFontTables | null> {
   fontTables ??= loadPixelFont()
-    .then((text) => parseBdf(text))
     .catch((error: unknown) => {
       console.warn('[web-host] fallback font unavailable', error);
       return null;
