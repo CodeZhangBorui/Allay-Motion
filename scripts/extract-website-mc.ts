@@ -3,7 +3,9 @@
 //
 // 这是硬性规则 1 的一处只对官网生效的放宽（用户 2026-11-14 批准）：桌面应用、packages/*、安装包、测试夹具不变。
 // - 只从本机游戏目录读（复用应用的 detectMinecraft / openVanillaLayer，只读，不联网）；不从任何网站下载。
-// - 只取方块目录、物品目录、界面贴图引用到的贴图（requiredTextures()）及其 .mcmeta，路径与 jar 里的原始路径相同。
+// - 只取方块目录、物品目录、界面贴图引用到的贴图（requiredTextures()）及其 .mcmeta，路径与 jar 里的原始路径相同；
+//   另取一张悦灵的实体贴图（WEBSITE_EXTRA_FILES），只给官网首屏的体素悦灵取色（用户 2026-11-14 批准，原话「我允许」）。
+//   其他实体贴图、模型、音效、字体都不取。
 // - 写一份 index.json（游戏版本、每个文件的原始路径、SHA-256、字节数），check-provenance 据此核对文件没被改过。
 // - 产物是确定的：同一个 jar 产出逐字节相同的文件。
 // 用法：pnpm website:mc [游戏目录]
@@ -17,6 +19,9 @@ import { detectMinecraft, openVanillaLayer } from '../apps/desktop/src/main/reso
 
 const ROOT = resolve(import.meta.dirname, '..');
 export const WEBSITE_MC_DIR = join(ROOT, 'apps/website/public/mc');
+
+/** 目录以外单独加的文件：悦灵的原版贴图，官网首屏的体素悦灵逐像素取色用（应用烘焙图集用的也是这一张） */
+export const WEBSITE_EXTRA_FILES: readonly string[] = ['assets/minecraft/textures/entity/allay/allay.png'];
 
 export interface McIndex {
   formatVersion: 1;
@@ -34,7 +39,7 @@ const README = `# Minecraft 原版素材（仅用于官网展示）
 
 - 版权归 Mojang Studios / Microsoft 所有。
 - **不在**本仓库 GPL-3.0 许可的范围内，不随本项目的代码一起授权。
-- 只用于官网的仿真器和模板展示，桌面应用和安装包里**没有**这些文件。
+- 只用于官网的仿真器和模板展示，以及首屏体素悦灵的取色（悦灵贴图）；桌面应用和安装包里**没有**这些文件。
 - 由 \`pnpm website:mc\` 从本机已安装的正版游戏里提取，没有从任何网站下载。
 
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
@@ -55,6 +60,7 @@ export async function extractWebsiteMc(outDir: string, gameDir: string | null): 
       const meta = textureMetaPath(p);
       if (layer.has(meta)) paths.add(meta);
     }
+    for (const p of WEBSITE_EXTRA_FILES) if (layer.has(p)) paths.add(p);
     rmSync(join(outDir, 'assets'), { recursive: true, force: true });
     const files: McIndex['files'] = [];
     for (const p of [...paths].sort()) {

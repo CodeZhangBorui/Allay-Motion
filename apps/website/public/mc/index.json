@@ -675,6 +675,11 @@
       "bytes": 400
     },
     {
+      "path": "assets/minecraft/textures/entity/allay/allay.png",
+      "sha256": "0cf5bbd580b1cf1817452450b88c8cf63a665b9430b65f48659873743c7a09bf",
+      "bytes": 409
+    },
+    {
       "path": "assets/minecraft/textures/gui/sprites/boss_bar/white_background.png",
       "sha256": "b5b084f43cb950f54a8f97ba1dc7ca6134254bdb93f2aceebaa7e43bd53269c1",
       "bytes": 137
