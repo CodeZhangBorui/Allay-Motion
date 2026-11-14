@@ -6,7 +6,8 @@ import { join } from 'node:path';
 
 const SITE_URL = process.env.ALLAY_SITE_URL ?? 'http://localhost:4180/';
 const origin = new URL(SITE_URL).origin;
-app.setPath('userData', join(app.getPath('temp'), `allay-website-test-${process.pid}`));
+// 用户数据目录由测试指定（测试结束时删掉，不在 %TEMP% 里越积越多）
+app.setPath('userData', process.env.ALLAY_SITE_USERDATA ?? join(app.getPath('temp'), `allay-website-test-${process.pid}`));
 
 /** 不是本机地址的请求（devtools、blob、data 不算） */
 globalThis.externalRequests = [];
@@ -24,8 +25,10 @@ app.whenReady().then(() => {
     width: Number(process.env.ALLAY_SITE_WIDTH ?? 1440),
     height: 900,
     useContentSize: true,
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false },
+    // 离屏渲染、固定 60 帧：不显示的窗口在 Windows 上会被降到每秒一帧左右，按时间播的动画在那种节奏下测不出真实的样子
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false, offscreen: true },
   });
+  win.webContents.setFrameRate(60);
   win.webContents.setAudioMuted(true);
   void win.loadURL(SITE_URL);
 });

@@ -1,6 +1,7 @@
 // 官网的冒烟测试（T-WEB-*，docs/decisions.md 官网）。在 Electron 自带的 Chromium 里打开 vite preview 起的构建产物，窗口不显示。
 // 仿真器 iframe 带 ?e2e，里面装着桌面版同一套测试钩子（window.__allayTest），用它读预览画布的像素。
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Frame, type Page } from '@playwright/test';
@@ -23,6 +24,14 @@ interface Session {
   app: ElectronApplication;
   page: Page;
   errors: string[];
+  userData: string;
+}
+
+/** 关掉 Electron 并删掉这一次的用户数据目录（每次约 25 MB，不能留在临时目录里） */
+async function closeSession(session: Session | undefined): Promise<void> {
+  if (!session) return;
+  await session.app.close().catch(() => undefined);
+  rmSync(session.userData, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }
 
 async function launch(width = 1440): Promise<Session> {
@@ -30,6 +39,8 @@ async function launch(width = 1440): Promise<Session> {
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && k !== 'ELECTRON_RUN_AS_NODE' && k !== 'NODE_OPTIONS') env[k] = v;
   env.ALLAY_SITE_URL = SITE;
   env.ALLAY_SITE_WIDTH = String(width);
+  const userData = mkdtempSync(join(tmpdir(), 'allay-website-test-'));
+  env.ALLAY_SITE_USERDATA = userData;
   const app = await electron.launch({ executablePath: ELECTRON, args: [join(import.meta.dirname, 'electron-main.mjs')], env });
   const page = await app.firstWindow();
   const errors: string[] = [];
@@ -41,7 +52,7 @@ async function launch(width = 1440): Promise<Session> {
   // 监听装上之后从头再载一次，开头的报错也收得到
   await page.reload();
   await expect(page.getByTestId('site-nav')).toBeVisible();
-  return { app, page, errors };
+  return { app, page, errors, userData };
 }
 
 async function externalRequests(app: ElectronApplication): Promise<string[]> {
@@ -90,7 +101,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await s?.app.close();
+  await closeSession(s);
 });
 
 test('T-WEB-1 页面能加载：首屏实时预览就绪，模板按钮一个不少、模板一节只放精选，滚完全页无报错、无外部请求', async () => {
@@ -277,7 +288,7 @@ test('T-WEB-7 窄屏降级：不加载完整编辑器，留实时预览和模板
     expect(narrow.errors).toEqual([]);
     expect(await externalRequests(narrow.app)).toEqual([]);
   } finally {
-    await narrow.app.close();
+    await closeSession(narrow);
   }
 });
 
@@ -298,7 +309,10 @@ test('T-WEB-8 减少动效：没有出场动画和剪辑点的转场，悦灵不
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 });
 
-test('T-WEB-12 剪辑点：全页唯一的整幅转场由引擎实时渲染，滚到剪辑点时铺满，之前之后都散开；跟着滚动、可逆', async () => {
+/** 剪辑点这一节的状态：idle（等着）/ playing（在播）/ done（播完） */
+const cutState = (page: Page) => page.evaluate(() => document.getElementById('cut')?.dataset.cutState ?? 'none');
+
+test('T-WEB-12 剪辑点：往下越过分界线时自动完整播一遍（引擎实时渲染，剪辑点那一帧铺满），停手也播完；快速跳过直接落到终态', async () => {
   const { page } = s;
   // 从一次干净的载入开始（前一条测试切换过减少动效）
   await page.reload();
@@ -310,27 +324,67 @@ test('T-WEB-12 剪辑点：全页唯一的整幅转场由引擎实时渲染，�
   // 提前三屏启动引擎
   await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut - vh * 3);
   await expect.poll(() => page.evaluate(() => 'coverage' in ((window as unknown as { __siteCut?: object }).__siteCut ?? {})), { timeout: 60_000 }).toBe(true);
-  // 走到剪辑点（停留段的后半，开场白刚换上来）：铺满，画面不透明
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 0.15);
-  await expect(overlay).toHaveAttribute('data-active', 'true');
+  // 剪辑点那一帧画面铺满（读引擎像素，不透明比例 > 97%）
   const coverage = await page.evaluate(async () => {
     const c = (window as unknown as { __siteCut: { cutTime: number; coverage: (t: number) => Promise<number> } }).__siteCut;
     return c.coverage(c.cutTime);
   });
   expect(coverage).toBeGreaterThan(0.97);
-  await expect(title).toBeVisible();
-  // 剪辑点之前：下一节的开场白还没换上来（被方块挡着的那一刻才换）
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut - vh * 0.5);
-  await expect.poll(() => title.evaluate((el) => getComputedStyle(el.closest('.wrap')!).visibility)).toBe('hidden');
-  // 走过之后：转场结束，不再渲染
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 1.4);
-  await expect(overlay).toHaveAttribute('data-active', 'false');
-  await expect(title).toBeVisible();
-  // 往回滚：又进入转场
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 0.1);
+  // 停在分界线前，用滚轮滚一格越过它，然后停手：自动开始播，约 1.5 秒内播完，开场白显示出来
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut - vh * 0.85);
+  await expect.poll(() => cutState(page)).toBe('idle');
+  await page.mouse.move(700, 450);
+  await page.mouse.wheel(0, 120);
+  await expect.poll(() => cutState(page), { timeout: 5000 }).toBe('playing');
   await expect(overlay).toHaveAttribute('data-active', 'true');
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect.poll(() => cutState(page), { timeout: 5000 }).toBe('done');
   await expect(overlay).toHaveAttribute('data-active', 'false');
+  await expect(title).toBeVisible();
+  // 往回滚到这一节完全在视口下方：复位；再一步跳过整节（像拖滚动条）：不补播，直接是终态
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut - vh * 1.5);
+  await expect.poll(() => cutState(page)).toBe('idle');
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 1.2);
+  await expect.poll(() => cutState(page)).toBe('done');
+  await expect(overlay).toHaveAttribute('data-active', 'false');
+  await expect(title).toBeVisible();
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+});
+
+test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点导航锚点跳转，每次停手后各段都落到完整的终态', async () => {
+  const { page } = s;
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
+  /** 页面上所有带 data-motion 的段落（首屏到分镜的主视觉、剪辑点、导航的播放头）都已落到终态 */
+  const allSettled = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-motion]')].every((e) => e.dataset.settled === 'true'));
+  const unsettled = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-motion]')].filter((e) => e.dataset.settled !== 'true').map((e) => e.dataset.motion));
+  await page.mouse.move(700, 450);
+  // 滚轮：每次 100 px、间隔 250 ms，每滚 4 格停一下；停手 2 秒后必须全部是终态
+  const total = await page.evaluate(() => document.documentElement.scrollHeight);
+  let y = 0;
+  for (let i = 1; y < total * 0.55; i++) {
+    await page.mouse.wheel(0, 100);
+    await page.waitForTimeout(250);
+    if (i % 4 === 0) {
+      await page.waitForTimeout(2000);
+      expect(await unsettled(), `scrollY ${y}`).toEqual([]);
+    }
+    y = await page.evaluate(() => window.scrollY);
+  }
+  // PageDown 连按：大步跳过若干节，停手 1.5 秒后全部是终态（不排队补播）
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForTimeout(1500);
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(80);
+  }
+  await expect.poll(allSettled, { timeout: 2500 }).toBe(true);
+  // 导航锚点跳转（从页首直接跳到模板一节，越过分镜和剪辑点）：落到终态，剪辑点是“播完”而不是在播
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForTimeout(1500);
+  await page.locator('a[data-clip-link][href="#templates"]').click();
+  await expect.poll(allSettled, { timeout: 2500 }).toBe(true);
+  expect(await cutState(page)).toBe('done');
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
 
 test('T-WEB-13 悦灵：用的是应用的烘焙图集，首屏飞到主视觉旁；滚完全页任何时刻页面上最多一只全身悦灵', async () => {
@@ -400,7 +454,7 @@ test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被�
     await expect.poll(() => covered('#features h2'), { timeout: 3500 }).toBe(false);
     expect(bad.errors.filter((e) => !/woff2|Failed to load resource|net::ERR_FAILED/.test(e))).toEqual([]);
   } finally {
-    await bad.app.close();
+    await closeSession(bad);
   }
 });
 
