@@ -24,7 +24,10 @@ import { useUiStore } from '../stores/uiStore';
 import { createEditorHost } from './editorHost';
 import { installHostCommands } from './mainCommands';
 import { discoveredModules, OptionalModuleManager } from './optionalModules';
-import { registerCommand, registerMenuItem, registerPanel, type MenuItemDef } from './registry';
+import { AboutPage, AppearancePage, AssetsPage, ExportPage, FoldersPage, GeneralPage } from '../features/settings/pages';
+import { ShortcutsPage } from '../features/settings/ShortcutsPage';
+import { Export, FolderSimple, GearSix, Info, Keyboard, PaintBrush, Stack } from '@phosphor-icons/react';
+import { registerCommand, registerMenuItem, registerPanel, registerSettingsPage, type MenuItemDef, type SettingsPageDef } from './registry';
 
 // 核心功能经注册表接入（和可选模块走同一组接口）：命令、左右面板的标签页、顶栏菜单。
 // 主界面只从注册表读，不直接列出这些东西。
@@ -133,6 +136,18 @@ const MENU_ITEMS: MenuItemDef[] = [
   { id: 'help.settings', menu: 'help', group: 0, order: 0, command: 'settings', titleKey: 'topbar.settings' },
   { id: 'help.shortcuts', menu: 'help', group: 0, order: 1, command: 'settings', titleKey: 'settings.pages.shortcuts', input: { page: 'shortcuts' } },
   { id: 'help.about', menu: 'help', group: 0, order: 2, command: 'settings', titleKey: 'settings.pages.about', input: { page: 'about' } },
+  { id: 'help.onboarding', menu: 'help', group: 1, order: 0, command: 'onboarding', titleKey: 'settings.onboarding.button', testId: 'menu-onboarding' },
+];
+
+/** 设置对话框的分类（6.11）：顺序即侧栏顺序。可选模块可以经 registerSettingsPage 加自己的一类 */
+const SETTINGS_PAGES: SettingsPageDef[] = [
+  { id: 'general', titleKey: 'settings.pages.general', icon: GearSix, order: 0, component: GeneralPage },
+  { id: 'appearance', titleKey: 'settings.pages.appearance', icon: PaintBrush, order: 10, component: AppearancePage },
+  { id: 'assets', titleKey: 'settings.pages.assets', icon: Stack, order: 20, component: AssetsPage },
+  { id: 'folders', titleKey: 'settings.pages.folders', icon: FolderSimple, order: 30, component: FoldersPage },
+  { id: 'export', titleKey: 'settings.pages.export', icon: Export, order: 40, component: ExportPage },
+  { id: 'shortcuts', titleKey: 'settings.pages.shortcuts', icon: Keyboard, order: 50, component: ShortcutsPage },
+  { id: 'about', titleKey: 'settings.pages.about', icon: Info, order: 60, component: AboutPage },
 ];
 
 let registered = false;
@@ -151,6 +166,7 @@ export function registerCore(): void {
   registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions });
   registerPanel({ id: 'output', titleKey: 'params.tabs.output', region: 'right', order: 10, component: OutputTab });
   for (const m of MENU_ITEMS) registerMenuItem(m);
+  for (const p of SETTINGS_PAGES) registerSettingsPage(p);
   // 模板开发模式的热重载（H9）与主进程到界面的命令通道（H11）
   hotReloader.start();
   installHostCommands();
