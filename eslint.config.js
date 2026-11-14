@@ -130,6 +130,17 @@ const coreRules = [
       typeOnly('@allay/template-sdk', 'host-api 只能导入 template-sdk 的类型。'),
     ],
   },
+  {
+    // 官网（docs/decisions.md 官网）：页面代码和渲染进程一样，不碰 Electron、Node、主进程和 preload 的运行时
+    name: 'deps/website',
+    files: ['apps/website/src/**/*.{ts,tsx}'],
+    patterns: [
+      { ...ELECTRON, message: '官网是纯静态页面，不能依赖 Electron。' },
+      { ...NODE, message: '官网是纯静态页面，不能依赖 Node。' },
+      { regex: '(^|/)desktop/src/main(/|$)', message: '官网不能导入桌面版主进程的代码。' },
+      { regex: '(^|/)desktop/src/preload(/|$)', allowTypeImports: true, message: '官网只能导入 preload 的类型（window.allay 由 host/browser-host.ts 实现）。' },
+    ],
+  },
 ];
 
 const OPTIONAL_MESSAGE = '可选模块只能引用 @allay/host-api，不能引用主程序的其他包（docs/code-editing-and-mcp-plan.md 3.1）。';
@@ -183,7 +194,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.tsx', 'apps/desktop/src/renderer/**/*.ts', 'packages/ui/src/**/*.ts', 'packages/mascot/src/**/*.ts'],
+    files: ['**/*.tsx', 'apps/desktop/src/renderer/**/*.ts', 'packages/ui/src/**/*.ts', 'packages/mascot/src/**/*.ts', 'apps/website/src/**/*.ts', 'apps/website/public/**/*.js'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
@@ -192,7 +203,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['scripts/**', 'tests/**', '*.config.{ts,js}', 'apps/desktop/*.config.ts', 'apps/desktop/src/main/**', 'apps/desktop/src/preload/**'],
+    files: ['scripts/**', 'tests/**', '*.config.{ts,js}', 'apps/desktop/*.config.ts', 'apps/desktop/src/main/**', 'apps/desktop/src/preload/**', 'apps/website/*.config.ts', 'apps/website/build/**'],
     languageOptions: { globals: globals.node },
   },
   ...dependencyRules.map((rule) => ({

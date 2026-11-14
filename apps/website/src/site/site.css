@@ -1,0 +1,198 @@
+/*
+ * 官网的样式：直接用 packages/ui 的设计变量、字体和 Tailwind 主题（与应用同源），
+ * 这里只加营销页需要的排版尺度、版心和三个页面级的面色。不另起配色、不加渐变、模糊、发光（06-ui-design.md 6.1）。
+ */
+@import "@allay/ui/styles.css";
+
+@source "../../../../packages/ui/src";
+@source "../../../../packages/mascot/src";
+@source "./";
+
+/* 页面级的面色：深色沿用窗口底色和面板色；浅色用面板色做页面底（不用纯白大面积），凹槽色做交替节 */
+:root,
+[data-theme='dark'] {
+  --site-bg: var(--background);
+  --site-alt: var(--surface-1);
+  --site-card: var(--surface-1);
+  --site-card-alt: var(--surface-2);
+  --site-line: var(--divider);
+}
+[data-theme='light'] {
+  --site-bg: var(--surface-1);
+  --site-alt: var(--well);
+  --site-card: var(--surface-2);
+  --site-card-alt: var(--surface-2);
+  --site-line: var(--control-hi);
+}
+
+@theme inline {
+  --color-site: var(--site-bg);
+  --color-site-alt: var(--site-alt);
+  --color-site-card: var(--site-card);
+  --color-site-card-alt: var(--site-card-alt);
+  --color-site-line: var(--site-line);
+}
+
+@layer base {
+  /* 应用是一整屏不滚动的窗口；官网是长页面 */
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 72px;
+    background: var(--site-bg);
+  }
+  [data-reduced-motion='true'] {
+    scroll-behavior: auto;
+  }
+  body {
+    background: var(--site-bg);
+    font-size: 15px;
+    line-height: 1.55;
+    user-select: text;
+    overflow-x: clip;
+  }
+}
+
+.site-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+@media (max-width: 640px) {
+  .site-container {
+    padding-inline: 16px;
+  }
+}
+
+.site-section {
+  padding-block: 96px;
+}
+@media (max-width: 640px) {
+  .site-section {
+    padding-block: 72px;
+  }
+}
+
+/* 排版尺度：标题收紧字距，层级靠字号、字重和三级灰 */
+.site-display {
+  font-size: clamp(40px, 6.2vw, 76px);
+  line-height: 1.04;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+:lang(zh-CN) .site-display {
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+}
+.site-h2 {
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+:lang(zh-CN) .site-h2 {
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+}
+.site-h3 {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.site-lead {
+  font-size: clamp(16px, 1.6vw, 18.5px);
+  line-height: 1.65;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+.site-body {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--fg-muted);
+  text-wrap: pretty;
+}
+.site-kicker {
+  font-family: var(--font-num);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--primary-text);
+}
+
+/* 营销页的按钮：沿用 ui 的 Button 变体，只放大尺寸 */
+.site-btn {
+  height: 40px;
+  padding-inline: 16px;
+  font-size: 14px;
+  border-radius: 8px;
+  gap: 8px;
+}
+
+.site-card {
+  background: var(--site-card);
+  border-radius: 14px;
+}
+[data-tone='alt'] .site-card {
+  background: var(--site-card-alt);
+}
+
+/* 像素图：整数倍放大，不糊（6.2 像素图的显示） */
+.pixelated {
+  image-rendering: pixelated;
+}
+
+/* 悬浮在画面下方的工具条（应用里预览工具条的样子） */
+.site-float {
+  background: var(--surface-2);
+  border-radius: 12px;
+  box-shadow: var(--shadow-float);
+}
+
+/* 仿 Electron 窗口：真正浮起的东西，才有阴影 */
+.site-window {
+  border-radius: 12px;
+  background: var(--background);
+  box-shadow: var(--shadow-dialog);
+  outline: 1px solid var(--control);
+  overflow: hidden;
+}
+
+/* 首屏标题的逐行出场：只做透明度和极小的位移，用应用的缓动 */
+@keyframes site-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.site-rise {
+  animation: site-rise 720ms var(--ease-out) both;
+}
+[data-reduced-motion='true'] .site-rise {
+  animation: none;
+}
+
+/* 播放头的平滑：位置由脚本每帧写 transform */
+.site-playhead {
+  will-change: transform;
+}
+
+/* 横向滚动的工具条：不显示滚动条（窄屏上模板切换按钮可以左右滑） */
+.site-scroll-x {
+  scrollbar-width: none;
+}
+.site-scroll-x::-webkit-scrollbar {
+  display: none;
+}

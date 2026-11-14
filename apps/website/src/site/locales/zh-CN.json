@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "title": "{{name}} — 给 Minecraft 视频创作者的转场动画",
+    "description": "选模板、调参数、实时预览，导出带透明通道的转场短片。免费开源的桌面应用。"
+  },
+  "nav": {
+    "label": "主导航",
+    "home": "回到页首",
+    "try": "试用",
+    "templates": "模板",
+    "features": "特性",
+    "workflow": "工作流",
+    "openSource": "开源",
+    "github": "GitHub",
+    "theme": "切换主题",
+    "toLight": "切换到浅色主题",
+    "toDark": "切换到深色主题",
+    "language": "Language",
+    "switchLanguage": "Switch to English"
+  },
+  "hero": {
+    "eyebrow": "给 Minecraft 视频创作者的转场工具",
+    "titleA": "让每一次转场，",
+    "titleB": "都像在游戏里发生。",
+    "lead": "{{name}}是一个桌面应用：选一个模板，调几个参数，实时预览，导出带透明通道的短片，拖进剪辑软件，盖在两段素材的接缝上。",
+    "primary": "在 GitHub 上获取",
+    "secondary": "在浏览器里试用",
+    "facts": "免费开源 · Windows · 完全离线",
+    "viewerLabel": "预览",
+    "viewerNote": "画面由应用自己的渲染引擎在你的浏览器里实时渲染。",
+    "demoAssets": "网页里用的是纯色演示素材；桌面版读取你本机的游戏和资源包。",
+    "pick": "选择模板",
+    "play": "播放",
+    "pause": "暂停",
+    "scrub": "时间",
+    "starting": "正在启动渲染引擎…",
+    "noWebgl": "这个浏览器不支持 WebGL2，看不到实时画面。"
+  },
+  "sim": {
+    "kicker": "仿真器",
+    "title": "不用安装，先上手试试。",
+    "lead": "下面这个窗口里就是桌面版的编辑器：同一份界面代码、同一个渲染引擎、同样的内置模板。选模板、拖参数、拖时间轴、按空格播放，一切都在你的浏览器里运行。",
+    "start": "启动编辑器",
+    "starting": "正在启动编辑器…",
+    "autoStart": "滚动到这里时自动启动，也可以现在就点。",
+    "windowTitle": "{{name}} — 仿真",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "close": "关闭",
+    "exportNote": "网页里没有 FFmpeg：导出会把每一帧都真的渲染一遍，但不会写出文件。",
+    "compactTitle": "屏幕有点窄",
+    "compact": "完整的编辑器需要更宽的屏幕。这里先看预览和模板切换，完整体验请在电脑上打开这个页面。",
+    "desktopOnly": {
+      "files": "选择本机图片需要桌面版。",
+      "project": "打开和保存工程需要桌面版。",
+      "packs": "添加资源包需要桌面版。",
+      "vanilla": "读取本机的 Minecraft 需要桌面版。",
+      "templates": "安装、导出和另存模板需要桌面版。",
+      "presets": "导入导出预设文件需要桌面版。",
+      "folder": "选择输出文件夹需要桌面版。"
+    },
+    "desktopOnlyHint": "这一步要读写你电脑上的文件，网页做不到。",
+    "getDesktop": "获取桌面版",
+    "dismiss": "知道了",
+    "exportDoneTitle": "{{frames}} 帧已经渲染完成",
+    "exportDone": "刚才的每一帧都由真实的导出管线渲染过。在桌面版里，这些帧会交给 FFmpeg 写成「{{format}}」，直接拖进剪辑软件。",
+    "keepTrying": "继续试用",
+    "frameLabel": "仿真器：桌面版编辑器"
+  },
+  "templates": {
+    "kicker": "模板",
+    "title": "{{count}} 个内置模板，全部实时渲染。",
+    "lead": "每张卡片里播放的，都是渲染引擎刚刚在你的浏览器里画出来的帧，不是截图，也不是视频。内置模板和你自己写的模板走同一条装载路径。",
+    "meta": "{{category}} · {{duration}} 秒 · {{count}} 个参数",
+    "metaNoDuration": "{{category}} · {{count}} 个参数",
+    "rendering": "正在渲染…",
+    "failed": "这张没渲染出来。",
+    "openInSim": "在仿真器里打开"
+  },
+  "features": {
+    "kicker": "特性",
+    "title": "为剪辑而做的每一个细节。",
+    "alpha": {
+      "title": "导出带透明通道",
+      "body": "直接盖在剪辑软件的上层轨道，不用抠像。四种格式："
+    },
+    "frames": {
+      "title": "预览就是成片",
+      "body": "画面是时间的纯函数。预览和导出走同一份渲染代码，导出的每一帧都和预览里看到的一样，还能加子帧采样的运动模糊。"
+    },
+    "stack": {
+      "title": "用你自己的素材",
+      "body": "三层资源栈：内置层、本机游戏的原版素材、你的资源包，上层覆盖下层。加一个资源包，转场就跟着换皮。游戏文件只在本机读取，不复制、不上传。",
+      "layers": [
+        "资源包",
+        "原版素材",
+        "内置层"
+      ]
+    },
+    "offline": {
+      "title": "完全离线",
+      "body": "没有账号、遥测、自动更新和崩溃上报。模板脚本在隔离的 Worker 里运行，拿不到网络、文件和界面。",
+      "sandbox": "模板脚本在 Worker 里拿不到："
+    },
+    "extend": {
+      "title": "模板可以扩展",
+      "body": "预设、派生模板、模板包的导入导出，以及用 TypeScript 写的脚本模板。属性面板由模板的 manifest 自动生成。"
+    },
+    "bilingual": {
+      "title": "中文和英文，深色和浅色",
+      "body": "界面两种语言、两套主题，跟随系统，也可以手动切换。"
+    }
+  },
+  "workflow": {
+    "kicker": "工作流",
+    "title": "三步，从打开到导出。",
+    "lead": "设计目标：从打开应用到导出第一个转场，不超过 30 秒，不需要读说明。",
+    "steps": {
+      "pick": {
+        "title": "选模板",
+        "body": "转场或叠加层。模板库里的封面悬停就会动起来。"
+      },
+      "tune": {
+        "title": "调参数",
+        "body": "方块、顺序、时长、缓动……每个改动都在下一帧出现在预览里，撤销一步就回去。"
+      },
+      "export": {
+        "title": "导出",
+        "body": "选格式、分辨率和帧率，把成片拖进剪辑软件，对齐剪辑点。"
+      }
+    }
+  },
+  "open": {
+    "kicker": "开源",
+    "title": "开源、免费，欢迎一起做。",
+    "lead": "源代码以 GPL-3.0 许可证在 GitHub 上公开。提 issue、写模板、改代码，都欢迎。",
+    "repo": "查看源代码",
+    "team": "开发者",
+    "license": "许可证"
+  },
+  "footer": {
+    "disclaimerLabel": "非官方声明",
+    "license": "代码以 GPL-3.0 许可证开源。",
+    "fonts": "界面字体 IBM Plex Sans、IBM Plex Mono、Noto Sans SC 与像素字体“方舟像素字体”均以 SIL OFL 1.1 授权。",
+    "fontLicense": "像素字体许可全文",
+    "source": "源代码",
+    "noTracking": "本站不使用 Cookie、统计或任何第三方资源。"
+  },
+  "host": {
+    "demoPackName": "网页演示色块",
+    "demoPackDescription": "页面里现场生成的纯色色块，不是游戏贴图",
+    "exportTarget": "网页演示：每一帧都已渲染，但浏览器里没有 FFmpeg，没有写出文件"
+  }
+}
