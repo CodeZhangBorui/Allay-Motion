@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# 打包后的检查（pnpm dist 末尾跑）要提交：上面那行会把它也忽略掉（docs/decisions.md M8）
+!tests/dist/
 out/
 resources/templates/
 resources/ffmpeg/
@@ -15,3 +17,6 @@ packages/mascot/generated/
 # pnpm dist 时从上面的烘焙产物复制过去（scripts/mascot-dist.ts），同样不提交（docs/decisions.md M5b）
 apps/desktop/build/mascot/
 apps/desktop/build/icon.ico
+# pnpm dist 时由 scripts/dist-extras.ts 生成（docs/decisions.md M8）
+apps/desktop/build/installer.nsh
+apps/desktop/build/THIRD_PARTY_NOTICES.txt
