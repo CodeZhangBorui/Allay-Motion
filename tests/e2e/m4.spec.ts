@@ -244,7 +244,7 @@ for (const language of ['zh-CN', 'en'] as const) {
       await upToDate(page);
       // 设置对话框的每一页
       await page.keyboard.press('Control+Comma');
-      for (const p of ['general', 'assets', 'export', 'shortcuts', 'about']) {
+      for (const p of ['general', 'appearance', 'assets', 'folders', 'export', 'shortcuts', 'about']) {
         await page.getByTestId(`settings-tab-${p}`).click();
         await check(`设置/${p}`);
       }

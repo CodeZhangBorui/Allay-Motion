@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -34,6 +34,19 @@ export interface Launched {
 export interface LaunchOptions {
   args?: string[];
   waitFor?: string;
+  /**
+   * 首次启动：数据目录里没有设置文件时也不预先写一个，应用会显示首次启动引导（6.10）。
+   * 缺省时 launchApp 先写一个只记着“引导已走过”的设置文件（和老用户升级后一样），其他测试不受引导影响
+   */
+  firstRun?: boolean;
+}
+
+/** 没有设置文件时写一个只记着“引导已走过”的（其他设置都是默认值） */
+export function seedSettings(userDataDir: string): void {
+  const file = join(userDataDir, 'settings.json');
+  if (existsSync(file)) return;
+  mkdirSync(userDataDir, { recursive: true });
+  writeFileSync(file, JSON.stringify({ formatVersion: 1, ui: { onboardingCompleted: true } }));
 }
 
 /** 测试进程的环境变量，加上测试开关（launchApp 和直接起第二个实例的测试共用） */
@@ -60,6 +73,7 @@ export function appEnv(userDataDir: string, extraEnv: Record<string, string> = {
 
 export async function launchApp(userDataDir: string, extraEnv: Record<string, string> = {}, opts: LaunchOptions = {}): Promise<Launched> {
   const env = appEnv(userDataDir, extraEnv);
+  if (!opts.firstRun) seedSettings(userDataDir);
   const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR, ...(opts.args ?? [])], env, cwd: DESKTOP_DIR });
   const page = await app.firstWindow();
   await page.waitForSelector(opts.waitFor ?? '[data-testid="topbar"]');

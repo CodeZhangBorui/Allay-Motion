@@ -5,7 +5,7 @@ import { requiredTextures } from '../../packages/assets/src/index';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
 import { catalogJarEntries, makeCatalogGame } from '../unit/helpers/resource-fixtures';
 import { writeFakeMascot } from './fake-mascot';
-import { DESKTOP_DIR, ELECTRON_PATH, launchApp, makeUserDataDir, readMainLog, removeUserDataDir, requirePinnedFfmpeg } from './helpers';
+import { DESKTOP_DIR, ELECTRON_PATH, launchApp, makeUserDataDir, readMainLog, removeUserDataDir, requirePinnedFfmpeg, seedSettings } from './helpers';
 
 // M5 后半（docs/07-allay-mascot.md 7.10）：T-ALY-3、T-ALY-4、T-ALY-5（图集版）、T-ALY-6，启动画面，产物缺失时的占位。
 // T-ALY-1、T-ALY-7 在 tests/unit/T-ALY.mascot-bake.test.ts（烘焙）；T-ALY-2 在 tests/unit/T-ALY-2.loader-timing.test.ts 和 m4.spec.ts。
@@ -361,6 +361,7 @@ test.describe('启动画面（7.5 第 1 项、7.6 C）', () => {
       ALLAY_E2E_MOJANG_ORIGIN: 'http://127.0.0.1:9',
       ALLAY_E2E_MASCOT_DIR: mascotDir,
     });
+    seedSettings(dir);
     const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR], env, cwd: DESKTOP_DIR });
     const find = () => app.windows().find((p) => p.url().includes('/splash/'));
     await expect.poll(() => !!find(), { timeout: 15_000 }).toBe(true);
