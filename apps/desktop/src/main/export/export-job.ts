@@ -303,8 +303,13 @@ export class ExportJob {
   }
 
   private async cleanup(): Promise<void> {
-    // Windows 上进程刚退出时文件句柄可能还没完全释放，重试几次
-    await rm(this.partial, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    // Windows 上进程刚退出时文件句柄可能还没完全释放，重试几次。
+    // 上级“目录”其实是个文件时，macOS 上报 ENOTDIR（force 只吞 ENOENT）：那里本来就不可能有 .partial，什么都不用删
+    try {
+      await rm(this.partial, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOTDIR') throw error;
+    }
     await this.removeTempAudio();
   }
 
