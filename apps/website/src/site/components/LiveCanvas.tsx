@@ -92,7 +92,7 @@ export function LiveCanvas({ templateId, params, fallback, className, testId }: 
 
   const label = entry ? localize(entry.manifest.name, language) : undefined;
   return (
-    <div ref={wrapRef} className={`relative ${className ?? ''}`} data-testid={testId} data-live={ready}>
+    <div ref={wrapRef} className={className ?? 'relative'} data-testid={testId} data-live={ready}>
       {!ready && fallback}
       {!reducedMotion && <div ref={hostRef} className="absolute inset-0" aria-label={label} role="img" />}
     </div>

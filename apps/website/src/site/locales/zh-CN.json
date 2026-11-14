@@ -88,7 +88,8 @@
     "openInSim": "在仿真器里打开",
     "moreTitle": "更多模板，持续加入。",
     "moreBody": "模板就是一份 manifest 加一段脚本。照着编写指南写一个，装进模板库，和内置模板一样实时预览、导出。",
-    "moreLink": "模板编写指南"
+    "moreLink": "模板编写指南",
+    "params": "可调的参数"
   },
   "features": {
     "kicker": "特性",

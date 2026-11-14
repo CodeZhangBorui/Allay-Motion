@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { builtinEntries } from '../../host/templates';
 import { SECTION } from '../links';
-import { clamp01, onFrame, track } from '../motion/frame';
+import { onFrame, track } from '../motion/frame';
 import { usePrefs } from '../prefs';
 import type { LivePreview } from '../engine/runtime';
 
@@ -56,8 +56,6 @@ export function CutScene() {
   const sectionRef = useRef<HTMLElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
-  const waveRef = useRef<HTMLDivElement>(null);
   const hudTimeRef = useRef<HTMLSpanElement>(null);
   const clipBRef = useRef<HTMLDivElement>(null);
   const liveRef = useRef<LivePreview | null>(null);
@@ -172,19 +170,6 @@ export function CutScene() {
         lastT = time;
         live.seek(time);
         if (hudTimeRef.current) hudTimeRef.current.textContent = `${time.toFixed(2)} / ${DURATION.toFixed(2)} s`;
-        // 品牌蓝的光从方块的缝隙里透出来：铺满前后最亮
-        const cover = clamp01(1 - Math.abs(time - CUT_TIME) / (CUT_TIME * 0.9));
-        if (glowRef.current) glowRef.current.style.opacity = (cover * 0.9).toFixed(3);
-        // 一道品牌蓝的光跟着波前（从下往上）扫过翻转中的方块
-        const ph = time <= IN ? time / IN : time >= IN + HOLD ? (time - IN - HOLD) / OUT : -1;
-        const wave = waveRef.current;
-        if (wave) {
-          if (ph < 0) wave.style.opacity = '0';
-          else {
-            wave.style.opacity = Math.sin(Math.PI * clamp01(ph)).toFixed(3);
-            wave.style.transform = `translate3d(0, ${((1.15 - ph * 1.3) * s.vh).toFixed(1)}px, 0)`;
-          }
-        }
       }
     });
     return () => {
@@ -229,7 +214,7 @@ export function CutScene() {
           <h2 id="cut-title" className="t-display mt-6 max-w-[11em]">
             {t('site.cut.titleA')}
             <br />
-            <span className="t-glow">{t('site.cut.titleB')}</span>
+            <span className="accent">{t('site.cut.titleB')}</span>
           </h2>
           <p className="t-lead mt-8 max-w-[32em]">{t('site.cut.body', { template: name })}</p>
         </div>
@@ -237,10 +222,8 @@ export function CutScene() {
 
       {enabled && (
         <div ref={overlayRef} data-active="false" className="cut-overlay pointer-events-none fixed inset-0 z-40" data-testid="cut-overlay" aria-hidden="true">
-          <div ref={glowRef} className="absolute inset-0 opacity-0" style={{ background: 'radial-gradient(80% 60% at 50% 100%, rgb(var(--glow) / .5), transparent 70%)' }} />
           <canvas ref={canvasRef} className="absolute inset-0 size-full" />
-          <div ref={waveRef} className="cut-wave absolute inset-x-0 top-[-35vh] h-[70vh] opacity-0" />
-          <div className="absolute bottom-5 left-[var(--gutter)] flex items-center gap-3 rounded-full px-4 py-2 text-[12px] nav-glass">
+          <div className="float absolute bottom-5 left-[var(--gutter)] flex items-center gap-3 px-3.5 py-2 text-[12px]">
             <span className="inline-block size-2 rotate-45 rounded-[1.5px] bg-mark" />
             <span className="font-medium">{t('site.cut.hud', { template: name })}</span>
             <span ref={hudTimeRef} className="t-tab text-fg-subtle">

@@ -71,3 +71,15 @@ export function showcaseEntries(): TemplateEntry[] {
   };
   return [...builtinEntries()].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
 }
+
+/** 剪辑点所在的时刻（按 timeline 的默认时长：进入段加停留段的一半，与转场模板的 cutTime 约定一致）；不知道时为 null */
+export function defaultCutTime(manifest: TemplateManifest): number | null {
+  const segments = manifest.timeline?.segments ?? [];
+  const value = (i: number) => {
+    const def = (manifest.params ?? []).find((p) => p.key === segments[i]?.param);
+    return def && typeof def.default === 'number' ? def.default : null;
+  };
+  const enter = value(0);
+  const hold = value(1);
+  return enter === null || hold === null ? null : enter + hold / 2;
+}

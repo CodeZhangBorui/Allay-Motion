@@ -3,6 +3,8 @@
 // 只展示前 SHOWCASE_MAX 个，其余在仿真器的模板库里。
 // 封面和循环播放的帧来自桌面版模板库同一个封面服务（features/gallery/covers.ts：杂务引擎 Worker，320×180、30 fps）。
 import { AllayLoader } from '@allay/mascot';
+import { buttonVariants } from '@allay/ui/components/button';
+import { Badge } from '@allay/ui/components/misc';
 import { localize } from '@allay/template-sdk';
 import { ArrowRight, ArrowUpRight, Plus } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
@@ -120,7 +122,7 @@ function SheetPlayer({ cover, label }: { cover: Cover; label: string }) {
 function CoverBox({ entry, cover, name, live, className }: { entry: TemplateEntry; cover: Cover | null | undefined; name: string; live?: boolean; className?: string }) {
   const { t } = useTranslation();
   return (
-    <div className={`preview-checker relative overflow-hidden rounded-[14px] ${className ?? ''}`} data-template={entry.id}>
+    <div className={`preview-checker relative overflow-hidden rounded-md ${className ?? ''}`} data-template={entry.id}>
       <div className="absolute inset-0 transition-transform duration-700 ease-(--ease-expo) group-hover:scale-[1.03]">
         {live ? (
           // 精选的大格：引擎实时渲染（放大也清楚）；没起来之前先放封面的循环帧
@@ -141,7 +143,7 @@ function CoverBox({ entry, cover, name, live, className }: { entry: TemplateEntr
   );
 }
 
-function Tile({ entry, cover, featured }: { entry: TemplateEntry; cover: Cover | null | undefined; featured: boolean }) {
+function Tile({ entry, cover, featured, wideCover = false }: { entry: TemplateEntry; cover: Cover | null | undefined; featured: boolean; wideCover?: boolean }) {
   const { t } = useTranslation();
   const { language } = usePrefs();
   const m = entry.manifest;
@@ -149,11 +151,12 @@ function Tile({ entry, cover, featured }: { entry: TemplateEntry; cover: Cover |
   const duration = defaultDuration(m);
   const category = t(`gallery.categories.${m.category}`);
   return (
-    <article className="card spot lift group flex h-full flex-col p-2.5" data-testid="template-card" data-template={entry.id}>
-      <CoverBox entry={entry} cover={cover} name={name} live={featured} className="aspect-video" />
+    <article className="card hoverable group flex h-full flex-col p-2" data-testid="template-card" data-template={entry.id}>
+      {/* 叠在大格右边的两个小格用扁一点的画面，两列高度对齐（帧网格是 16:9，裁掉上下一点） */}
+      <CoverBox entry={entry} cover={cover} name={name} live={featured} className={wideCover ? 'aspect-video lg:aspect-[2/1]' : 'aspect-video'} />
       <div className={`flex flex-1 flex-col justify-end ${featured ? 'px-4 pt-6 pb-4 sm:px-5' : 'px-3 pt-4 pb-3'}`}>
         <div className="flex items-center gap-3">
-          {featured && <span className="t-mono rounded-full bg-primary-soft px-2.5 py-1 text-[10px] text-primary-text">{t('site.templates.featured')}</span>}
+          {featured && <Badge className="text-primary-text">{t('site.templates.featured')}</Badge>}
           <span className="t-mono text-[10.5px] text-fg-subtle">{duration !== null ? t('site.templates.meta', { category, duration: duration.toFixed(2) }) : t('site.templates.metaNoDuration', { category })}</span>
         </div>
         <div className="mt-3 flex items-end justify-between gap-4">
@@ -164,14 +167,27 @@ function Tile({ entry, cover, featured }: { entry: TemplateEntry; cover: Cover |
           <button
             type="button"
             onClick={() => requestOpenTemplate(entry.id, entry.version)}
-            className="link-focus flex size-11 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] text-foreground transition-[background-color,transform] duration-300 ease-(--ease-expo) group-hover:bg-primary group-hover:text-primary-foreground"
+            className={buttonVariants({ variant: 'secondary', size: 'icon' })}
             data-testid="template-open"
             aria-label={`${t('site.templates.openInSim')}：${name}`}
             title={t('site.templates.openInSim')}
           >
-            <ArrowRight size={17} className="transition-transform duration-300 ease-(--ease-expo) group-hover:-rotate-45" />
+            <ArrowRight size={16} className="transition-transform duration-200 ease-(--ease-out) group-hover:translate-x-0.5" />
           </button>
         </div>
+        {featured && (
+          // 精选的大格：列出可调的参数（取自 manifest，不含音效），看得出它能怎么调
+          <ul className="mt-5 flex flex-wrap gap-1.5" aria-label={t('site.templates.params')}>
+            {(m.params ?? [])
+              .filter((p) => p.group !== 'sound' && p.type !== 'seed')
+              .slice(0, 9)
+              .map((p) => (
+                <li key={p.key}>
+                  <Badge>{localize(p.label, language)}</Badge>
+                </li>
+              ))}
+          </ul>
+        )}
       </div>
     </article>
   );
@@ -180,10 +196,10 @@ function Tile({ entry, cover, featured }: { entry: TemplateEntry; cover: Cover |
 function MoreTile() {
   const { t } = useTranslation();
   return (
-    <a href={AUTHORING_URL} target="_blank" rel="noreferrer noopener" className="card spot lift group link-focus relative flex h-full min-h-[260px] flex-col justify-between overflow-hidden p-6" data-testid="templates-more">
+    <a href={AUTHORING_URL} target="_blank" rel="noreferrer noopener" className="card group link-focus relative flex h-full min-h-[260px] flex-col justify-between overflow-hidden p-6" data-testid="templates-more">
       <div className="pointer-events-none absolute inset-0 bg-grid fade-mask opacity-70" aria-hidden="true" />
-      <span className="relative flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-primary-text transition-transform duration-500 ease-(--ease-expo) group-hover:rotate-90">
-        <Plus size={22} weight="bold" />
+      <span className="relative flex size-9 items-center justify-center rounded-lg bg-control text-fg-muted transition-transform duration-500 ease-(--ease-expo) group-hover:rotate-90">
+        <Plus size={18} weight="bold" />
       </span>
       <div className="relative">
         <h3 className="t-h3">{t('site.templates.moreTitle')}</h3>
@@ -204,6 +220,16 @@ export function TemplatesSection() {
   const head = useReveal<HTMLDivElement>();
   const gridReveal = useReveal<HTMLDivElement>(0.08);
   const { covers, keyOf } = useCovers(shown, grid);
+  // 封面在页面空闲时就开始渲染；悦灵（模板库的加载编排）只在这一格进了视口附近、还没渲染完时才出场，
+  // 免得远处看不见的加载占着“全页一只”的位置，让首屏的悦灵等它
+  const [gridNear, setGridNear] = useState(false);
+  useEffect(() => {
+    const el = grid.current;
+    if (!el) return;
+    const io = new IntersectionObserver((es) => setGridNear(es.some((e) => e.isIntersecting)), { rootMargin: '10% 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   const pending = shown.filter((e) => {
     const k = keyOf(e);
     return !k || !(k in covers);
@@ -211,7 +237,7 @@ export function TemplatesSection() {
   // 格子在网格里的位置：大格占左边两行，两个小格叠在它右边，其余排在下一行，最后是“更多”
   const spans = ['sm:col-span-2 lg:col-span-8 lg:row-span-2', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-4'];
   return (
-    <section id={SECTION.templates} data-clip="templates" data-clip-color="var(--stage-exit)" aria-labelledby="templates-title" className="relative py-32">
+    <section id={SECTION.templates} data-tl-clip="templates" data-tl-color="var(--stage-exit)" aria-labelledby="templates-title" className="relative py-32">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[60vh] bg-dots fade-mask-b opacity-60" aria-hidden="true" />
       <div className="wrap relative">
         <div ref={head} className="reveal grid items-end gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
@@ -228,8 +254,8 @@ export function TemplatesSection() {
         </div>
 
         <div ref={grid} className="relative mt-14">
-          <div className="pointer-events-none absolute inset-0 z-10" aria-hidden={pending === 0}>
-            <AllayLoader loading={pending > 0} label={t('site.templates.rendering')} priority="gallery" className="size-full">
+          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden={pending === 0}>
+            <AllayLoader loading={pending > 0 && gridNear} label={t('site.templates.rendering')} priority="gallery" className="size-full">
               <div />
             </AllayLoader>
           </div>
@@ -238,7 +264,7 @@ export function TemplatesSection() {
               const key = keyOf(e);
               return (
                 <div key={e.id} className={spans[i] ?? 'lg:col-span-4'} style={{ '--i': i } as CSSProperties}>
-                  <Tile entry={e} cover={key ? covers[key] : undefined} featured={i === 0} />
+                  <Tile entry={e} cover={key ? covers[key] : undefined} featured={i === 0} wideCover={i === 1 || i === 2} />
                 </div>
               );
             })}

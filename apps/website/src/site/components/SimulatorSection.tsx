@@ -222,7 +222,7 @@ function SimulatorWindow() {
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-4 bg-background p-6 text-center">
             <Monitor size={28} className="text-fg-faint" />
-            <Button className="h-11 rounded-full px-5 text-[14px]" onClick={() => setStarted(true)} data-testid="sim-start">
+            <Button size="lg" onClick={() => setStarted(true)} data-testid="sim-start">
               {t('site.sim.start')}
             </Button>
             <p className="text-[13px] text-fg-subtle">{t('site.sim.autoStart')}</p>
@@ -231,11 +231,11 @@ function SimulatorWindow() {
 
         {notice?.kind === 'desktop-only' && (
           <div className="absolute inset-x-0 bottom-10 z-10 flex justify-center px-4" role="status" data-testid="sim-desktop-only">
-            <div className="site-float flex max-w-[560px] items-center gap-3 py-2.5 pr-2 pl-4 text-[13px]">
+            <div className="float flex max-w-[560px] items-center gap-3 py-2.5 pr-2 pl-4 text-[13px]">
               <span>
                 <span className="font-medium">{t(`site.sim.desktopOnly.${notice.feature}`)}</span> <span className="text-fg-muted">{t('site.sim.desktopOnlyHint')}</span>
               </span>
-              <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ variant: 'secondary', className: 'h-8 shrink-0 px-3 text-[12.5px]' })}>
+              <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ variant: 'secondary', size: 'lg', className: 'shrink-0' })}>
                 {t('site.sim.getDesktop')}
               </a>
               <Button variant="ghost" size="icon-sm" aria-label={t('site.sim.dismiss')} onClick={() => setNotice(null)}>
@@ -253,10 +253,10 @@ function SimulatorWindow() {
               </h3>
               <p className="t-body mt-2">{t('site.sim.exportDone', { format: presetName(notice.preset) })}</p>
               <div className="mt-5 flex justify-end gap-2">
-                <Button variant="ghost" className="h-10 rounded-full px-4 text-[14px]" onClick={() => setNotice(null)}>
+                <Button variant="ghost" size="lg" onClick={() => setNotice(null)}>
                   {t('site.sim.keepTrying')}
                 </Button>
-                <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ className: 'h-10 gap-2 rounded-full px-4 text-[14px]' })}>
+                <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ size: 'lg' })}>
                   {t('site.sim.getDesktop')}
                   <ArrowSquareOut size={16} />
                 </a>
@@ -275,8 +275,7 @@ export function SimulatorSection() {
   const wide = useWide();
   const head = useReveal<HTMLDivElement>();
   return (
-    <section id={SECTION.try} data-clip="try" data-clip-color="var(--stage-hold)" data-allay-nofly aria-labelledby="sim-title" className="relative pt-[8vh] pb-32">
-      <div className="halo top-[10%] left-1/2 h-[80vh] w-[120vh] -translate-x-1/2" aria-hidden="true" />
+    <section id={SECTION.try} data-tl-clip="try" data-tl-color="var(--stage-hold)" data-allay-nofly aria-labelledby="sim-title" className="relative overflow-x-clip pt-[8vh] pb-32">
       <div ref={head} className="wrap reveal relative grid items-end gap-6 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
         <div>
           <p className="t-mono text-fg-subtle">{t('site.sim.kicker')}</p>

@@ -3,6 +3,7 @@
 // 悦灵用的是应用的 AllayProgress（导出进度的那段编排：捧着方块悬在进度条前端、封装时放进文件、完成时跳舞）。
 import { AllayProgress, type AllayProgressPhase } from '@allay/mascot';
 import { localize, type TemplateManifest } from '@allay/template-sdk';
+import { Slider } from '@allay/ui/components/slider';
 import { Check } from '@phosphor-icons/react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,7 +45,7 @@ export function PatternGrid({ pattern, size = 44 }: { pattern: number[]; size?: 
   );
 }
 
-const panel = 'card !rounded-[16px] p-4 backdrop-blur-xl';
+const panel = 'card p-4';
 
 export function TunePanel({ manifest, values, className, style }: { manifest: TemplateManifest; values: TuneValues; className?: string; style?: CSSProperties }) {
   const { t } = useTranslation();
@@ -54,7 +55,6 @@ export function TunePanel({ manifest, values, className, style }: { manifest: Te
   const spin = param(manifest, 'spin');
   const min = cols && 'min' in cols && typeof cols.min === 'number' ? cols.min : 4;
   const max = cols && 'max' in cols && typeof cols.max === 'number' ? cols.max : 40;
-  const fill = (values.cols - min) / (max - min || 1);
   const pat = options(inPattern).find((o) => o.value === values.inPattern);
   const spins = options(spin);
   return (
@@ -69,10 +69,8 @@ export function TunePanel({ manifest, values, className, style }: { manifest: Te
             <span className="text-fg-muted">{cols ? localize(cols.label, language) : 'cols'}</span>
             <span className="t-tab text-[13px] font-medium text-foreground">{values.cols}</span>
           </div>
-          <div className="relative mt-2 h-1.5 rounded-full bg-well">
-            <div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${fill * 100}%` }} />
-            <div className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-[0_0_0_3px_var(--primary-soft)]" style={{ left: `${fill * 100}%` }} />
-          </div>
+          {/* 应用的 Slider（shadcn），只读：值由滚动驱动 */}
+          <Slider className="mt-1" value={values.cols} min={min} max={max} disabled thumbLabel={cols ? localize(cols.label, language) : 'cols'} />
         </div>
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -118,7 +116,7 @@ export function ExportPanel({ frame, total, phase, cutFrame, live, className, st
         <span className="truncate font-medium">{t(`export.presets.${PRESET_KEY[EXPORT_PRESETS[0]]}`)}</span>
         <span className="ml-auto flex gap-1">
           {EXPORT_PRESETS.map((p, i) => (
-            <span key={p} className={`t-tab rounded-[4px] px-1 text-[10.5px] ${i === 0 ? 'text-primary-text' : 'text-fg-faint'}`}>
+            <span key={p} className={`t-tab rounded-[4px] px-1 text-[10.5px] ${i === 0 ? 'text-primary-text' : 'text-fg-subtle'}`}>
               .{PRESET_EXTENSION[p]}
             </span>
           ))}

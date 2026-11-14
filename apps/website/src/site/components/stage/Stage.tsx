@@ -7,11 +7,11 @@ import { localize, type ParamValues } from '@allay/template-sdk';
 import { ArrowDown, GithubLogo } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { defaultDuration, showcaseEntries } from '../../../host/templates';
+import { defaultCutTime, defaultDuration, showcaseEntries } from '../../../host/templates';
 import { REPO_URL, SECTION } from '../../links';
 import { clamp01, easeInOutCubic, lerp, onFrame, range, spring, track } from '../../motion/frame';
 import { HeroCanvas } from '../../motion/HeroCanvas';
-import { MagneticLink } from '../../motion/interactions';
+import { buttonVariants } from '@allay/ui/components/button';
 import { usePrefs } from '../../prefs';
 import { LiveViewer, type LiveViewerControl } from '../LiveViewer';
 import { ExportPanel, TunePanel, type TuneValues } from './panels';
@@ -82,7 +82,7 @@ function HeroCopy({ compact = false }: { compact?: boolean }) {
         <span className="line-mask">
           <span style={{ '--i': 1 } as CSSProperties}>
             {t('site.hero.titleB')}
-            <span className="t-glow">{t('site.hero.titleC')}</span>
+            <span className="accent inline-block whitespace-nowrap">{t('site.hero.titleC')}</span>
           </span>
         </span>
       </h1>
@@ -90,14 +90,14 @@ function HeroCopy({ compact = false }: { compact?: boolean }) {
         {t('site.hero.lead', { name })}
       </p>
       <div className="intro-fade mt-9 flex flex-wrap items-center gap-3" style={{ '--i': 2 } as CSSProperties}>
-        <MagneticLink href={REPO_URL} external className="btn btn-primary link-focus" testId="cta-github">
-          <GithubLogo size={19} weight="fill" />
+        <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ size: 'lg' })} data-testid="cta-github">
+          <GithubLogo size={16} weight="fill" />
           {t('site.hero.primary')}
-        </MagneticLink>
-        <MagneticLink href={`#${SECTION.try}`} className="btn btn-ghost link-focus" testId="cta-try">
+        </a>
+        <a href={`#${SECTION.try}`} className={buttonVariants({ variant: 'secondary', size: 'lg' })} data-testid="cta-try">
           {t('site.hero.secondary')}
-          <ArrowDown size={16} />
-        </MagneticLink>
+          <ArrowDown size={14} />
+        </a>
       </div>
       <ul className="intro-fade mt-8 flex flex-wrap gap-x-5 gap-y-2" style={{ '--i': 3 } as CSSProperties} aria-label={t('site.hero.factsLabel')}>
         {(t('site.hero.facts', { returnObjects: true }) as string[]).map((f) => (
@@ -123,7 +123,8 @@ function StepCopy({ step, index, story, anchor = false, panel }: { step: Step; i
         <span className="t-tab t-outline text-[clamp(72px,8.4vw,136px)] leading-[.8] font-medium tracking-[-0.06em] select-none" aria-hidden="true">
           {String(index + 1).padStart(2, '0')}
         </span>
-        {anchor && <span data-allay-anchor={`step-${index}`} className="mb-6 inline-block size-1" aria-hidden="true" />}
+        {/* 悦灵停在描边大编号的右边（装饰的空白处），不压正文，也不进正在播放的预览画面 */}
+        {anchor && <span data-allay-anchor={`step-${index}`} data-allay-facing="left" className="mb-12 ml-10 inline-block size-1" aria-hidden="true" />}
       </div>
       <p className="t-mono mt-5 text-primary-text">{t(`site.story.steps.${step}.kicker`)}</p>
       <h3 className="t-h2 mt-3 !text-[clamp(32px,3.6vw,58px)]">{t(`site.story.steps.${step}.title`)}</h3>
@@ -137,7 +138,7 @@ function StepCopy({ step, index, story, anchor = false, panel }: { step: Step; i
               {localize(e.manifest.name, language)}
             </li>
           ))}
-          <li className="t-mono pt-2 text-[10.5px] text-fg-faint">{t('site.story.steps.pick.more')}</li>
+          <li className="t-mono pt-2 text-[10.5px] text-fg-subtle">{t('site.story.steps.pick.more')}</li>
         </ol>
       )}
     </div>
@@ -167,6 +168,8 @@ function ScrollStage() {
   const total = Math.round((defaultDuration(tuned.manifest) ?? 1.1) * 60);
   const [story, setStory] = useState<Story>(() => storyAt(-1, 0, total));
   const storyRef = useRef(story);
+  /** 剪辑点所在的帧（按 timeline 的默认时长推算，与应用导出完成页上写的是同一帧） */
+  const cutFrame = Math.round((defaultCutTime(tuned.manifest) ?? 0.55) * 60);
 
   // 滚动 → 分镜状态（只在离散的值变了时才 setState）、主视觉的位姿（每帧写 transform）
   useEffect(() => {
@@ -238,26 +241,25 @@ function ScrollStage() {
     if (story.step === 0) return { templateId: pickIds[story.pick] ?? null };
     if (story.step >= 1) {
       const params: ParamValues = { cols: story.tune.cols, inPattern: story.tune.inPattern, spin: story.tune.spin };
-      return { templateId: TUNED, params, scrub: story.step === 2 ? (total > 0 ? story.frame / total : 0) : null };
+      // 导出时预览的播放头停在正在渲染的那一帧；渲染完（封装、完成）停在剪辑点，和应用的完成页一样指出剪辑点那一帧
+      const scrub = story.step !== 2 || total <= 0 ? null : story.phase === 'rendering' ? story.frame / total : cutFrame / total;
+      return { templateId: TUNED, params, scrub };
     }
     return {};
-  }, [story, pickIds, total]);
-
-  const cutFrame = Math.round(((defaultDuration(tuned.manifest) ?? 1.1) - 0.5) * 60);
+  }, [story, pickIds, total, cutFrame]);
 
   return (
     <div ref={rootRef} className="relative">
       {/* sticky 的舞台：3D 场景 + 预览面板 */}
       <div className="sticky top-0 z-0 h-[100svh] overflow-hidden" style={{ perspective: '1600px' }}>
         <div className="pointer-events-none absolute inset-0 bg-dots fade-mask opacity-70" aria-hidden="true" />
-        <div className="halo -top-[20%] left-[30%] h-[90vh] w-[90vh]" aria-hidden="true" />
         <div ref={sceneWrapRef} className="absolute inset-0">
           <HeroCanvas progress={progress} visible={visible} className="absolute inset-0 size-full" />
         </div>
         {wide && (
           <div className="absolute top-1/2 right-[var(--gutter)] w-[min(56vw,960px)] -translate-y-1/2" style={{ transformStyle: 'preserve-3d' }}>
             <div ref={monitorRef} className="relative will-change-transform" style={{ transformStyle: 'preserve-3d', transformOrigin: '60% 50%' }}>
-              <span data-allay-anchor="hero" className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
+              <span data-allay-anchor="hero" data-allay-until={SECTION.workflow} className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
               <LiveViewer autoCycle testId="hero-viewer" control={control} />
             </div>
           </div>
@@ -266,7 +268,7 @@ function ScrollStage() {
 
       {/* 正常滚动的文字（盖在舞台上；只有文字和按钮接收指针，面板照常可点） */}
       <div className="pointer-events-none relative z-10 -mt-[100svh]">
-        <section ref={heroRef} id={SECTION.top} data-clip="intro" data-clip-color="var(--allay)" className="flex min-h-[100svh] flex-col">
+        <section ref={heroRef} id={SECTION.top} data-tl-clip="intro" data-tl-color="var(--allay)" className="flex min-h-[100svh] flex-col">
           <div className={`wrap pointer-events-auto flex-1 pt-[calc(var(--nav-h)+7vh)] ${wide ? 'pb-[14vh]' : 'pb-12'}`}>
             <div className={wide ? 'max-w-[60vw]' : ''}>
               <HeroCopy />
@@ -282,20 +284,21 @@ function ScrollStage() {
           </div>
         </section>
 
-        <section id={SECTION.workflow} data-clip="workflow" data-clip-color="var(--stage-enter)" aria-labelledby="story-title" className="relative">
+        <section id={SECTION.workflow} data-tl-clip="workflow" data-tl-color="var(--stage-enter)" aria-labelledby="story-title" className="relative">
           {/* 窄屏：面板在这里，钉在导航下面一直到这一节结束（不透明的底，下面滚过的文字被它挡住） */}
           {!wide && (
             <div ref={pinRef} className="pointer-events-auto sticky top-[var(--nav-h)] z-20 bg-[var(--site-bg)] px-[var(--gutter)] pt-3 pb-3 shadow-[0_18px_24px_-12px_var(--site-bg)]">
-              <span data-allay-anchor="hero" data-allay-facing="right" className="absolute top-2 right-[18%] size-1" aria-hidden="true" />
+              <span data-allay-anchor="hero" data-allay-until={SECTION.workflow} data-allay-facing="right" className="absolute top-2 right-[18%] size-1" aria-hidden="true" />
               <LiveViewer autoCycle testId="hero-viewer" control={control} noteHiddenOnNarrow className="!bg-[var(--surface-1)]" />
             </div>
           )}
-          <div className={`wrap pointer-events-auto ${wide ? 'pt-[12vh]' : 'pt-12'}`}>
+          <div className={`wrap pointer-events-auto relative ${wide ? 'pt-[12vh]' : 'pt-12'}`}>
+            {wide && <span data-allay-anchor="story" data-allay-facing="right" className="absolute top-[5vh] left-[calc(var(--gutter)+48px)] size-1" aria-hidden="true" />}
             <p className="t-mono text-fg-subtle">{t('site.story.kicker')}</p>
-            <h2 id="story-title" className="t-h2 mt-4 max-w-[12em]">
+            <h2 id="story-title" className={`t-h2 mt-4 max-w-[12em] ${wide ? 'lg:max-w-[min(34vw,520px)]' : ''}`}>
               {t('site.story.title')}
             </h2>
-            <p className="t-lead mt-5 max-w-[30em]">{t('site.story.lead')}</p>
+            <p className={`t-lead mt-5 max-w-[30em] ${wide ? 'lg:max-w-[min(34vw,520px)]' : ''}`}>{t('site.story.lead')}</p>
           </div>
           {STEPS.map((s, i) => (
             <div
@@ -337,13 +340,13 @@ function StaticStage() {
   const entries = useMemo(() => showcaseEntries(), []);
   const tuned = entries.find((e) => e.id === TUNED) ?? entries[0]!;
   const total = Math.round((defaultDuration(tuned.manifest) ?? 1.1) * 60);
-  const cutFrame = Math.round(((defaultDuration(tuned.manifest) ?? 1.1) - 0.5) * 60);
+  const cutFrame = Math.round((defaultCutTime(tuned.manifest) ?? 0.55) * 60);
   const story = storyAt(2, 1, total);
   const progress = useRef(0) as RefObject<number>;
   const visible = useRef(true) as RefObject<boolean>;
   return (
     <>
-      <section id={SECTION.top} data-clip="intro" data-clip-color="var(--allay)" className="relative overflow-hidden">
+      <section id={SECTION.top} data-tl-clip="intro" data-tl-color="var(--allay)" className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div className="absolute inset-0 bg-dots fade-mask opacity-70" />
           <HeroCanvas progress={progress} visible={visible} className="absolute inset-0 size-full" />
@@ -356,7 +359,7 @@ function StaticStage() {
           </div>
         </div>
       </section>
-      <section id={SECTION.workflow} data-clip="workflow" data-clip-color="var(--stage-enter)" aria-labelledby="story-title" className="relative">
+      <section id={SECTION.workflow} data-tl-clip="workflow" data-tl-color="var(--stage-enter)" aria-labelledby="story-title" className="relative">
         <div className="wrap py-24">
           <p className="t-mono text-fg-subtle">{t('site.story.kicker')}</p>
           <h2 id="story-title" className="t-h2 mt-4 max-w-[12em]">

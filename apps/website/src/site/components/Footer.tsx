@@ -17,8 +17,7 @@ export function Footer() {
   }, []);
   const link = 'link-focus rounded text-fg-muted underline decoration-[var(--site-line-hi)] underline-offset-4 transition-colors hover:text-foreground hover:decoration-current';
   return (
-    <footer className="relative overflow-hidden bg-[linear-gradient(to_bottom,var(--site-bg),var(--site-deep)_320px)] pt-24" data-testid="site-footer">
-      <div className="halo -bottom-[30vh] left-1/2 h-[70vh] w-[140vh] -translate-x-1/2" aria-hidden="true" />
+    <footer className="relative overflow-hidden border-t border-site-line bg-site-deep pt-24" data-testid="site-footer">
       <div className="wrap relative">
         <div className="card p-6 sm:p-9" data-testid="disclaimer-box">
           <p className="t-mono text-[10.5px] text-fg-subtle">{t('site.footer.disclaimerLabel')}</p>

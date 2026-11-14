@@ -235,7 +235,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
 
       {/* 悬浮工具条：播放和模板切换 */}
       <div className="relative z-10 -mt-6 flex justify-center px-3">
-        <div ref={chipsRef} className="site-float site-scroll-x flex max-w-full items-center gap-1 overflow-x-auto p-1" role="toolbar" aria-label={t('site.hero.pick')}>
+        <div ref={chipsRef} className="float site-scroll-x flex max-w-full items-center gap-1 overflow-x-auto p-1" role="toolbar" aria-label={t('site.hero.pick')}>
           <button
             type="button"
             className="link-focus flex size-8 shrink-0 items-center justify-center rounded-md text-foreground transition-colors duration-150 hover:bg-control"
@@ -303,7 +303,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
           {cutShare !== null && <span className="cut-mark !bottom-auto top-[-6px]" style={{ left: `${cutShare * 100}%` }} aria-hidden="true" />}
           <div className="pointer-events-none absolute inset-y-[-4px] left-0 right-0">
             <div ref={playheadRef} className="site-playhead absolute inset-y-0 left-0 w-full">
-              <div className="absolute inset-y-0 left-0 w-[2px] -translate-x-1/2 rounded-full bg-primary" style={{ boxShadow: '0 0 8px rgb(var(--glow) / .9)' }} />
+              <div className="absolute inset-y-0 left-0 w-[2px] -translate-x-1/2 rounded-full bg-primary" />
             </div>
           </div>
         </div>

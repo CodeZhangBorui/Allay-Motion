@@ -11,7 +11,6 @@ import { SimulatorSection } from './components/SimulatorSection';
 import { Stage } from './components/stage/Stage';
 import { TemplatesSection } from './components/TemplatesSection';
 import { AllayGuide } from './motion/AllayGuide';
-import { CursorLight, installSpotlight } from './motion/interactions';
 import { usePrefs } from './prefs';
 
 /** 标题和描述跟着语言走 */
@@ -35,12 +34,10 @@ function useDocumentMeta() {
  */
 export function Site() {
   useDocumentMeta();
-  useEffect(() => installSpotlight(), []);
   return (
     <IconContext.Provider value={ICON_DEFAULTS}>
-      <CursorLight />
       <Nav />
-      <main className="relative z-[1]">
+      <main className="relative z-[1] overflow-x-clip">
         <Stage />
         <CutScene />
         <SimulatorSection />
@@ -50,7 +47,6 @@ export function Site() {
       </main>
       <Footer />
       <AllayGuide />
-      <div className="grain" aria-hidden="true" />
     </IconContext.Provider>
   );
 }

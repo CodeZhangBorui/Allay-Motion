@@ -3,6 +3,7 @@
 // 片段是普通的锚点链接（键盘可达，当前一段带 aria-current）。窄屏只留一条细的进度轨和时间码。
 // 位置只在尺寸变化时量；每帧只按 scrollY 写播放头的 transform 和时间码文字。
 import { AllayHead } from '@allay/mascot';
+import { Button, buttonVariants } from '@allay/ui/components/button';
 import { GithubLogo, Moon, Sun } from '@phosphor-icons/react';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,17 +30,17 @@ interface Clip {
   geometry: Geometry;
 }
 
-/** 从页面上带 data-clip 的元素收集片段（文档顺序） */
+/** 从页面上带 data-tl-clip 的元素收集片段（文档顺序；不用 data-clip：悦灵组件自己用它标当前动作） */
 function useClips(): { clips: Clip[]; cut: Geometry | null } {
   const { t, i18n } = useTranslation();
   const [state, setState] = useState<{ clips: Clip[]; cut: Geometry | null }>({ clips: [], cut: null });
   useEffect(() => {
-    const els = [...document.querySelectorAll<HTMLElement>('[data-clip]')];
+    const els = [...document.querySelectorAll<HTMLElement>('[data-tl-clip]')];
     const handles = els.map((el) => track(el));
     const cutEl = document.querySelector<HTMLElement>('[data-cut]');
     const cutHandle = cutEl ? track(cutEl) : null;
     setState({
-      clips: els.map((el, i) => ({ id: el.id, label: t(`site.nav.${el.dataset.clip}`), color: el.dataset.clipColor ?? 'var(--stage-hold)', geometry: handles[i]!.geometry })),
+      clips: els.map((el, i) => ({ id: el.id, label: t(`site.nav.${el.dataset.tlClip}`), color: el.dataset.tlColor ?? 'var(--stage-hold)', geometry: handles[i]!.geometry })),
       cut: cutHandle?.geometry ?? null,
     });
     return () => {
@@ -119,10 +120,9 @@ export function Nav() {
   }, [clips]);
 
   const nextLang = prefs.language === 'zh-CN' ? 'en' : 'zh-CN';
-  const iconBtn = 'link-focus flex size-9 items-center justify-center rounded-full text-fg-muted transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--foreground)_8%,transparent)] hover:text-foreground';
 
   return (
-    <header data-testid="site-nav" className="nav-glass fixed inset-x-0 top-0 z-50" style={{ height: 'var(--nav-h)' }}>
+    <header data-testid="site-nav" className="nav-bar fixed inset-x-0 top-0 z-50" style={{ height: 'var(--nav-h)' }}>
       <div className="wrap flex h-full items-center gap-4 lg:gap-6">
         <a href="#top" className="link-focus flex shrink-0 items-center gap-2.5 rounded-md" aria-label={t('site.nav.home')}>
           <AllayHead size={24} label={t('brand.name')} />
@@ -154,13 +154,13 @@ export function Nav() {
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 lg:ml-0">
-          <span className="t-mono mr-2 hidden rounded-full px-2.5 py-1 text-[11px] text-fg-muted sm:inline-flex" style={{ boxShadow: 'inset 0 0 0 1px var(--site-line)' }} aria-label={t('site.nav.timecode')}>
-            <span className="mr-1.5 inline-block size-1.5 translate-y-[3px] rounded-full bg-primary" aria-hidden="true" />
+          <span className="num mr-2 hidden h-[30px] items-center gap-1.5 rounded-lg bg-control px-2.5 text-[12px] text-fg-muted sm:inline-flex" aria-label={t('site.nav.timecode')}>
+            <span className="inline-block size-1.5 rounded-full bg-primary" aria-hidden="true" />
             <span ref={tcRef}>00:00:00</span>
           </span>
-          <button
-            type="button"
-            className={`${iconBtn} w-auto px-3 text-[13px] font-medium`}
+          <Button
+            variant="ghost"
+            size="lg"
             data-testid="toggle-language"
             aria-label={t('site.nav.switchLanguage')}
             title={t('site.nav.switchLanguage')}
@@ -168,26 +168,26 @@ export function Nav() {
             onClick={() => setLanguage(nextLang)}
           >
             {nextLang === 'en' ? 'EN' : '中文'}
-          </button>
-          <button
-            type="button"
-            className={iconBtn}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             data-testid="toggle-theme"
             aria-label={prefs.theme === 'dark' ? t('site.nav.toLight') : t('site.nav.toDark')}
             title={prefs.theme === 'dark' ? t('site.nav.toLight') : t('site.nav.toDark')}
             onClick={() => setTheme(prefs.theme === 'dark' ? 'light' : 'dark')}
           >
-            {prefs.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className="btn btn-ghost btn-sm link-focus ml-1">
-            <GithubLogo size={16} weight="fill" />
+            {prefs.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </Button>
+          <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ variant: 'secondary', size: 'lg', className: 'ml-1' })}>
+            <GithubLogo size={15} weight="fill" />
             <span className="hidden sm:inline">{t('site.nav.github')}</span>
           </a>
         </div>
       </div>
       {/* 窄屏：一条细的进度轨 */}
       <div className="absolute inset-x-0 bottom-0 h-[2px] lg:hidden" aria-hidden="true">
-        <div ref={miniHeadRef} className="h-full origin-left bg-primary" style={{ transform: 'scaleX(0)', boxShadow: '0 0 10px rgb(var(--glow) / .9)' }} />
+        <div ref={miniHeadRef} className="h-full origin-left bg-primary" style={{ transform: 'scaleX(0)' }} />
       </div>
     </header>
   );

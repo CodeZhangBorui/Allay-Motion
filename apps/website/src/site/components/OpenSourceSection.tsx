@@ -3,7 +3,8 @@ import { ArrowUpRight, GithubLogo } from '@phosphor-icons/react';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DEVELOPERS, LICENSE_NAME, REPO_URL, SECTION } from '../links';
-import { MagneticLink, useReveal } from '../motion/interactions';
+import { buttonVariants } from '@allay/ui/components/button';
+import { useReveal } from '../motion/interactions';
 
 /** 真实头像：三张都是 256×256 的原图，显示 64 px，高分屏也清楚；统一裁成圆角方形 */
 function Avatar({ src, name }: { src: string; name: string }) {
@@ -27,7 +28,7 @@ export function OpenSourceSection() {
   const left = useReveal<HTMLDivElement>();
   const right = useReveal<HTMLDivElement>(0.15);
   return (
-    <section id={SECTION.open} data-clip="openSource" data-clip-color="var(--stage-hold)" aria-labelledby="open-title" className="relative pt-32 pb-16">
+    <section id={SECTION.open} data-tl-clip="openSource" data-tl-color="var(--stage-hold)" aria-labelledby="open-title" className="relative pt-32 pb-16">
       <div className="ruler wrap pointer-events-none absolute inset-x-0 top-0 opacity-60" aria-hidden="true" />
       <div className="wrap grid gap-16 lg:grid-cols-[1.15fr_1fr] lg:gap-24">
         <div ref={left} className="reveal">
@@ -37,10 +38,10 @@ export function OpenSourceSection() {
           </h2>
           <p className="t-lead mt-6 max-w-[30em]">{t('site.open.lead')}</p>
           <div className="mt-10 flex flex-wrap items-center gap-5">
-            <MagneticLink href={REPO_URL} external className="btn btn-primary link-focus" testId="cta-repo">
-              <GithubLogo size={19} weight="fill" />
+            <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ size: 'lg' })} data-testid="cta-repo">
+              <GithubLogo size={16} weight="fill" />
               {t('site.open.repo')}
-            </MagneticLink>
+            </a>
             <span className="t-mono text-[11px] text-fg-subtle">
               {t('site.open.license')} · {LICENSE_NAME}
             </span>
@@ -50,7 +51,7 @@ export function OpenSourceSection() {
         <div ref={right} className="reveal relative">
           <span data-allay-anchor="credits" data-allay-facing="left" className="absolute -top-10 right-10 size-1" aria-hidden="true" />
           <p className="t-mono text-primary-text">{t('site.open.credits')}</p>
-          <p className="t-mono mt-8 text-[10.5px] text-fg-faint">{t('site.open.developersLabel')}</p>
+          <p className="t-mono mt-8 text-[10.5px] text-fg-subtle">{t('site.open.developersLabel')}</p>
           <ul className="mt-4 divide-y divide-[var(--site-line)] border-y border-[var(--site-line)]" data-testid="team">
             {DEVELOPERS.map((d, i) => {
               const body = (
@@ -76,7 +77,7 @@ export function OpenSourceSection() {
               );
             })}
           </ul>
-          <p className="mt-4 text-[12px] text-fg-faint">{t('site.open.claudeNote')}</p>
+          <p className="mt-4 text-[12px] text-fg-subtle">{t('site.open.claudeNote')}</p>
         </div>
       </div>
     </section>

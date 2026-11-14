@@ -409,5 +409,7 @@ export class HeroScene {
     this.rtA.dispose();
     this.rtB.dispose();
     this.renderer.dispose();
+    // 马上释放 WebGL 上下文（同时活着的上下文有上限）
+    this.renderer.forceContextLoss();
   }
 }

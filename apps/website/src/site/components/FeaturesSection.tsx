@@ -6,6 +6,9 @@
 // - 完全离线：引擎在装载模板前删掉的全局（REMOVED_GLOBALS）一个个划掉；
 // - 模板可扩展：manifest 里一条真实的参数定义，旁边就是它生成的控件。
 // 演示里的帧都来自桌面版的封面服务（杂务引擎 Worker 渲染），贴图来自官网专用的原版贴图；减少动效时都是静止的终态。
+import { Button } from '@allay/ui/components/button';
+import { Badge } from '@allay/ui/components/misc';
+import { Slider } from '@allay/ui/components/slider';
 import { localize } from '@allay/template-sdk';
 import { FilmStrip, PlugsConnected, PuzzlePiece, Stack, WifiSlash, Export as ExportIcon } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -58,10 +61,10 @@ function useCover(id: string): Cover | null {
 function Card({ index, icon, title, body, children, className, testId, style }: { index: string; icon: ReactNode; title: string; body: string; children?: ReactNode; className?: string; testId?: string; style?: CSSProperties }) {
   return (
     <div className={className} style={style}>
-      <article className="card spot flex h-full flex-col p-6 sm:p-7" data-testid={testId}>
+      <article className="card flex h-full flex-col p-6 sm:p-7" data-testid={testId}>
         <div className="flex items-center justify-between">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary-text">{icon}</span>
-          <span className="t-mono text-[10.5px] text-fg-faint">{index}</span>
+          <span className="flex size-9 items-center justify-center rounded-lg bg-control text-fg-muted">{icon}</span>
+          <span className="t-mono text-[10.5px] text-fg-subtle">{index}</span>
         </div>
         <h3 className="t-h3 mt-6">{title}</h3>
         <p className="t-body mt-2 max-w-[36em]">{body}</p>
@@ -75,7 +78,7 @@ function Card({ index, icon, title, body, children, className, testId, style }: 
 function Footage() {
   return (
     <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #1d2c55 0%, #52507d 38%, #d9866a 72%, #f2c57c 100%)' }}>
-      <div className="absolute top-[52%] left-[64%] size-[18%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffe3a8] opacity-90 blur-[2px]" />
+      <div className="absolute top-[52%] left-[64%] aspect-square w-[11%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffe3a8] opacity-90 blur-[2px]" />
       <div className="absolute inset-x-0 bottom-0 h-[42%] bg-[#3b3157]" style={{ clipPath: 'polygon(0 40%, 12% 22%, 24% 38%, 38% 12%, 52% 34%, 66% 18%, 80% 36%, 92% 20%, 100% 30%, 100% 100%, 0 100%)' }} />
       <div className="absolute inset-x-0 bottom-0 h-[26%] bg-[#231d38]" style={{ clipPath: 'polygon(0 30%, 18% 50%, 34% 24%, 50% 46%, 70% 20%, 86% 44%, 100% 26%, 100% 100%, 0 100%)' }} />
     </div>
@@ -88,19 +91,19 @@ function AlphaDemo() {
   const [split, setSplit] = useState(50);
   return (
     <div className="relative mt-auto pt-6">
-      <div className="relative aspect-video overflow-hidden rounded-[14px] ring-1 ring-[var(--site-line)]">
+      <div className="relative aspect-video overflow-hidden rounded-md ring-1 ring-[var(--site-line)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--ring)]">
         <div className="preview-checker absolute inset-0" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }} />
         <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
           <Footage />
         </div>
         <LiveCanvas templateId={ALPHA_TEMPLATE} className="absolute inset-0" testId="alpha-live" />
-        <span className="t-mono absolute top-3 left-3 rounded-full bg-[rgb(0_0_0/.55)] px-2.5 py-1 text-[10px] text-white backdrop-blur">{t('site.features.alpha.transparent')}</span>
-        <span className="t-mono absolute top-3 right-3 rounded-full bg-[rgb(0_0_0/.55)] px-2.5 py-1 text-[10px] text-white backdrop-blur">{t('site.features.alpha.over')}</span>
+        <Badge className="absolute top-3 left-3">{t('site.features.alpha.transparent')}</Badge>
+        <Badge className="absolute top-3 right-3">{t('site.features.alpha.over')}</Badge>
         {/* 分界线 */}
         <div className="pointer-events-none absolute inset-y-0 w-0" style={{ left: `${split}%` }} aria-hidden="true">
-          <div className="absolute inset-y-0 -left-px w-[2px] bg-white shadow-[0_0_12px_rgb(var(--glow)/.9)]" />
-          <div className="absolute top-1/2 left-0 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#0d0d0e] shadow-[0_4px_20px_rgb(0_0_0/.4)]">
-            <span className="text-[14px] font-semibold">⇆</span>
+          <div className="absolute inset-y-0 -left-px w-[2px] bg-foreground" />
+          <div className="float absolute top-1/2 left-0 flex size-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center !rounded-full text-foreground">
+            <span className="text-[13px] font-semibold">⇆</span>
           </div>
         </div>
         <input
@@ -121,7 +124,7 @@ function AlphaDemo() {
 function FramesDemo() {
   const { t } = useTranslation();
   const cover = useCover(DEMO_TEMPLATE);
-  const N = 7;
+  const N = 5;
   const strips = useRef<(HTMLCanvasElement | null)[]>([]);
   const [hot, setHot] = useState(0);
   const { reducedMotion } = usePrefs();
@@ -148,13 +151,23 @@ function FramesDemo() {
   }, [reducedMotion]);
   const frameNo = cover ? Math.round((hot + 0.5) * (cover.frames / N)) : hot;
   return (
-    <div className="mt-6 flex-1 space-y-2" aria-hidden="true">
+    <div className="mt-auto space-y-2 pt-6" aria-hidden="true">
+      {/* 大号的帧号：两行同时停在这一帧 */}
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <span className="t-tab text-[clamp(56px,6vw,92px)] leading-none font-medium tracking-[-0.06em] text-foreground">
+          <span className="text-fg-subtle">#</span>
+          {String(frameNo).padStart(3, '0')}
+        </span>
+        <span className="t-mono pb-2 text-right text-[10px] text-primary-text">
+          {t('site.features.frames.preview')} = {t('site.features.frames.export')}
+        </span>
+      </div>
       {(['preview', 'export'] as const).map((row, r) => (
         <div key={row} className="flex items-center gap-3">
           <span className="t-mono w-16 shrink-0 text-[10px] text-fg-subtle">{t(`site.features.frames.${row}`)}</span>
-          <div className="relative grid flex-1 grid-cols-7 gap-1">
+          <div className="relative grid flex-1 grid-cols-5 gap-1.5">
             {Array.from({ length: N }, (_, k) => (
-              <div key={k} className={`preview-checker relative aspect-video overflow-hidden rounded-[5px] transition-[box-shadow,opacity] duration-300 ${k === hot ? 'opacity-100 shadow-[0_0_0_2px_var(--primary),0_0_16px_rgb(var(--glow)/.6)]' : 'opacity-55'}`}>
+              <div key={k} className={`preview-checker relative aspect-video overflow-hidden rounded-[5px] transition-[box-shadow,opacity] duration-300 ${k === hot ? 'opacity-100 ring-2 ring-primary' : 'opacity-55'}`}>
                 <canvas
                   ref={(el) => {
                     strips.current[r * N + k] = el;
@@ -172,11 +185,11 @@ function FramesDemo() {
         <span className="w-16 shrink-0" />
         <div className="relative h-5 flex-1">
           <div className="absolute top-1/2 h-px w-full bg-[var(--site-line-hi)]" />
-          <div className="absolute top-0 bottom-0 w-[2px] rounded bg-primary transition-[left] duration-500 ease-(--ease-expo)" style={{ left: `${((hot + 0.5) / N) * 100}%`, boxShadow: '0 0 10px rgb(var(--glow)/.9)' }} />
+          <div className="absolute top-0 bottom-0 w-[2px] rounded bg-primary transition-[left] duration-500 ease-(--ease-expo)" style={{ left: `${((hot + 0.5) / N) * 100}%` }} />
         </div>
       </div>
       <p className="t-mono pl-[76px] text-[10px] text-primary-text">
-        {t('site.features.frames.same')} · #{String(frameNo).padStart(3, '0')} · frame(t) = update(t)
+        {t('site.features.frames.same')} · frame(t) = update(t)
       </p>
     </div>
   );
@@ -187,10 +200,10 @@ function FormatsDemo() {
   return (
     <ul className="mt-6 flex-1 space-y-1.5" data-testid="format-list">
       {EXPORT_PRESETS.map((p) => (
-        <li key={p} data-preset={p} className="group/row rounded-[12px] px-3 py-2.5 transition-colors duration-200 hover:bg-[color-mix(in_srgb,var(--foreground)_5%,transparent)]">
+        <li key={p} data-preset={p} className="rounded-md px-3 py-2.5 transition-colors duration-(--dur-1) hover:bg-control">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-[14px] font-medium">{t(`export.presets.${PRESET_KEY[p]}`)}</span>
-            <span className="t-tab rounded-md bg-primary-soft px-1.5 py-0.5 text-[11px] text-primary-text">.{PRESET_EXTENSION[p]}</span>
+            <Badge className="t-tab">.{PRESET_EXTENSION[p]}</Badge>
           </div>
           <p className="mt-1 text-[12.5px] text-fg-subtle">{t('export.worksWith', { apps: t(`export.presetFor.${PRESET_KEY[p]}`) })}</p>
         </li>
@@ -222,19 +235,20 @@ function StackDemo() {
     <div className="mt-6 flex flex-1 items-center gap-5" onMouseLeave={() => setHover(null)}>
       <div className="flex flex-1 flex-col-reverse gap-1.5">
         {[0, 1, 2].map((i) => (
-          <button
+          <Button
             key={i}
-            type="button"
+            variant="ghost"
+            size="lg"
             onMouseEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
-            className={`link-focus flex h-11 items-center gap-3 rounded-[11px] px-3 text-left text-[13px] transition-[opacity,transform,background-color] duration-500 ease-(--ease-expo) ${i <= active ? 'bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)] opacity-100' : '-translate-y-1 opacity-35'}`}
+            className={`h-10 justify-start gap-3 transition-[opacity,transform,background-color] duration-500 ease-(--ease-expo) ${i <= active ? 'opacity-100' : '-translate-y-1 opacity-40'}`}
             aria-pressed={i <= active}
           >
-            <span className="t-mono w-4 text-[10px] text-fg-faint">{i + 1}</span>
+            <span className="t-mono w-4 text-[10px] text-fg-subtle">{i + 1}</span>
             <span className="pixelated size-6 shrink-0 rounded-[4px]" style={swatch(i)} />
             <span className={i === active ? 'font-medium text-foreground' : 'text-fg-muted'}>{layers[2 - i]}</span>
-          </button>
+          </Button>
         ))}
       </div>
       {/* 结果：一块等距视角的方块，贴图取最上面那层 */}
@@ -265,7 +279,7 @@ function OfflineDemo() {
       <p className="t-mono text-[10px] text-fg-subtle">{t('site.features.offline.sandbox')}</p>
       <ul ref={ref} className="strike mt-3 grid grid-cols-2 gap-1.5">
         {REMOVED_GLOBALS.map((g, i) => (
-          <li key={g} className="t-tab relative rounded-[8px] bg-[color-mix(in_srgb,var(--foreground)_5%,transparent)] px-2.5 py-1.5 text-[11.5px] text-fg-muted" style={{ '--i': i } as CSSProperties}>
+          <li key={g} className="t-tab relative rounded-sm bg-control px-2.5 py-1.5 text-[11.5px] text-fg-muted" style={{ '--i': i } as CSSProperties}>
             {g}
           </li>
         ))}
@@ -296,10 +310,9 @@ function ExtendDemo() {
   }, [param, reducedMotion]);
   if (!param) return null;
   const json = { key: param.key, type: param.type, label: param.label, default: param.default, min: param.min, max: param.max, ...(param.ui ? { ui: param.ui } : {}) };
-  const fill = (v - param.min) / (param.max - param.min || 1);
   return (
-    <div className="mt-6 grid flex-1 items-center gap-4 md:grid-cols-[1.3fr_auto_1fr]">
-      <pre className="t-tab overflow-x-auto rounded-[14px] bg-[color-mix(in_oklab,var(--well)_80%,transparent)] p-4 text-[11.5px] leading-[1.6] ring-1 ring-[var(--site-line)]" aria-label="manifest.json">
+    <div className="mt-6 grid flex-1 items-center gap-4 md:grid-cols-[1.3fr_auto_1fr] lg:max-w-[1000px]">
+      <pre className="t-tab overflow-x-auto rounded-md bg-well p-4 text-[11.5px] leading-[1.6]" aria-label="manifest.json">
         {JSON.stringify(json, null, 2)
           .split('\n')
           .map((line, i) => {
@@ -323,16 +336,14 @@ function ExtendDemo() {
       <span className="t-mono hidden text-center text-[18px] text-fg-faint md:block" aria-hidden="true">
         →
       </span>
-      <div className="rounded-[14px] bg-surface-2 p-4 ring-1 ring-[var(--site-line)]" aria-hidden="true">
+      <div className="float p-4" aria-hidden="true">
         <div className="flex items-baseline justify-between text-[12.5px]">
           <span className="text-fg-muted">{localize(param.label, language)}</span>
           <span className="t-tab font-medium">{v}</span>
         </div>
-        <div className="relative mt-3 h-1.5 rounded-full bg-well">
-          <div className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-500 ease-(--ease-expo)" style={{ width: `${fill * 100}%` }} />
-          <div className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-[0_0_0_3px_var(--primary-soft)] transition-[left] duration-500 ease-(--ease-expo)" style={{ left: `${fill * 100}%` }} />
-        </div>
-        <div className="t-tab mt-2 flex justify-between text-[10px] text-fg-faint">
+        {/* 应用的 Slider（shadcn），只读：数值自己在范围里来回走 */}
+        <Slider className="mt-1" value={v} min={param.min} max={param.max} disabled />
+        <div className="t-tab mt-2 flex justify-between text-[10px] text-fg-subtle">
           <span>{param.min}</span>
           <span>{param.max}</span>
         </div>
@@ -347,7 +358,7 @@ export function FeaturesSection() {
   const grid = useReveal<HTMLDivElement>(0.06);
   const i = (n: number) => ({ '--i': n }) as CSSProperties;
   return (
-    <section id={SECTION.features} data-clip="features" data-clip-color="var(--stage-enter)" aria-labelledby="features-title" className="relative py-32">
+    <section id={SECTION.features} data-tl-clip="features" data-tl-color="var(--stage-enter)" aria-labelledby="features-title" className="relative py-32">
       <div className="ruler wrap pointer-events-none absolute inset-x-0 top-0 opacity-60" aria-hidden="true" />
       <div className="wrap relative">
         <div ref={head} className="reveal relative max-w-[900px]">
@@ -358,7 +369,7 @@ export function FeaturesSection() {
           </h2>
         </div>
         <div ref={grid} className="reveal mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-12 lg:gap-5">
-          <Card index="F/01" icon={<FilmStrip size={20} weight="fill" />} title={t('site.features.alpha.title')} body={t('site.features.alpha.body')} className="md:col-span-2 lg:col-span-7 lg:row-span-2" testId="feature-alpha" style={i(0)}>
+          <Card index="F/01" icon={<FilmStrip size={20} weight="fill" />} title={t('site.features.alpha.title')} body={t('site.features.alpha.body')} className="md:col-span-2 lg:col-span-7" testId="feature-alpha" style={i(0)}>
             <AlphaDemo />
           </Card>
           <Card index="F/02" icon={<PlugsConnected size={20} weight="fill" />} title={t('site.features.frames.title')} body={t('site.features.frames.body')} className="lg:col-span-5" style={i(1)}>
@@ -373,7 +384,7 @@ export function FeaturesSection() {
           <Card index="F/05" icon={<WifiSlash size={20} weight="fill" />} title={t('site.features.offline.title')} body={t('site.features.offline.body')} className="lg:col-span-3" style={i(4)}>
             <OfflineDemo />
           </Card>
-          <Card index="F/06" icon={<PuzzlePiece size={20} weight="fill" />} title={t('site.features.extend.title')} body={t('site.features.extend.body')} className="md:col-span-2 lg:col-span-5" style={i(5)}>
+          <Card index="F/06" icon={<PuzzlePiece size={20} weight="fill" />} title={t('site.features.extend.title')} body={t('site.features.extend.body')} className="md:col-span-2 lg:col-span-12" style={i(5)}>
             <ExtendDemo />
           </Card>
         </div>

@@ -43,13 +43,21 @@ export function templateSource(entry: TemplateEntry): TemplateSource | null {
   return bundle ? sourceFromBundle(bundle) : null;
 }
 
-/** 浏览器有没有 WebGL2（引擎需要它；没有时页面给一句说明，不白屏） */
+/**
+ * 浏览器有没有 WebGL2（引擎需要它；没有时页面给一句说明，不白屏）。
+ * 只试一次，并且马上释放试探用的上下文：浏览器同时活着的 WebGL 上下文有上限，超出时最早的会被丢掉。
+ */
+let webgl2: boolean | null = null;
 export function hasWebgl2(): boolean {
+  if (webgl2 !== null) return webgl2;
   try {
-    return document.createElement('canvas').getContext('webgl2') !== null;
+    const gl = document.createElement('canvas').getContext('webgl2');
+    webgl2 = gl !== null;
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
   } catch {
-    return false;
+    webgl2 = false;
   }
+  return webgl2;
 }
 
 export interface LiveState {

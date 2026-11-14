@@ -88,7 +88,8 @@
     "openInSim": "Open in the simulator",
     "moreTitle": "More templates on the way.",
     "moreBody": "A template is a manifest plus a script. Follow the authoring guide, add it to your library, and it previews and exports just like the built-in ones.",
-    "moreLink": "Template authoring guide"
+    "moreLink": "Template authoring guide",
+    "params": "Parameters you can tweak"
   },
   "features": {
     "kicker": "Features",

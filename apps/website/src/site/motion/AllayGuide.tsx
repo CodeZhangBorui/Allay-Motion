@@ -39,6 +39,9 @@ function pickTarget(vh: number): Target | null {
   for (const el of document.querySelectorAll<HTMLElement>('[data-allay-anchor]')) {
     const step = el.closest<HTMLElement>('[data-step]');
     if (step && step.dataset.active !== 'true') continue;
+    // data-allay-until：只在那一节还没走到视口中间之前有效（首屏的锚点在分镜开始后就不用了，免得飞进正在播放的预览）
+    const until = el.dataset.allayUntil ? document.getElementById(el.dataset.allayUntil) : null;
+    if (until && until.getBoundingClientRect().top < vh * 0.55) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0 && r.top === 0 && r.left === 0) continue; // 不显示的
     if (r.top < vh * 0.06 || r.top > vh * 0.94) continue;
@@ -180,10 +183,9 @@ function FlyingGuide() {
             trailRefs.current[i] = el;
           }}
           className="absolute top-0 left-0 size-1 rounded-[1px] bg-allay-light opacity-0"
-          style={{ boxShadow: '0 0 6px rgb(var(--glow) / .9)' }}
         />
       ))}
-      <div ref={rootRef} className="absolute top-0 left-0 transition-opacity duration-300" style={{ width: size, height: size, opacity: granted && shown ? 1 : 0, filter: 'drop-shadow(0 0 18px rgb(var(--glow) / .55))' } as CSSProperties}>
+      <div ref={rootRef} className="absolute top-0 left-0 transition-opacity duration-300" style={{ width: size, height: size, opacity: granted && shown ? 1 : 0} as CSSProperties}>
         {granted && (
           <MascotSlotHeld.Provider value={true}>
             <Allay clip={pose.clip} size={size} facing={pose.facing} priority="default" />
