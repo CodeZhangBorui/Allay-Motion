@@ -37,10 +37,6 @@ pnpm ffmpeg:fetch
 ```
 
 ```bash
-pnpm mascot:bake
-```
-
-```bash
 pnpm dev
 ```
 
@@ -53,7 +49,12 @@ pnpm dev
 | `pnpm dist` | 生成 Windows 安装包（`apps/desktop/release/`），并跑打包后的检查 |
 | `pnpm licenses:gen` | 依赖变了之后重新生成第三方许可清单 |
 
-`pnpm mascot:bake` 从本机安装的 Minecraft Java 版（或加 `--download` 从 Mojang 下载）读取悦灵的贴图，烘焙出应用里用的图集和图标；这些派生图像不进仓库。
+悦灵的图集、头像和应用图标（`packages/mascot/generated/`）是由 Minecraft 原版悦灵贴图烘焙出的派生图像，版权归 Mojang；仓库里提交了运行时和打包要用的那几个，所以构建不需要游戏。`pnpm mascot:bake` 从本机安装的 Minecraft Java 版（或加 `--download` 从 Mojang 下载）读取贴图重新烘焙；原版贴图本身不进仓库。
+
+## 持续集成与安装包
+
+- PR 和 `main`：GitHub Actions 跑 `pnpm check` 和 `pnpm check:removable`（`.github/workflows/ci.yml`）。
+- 安装包：推 `v*` 标签或手动触发 `.github/workflows/release.yml`，构建 Windows 安装包并建一个**草稿** Release。安装包没有代码签名。草稿要等 [`docs/release-checklist.md`](docs/release-checklist.md) 全部确认后由人发布。
 
 ## 第三方软件与许可
 
@@ -61,6 +62,9 @@ pnpm dev
 - 方舟像素字体、IBM Plex、Noto Sans SC 使用 SIL Open Font License 1.1。
 - 其余依赖使用 MIT、BSD、ISC、Apache-2.0 等许可；完整清单在“关于 → 第三方许可”和安装目录的 `THIRD_PARTY_NOTICES.txt`。
 
+## 许可
+
+<!-- H-LICENSE：项目自己的许可证待定（docs/release-checklist.md）。定了之后在这里写明，并在仓库根目录放 LICENSE。 -->
 项目自己的许可证还没有决定（H-LICENSE）。
 
 ## 文档
