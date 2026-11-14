@@ -269,7 +269,9 @@ describe('T-EXP-9 编码器探测', () => {
 
   it('T-EXP-9 全部失败：没有胜出的编码器', async () => {
     const caps = await probeCaps(FFMPEG);
-    const result = await probeH264({ ffmpeg: FFMPEG, version: caps.version!, listed: caps.encoders, candidates: ['h264_vaapi', 'h264_vulkan_bogus'] });
+    // h264_vaapi 放进列表（macOS 的构建里没有它，Windows 的有），两个平台上都是“列出但失败”
+    const listed = new Set([...caps.encoders, 'h264_vaapi']);
+    const result = await probeH264({ ffmpeg: FFMPEG, version: caps.version!, listed, candidates: ['h264_vaapi', 'h264_vulkan_bogus'] });
     expect(result.encoder).toBeNull();
     expect(result.attempts.map((a) => a.result)).toEqual(['failed', 'unlisted']);
   });
