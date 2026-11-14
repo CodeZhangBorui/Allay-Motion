@@ -79,6 +79,60 @@ test('创建发行版、上传附件并验证摘要；再次同步不重复上�
   assert.equal(requests.filter((item) => item.includes('releases/assets/42')).length, 1);
 });
 
+test('Windows 与 macOS 的全部安装包和 SHA256SUMS.txt 都同步，不按文件名挑选', async (t) => {
+  const names = [
+    'Allay-Motion-1.0.0-x64-setup.exe',
+    'Allay-Motion-1.0.0-arm64.dmg',
+    'Allay-Motion-1.0.0-x64.dmg',
+    'Allay-Motion-1.0.0-arm64-mac.zip',
+    'Allay-Motion-1.0.0-x64-mac.zip',
+    'SHA256SUMS.txt',
+  ];
+  const bytes = new Map(names.map((name) => [name, Buffer.from(`bytes of ${name}`)]));
+  const sha = (buffer) => `sha256:${createHash('sha256').update(buffer).digest('hex')}`;
+  const assets = names.map((name, i) => ({
+    id: 100 + i, name, state: 'uploaded', size: bytes.get(name).length, digest: sha(bytes.get(name)),
+  }));
+  const multi = { ...release, assets };
+  let remote = null;
+  let pending = null;
+  t.mock.method(globalThis, 'fetch', async (input, init) => {
+    const url = new URL(input);
+    const assetMatch = /\/releases\/assets\/(\d+)$/.exec(url.pathname);
+    if (url.host === 'api.github.com' && assetMatch) {
+      return new Response(bytes.get(assets.find((a) => a.id === Number(assetMatch[1])).name));
+    }
+    if (url.pathname.endsWith('/releases/tags/v1.0.0')) return remote ? json(remote) : json({}, 404);
+    if (url.pathname.endsWith('/releases') && init.method === 'POST') {
+      remote = { ...JSON.parse(init.body), prerelease: false, assets: [] };
+      return json(remote);
+    }
+    if (url.pathname.endsWith('/upload_url')) {
+      pending = url.searchParams.get('file_name');
+      return json({ url: 'https://storage.example/file', headers: {} });
+    }
+    throw new Error('unexpected request');
+  });
+  t.mock.method(https, 'request', (_url, _options, callback) => {
+    const stream = new PassThrough();
+    const chunks = [];
+    stream.setTimeout = () => stream;
+    stream.on('data', (chunk) => chunks.push(chunk));
+    stream.on('finish', () => {
+      const body = Buffer.concat(chunks);
+      assert.deepEqual(body, bytes.get(pending));
+      remote.assets.push({ id: 1000 + remote.assets.length, name: pending, size: body.length, digest: sha(body) });
+      const response = Readable.from([]);
+      response.statusCode = 200;
+      callback(response);
+    });
+    return stream;
+  });
+
+  await createClient(options).syncRelease(multi, multi.tag_name);
+  assert.deepEqual(remote.assets.map((a) => a.name).sort(), [...names].sort());
+});
+
 test('同名附件内容不同时失败，不删除或覆盖现有文件', async (t) => {
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async (_input, init) => {
