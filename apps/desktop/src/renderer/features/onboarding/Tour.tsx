@@ -164,7 +164,9 @@ export function Tour() {
       aria-describedby="tour-body"
       data-testid="tour"
       data-step={step.id}
-      className="fixed inset-0 z-[60]"
+      // 点在压暗层上时焦点落在这一层（而不是 body），← → Esc 仍然有效
+      tabIndex={-1}
+      className="fixed inset-0 z-[60] outline-none"
       onKeyDown={onKeyDown}
     >
       {/*
