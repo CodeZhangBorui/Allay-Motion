@@ -53,7 +53,9 @@ pnpm dev
 
 ## 持续集成与安装包
 
-- PR 和 `main`：GitHub Actions 跑 `pnpm check` 和 `pnpm check:removable`（`.github/workflows/ci.yml`）。
+- GitHub Actions 跑 `pnpm check` 和 `pnpm check:removable`（`.github/workflows/ci.yml`）。CI 的 WebGL 是软件渲染（WARP），引擎和端到端测试比在显卡上慢得多；只在软件渲染下放宽的地方见 `docs/decisions.md` M8。
+- 维护者的流程（不开 PR）：推工作分支（`claude/…`）→ CI 在这个提交上通过 → 把**同一个提交**快进推到 `main`。`main` 上的 push 发现这个提交已经通过就不再重跑。
+- 外部贡献者照常从 fork 发 PR，CI 在 PR 上跑；见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
 - 安装包：推 `v*` 标签或手动触发 `.github/workflows/release.yml`，构建 Windows 安装包并建一个**草稿** Release。安装包没有代码签名。草稿要等 [`docs/release-checklist.md`](docs/release-checklist.md) 全部确认后由人发布。
 
 ## 第三方软件与许可

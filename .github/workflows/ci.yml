@@ -1,11 +1,15 @@
-# CI（docs/01-product-architecture.md 1.10，docs/decisions.md M8）：PR 和 main 上跑 pnpm check 和 pnpm check:removable。
+# CI（docs/01-product-architecture.md 1.10，docs/decisions.md M8）：跑 pnpm check 和 pnpm check:removable。
 # 安装包由 release.yml 构建。这里只读仓库，没有任何密钥。
 # 第三方 action 固定到提交哈希（注释里是对应的版本标签），升级时一起改。
+#
+# 流程（用户决定，2026-11-14，“测完直接推送，没有必要开pr”）：推工作分支（claude/**）→ CI 在这个提交上通过 →
+# 把同一个提交快进推到 main。同一个提交不重复跑：main 上的 push 先看这个提交在别的分支上是否已经通过，通过了就跳过；
+# 本仓库自己分支发起的 PR 也跳过（分支的 push 已经跑过）。外部贡献者从 fork 发 PR，照常跑。
 name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   pull_request:
 
 permissions:
@@ -16,10 +20,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gate:
+    name: 是否需要跑
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          run=true
+          if [ "$EVENT" = "pull_request" ] && [ "$HEAD_REPO" = "$GH_REPO" ]; then
+            run=false; echo "本仓库分支的 PR：分支的 push 已经跑过"
+          elif [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            ok=$(gh run list --workflow ci.yml --commit "$SHA" --status success --json databaseId --jq 'length')
+            if [ "${ok:-0}" -gt 0 ]; then run=false; echo "这个提交已经在别的分支上通过：$SHA"; fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   check:
     name: pnpm check
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: windows-latest
-    # CI 的 WebGL 是软件渲染（SwiftShader），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
+    # CI 的 WebGL 是软件渲染（WARP），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,8 +100,10 @@ jobs:
     # 可选模块可以整块拆除（docs/code-editing-and-mcp-plan.md 3.1 第 5 条，T-DEV-4）：
     # 把 packages/optional 移走后再跑一遍完整的 pnpm check，跑完放回
     name: pnpm check:removable
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: windows-latest
-    # CI 的 WebGL 是软件渲染（SwiftShader），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
+    # CI 的 WebGL 是软件渲染（WARP），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

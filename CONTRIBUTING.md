@@ -12,8 +12,13 @@
 
 - 读 `AGENTS.md`：硬性规则、里程碑的做法、代码约定。
 - 每个二进制素材都要登记来源（`ASSETS_PROVENANCE.json`）；新依赖的许可要在允许列表里（`pnpm check:licenses`）。
-- 提交信息用 Conventional Commits 的格式。PR 上的 CI 会跑 `pnpm check` 和 `pnpm check:removable`。
+- 提交信息用 Conventional Commits 的格式。
+
+## 提交改动的流程
+
+- **外部贡献者**：从自己的 fork 发 PR。PR 上的 CI 会跑 `pnpm check` 和 `pnpm check:removable`；通过、并同意 CLA 之后由维护者合并。
+- **维护者**（不开 PR）：推工作分支（`claude/…`），等 CI 在这个提交上通过，再把同一个提交快进推到 `main`（`git push origin <提交>:main`）。不在 `main` 上直接提交未经 CI 的改动；`main` 上的 push 发现提交已经通过会跳过重跑。
 
 ---
 
-**English**: This project is GPL-3.0-only and the copyright holder also offers commercial licenses. External contributions are merged only after the contributor agrees to a Contributor License Agreement that lets the copyright holder relicense the contribution outside the GPL (including commercially); you keep your copyright. No CLA bot is configured yet — the agreement text and how to sign it are provided in the PR. Do not contribute any Minecraft files or content derived from them, or third-party resource packs; they are outside both licenses.
+**English**: This project is GPL-3.0-only and the copyright holder also offers commercial licenses. External contributions are merged only after the contributor agrees to a Contributor License Agreement that lets the copyright holder relicense the contribution outside the GPL (including commercially); you keep your copyright. No CLA bot is configured yet — the agreement text and how to sign it are provided in the PR. External contributors open PRs from forks; CI runs `pnpm check` and `pnpm check:removable` on them. Maintainers push a work branch, wait for CI to pass on that commit, then fast-forward `main` to the same commit without a PR. Do not contribute any Minecraft files or content derived from them, or third-party resource packs; they are outside both licenses.
