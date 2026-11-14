@@ -559,7 +559,7 @@ T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定
 
 - ★ **H-DOWNLOAD**：运行时从 Mojang 官方服务器下载客户端 jar 是否符合其条款（M2a）。
 - ★ **H-BRAND 加重**：安装包带有由原版悦灵贴图派生的图集、头像和应用图标（用户决定并担责，M5a）。
-- 打包产物里有 Electron 自带的 `resources/default_app.asar`（`electronDist` 指向已安装的 Electron 后带进来的），M8 打包时去掉。
+- 打包产物里有 Electron 自带的 `resources/default_app.asar`（`electronDist` 指向已安装的 Electron 后带进来的），M8 打包时去掉。**（M8 已处理。全部待确认事项和当前状态见 `docs/release-checklist.md`。）**
 
 ## 界面重设计（“方块工作台”）
 
@@ -1055,3 +1055,53 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 带音轨的 WebM、MP4、ProRes 都没在真实剪辑软件或播放器里打开听过；AAC、Opus 开头的编码延迟（priming）只按 ffprobe 的包时长核对，没核对与画面的听感同步。
 - 悦灵在新对话框里的位置、大小与设计稿是否一致，没有人看过；减少动效下的编排只跑了 M5b 原有的 T-ALY-4。
 - 音频编码器缺失时的报错只按代码路径写了，没有造一个缺 `aac` 的 FFmpeg 来测。
+
+## M8 打包与发布准备
+
+### 安装包
+
+- **`default_app.asar`**（M0 起的遗留项）：`electronDist` 指向工作区里的 Electron 时，electron-builder 把整个目录复制过来，其中有 Electron 自带的示例应用。`apps/desktop/scripts/after-pack.mjs`（afterPack 钩子）在打成安装包之前删掉它。`tests/dist/M8.package.test.ts` 核对解包目录和安装包里都没有。钩子是 `.mjs`：`.cjs` 过不了仓库的 eslint 配置（`require`、`exports` 未定义）。
+- **检查安装包本身**：用 electron-builder 缓存里的 7-Zip（`%LOCALAPPDATA%\electron-builder\Cache\7zip*`，打包本来就要它）列出安装包内嵌的 7z 载荷，只读、不安装。安装脚本（文件关联、欢迎页的 include）核对的是 electron-builder 写进 `release/builder-debug.yml` 的 NSIS 脚本；按用户安装、快捷方式这些开关以 `-D` 传给 makensis，不在脚本里，以 `electron-builder.yml` 为准。
+- **文件关联**：`fileAssociations` 两项（`AllayMotion.Project`、`AllayMotion.Template`），图标用应用图标，没有单独做文档图标。关联里的 `description`（资源管理器“类型”一栏）和动词“Open with Allay Motion”含产品名：它们和 `productName` 一样属于构建配置，换品牌时一起改（M0 已记 `productName` 的例外）。
+- **欢迎页的声明**（9.5）：electron-builder 的 assisted 安装程序有 `customWelcomePage` 宏。`scripts/dist-extras.ts` 从 `packages/ui/src/brand` 生成 `apps/desktop/build/installer.nsh`（带 BOM 的 UTF-8，中英文都写，安装程序不跟应用的语言设置走），`nsis.include` 引入。产品名和声明仍只写在品牌目录里。
+- **`THIRD_PARTY_NOTICES.txt`**：同一个脚本从提交的许可清单生成纯文本，`extraFiles` 放在安装目录的根上（和 `LICENSES.chromium.html` 在一起）。两份生成物都被 git 忽略。
+- **快捷方式与卸载**：开始菜单和桌面快捷方式（electron-builder 默认值，写明在配置里）；卸载时保留 `%APPDATA%\AllayMotion`（`deleteAppDataOnUninstall: false`，默认值）。规格没说卸载要不要删用户数据，选了不删（工程、预设、下载的原版资源都在那里）。
+- **`.gitignore` 的 `dist/`** 把 `tests/dist/` 也忽略了，M0 写的打包后检查（T-ARC-2）一直没有提交，各分支是从主检出手工复制的。加了 `!tests/dist/`。
+- 安装包大小：约 174 MiB（182.6 MB），解包后 343 MB；大头是 Electron 本身（exe 250 MB）。
+
+### 文件关联与第二实例参数
+
+- 规格 1.8 写的是 `app.onOpenFile` 事件；任务说明要求经 MD-b 留好的命令通道（H11）。按后者做，**没有加 `app.onOpenFile`**。
+- **路径不经过渲染进程**（1.6 第 6 条只认三种路径来源，关联文件不在其中）：主进程（`main/open-files.ts`）从启动参数或 `second-instance` 的参数里挑出 `.allay` / `.allaytpl`（跳过第 0 项和开关，相对路径按启动目录解析，一次最多 16 个），每个换成一次性的 UUID 令牌，经命令通道请界面执行 `project.openAssociated` / `templates.installAssociated`（命令面板里不列出）。界面拿令牌调新加的 `project.openRequested(token)` / `templates.installRequested(token)`，主进程按令牌找回路径，走和对话框打开同一条路（`ProjectService.openPath`、`TemplateService.stage`，之后的试运行、提交与“导入模板…”相同）。令牌种类要对上、只能用一次，命令结束就作废；不认识的令牌得到“文件不存在”或 `staging-expired`。日志里只记种类，不记路径。
+- **界面就绪信号** `host.ready`（新 IPC，无参数）：首屏画完（两次 rAF）、初始模板装好之后调用一次。之前来的请求排队；页面重新加载时重新等。没有它的话，启动参数里的工程会和初始模板的装载互相覆盖。它同时是 T-ARC-7 的“可交互”时间点。
+- **命令时限**：打开工程前可能要问“放弃未保存的改动？”，等的是用户。命令通道原来固定 15 秒，超时后令牌作废、用户再点“放弃”只会得到“文件不存在”。`HostCommandChannel.run` 加了可选的单次时限，文件关联用 30 分钟。
+- 先装模板再开工程时，装好的模板被选中（与“导入模板…”相同），工程因此算有改动，打开工程会先问一句。照现有行为保留。
+- T-ARC-6 的畸形参数表补了三个新方法。
+
+### 关于页与第三方许可
+
+- **清单的来源**：`scripts/third-party.ts` 复用 `check-licenses.ts` 的 `pnpm -r licenses list --prod`（加了安装路径、作者、主页），读每个包里的许可文件原文；另加构建时编进 CSS 的 `tailwindcss`、`shadcn`，以及 Electron（Chromium 的许可全文太大，指向安装目录的 `LICENSES.chromium.html`）、FFmpeg、方舟像素字体。生成的 `third-party-licenses.json`（约 130 KB，75 项）**提交进仓库**，关于页按需加载成单独的块；单元测试 `M8.third-party` 重新生成一遍和提交的比对，依赖变了忘了 `pnpm licenses:gen` 就失败，并核对每项都在允许列表里、LGPL 只有 FFmpeg。有一个包（`react-remove-scroll-bar`）里没有许可文件，清单照实写“包里没有许可文件；按 MIT 授权”。
+- **FFmpeg 的来源**：固定的构建从 `fetch-ffmpeg.ts` 挪到 `scripts/ffmpeg-build.ts`（`fetch-ffmpeg.ts` 一导入就会运行，没法复用），加了 FFmpeg 自己的版本和提交（`n9.0.2-57-gd838f9f9ae`）。关于页和 `THIRD_PARTY_NOTICES.txt` 写明构建来源、版本、SHA-256、源码（FFmpeg 官方仓库的这个提交）和构建脚本的去处。**是否满足 LGPLv3 的“提供对应源码”**，列进了发布清单待人确认。
+- **悦灵图像的来源**：新文案键 `brand.mascotCredit`（品牌目录里，两种语言），关于页显示，`THIRD_PARTY_NOTICES.txt` 里也有。
+- **使用准则的链接**（9.3）：关于页显示地址文本，可以选中复制，**不做成可点的链接**：1.8 的 `shell.openLink` 一直没有实现，为它新开一条打开外部浏览器的 IPC 不值得。
+- 原来那几行许可摘要保留在清单上面；FFmpeg 一行加了“可以自行替换 ffmpeg.exe”。
+
+### WebGL2 不可用时的说明页
+
+- 渲染进程启动时在主线程用 `OffscreenCanvas` 取一次 `webgl2`（引擎在 Worker 里也是这样取），取不到就不渲染主界面，换成说明页：原因、三条建议（更新驱动、换一块显卡、远程桌面和虚拟机）、诊断信息（版本、平台、UA、WebGL1/2、OffscreenCanvas）和“复制诊断信息”（复用 `export.copyDiagnostics`）。仍然发 `host.ready`。
+- **测试开关 `ALLAY_E2E_NO_WEBGL`**（只在未打包时）：`--disable-webgl` 在这个 Electron 上拦不住 WebGL2（实测仍能取到上下文），改成 `--disable-gpu` 加 `--disable-software-rasterizer`，模拟“没有可用的显卡”。e2e 里点“复制诊断信息”会写系统剪贴板，测试先记下原来的内容、测完放回。
+
+### 冷启动（T-ARC-7）
+
+- **怎么量**：打包后的应用不认任何测试开关，窗口照常显示。为了不在用户的桌面上弹窗、抢焦点，`scripts/hidden-desktop.ps1` 用 `CreateDesktop` 在同一个窗口站里另建一个桌面，`CreateProcess` 把 exe 放到那里启动（窗口、显卡照常工作，只是不在当前桌面上），到时间后结束进程树、关掉桌面。打包后的应用写真实的 `%APPDATA%\AllayMotion`：测试先把已有的改名放到一边，量完删掉测试写的、再改回来；留着备份时拒绝运行。主进程新加的启动时间线（`main/startup-timing.ts`，按 `performance.timeOrigin` 记，写进 `[startup]` 日志，打包后也记）给出各节点；测试把它们换算成从 CreateProcess 算起的时间。跑 5 次，第一次是全新的数据目录。脚本要带 BOM：Windows PowerShell 5 按 ANSI 代码页读没有 BOM 的脚本，中文注释会把语法搞坏。
+- **瓶颈**（量出来的，这台机器，热缓存）：CreateProcess 到 Node 启动 60–95 ms（系统装载 250 MB 的 exe；安装后第一次约 360–440 ms，杀毒扫描和冷缓存）；Electron 跑到我们的主脚本约 67–75 ms；我们的主进程包求值约 13 ms；到 `ready` 约 40 ms；`ready` 到建启动画面约 35 ms；**建窗口到第一帧约 250–300 ms**，其中页面加载完约 145 ms，加载完到第一帧约 135 ms（合成器出第一帧）。试过、没有可量的改善而撤回的：启动画面不透明、压缩主进程的包、去掉启动画面的悦灵图集（判断图片解码不在关键路径上）。保留的两处：设置在启动时同步读；**主进程等启动画面第一帧（最多 1 秒）再起 FFmpeg、读 jar、建主窗口**——实测这些在主线程上卡 40–260 ms，交错对比 5 组里 4 组快了约 20 ms，主窗口显示的时间不变（它本来就要等启动画面显示满 600 ms）。
+- **偏离**：启动画面的 0.5 秒按**进程启动**算（中位数），不按 CreateProcess 算；可交互的 3 秒按 CreateProcess 算，每次都要满足。CreateProcess 到进程启动是系统装载 exe，应用改不了；两种算法的数字测试都打印。规格没定义“参考机器”，这条连同实测数字列进发布清单待人确认。
+- **实测**（2026-11-14，这台机器，热缓存，T-ARC-7 跑 5 次，第 1 次是全新数据目录；这一版还没有“等启动画面第一帧”和同步读设置）：从 CreateProcess 算，启动画面 1156 / 535 / 507 / 591 / 508 ms（系统装载 444 / 76 / 84 / 95 / 90 ms；从进程启动算 712 / 459 / 423 / 496 / 418 ms，中位数 459 ms），可交互 1788 / 1139 / 1110 / 1194 / 1113 ms。最终提交上的数字见 M8 的汇报。
+
+### 没验证的
+
+- **没有在任何机器上实际安装、运行、卸载过安装包**（M8 的人工验收项）：不在这台用户正在用的机器上注册文件关联和快捷方式。欢迎页、快捷方式、文件关联、卸载时去掉关联，只核对了生成的安装脚本和安装包内容。
+- 应用图标在资源管理器、任务栏、文件关联里的样子没人看过。
+- 双击关联文件走的是 `"$appExe" "%1"`：端到端测试用同样形式的启动参数和真实的第二个进程验证了主进程到界面的整条路，但不是经资源管理器双击。
+- 冷启动只在这台机器上量过，文件缓存是热的（没法在测试里重启机器）；“参考机器”没有定义。
+- 安装包没有签名（H-SIGN）。
