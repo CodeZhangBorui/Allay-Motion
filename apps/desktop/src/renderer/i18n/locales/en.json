@@ -102,7 +102,22 @@
     "diagnosticsFailed": "Couldn’t copy the diagnostics.",
     "title": "Preview",
     "toolbar": "Preview tools",
-    "hqShort": "HQ"
+    "hqShort": "HQ",
+    "issues": {
+      "param": "Parameter “{{label}}”: {{problem}}",
+      "paramField": "Parameter “{{label}}”, {{field}}: {{problem}}",
+      "field": "{{field}}: {{problem}}",
+      "more": "{{count}} more problems — see “Copy diagnostics”",
+      "unknownGroup": "refers to a group “{{group}}” that does not exist",
+      "unknownParam": "refers to a parameter “{{key}}” that does not exist",
+      "duplicateKey": "has the same key as another parameter",
+      "badDefault": "has an invalid default value",
+      "wrongType": "has the wrong type",
+      "tooBig": "is above the maximum",
+      "tooSmall": "is below the minimum",
+      "unknownField": "has unrecognized fields",
+      "invalid": "is not valid"
+    }
   },
   "transport": {
     "region": "Transport",

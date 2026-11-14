@@ -1,5 +1,6 @@
 import type { AudioCue } from '@allay/template-sdk';
 import { create } from 'zustand';
+import type { LoadIssue } from '../features/preview/loadIssues';
 
 // 预览引擎的状态，给预览区的错误卡片、时间轴的音效轨、状态栏和测试钩子看。
 
@@ -7,8 +8,10 @@ export type PreviewStatus =
   | { kind: 'starting' }
   | { kind: 'loading' }
   | { kind: 'ready'; warnings: string[] }
-  /** 模板出错：装载、setup 或渲染时抛错 */
-  | { kind: 'error'; message: string }
+  /**
+   * 模板出错：装载、setup 或渲染时抛错。issues 是校验失败时的原始 issue（界面整理成短句显示，原样进诊断信息）
+   */
+  | { kind: 'error'; message: string; issues?: LoadIssue[] }
   /** 看门狗终止了 Worker（模板无响应），已经重建了一个空闲的 Worker */
   | { kind: 'unresponsive'; operation: string }
   /** 显卡或驱动不支持、Worker 崩溃 */

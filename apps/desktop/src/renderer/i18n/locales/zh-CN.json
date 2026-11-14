@@ -102,7 +102,22 @@
     "diagnosticsFailed": "无法复制诊断信息。",
     "title": "预览",
     "toolbar": "预览工具",
-    "hqShort": "高质量"
+    "hqShort": "高质量",
+    "issues": {
+      "param": "参数“{{label}}”：{{problem}}",
+      "paramField": "参数“{{label}}”的 {{field}}：{{problem}}",
+      "field": "{{field}}：{{problem}}",
+      "more": "还有 {{count}} 处问题，详情见“复制诊断信息”",
+      "unknownGroup": "引用了不存在的分组“{{group}}”",
+      "unknownParam": "引用了不存在的参数“{{key}}”",
+      "duplicateKey": "和别的参数重名",
+      "badDefault": "默认值不合法",
+      "wrongType": "类型不对",
+      "tooBig": "超出上限",
+      "tooSmall": "低于下限",
+      "unknownField": "有不认识的字段",
+      "invalid": "取值不合法"
+    }
   },
   "transport": {
     "region": "播放条",
