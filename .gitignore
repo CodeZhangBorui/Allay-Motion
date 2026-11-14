@@ -31,6 +31,7 @@ packages/mascot/generated/icon-*.png
 # pnpm dist 时从烘焙产物复制过去（scripts/mascot-dist.ts），不提交（docs/decisions.md M5b）
 apps/desktop/build/mascot/
 apps/desktop/build/icon.ico
+apps/desktop/build/icon.icns
 # pnpm dist 时由 scripts/dist-extras.ts 生成（docs/decisions.md M8）
 apps/desktop/build/installer.nsh
 apps/desktop/build/THIRD_PARTY_NOTICES.txt

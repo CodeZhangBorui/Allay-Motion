@@ -9,7 +9,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
-    "dist": "electron-vite build && electron-builder --win --x64 --publish never --config electron-builder.yml"
+    "dist": "electron-vite build && node scripts/dist.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

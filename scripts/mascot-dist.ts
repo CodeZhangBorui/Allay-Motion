@@ -4,20 +4,23 @@
 // 运行时和打包用到的那几个（COMMITTED_FILES）提交在仓库里，CI 直接用，不需要游戏。它们进安装包：
 //   apps/desktop/build/mascot/  ← 图集、atlas.json、头像（extraResources → 安装目录的 resources/mascot）
 //   apps/desktop/build/icon.ico ← 应用图标（electron-builder 默认从 buildResources 取 icon.ico，安装程序的图标也用它）
-// 两处都被 git 忽略，每次先清空再复制，不会带上上一次的旧文件。
+//   apps/desktop/build/icon.icns ← macOS 的应用图标，由 icon.ico 生成（scripts/icns.ts，不引入新图像）
+// 这几处都被 git 忽略，每次先清空再复制，不会带上上一次的旧文件。
 //
 // 产物缺失时默认失败并说明怎么办：安装包是给人用的，悄悄换成占位图标和 CSS 占位的悦灵不容易被发现。
 // 确实要在没有游戏的机器上（CI）打包时，设 ALLAY_DIST_ALLOW_PLACEHOLDER=1：不放产物、不放图标
 // （electron-builder 用 Electron 的默认图标），应用运行时自动退回占位实现，并打印醒目的警告。
-import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ATLAS_SIZES, COMMITTED_FILES, HEAD_SIZES } from '../packages/mascot/src/atlas';
+import { icnsFromIco } from './icns';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const GENERATED = join(ROOT, 'packages/mascot/generated');
 const BUILD = join(ROOT, 'apps/desktop/build');
 const STAGE = join(BUILD, 'mascot');
 const ICON = join(BUILD, 'icon.ico');
+const ICNS = join(BUILD, 'icon.icns');
 
 /** 应用运行时用到的文件（应用图标的各尺寸 PNG 不需要） */
 export const RUNTIME_FILES: readonly string[] = [
@@ -33,6 +36,7 @@ export function stageMascot(opts: { generated?: string; build?: string; allowPla
   const icon = join(build, 'icon.ico');
   rmSync(stage, { recursive: true, force: true });
   rmSync(icon, { force: true });
+  rmSync(join(build, 'icon.icns'), { force: true });
   mkdirSync(stage, { recursive: true });
   const missing = COMMITTED_FILES.filter((f) => !existsSync(join(generated, f)));
   if (missing.length > 0) {
@@ -56,7 +60,11 @@ function main(): void {
   const allowPlaceholder = process.env.ALLAY_DIST_ALLOW_PLACEHOLDER === '1';
   try {
     const r = stageMascot({ allowPlaceholder });
-    if (r.mode === 'baked') console.log(`悦灵的烘焙产物已放进 ${STAGE} 和 ${ICON}。`);
+    if (r.mode === 'baked') {
+      // macOS 的应用图标从同一个 icon.ico 生成（scripts/icns.ts）；Windows 打包用不到它，生成了也无妨
+      writeFileSync(ICNS, icnsFromIco(readFileSync(ICON)));
+      console.log(`悦灵的烘焙产物已放进 ${STAGE}、${ICON} 和 ${ICNS}。`);
+    }
     else console.warn(`\n⚠ 警告：没有悦灵的烘焙产物（缺 ${r.missing.length} 个文件）。ALLAY_DIST_ALLOW_PLACEHOLDER=1：安装包使用占位图标和 CSS 占位的悦灵。\n`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
