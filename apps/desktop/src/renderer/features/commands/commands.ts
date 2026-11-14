@@ -133,7 +133,8 @@ export const CORE_COMMANDS: AnyCommand[] = [
     },
   },
   // 首次启动引导（6.10）：设置里的“重新运行引导”也是它
-  { id: 'onboarding', titleKey: key('onboarding'), category: 'help', icon: Compass, effect: 'read', run: () => useUiStore.getState().openOnboarding() },
+  // 一次性的整页流程，不能有快捷键（noShortcut），也就不出现在快捷键设置页
+  { id: 'onboarding', titleKey: key('onboarding'), category: 'help', icon: Compass, effect: 'read', noShortcut: true, run: () => useUiStore.getState().openOnboarding() },
 ];
 
 /** 快捷键的显示文字（Space → 空格等），定义在 shortcutState.ts */

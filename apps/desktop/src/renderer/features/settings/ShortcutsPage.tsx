@@ -15,10 +15,10 @@ import {
   type ReservedReason,
   type ShortcutOverrides,
 } from '../../../shared/shortcuts';
-import { COMMAND_CATEGORIES, runsWithoutInput, useCommands, type AnyCommand, type CommandCategory } from '../../app/registry';
+import { COMMAND_CATEGORIES, useCommands, type AnyCommand, type CommandCategory } from '../../app/registry';
 import { notify } from '../../stores/noticeStore';
 import { useUiStore } from '../../stores/uiStore';
-import { shortcutLabel, shortcutMap } from '../commands/shortcutState';
+import { bindableCommands, shortcutLabel, shortcutMap } from '../commands/shortcutState';
 import { SettingsPageHeader } from './layout';
 
 // 快捷键设置（docs/06-ui-design.md 6.11）：注册表里能不带参数执行的命令都列出来（可选模块的也在），按类别分组、可搜索。
@@ -29,11 +29,6 @@ type Pending = { id: string; key: string; conflict: string } | { id: string; res
 
 function save(next: ShortcutOverrides): void {
   useUiStore.getState().update({ shortcuts: next });
-}
-
-/** 设置页里列出的命令：能不带参数执行；只给程序调用的内部命令（不在命令面板、也没有默认快捷键）不列 */
-export function bindableCommands(commands: readonly AnyCommand[]): AnyCommand[] {
-  return commands.filter((c) => runsWithoutInput(c) && (!c.hideInPalette || c.shortcut));
 }
 
 function Recorder({ cmd, current, onDone }: { cmd: AnyCommand; current: string | null; onDone(key: string | null): void }) {

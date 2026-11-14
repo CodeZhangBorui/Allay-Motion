@@ -39,6 +39,11 @@ export interface CommandDef<I = void, O = void> {
   undoLabelKey?: string;
   /** 不在命令面板里列出（例如“打开命令面板”自己） */
   hideInPalette?: boolean;
+  /**
+   * 不能有快捷键：只在一次性的整页流程里才有意义的命令（打开首次启动引导、新手引导）。
+   * 不写默认快捷键，不出现在快捷键设置页，设置文件里给它记的自定义按键也不生效（docs/decisions.md 新手引导）
+   */
+  noShortcut?: boolean;
   enabled?(): boolean;
   run(input: I): O | Promise<O>;
 }
@@ -148,6 +153,7 @@ export function defineCommand<I = void, O = void>(def: CommandDef<I, O>): AnyCom
 }
 
 export function registerCommand<I, O>(def: CommandDef<I, O>): () => void {
+  if (def.noShortcut && def.shortcut) throw new Error(`command “${def.id}” is noShortcut but has a default shortcut`);
   return add('commands', def.id, def as unknown as AnyCommand);
 }
 
