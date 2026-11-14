@@ -19,3 +19,20 @@
   height: 100%;
 }
 
+
+/* 首次启动引导（docs/06-ui-design.md 6.10）：换步时内容淡入，只变透明度；减少动效时没有动画 */
+.onboarding-step {
+  animation: onboarding-step-in var(--dur-2) var(--ease-out) both;
+}
+@keyframes onboarding-step-in {
+  from {
+    opacity: 0;
+  }
+}
+[data-reduced-motion='true'] .onboarding-step {
+  animation: none;
+}
+/* 引导的面板是 surface-1：选项选中时外框的间隙用面板色 */
+[data-testid='onboarding'] {
+  --tile-gap: var(--surface-1);
+}

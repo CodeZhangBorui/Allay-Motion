@@ -14,6 +14,7 @@ import { ConfirmHost } from '../features/project/confirm';
 import { DiscoveryDialog, useShowDiscovery } from '../features/resources/DiscoveryDialog';
 import { useDropPacks } from '../features/resources/useDropPacks';
 import { SettingsDialog } from '../features/settings/SettingsDialog';
+import { Onboarding } from '../features/onboarding/Onboarding';
 import { resolveLanguage, systemLocale } from '../i18n';
 import { isDirty, useProjectStore } from '../stores/projectStore';
 import { useUiStore } from '../stores/uiStore';
@@ -92,6 +93,8 @@ function DropOverlay() {
 export function App() {
   const settings = useUiStore((s) => s.settings);
   const dialog = useUiStore((s) => s.dialog);
+  // 首次启动引导（6.10）：新装时自动出现，设置里可以重新运行；开着时主界面不可交互（inert）
+  const onboarding = useUiStore((s) => s.onboardingOpen || !s.settings.onboardingCompleted);
   const { i18n } = useTranslation();
   useThemeSync(settings);
   useShortcuts();
@@ -114,7 +117,7 @@ export function App() {
     <IconContext.Provider value={ICON_DEFAULTS}>
     <TooltipProvider delay={400}>
       <EditorServicesProvider>
-        <div className="flex h-full flex-col bg-background">
+        <div className="flex h-full flex-col bg-background" inert={onboarding || undefined}>
           <ErrorBoundary scope="topbar">
             <TopBar />
           </ErrorBoundary>
@@ -133,7 +136,7 @@ export function App() {
               {dialog === 'saveTemplate' && <SaveTemplateDialog />}
             </ErrorBoundary>
           )}
-          {showDiscovery && dialog !== 'export' && (
+          {showDiscovery && dialog !== 'export' && !onboarding && (
             <ErrorBoundary scope="dialog.discovery" variant="overlay">
               <DiscoveryDialog />
             </ErrorBoundary>
@@ -141,10 +144,16 @@ export function App() {
           <ErrorBoundary scope="dialog.confirm" variant="overlay">
             <ConfirmHost />
           </ErrorBoundary>
-          <Toaster />
           {dragging && <DropOverlay />}
           {delivery && !dragging && <AllayDelivery key={delivery.id} {...delivery} size={DROP_ALLAY} onDone={endDelivery} />}
         </div>
+        {onboarding && (
+          // 引导出错时显示错误层；关掉它就当跳过了引导（之后可以在设置里重新运行），不会把人困在一个坏掉的整页上
+          <ErrorBoundary scope="onboarding" variant="overlay" onClose={() => useUiStore.getState().finishOnboarding()}>
+            <Onboarding />
+          </ErrorBoundary>
+        )}
+        <Toaster />
       </EditorServicesProvider>
     </TooltipProvider>
     </IconContext.Provider>
