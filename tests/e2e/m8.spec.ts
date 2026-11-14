@@ -167,7 +167,7 @@ test('M8 WebGL2 不可用：显示说明页和诊断信息，不白屏', async (
     await expect(page.getByTestId('no-webgl')).toBeVisible();
     await expect(page.getByTestId('topbar')).toHaveCount(0);
     await expect(page.getByTestId('no-webgl-diagnostics')).toContainText('webgl2: no');
-    await expect(page.getByTestId('no-webgl-diagnostics')).toContainText('version: 0.1.0');
+    await expect(page.getByTestId('no-webgl-diagnostics')).toContainText('version: 0.1.1');
     const title = await page.locator('h1').textContent();
     expect(title && title.trim().length > 0).toBe(true);
     await page.getByTestId('no-webgl-copy').click();
