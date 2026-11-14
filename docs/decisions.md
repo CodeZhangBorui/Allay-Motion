@@ -1488,7 +1488,7 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 ## 安装时临时空间不足（2026-11-14，0.1.2 之后）
 
 - 现象：仓库所有者装 0.1.2（覆盖 0.1.1）后应用打不开。安装目录的 `debug.log` 里是 `FATAL:gin\v8_initializer.cc:664] Error loading V8 startup snapshot file`；安装目录只有 99 个文件里的一部分：`resources\ffmpeg\win32-x64\ffmpeg.exe` 只写了 107 MB（应为 132 MB），按安装包里的顺序排在它之后的文件（字体、悦灵、模板、`resources.pak`、`v8_context_snapshot.bin` 等）全没有。下载的安装包 SHA-256 与 Release 一致，7za 能完整解出，用同一个安装包静默重装，结果仍是同样的半截。
-- 原因：electron-builder 26 的安装程序（`templates/nsis/include/extractAppPackage.nsh` 的 `extractUsing7za`）先把整个应用解压到 `$PLUGINSDIRz-out`（在 `%TEMP%` 里，连同 7z 本身约 700 MB），再 `CopyFiles` 进安装目录；`Nsis7z::Extract` 的失败不检查。那台机器的 C 盘只剩约 600 MB，解压到中途写满，安装程序照样复制已解出的部分、返回 0，旧版本此前已被卸掉。把 `TEMP` 指到 E 盘后同一个安装包装出完整的 100 个文件，应用正常启动。
+- 原因：electron-builder 26 的安装程序（`templates/nsis/include/extractAppPackage.nsh` 的 `extractUsing7za`）先把整个应用解压到 `$PLUGINSDIR\7z-out`（在 `%TEMP%` 里，连同 7z 本身约 700 MB），再 `CopyFiles` 进安装目录；`Nsis7z::Extract` 的失败不检查。那台机器的 C 盘只剩约 600 MB，解压到中途写满，安装程序照样复制已解出的部分、返回 0，旧版本此前已被卸掉。把 `TEMP` 指到 E 盘后同一个安装包装出完整的 100 个文件，应用正常启动。
 - 改法：
   - 安装程序：`scripts/dist-extras.ts` 生成的 `installer.nsh` 加 `customInit`（`.onInit` 里，早于卸载旧版本），临时文件夹所在磁盘不足 1024 MB（`INSTALL_TEMP_SPACE_MB`）时弹中英文提示并以退出码 2 退出（静默安装不弹窗）。
   - 应用内更新：启动安装程序前查系统临时文件夹所在磁盘；不够时把安装程序的 `TEMP`/`TMP` 设为安装目录旁边的 `AllayMotion-update-temp`（在安装盘上），也不够就报“空间不足”、不启动安装程序，状态留在“已下载”可以再点安装。下载前也查下载目录的空间。启动时清掉半成品、不比当前新的安装包和那个备用临时文件夹。
