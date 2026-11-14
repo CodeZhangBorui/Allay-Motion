@@ -23,7 +23,7 @@ import { TemplateDevService } from './templates/dev-service';
 import { TemplateWatcher } from './templates/dev-watcher';
 import { TEMPLATE_API_DTS } from './templates/template-api-dts';
 import { HostCommandChannel } from './host-commands';
-import { filesFromArgv, OpenFileQueue } from './open-files';
+import { filesFromArgv, filesFromOpenEvent, OpenFileQueue } from './open-files';
 import { Splash } from './splash';
 import { createMainWindow } from './window';
 import { startup } from './startup-timing';
@@ -138,6 +138,12 @@ if (!app.requestSingleInstanceLock()) {
   const openFiles = new OpenFileQueue({ run: (command, input, opts) => hostCommands.run(command, input, opts), log });
   if (testSwitches.testHooks) (globalThis as { __allayOpenFiles?: OpenFileQueue }).__allayOpenFiles = openFiles;
   openFiles.enqueue(filesFromArgv(process.argv, process.cwd()));
+  // macOS 不经启动参数传关联文件，而是发 open-file（应用没开时在 ready 之前就会来，所以在这里就注册）；
+  // 应用开着时系统也把它交给已有的进程，不会起第二实例。Windows 上不会有这个事件
+  app.on('open-file', (event, path) => {
+    event.preventDefault();
+    openFiles.enqueue(filesFromOpenEvent(path));
+  });
 
   app.on('second-instance', (_event, argv, workingDirectory) => {
     openFiles.enqueue(filesFromArgv(argv, workingDirectory));

@@ -80,7 +80,8 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
 
   handle(IPC.window.setTitleBarColors, (_event, colors) => {
     const win = getMainWindow();
-    if (!win || win.isDestroyed()) return;
+    // macOS 的窗口按钮（红绿灯）由系统绘制，颜色不可设（setTitleBarOverlay 只在 Windows、Linux 上有效）
+    if (!win || win.isDestroyed() || process.platform === 'darwin') return;
     win.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_OVERLAY_HEIGHT });
   });
 

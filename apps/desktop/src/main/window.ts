@@ -39,7 +39,9 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     show: false,
     skipTaskbar: opts.hiddenForTests,
     backgroundColor: colors.background,
-    // 无边框窗口加系统窗口按钮（6.3）
+    // 无边框窗口加系统窗口按钮（6.3）。Windows 上按钮在右边、颜色跟主题；macOS 上是左边的红绿灯，
+    // titleBarOverlay 在那里只用 height（按钮在顶栏里竖直居中）并打开 Window Controls Overlay 的 CSS 变量，
+    // 顶栏据 env(titlebar-area-x) 给红绿灯让出位置（TopBar.tsx）
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: colors.titleBar, symbolColor: colors.titleBarSymbol, height: TITLEBAR_OVERLAY_HEIGHT },
     webPreferences: {

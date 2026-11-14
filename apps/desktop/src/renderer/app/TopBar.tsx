@@ -130,9 +130,11 @@ export function TopBar() {
   return (
     <header
       data-testid="topbar"
-      className="app-drag relative flex h-topbar shrink-0 items-center gap-1 bg-background pl-2"
+      className="app-drag relative flex h-topbar shrink-0 items-center gap-1 bg-background"
       style={{
-        // 系统窗口按钮（title bar overlay）占用的宽度
+        // 系统窗口按钮（title bar overlay）占用的宽度：Windows 在右边；macOS 的红绿灯在左边（titlebar-area-x），
+        // Windows 上 titlebar-area-x 是 0，左边距就是原来的 8px
+        paddingLeft: 'calc(env(titlebar-area-x, 0px) + 8px)',
         paddingRight: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 6px)',
       }}
     >

@@ -52,6 +52,15 @@ export function filesFromArgv(argv: readonly string[], cwd: string): OpenFileReq
   return out;
 }
 
+/**
+ * macOS：双击关联文件、拖到程序坞图标上时，路径不在进程参数里，而是经 app 的 open-file 事件给出（总是绝对路径）。
+ * 与启动参数同样只认关联的扩展名，不是绝对路径的忽略。
+ */
+export function filesFromOpenEvent(path: string): OpenFileRequest[] {
+  if (!isAbsolute(path)) return [];
+  return filesFromArgv(['', path], '/');
+}
+
 export class OpenFileQueue {
   private readonly queue: OpenFileRequest[] = [];
   private readonly tokens = new Map<string, OpenFileRequest>();

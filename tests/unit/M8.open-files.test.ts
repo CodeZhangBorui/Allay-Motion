@@ -1,5 +1,6 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { filesFromArgv, MAX_FILES_PER_LAUNCH, OPEN_COMMANDS, OpenFileQueue } from '../../apps/desktop/src/main/open-files';
+import { filesFromArgv, filesFromOpenEvent, MAX_FILES_PER_LAUNCH, OPEN_COMMANDS, OpenFileQueue } from '../../apps/desktop/src/main/open-files';
 import type { HostCommandOutcome } from '../../apps/desktop/src/shared/host-commands';
 import { createLogger } from '../../apps/desktop/src/main/logger';
 
@@ -29,6 +30,18 @@ describe('M8 文件关联：从进程参数里挑文件', () => {
   });
   it('带 NUL 或超长的参数忽略', () => {
     expect(filesFromArgv(['exe', 'C:\\a\0b.allay', `C:\\${'a'.repeat(5000)}.allay`], 'C:\\')).toEqual([]);
+  });
+});
+
+describe('macOS 的 open-file 事件', () => {
+  it('绝对路径、关联的扩展名才算；相对路径和别的扩展名忽略', () => {
+    const project = resolve('/Users/x/Movies/intro.allay');
+    const template = resolve('/Users/x/Downloads/pack.ALLAYTPL');
+    expect(filesFromOpenEvent(project)).toEqual([{ kind: 'project', path: project }]);
+    expect(filesFromOpenEvent(template)).toEqual([{ kind: 'template', path: template }]);
+    expect(filesFromOpenEvent(resolve('/Users/x/notes.txt'))).toEqual([]);
+    expect(filesFromOpenEvent('intro.allay')).toEqual([]);
+    expect(filesFromOpenEvent(`${resolve('/a')}\0b.allay`)).toEqual([]);
   });
 });
 
