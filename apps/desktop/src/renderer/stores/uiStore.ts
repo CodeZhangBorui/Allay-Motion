@@ -24,8 +24,10 @@ interface UiState {
   settings: UiSettings;
   dialog: DialogName;
   resourcesOpen: boolean;
-  /** 设置对话框打开时的页 */
-  settingsPage: 'general' | 'assets' | 'export' | 'shortcuts' | 'about';
+  /** 设置对话框打开时的页（注册表里设置页的 id，6.11） */
+  settingsPage: string;
+  /** 首次启动引导开着（第一次启动，或设置里点了“重新运行引导”，6.10） */
+  onboardingOpen: boolean;
   /** 左右面板当前的标签页（注册表里面板的 id） */
   leftTab: string;
   rightTab: string;
@@ -47,7 +49,11 @@ interface UiState {
   setEditor(patch: Partial<Omit<EditorPrefs, 'groups' | 'recent'>>): void;
   setGroupCollapsed(templateId: string, group: string, collapsed: boolean): void;
   addRecent(kind: RecentKind, value: string): void;
-  openDialog(dialog: DialogName, page?: UiState['settingsPage']): void;
+  openDialog(dialog: DialogName, page?: string): void;
+  /** 打开引导（关掉别的对话框） */
+  openOnboarding(): void;
+  /** 引导走完或跳过：记进设置，之后不再自动出现 */
+  finishOnboarding(): void;
   setResourcesOpen(open: boolean): void;
   bumpPresets(): void;
   setSearchOpen(open: boolean): void;
@@ -81,6 +87,7 @@ function persistEditor(patch: NonNullable<UiSettingsPatch['editor']>): void {
 export const useUiStore = create<UiState>((set, get) => ({
   settings: defaultUiSettings(),
   dialog: null,
+  onboardingOpen: false,
   resourcesOpen: false,
   settingsPage: 'general',
   leftTab: 'templates',
@@ -136,6 +143,11 @@ export const useUiStore = create<UiState>((set, get) => ({
     persistEditor({ recent });
   },
   openDialog: (dialog, page) => set((s) => ({ dialog, settingsPage: page ?? s.settingsPage })),
+  openOnboarding: () => set({ onboardingOpen: true, dialog: null, resourcesOpen: false }),
+  finishOnboarding: () => {
+    set({ onboardingOpen: false });
+    if (!get().settings.onboardingCompleted) get().update({ onboardingCompleted: true });
+  },
   setResourcesOpen: (resourcesOpen) => set({ resourcesOpen }),
   bumpPresets: () => set((s) => ({ presetsVersion: s.presetsVersion + 1 })),
   setSearchOpen: (searchOpen) => set({ searchOpen }),

@@ -1,3 +1,4 @@
+import type { Icon } from '@phosphor-icons/react';
 import type { ComponentType } from 'react';
 import type { z } from 'zod';
 import { create } from 'zustand';
@@ -13,12 +14,22 @@ import { withOrigin, type UndoOrigin } from '../stores/projectStore';
 /** 命令对工程的影响：只读、可撤销的修改、不可撤销的（删除、覆盖文件等） */
 export type CommandEffect = 'read' | 'write' | 'destructive';
 
+/** 快捷键设置页的分组（6.11）；没写的归“其他” */
+export const COMMAND_CATEGORIES = ['playback', 'edit', 'file', 'view', 'templates', 'export', 'help', 'other'] as const;
+export type CommandCategory = (typeof COMMAND_CATEGORIES)[number];
+
 export interface CommandDef<I = void, O = void> {
   id: string;
   /** 标题的文案键（命令面板、菜单、快捷键表都用它） */
   titleKey: string;
-  /** 显示用的快捷键（如 'Ctrl+Shift+Z'、'Space'、'L'）；快捷键处理也按它匹配 */
+  /**
+   * 默认快捷键（如 'Ctrl+Shift+Z'、'Space'、'L'，写法见 shared/shortcuts.ts）。用户可以在设置里改（ui.shortcuts），
+   * 显示和匹配都用生效的那个（features/commands/shortcutState.ts），不直接读这个字段
+   */
   shortcut?: string;
+  /** 快捷键设置页里的分组和图标（Phosphor） */
+  category?: CommandCategory;
+  icon?: Icon;
   /** 带参数的命令：参数的 schema（dispatcher 先校验再执行）；没有参数的命令不写 */
   input?: z.ZodType<I>;
   /** 有返回值的命令：返回值的 schema */
@@ -82,15 +93,31 @@ export interface MenuItemDef {
   testId?: string;
 }
 
+// ---------------------------------------------------------------- 设置页的分类
+
+export interface SettingsPageDef {
+  /** 页的 id（'settings' 命令的 page 参数），小写字母、数字和连字符 */
+  id: string;
+  titleKey: string;
+  /** 页标题下的一句说明 */
+  descriptionKey?: string;
+  icon: Icon;
+  order: number;
+  component: ComponentType;
+}
+
+export const SettingsPageIdSchemaSource = /^[a-z][a-z0-9-]{0,31}$/;
+
 // ---------------------------------------------------------------- 存储与接口
 
 interface RegistryState {
   commands: Record<string, AnyCommand>;
   panels: Record<string, PanelDef>;
   menuItems: Record<string, MenuItemDef>;
+  settingsPages: Record<string, SettingsPageDef>;
 }
 
-export const useRegistry = create<RegistryState>(() => ({ commands: {}, panels: {}, menuItems: {} }));
+export const useRegistry = create<RegistryState>(() => ({ commands: {}, panels: {}, menuItems: {}, settingsPages: {} }));
 
 function add<K extends keyof RegistryState>(kind: K, id: string, value: RegistryState[K][string]): () => void {
   const state = useRegistry.getState();
@@ -120,6 +147,11 @@ export function registerPanel(def: PanelDef): () => void {
 
 export function registerMenuItem(def: MenuItemDef): () => void {
   return add('menuItems', def.id, def);
+}
+
+export function registerSettingsPage(def: SettingsPageDef): () => void {
+  if (!SettingsPageIdSchemaSource.test(def.id)) throw new Error(`invalid settings page id “${def.id}”`);
+  return add('settingsPages', def.id, def);
 }
 
 export function getCommand(id: string): AnyCommand | undefined {
@@ -195,6 +227,17 @@ export function useMenuGroups(menu: MenuId): MenuItemDef[][] {
     else groups.push([m]);
   }
   return groups;
+}
+
+/** 设置页的分类，按 order 排序 */
+export function useSettingsPages(): SettingsPageDef[] {
+  const pages = useRegistry((s) => s.settingsPages);
+  return Object.values(pages).sort(byOrder);
+}
+
+/** 不带参数也能执行的命令（快捷键只能这样触发，所以只有它们能绑快捷键） */
+export function runsWithoutInput(cmd: AnyCommand): boolean {
+  return !cmd.input || cmd.input.safeParse(undefined).success;
 }
 
 /** 全部命令，按注册顺序 */
