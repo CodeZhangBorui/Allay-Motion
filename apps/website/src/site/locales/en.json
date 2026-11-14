@@ -34,7 +34,8 @@
     "pause": "Pause",
     "scrub": "Time",
     "starting": "Starting the render engine…",
-    "noWebgl": "This browser doesn’t support WebGL2, so the live preview can’t run."
+    "noWebgl": "This browser doesn’t support WebGL2, so the live preview can’t run.",
+    "mcAssets": "Block and item textures on this page come from Minecraft {{version}}, © Mojang / Microsoft, and are shown here for demonstration only. The desktop app reads your installed game and resource packs; no game files ship with it."
   },
   "sim": {
     "kicker": "Simulator",
@@ -149,6 +150,8 @@
   "host": {
     "demoPackName": "Web demo colors",
     "demoPackDescription": "Flat colors generated in the page, not game textures",
-    "exportTarget": "Web demo: every frame was rendered, but there is no FFmpeg in the browser, so no file was written"
+    "exportTarget": "Web demo: every frame was rendered, but there is no FFmpeg in the browser, so no file was written",
+    "mcPackName": "Vanilla {{version}}",
+    "mcPackDescription": "Website demo only: from the licensed game, © Mojang / Microsoft"
   }
 }

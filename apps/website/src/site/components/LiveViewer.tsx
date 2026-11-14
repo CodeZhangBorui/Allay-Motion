@@ -7,6 +7,7 @@ import { Pause, Play } from '@phosphor-icons/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TemplateEntry } from '../../../../desktop/src/shared/templates';
+import { mcGameVersion } from '../../host/mc-pack';
 import { builtinEntries } from '../../host/templates';
 import { usePrefs } from '../prefs';
 import type { LivePreview, LiveState } from '../engine/runtime';
@@ -238,7 +239,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between text-[11.5px] text-fg-subtle">
-          <span>{t('site.hero.demoAssets')}</span>
+          <span data-testid="assets-note">{mcGameVersion ? t('site.hero.mcAssets', { version: mcGameVersion }) : t('site.hero.demoAssets')}</span>
           <span ref={timeRef} className="num hidden shrink-0 pl-4 sm:inline" />
         </div>
       </div>

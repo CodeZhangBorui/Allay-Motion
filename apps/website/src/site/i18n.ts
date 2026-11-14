@@ -38,6 +38,8 @@ export function hostMessages() {
   return {
     demoPackName: { 'zh-CN': zhCN.host.demoPackName, en: en.host.demoPackName },
     demoPackDescription: { 'zh-CN': zhCN.host.demoPackDescription, en: en.host.demoPackDescription },
+    mcPackName: { 'zh-CN': zhCN.host.mcPackName, en: en.host.mcPackName },
+    mcPackDescription: { 'zh-CN': zhCN.host.mcPackDescription, en: en.host.mcPackDescription },
     exportTarget: { 'zh-CN': zhCN.host.exportTarget, en: en.host.exportTarget },
   };
 }

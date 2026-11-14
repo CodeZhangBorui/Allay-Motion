@@ -5,7 +5,7 @@
 //    官网就多一个，不用改官网代码（tests/engine/vite.config.ts 用的是同一个办法）。
 // 2. 方舟像素字体（兜底字形，OFL-1.1）以文本打进仿真器的代码块；OFL 要求随字体附带许可全文，
 //    构建时把 resources/fonts/ark-pixel/OFL.txt 原样放进产物的 licenses/ 下。
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import { bundleTemplate, readTemplateManifest, templateDirs } from '../../../scripts/build-templates';
@@ -27,6 +27,27 @@ export function builtinTemplates(): Plugin {
         out.push({ manifest, code: await bundleTemplate(dir) });
       }
       return `export default ${JSON.stringify(out)};`;
+    },
+  };
+}
+
+const MC_VIRTUAL = 'virtual:allay-website-mc';
+const MC_INDEX = resolve(import.meta.dirname, '../public/mc/index.json');
+
+/**
+ * virtual:allay-website-mc：public/mc/ 里有哪些原版贴图（pnpm website:mc 提取的，docs/decisions.md 官网 · 原版素材）。
+ * 页面据此决定读真实贴图还是用生成的色块，不用试探着请求（免得静态托管上出现 404）。没有提取时是 null。
+ */
+export function websiteMc(): Plugin {
+  return {
+    name: 'allay-website-mc',
+    resolveId: (id) => (id === MC_VIRTUAL ? `\0${MC_VIRTUAL}` : null),
+    load(id) {
+      if (id !== `\0${MC_VIRTUAL}`) return null;
+      if (!existsSync(MC_INDEX)) return 'export default null;';
+      this.addWatchFile(MC_INDEX);
+      const index = JSON.parse(readFileSync(MC_INDEX, 'utf8')) as { gameVersion: string; files: { path: string }[] };
+      return `export default ${JSON.stringify({ gameVersion: index.gameVersion, files: index.files.map((f) => f.path) })};`;
     },
   };
 }

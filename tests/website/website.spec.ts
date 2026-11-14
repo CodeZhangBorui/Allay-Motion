@@ -1,6 +1,6 @@
 // 官网的冒烟测试（T-WEB-*，docs/decisions.md 官网）。在 Electron 自带的 Chromium 里打开 vite preview 起的构建产物，窗口不显示。
 // 仿真器 iframe 带 ?e2e，里面装着桌面版同一套测试钩子（window.__allayTest），用它读预览画布的像素。
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Frame, type Page } from '@playwright/test';
@@ -98,6 +98,14 @@ test('T-WEB-1 页面能加载：首屏实时预览就绪，模板一个不少，
   await scrollThrough(page);
   // 模板卡片里的帧都由封面服务渲染出来了（不是截图）
   await expect(page.getByTestId('template-sheet')).toHaveCount(TEMPLATE_COUNT, { timeout: 90_000 });
+  // 用了官网专用的原版贴图时，页面上写明来源和版权（docs/decisions.md 官网 · 原版素材）
+  const mcIndex = join(ROOT, 'apps/website/public/mc/index.json');
+  if (existsSync(mcIndex)) {
+    const { gameVersion } = JSON.parse(readFileSync(mcIndex, 'utf8')) as { gameVersion: string };
+    const note = page.getByTestId('assets-note').first();
+    await expect(note).toContainText('Mojang');
+    await expect(note).toContainText(gameVersion);
+  }
   expect(s.errors).toEqual([]);
   expect(await externalRequests(s.app)).toEqual([]);
 });

@@ -1,0 +1,918 @@
+{
+  "formatVersion": 1,
+  "gameVersion": "1.21.1",
+  "releaseTime": "2024-08-08T12:24:45+00:00",
+  "extractedFrom": "versions/1.21.1/1.21.1.jar",
+  "files": [
+    {
+      "path": "assets/minecraft/textures/block/amethyst_block.png",
+      "sha256": "03c7a9fbacf1cb89fe1265e2ef79cf39df6089c416a626b144bca448b2cd276e",
+      "bytes": 212
+    },
+    {
+      "path": "assets/minecraft/textures/block/bedrock.png",
+      "sha256": "52f57443f329e53404c73c697ffd75770f1e2abf935a28315621fb0ca94b7571",
+      "bytes": 169
+    },
+    {
+      "path": "assets/minecraft/textures/block/birch_leaves.png",
+      "sha256": "42ba8c5b9aaecef27ce17b730abd45ebebd8240811b78bb836088ed58e89c332",
+      "bytes": 198
+    },
+    {
+      "path": "assets/minecraft/textures/block/birch_log.png",
+      "sha256": "cebcca1885e46164bf028cb7d1c2df6cb391da0e792b3d9c99641577d0c8baaf",
+      "bytes": 208
+    },
+    {
+      "path": "assets/minecraft/textures/block/birch_log_top.png",
+      "sha256": "7127d988e865ddaa53faa23251b8703c3c4003d0f82f35489daee2a39a562c4e",
+      "bytes": 239
+    },
+    {
+      "path": "assets/minecraft/textures/block/birch_planks.png",
+      "sha256": "cdbfdcd32d0241c5c6c0179e323cc1a3198b5a86a2936f0553850ffbb9666797",
+      "bytes": 202
+    },
+    {
+      "path": "assets/minecraft/textures/block/black_concrete.png",
+      "sha256": "0d2f1cf4f6b7f1abada383bb2dbeb4bf274628a65793b2d388805dd8a5c1b0cb",
+      "bytes": 172
+    },
+    {
+      "path": "assets/minecraft/textures/block/black_terracotta.png",
+      "sha256": "22384ced217ef531cac2ed9bb3e6d8ecc4405525a1eede5308f861b9e807a3ec",
+      "bytes": 334
+    },
+    {
+      "path": "assets/minecraft/textures/block/black_wool.png",
+      "sha256": "ca2d4dc4ee191a3d49bf3ed4a097f0e817bbfd34d6b3424d12d54ad14c7f8ec4",
+      "bytes": 364
+    },
+    {
+      "path": "assets/minecraft/textures/block/blue_concrete.png",
+      "sha256": "02e4177ac67b4cb29c8ebbcdc7ba1980acac9f9c3f83c119bccb839b48cb983f",
+      "bytes": 172
+    },
+    {
+      "path": "assets/minecraft/textures/block/blue_terracotta.png",
+      "sha256": "793604d49d52bf7a7bfa44b7f37479cf4a945be1d8b12a7cf57ed67149e67bbb",
+      "bytes": 390
+    },
+    {
+      "path": "assets/minecraft/textures/block/blue_wool.png",
+      "sha256": "d648659165a4b450323de777533b1c1eb3978655c967508bf8ecb6daff1e2854",
+      "bytes": 382
+    },
+    {
+      "path": "assets/minecraft/textures/block/bookshelf.png",
+      "sha256": "a1c9dd1cdd60c60dbd285645af578e4e3f473704489ccab6d329071842f70197",
+      "bytes": 319
+    },
+    {
+      "path": "assets/minecraft/textures/block/bricks.png",
+      "sha256": "33f9411f1cb233a2020df0cf3fda32c0f67a4b0fac3751bde2ba6f2fee81b169",
+      "bytes": 216
+    },
+    {
+      "path": "assets/minecraft/textures/block/brown_concrete.png",
+      "sha256": "c5c9faa80b7d6da6ba02981ce9059ba602b24efe71092c9e25571273e40ba25f",
+      "bytes": 176
+    },
+    {
+      "path": "assets/minecraft/textures/block/brown_terracotta.png",
+      "sha256": "88f43c0d3544385de2d0ea4b45654394ea37c592d83d04943d47ab18dc1b58b5",
+      "bytes": 385
+    },
+    {
+      "path": "assets/minecraft/textures/block/brown_wool.png",
+      "sha256": "d6bfcd1e5a8ecef072201c73ba6b8e50dd4a6065cd504e8413da8413c6d0fd60",
+      "bytes": 381
+    },
+    {
+      "path": "assets/minecraft/textures/block/coal_block.png",
+      "sha256": "4314b09718c2d53f477c41f1cf4ff23a7e8e048bf63e4e5f84addc049cc8ee81",
+      "bytes": 181
+    },
+    {
+      "path": "assets/minecraft/textures/block/coal_ore.png",
+      "sha256": "5088136494a0109d597c1bcdce6f8ba74b4284703ee71a95f4134db03e7df5f2",
+      "bytes": 235
+    },
+    {
+      "path": "assets/minecraft/textures/block/cobblestone.png",
+      "sha256": "bcda95fdf5afa91747657aa198fc0b69ebf44141de30a718075f74045e9a5def",
+      "bytes": 200
+    },
+    {
+      "path": "assets/minecraft/textures/block/copper_block.png",
+      "sha256": "e5587b25d698a33eaa84b4f9faca00115cf91ff01e0340004c604913a1b2b22c",
+      "bytes": 214
+    },
+    {
+      "path": "assets/minecraft/textures/block/copper_ore.png",
+      "sha256": "b83ac68ddccbd37b2fd61f80443e0c7b43fc5bbf9d33dec5b40a167fd0456ad6",
+      "bytes": 261
+    },
+    {
+      "path": "assets/minecraft/textures/block/crafting_table_front.png",
+      "sha256": "16c23b5802c71aa439b9d5a5707d304f1cf84d45a08c146aa4078cd5073067f2",
+      "bytes": 271
+    },
+    {
+      "path": "assets/minecraft/textures/block/crafting_table_side.png",
+      "sha256": "c962364f8165a2702ceb42eed59f1983194e4b7fd0a08de8790617f6c06bbaab",
+      "bytes": 265
+    },
+    {
+      "path": "assets/minecraft/textures/block/crafting_table_top.png",
+      "sha256": "8046b35b6ed5696ec21a0135b8a897f35acd7f2500b6b2e4b5b28ae4d25ac76c",
+      "bytes": 211
+    },
+    {
+      "path": "assets/minecraft/textures/block/crying_obsidian.png",
+      "sha256": "11946c37514ae6b6d9c7a8a49220ff8fbd3a378caa9a23f627a3c7aa67c3c98c",
+      "bytes": 227
+    },
+    {
+      "path": "assets/minecraft/textures/block/cyan_concrete.png",
+      "sha256": "137591d295aa6c13558621c8fa24053420b89a2c65477c5daff3f8c0d9518c49",
+      "bytes": 182
+    },
+    {
+      "path": "assets/minecraft/textures/block/cyan_terracotta.png",
+      "sha256": "0a5b6294554ab6152626f48aa9ac35d0a6239302f3e8f5199f90c103393df7d2",
+      "bytes": 444
+    },
+    {
+      "path": "assets/minecraft/textures/block/cyan_wool.png",
+      "sha256": "9c388570eca46cc62628360c34368747e8fd670c99319b2cb195d4af5646a9b0",
+      "bytes": 372
+    },
+    {
+      "path": "assets/minecraft/textures/block/dark_oak_planks.png",
+      "sha256": "2bccdc1ef269b7ae6050d46b70071ead5c3ad4c3a16e3f6baf24fc629752b8bc",
+      "bytes": 202
+    },
+    {
+      "path": "assets/minecraft/textures/block/deepslate.png",
+      "sha256": "b4c5e7f5538608a371fd4c1f6b398e4b76f723702d10144432636a85a1a61832",
+      "bytes": 185
+    },
+    {
+      "path": "assets/minecraft/textures/block/deepslate_bricks.png",
+      "sha256": "18bd891e8b1b9520005c6dd436560873faadcac113eeac6948499ca52a3f9a2a",
+      "bytes": 197
+    },
+    {
+      "path": "assets/minecraft/textures/block/deepslate_top.png",
+      "sha256": "920bdd201cfe0caef83c9ed483b705998feeaab6ff9ee9260e08a3a86260ff81",
+      "bytes": 191
+    },
+    {
+      "path": "assets/minecraft/textures/block/diamond_block.png",
+      "sha256": "93a63fa544d416188412584fffdf01e7fcb218f8a7e9f3e82232e773fc207fc9",
+      "bytes": 218
+    },
+    {
+      "path": "assets/minecraft/textures/block/diamond_ore.png",
+      "sha256": "79abdde719a9bdf99279ab3f19b90da8e949c6c7cb7dcf453e0c3ce1f568577f",
+      "bytes": 235
+    },
+    {
+      "path": "assets/minecraft/textures/block/dirt.png",
+      "sha256": "1f0f0e619e7dfe683ea45b9254859f14b0ed5f1debdb242ea878828575be5bf0",
+      "bytes": 200
+    },
+    {
+      "path": "assets/minecraft/textures/block/emerald_block.png",
+      "sha256": "ea814555c745af25c199caa155d0816c48424a5cc623454274373db037d5a843",
+      "bytes": 193
+    },
+    {
+      "path": "assets/minecraft/textures/block/emerald_ore.png",
+      "sha256": "692ef7e7622bab160bc3624bf73697ad4ae7b86173213ab7d2367069ae5c1972",
+      "bytes": 247
+    },
+    {
+      "path": "assets/minecraft/textures/block/end_stone.png",
+      "sha256": "48eadb631e434beb46f380440db106519da1e692e74954a8bd2c987d6c978d76",
+      "bytes": 206
+    },
+    {
+      "path": "assets/minecraft/textures/block/furnace_front.png",
+      "sha256": "809df7f59ef95a65da1dc2c7c86b5c6288a93dea2fde8ee506ee1e2b753397cb",
+      "bytes": 254
+    },
+    {
+      "path": "assets/minecraft/textures/block/furnace_side.png",
+      "sha256": "3e3673a0c87a636b51e6ceb33081dda1fd3c89fe0c013d69c0244487e3b65d52",
+      "bytes": 243
+    },
+    {
+      "path": "assets/minecraft/textures/block/furnace_top.png",
+      "sha256": "d92e36ac9025e4cb46e450ac3bd21692f50c54ebc9373c512530247fc1c2b65c",
+      "bytes": 215
+    },
+    {
+      "path": "assets/minecraft/textures/block/glass.png",
+      "sha256": "cb89c706dce86eac3123cef087d359b5f23098b658a468fb91662b4a9922bcd0",
+      "bytes": 147
+    },
+    {
+      "path": "assets/minecraft/textures/block/glowstone.png",
+      "sha256": "1715e4d1e3209d5931f468b96fd67ca280e4ba27ce993aec6f66c57bf8bf369b",
+      "bytes": 225
+    },
+    {
+      "path": "assets/minecraft/textures/block/gold_block.png",
+      "sha256": "a66720b7a7a3a253ae02ac9ebafeb74fbe1e933dac1c752c8cd18bcd75422509",
+      "bytes": 218
+    },
+    {
+      "path": "assets/minecraft/textures/block/gold_ore.png",
+      "sha256": "e9228a6ea34328cf37dadef5953f4474ccc7321ab34bf1656dda3effb02eb69d",
+      "bytes": 241
+    },
+    {
+      "path": "assets/minecraft/textures/block/grass_block_side.png",
+      "sha256": "ab572ac7ebd373abdeb961de1f3cba0afcd91e1acb700745ece4f719790bae3d",
+      "bytes": 345
+    },
+    {
+      "path": "assets/minecraft/textures/block/grass_block_side_overlay.png",
+      "sha256": "43d98318407d9d122b83468cf183d18722e548c2144f9c2ffe2021b5c3e770e0",
+      "bytes": 177
+    },
+    {
+      "path": "assets/minecraft/textures/block/grass_block_top.png",
+      "sha256": "52f44b64ce884a13dfe35e4b4da2e35898b790dd4d7a5ea536f1b0c0d56d29b4",
+      "bytes": 298
+    },
+    {
+      "path": "assets/minecraft/textures/block/gravel.png",
+      "sha256": "cc9feb24f18337c9a4f01ca0c28a61bc2f0c629962d4f002c23623528c5ca0ea",
+      "bytes": 216
+    },
+    {
+      "path": "assets/minecraft/textures/block/gray_concrete.png",
+      "sha256": "cf20082db6204d0abe96f4ae66569d45e3f5d111be39f2c4426806c6b20e4c10",
+      "bytes": 154
+    },
+    {
+      "path": "assets/minecraft/textures/block/gray_terracotta.png",
+      "sha256": "e81447ecbe3ab9478ac8a8c9f472ddc2c770924ef55416a468000d3dc0530cdc",
+      "bytes": 351
+    },
+    {
+      "path": "assets/minecraft/textures/block/gray_wool.png",
+      "sha256": "aabf83cf9dc5eb7ed254405e2fb312974e26198b3b2fcd0640b67fa9368cd654",
+      "bytes": 374
+    },
+    {
+      "path": "assets/minecraft/textures/block/green_concrete.png",
+      "sha256": "5b6fcfbd33ba882074a83620449719c93cc49300e7973606ccaae5d57419456d",
+      "bytes": 181
+    },
+    {
+      "path": "assets/minecraft/textures/block/green_terracotta.png",
+      "sha256": "5d5b1ccbfe807da597a8622a7e7fbf0f1686a3174b259446510a524e96a2e1af",
+      "bytes": 394
+    },
+    {
+      "path": "assets/minecraft/textures/block/green_wool.png",
+      "sha256": "4f327ad998ee5e5a25a5b0f7beaafe3ee13f88f2694600597e1267efe296bd3e",
+      "bytes": 386
+    },
+    {
+      "path": "assets/minecraft/textures/block/hay_block_side.png",
+      "sha256": "b0181d301e7819daa8719067c616ca47aab766e538cdaf1f722a711efac3ea6f",
+      "bytes": 202
+    },
+    {
+      "path": "assets/minecraft/textures/block/hay_block_top.png",
+      "sha256": "99b8063611a6816b67c652f2f847048cd798a9b8858c84b9f597363007153693",
+      "bytes": 189
+    },
+    {
+      "path": "assets/minecraft/textures/block/honey_block_bottom.png",
+      "sha256": "7e26698888bcdb6c7d8798ab7b9a92d665cba3b8517be0ada357596460060f58",
+      "bytes": 199
+    },
+    {
+      "path": "assets/minecraft/textures/block/honey_block_side.png",
+      "sha256": "8c2cda947179a75d5d17b63d039d250e660f97ae7c51ab82ef0aa195733da43f",
+      "bytes": 213
+    },
+    {
+      "path": "assets/minecraft/textures/block/honey_block_top.png",
+      "sha256": "aa6a49f5c548aba677c7957431d26bd4066034de3ba702abd4dee7e34cd751f8",
+      "bytes": 211
+    },
+    {
+      "path": "assets/minecraft/textures/block/ice.png",
+      "sha256": "4d158c24f2ec563d52806642ac7f4e20a5bda168af8c2ae528ed8e9ef1a58771",
+      "bytes": 205
+    },
+    {
+      "path": "assets/minecraft/textures/block/iron_block.png",
+      "sha256": "910646c90f391ec42cfebdd356ed1e1be36ad513a684a930e38c36ab610a7a24",
+      "bytes": 184
+    },
+    {
+      "path": "assets/minecraft/textures/block/iron_ore.png",
+      "sha256": "d3a50d2c689f8ade6445488f2edc68ca107c343ef09df8eaa27e51aa83d5a5ed",
+      "bytes": 222
+    },
+    {
+      "path": "assets/minecraft/textures/block/jukebox_side.png",
+      "sha256": "4f1d496c7ed21c63382fb517527549961252283221c837c1850761bc98eaa82f",
+      "bytes": 174
+    },
+    {
+      "path": "assets/minecraft/textures/block/jukebox_top.png",
+      "sha256": "846ea82ea7764212dbe90528513399cb409f4ec9edf514e8e1b97c85295bfacc",
+      "bytes": 179
+    },
+    {
+      "path": "assets/minecraft/textures/block/lapis_block.png",
+      "sha256": "689c526f6991929acdd5876844f263b0aeafa1056a1a0d21960516b33a7deb38",
+      "bytes": 252
+    },
+    {
+      "path": "assets/minecraft/textures/block/lapis_ore.png",
+      "sha256": "190000ef0594f76f279cbbd0acff448ab1f9a32e788cc81beea380963082563d",
+      "bytes": 264
+    },
+    {
+      "path": "assets/minecraft/textures/block/light_blue_concrete.png",
+      "sha256": "964c54c074d6a94d2ef8a1ffc1a82098f56e7665ac2e309b5a4c03961b840ddf",
+      "bytes": 223
+    },
+    {
+      "path": "assets/minecraft/textures/block/light_blue_terracotta.png",
+      "sha256": "7f91b8412417d3176ed10b8ba99f03ee2d3e966c57e8eddc007db95a7ff943d0",
+      "bytes": 392
+    },
+    {
+      "path": "assets/minecraft/textures/block/light_blue_wool.png",
+      "sha256": "80ebec0ffcaaeef75809dd94f0583141ebec56198b39603bdcd282b6445fe6ab",
+      "bytes": 408
+    },
+    {
+      "path": "assets/minecraft/textures/block/light_gray_concrete.png",
+      "sha256": "8050c0ce3ad4cc70d7b87fafab61dcbffd8d1b37c5ae471df6edf49e9bf1fb31",
+      "bytes": 167
+    },
+    {
+      "path": "assets/minecraft/textures/block/light_gray_terracotta.png",
+      "sha256": "fd6a1459926dd8eb3fa8dccdb5ac784564e295036fc47dd5ec11136fb1a30d1a",
+      "bytes": 421
+    },
+    {
+      "path": "assets/minecraft/textures/block/light_gray_wool.png",
+      "sha256": "5bde87dc311adde7b581ad469ec8ff31d4593f4a1f914d749978ff807a1dc7ce",
+      "bytes": 394
+    },
+    {
+      "path": "assets/minecraft/textures/block/lime_concrete.png",
+      "sha256": "33f4bdad5277e58fbfcd3d6ec99c9f1fba76dc45a1a6853047d66215d30d3165",
+      "bytes": 222
+    },
+    {
+      "path": "assets/minecraft/textures/block/lime_terracotta.png",
+      "sha256": "65443c5e6988278d42cdbd1a7e23d97f5125bc0e43031537d2d3e2ae1dbea5a7",
+      "bytes": 461
+    },
+    {
+      "path": "assets/minecraft/textures/block/lime_wool.png",
+      "sha256": "859212a0539264adf8a5d15d796fb22eed3a8dcf5fbfa9a22a12ad1ca2ca3240",
+      "bytes": 379
+    },
+    {
+      "path": "assets/minecraft/textures/block/magenta_concrete.png",
+      "sha256": "910538f0133c873db64c1213814d741a485035ffcfef6d95599f2e0d06322dbb",
+      "bytes": 198
+    },
+    {
+      "path": "assets/minecraft/textures/block/magenta_terracotta.png",
+      "sha256": "04ec5e50fd07b4de88543d6ef23e914bf755a5061aa4a1e7aebea271c72f46db",
+      "bytes": 467
+    },
+    {
+      "path": "assets/minecraft/textures/block/magenta_wool.png",
+      "sha256": "4f9ffec3612741cf9a65fa5975cdbf8bc5b6af68d72e5d7c6087351bb264963c",
+      "bytes": 392
+    },
+    {
+      "path": "assets/minecraft/textures/block/magma.png",
+      "sha256": "94d559da1a3229eb012789f2e1adff24de1d4b17523eed94ed5d690f2a9909ad",
+      "bytes": 437
+    },
+    {
+      "path": "assets/minecraft/textures/block/magma.png.mcmeta",
+      "sha256": "aaf0ed9c58bc8aed21cd08c751722c0262242919da2014ec484f3ddaa96e88c5",
+      "bytes": 118
+    },
+    {
+      "path": "assets/minecraft/textures/block/melon_side.png",
+      "sha256": "6a556b42d0c87084a30068f1b4684e5c7ef7762d348e227f161a19db61c51fbb",
+      "bytes": 164
+    },
+    {
+      "path": "assets/minecraft/textures/block/melon_top.png",
+      "sha256": "2f7a13779e9a782351ae66848dd9e1e67ae73a947d0f85da50ea6772ee04952b",
+      "bytes": 186
+    },
+    {
+      "path": "assets/minecraft/textures/block/nether_bricks.png",
+      "sha256": "3cf860896f5977a69eea6432f8d920c4f380229ad8b2cf19184d4629faca4627",
+      "bytes": 193
+    },
+    {
+      "path": "assets/minecraft/textures/block/netherite_block.png",
+      "sha256": "7f9ec5010d043fb4bafa661f27a255f04db6393d95f83a663f2f92206531298e",
+      "bytes": 230
+    },
+    {
+      "path": "assets/minecraft/textures/block/netherrack.png",
+      "sha256": "3c0208b749c5393b9bad9d57ed3d830326a02b8cbd8444e96d4d0d277f85625f",
+      "bytes": 213
+    },
+    {
+      "path": "assets/minecraft/textures/block/note_block.png",
+      "sha256": "52ce801f021f96960ae3f1693e36045e138c093b295a5dfd00d6ee75da2f583a",
+      "bytes": 182
+    },
+    {
+      "path": "assets/minecraft/textures/block/oak_leaves.png",
+      "sha256": "69c9c7048695e014aee6b8a2c4cb080607bd7a2a5291c06218b8134cbfcdc04f",
+      "bytes": 202
+    },
+    {
+      "path": "assets/minecraft/textures/block/oak_log.png",
+      "sha256": "060c93128fb65aa350a84e4b6576e616c47d40211bbe537cfe923a81d072e30c",
+      "bytes": 193
+    },
+    {
+      "path": "assets/minecraft/textures/block/oak_log_top.png",
+      "sha256": "62f38b25ae28b6c4842ee5a83f790394b1ec4d6c6f20dd52044394855346a2a7",
+      "bytes": 223
+    },
+    {
+      "path": "assets/minecraft/textures/block/oak_planks.png",
+      "sha256": "3a33db67a3ba30537d0890a5cb37c8087ca336be89cbb1393a71c23224e361a8",
+      "bytes": 202
+    },
+    {
+      "path": "assets/minecraft/textures/block/obsidian.png",
+      "sha256": "d9c7dc812d8e8b995e22caff2b10c1fc663b5e127a94c20a7476cfd88af2cd82",
+      "bytes": 189
+    },
+    {
+      "path": "assets/minecraft/textures/block/orange_concrete.png",
+      "sha256": "76531a8ae786933581448b091b2e698966e6c6d59b1833cfc88e328d1a04ec11",
+      "bytes": 243
+    },
+    {
+      "path": "assets/minecraft/textures/block/orange_terracotta.png",
+      "sha256": "7bae57ffb39843cbe778cb35696ee43d1060c050940209ce5d188e56aab77522",
+      "bytes": 463
+    },
+    {
+      "path": "assets/minecraft/textures/block/orange_wool.png",
+      "sha256": "efe422b1ff12e6517b62cd94a9b53f31b028a095d8e527464be8a7478eb29987",
+      "bytes": 400
+    },
+    {
+      "path": "assets/minecraft/textures/block/packed_ice.png",
+      "sha256": "69bbfa529e480c86fac5ba3c8607b8d263e140d0f4d0f1c915fac20b5aa2b691",
+      "bytes": 193
+    },
+    {
+      "path": "assets/minecraft/textures/block/pink_concrete.png",
+      "sha256": "66431c251d44e33d7ef4c1ee6d4c2f70670be2ac662092de82f3c612d7c0cd27",
+      "bytes": 218
+    },
+    {
+      "path": "assets/minecraft/textures/block/pink_terracotta.png",
+      "sha256": "3c5d2cb4071aaea6730f6c43e46048deacd10ea630f668a869bfee36e561c263",
+      "bytes": 477
+    },
+    {
+      "path": "assets/minecraft/textures/block/pink_wool.png",
+      "sha256": "ea5d97e12e3d9c95f29d91c944f3409902bb0c5f880024c8c40fc3c464a441b1",
+      "bytes": 412
+    },
+    {
+      "path": "assets/minecraft/textures/block/pumpkin_side.png",
+      "sha256": "616ef8db5a90e1f02843f4c3fe5ecb57e681a7cbad695bc7c1b1e34f7c7dc3e9",
+      "bytes": 187
+    },
+    {
+      "path": "assets/minecraft/textures/block/pumpkin_top.png",
+      "sha256": "aa23338fd28b9c6d7c00a1be45946a31ae36663efa83371ea4f897639104d12f",
+      "bytes": 212
+    },
+    {
+      "path": "assets/minecraft/textures/block/purple_concrete.png",
+      "sha256": "b02767593f142784ea16205315ab19262daa595ce5f2e209d524b42350d29a73",
+      "bytes": 185
+    },
+    {
+      "path": "assets/minecraft/textures/block/purple_terracotta.png",
+      "sha256": "58710e8a23e1a6a9e7475df241391bb9c91196c781e5e4104eb9f45de6d0b093",
+      "bytes": 476
+    },
+    {
+      "path": "assets/minecraft/textures/block/purple_wool.png",
+      "sha256": "18ec46e904333a9800b94ec8dd5f57207dca87b33159d45bbae9c5e52cf2c293",
+      "bytes": 400
+    },
+    {
+      "path": "assets/minecraft/textures/block/quartz_block_bottom.png",
+      "sha256": "71257d89af4fa37b33d9454eb6575ec187022dfc591c39a771bd0ffb1cad23e5",
+      "bytes": 153
+    },
+    {
+      "path": "assets/minecraft/textures/block/quartz_block_side.png",
+      "sha256": "6a1525cca96303a1fa02e019861ae4fe795c9ad93a79123c654db242cce898f8",
+      "bytes": 181
+    },
+    {
+      "path": "assets/minecraft/textures/block/quartz_block_top.png",
+      "sha256": "6a1525cca96303a1fa02e019861ae4fe795c9ad93a79123c654db242cce898f8",
+      "bytes": 181
+    },
+    {
+      "path": "assets/minecraft/textures/block/red_concrete.png",
+      "sha256": "4069c61ef07e5c113c2e0850b009d8c814c21881525535a01dffea7d52fd1896",
+      "bytes": 195
+    },
+    {
+      "path": "assets/minecraft/textures/block/red_terracotta.png",
+      "sha256": "e531a94e310f4f6b1ec9d07ed990f628b724a2f7f5040935162c9ca30c38fa93",
+      "bytes": 464
+    },
+    {
+      "path": "assets/minecraft/textures/block/red_wool.png",
+      "sha256": "b0ffb8c5e070c8e9c96dfa4a02cd07382ba3bc245c9c6543042ec78156ed7a39",
+      "bytes": 374
+    },
+    {
+      "path": "assets/minecraft/textures/block/redstone_block.png",
+      "sha256": "92c8738669b45a956f4783f3d928ca3d3b99a56546650070b24779428bf50291",
+      "bytes": 174
+    },
+    {
+      "path": "assets/minecraft/textures/block/redstone_ore.png",
+      "sha256": "99239d089f094c96afb8b47d98557851f3eb880e47d4ebc5fd3c79659896b1bf",
+      "bytes": 254
+    },
+    {
+      "path": "assets/minecraft/textures/block/sand.png",
+      "sha256": "8875040fbee9e8c40ef1d6472e1548230d9ef1bad32d58e4e2fa857f1ae08027",
+      "bytes": 189
+    },
+    {
+      "path": "assets/minecraft/textures/block/sea_lantern.png",
+      "sha256": "e6c54c1ecf81210c94e95d629e4d61b8424075425bb574c635504d2e0b96f59c",
+      "bytes": 2638
+    },
+    {
+      "path": "assets/minecraft/textures/block/sea_lantern.png.mcmeta",
+      "sha256": "57c55f7b85346438e703539bab897c535ea52a1b9a5cdf11c4b7921ae81bff2c",
+      "bytes": 52
+    },
+    {
+      "path": "assets/minecraft/textures/block/slime_block.png",
+      "sha256": "9175dd2ac2a6e93c0e5c3b46e5006fd9f230ee005b7da3ea109f6d872e30209d",
+      "bytes": 195
+    },
+    {
+      "path": "assets/minecraft/textures/block/smooth_stone.png",
+      "sha256": "53d5b70ba4b3879b8ec7e931ee5c7250859081b4fea41690fd0261271cdb3623",
+      "bytes": 183
+    },
+    {
+      "path": "assets/minecraft/textures/block/snow.png",
+      "sha256": "05201107fc2c60db4dc59f778a9ca7cb6101b2a332da696b33ce4b0cd2a02019",
+      "bytes": 166
+    },
+    {
+      "path": "assets/minecraft/textures/block/spruce_leaves.png",
+      "sha256": "1f6c193f73cdd1399e94809c0bd7dce0b1b76dcdae1da2088e481dbba714edb2",
+      "bytes": 212
+    },
+    {
+      "path": "assets/minecraft/textures/block/spruce_log.png",
+      "sha256": "f28e8ce2783a0d14cc6f23904faf6858fba1295290a732735db82b54392574fd",
+      "bytes": 193
+    },
+    {
+      "path": "assets/minecraft/textures/block/spruce_log_top.png",
+      "sha256": "b153bde175085ba46e5badacf9d7dd4dc909a75f02118b73b9338685f06c5b42",
+      "bytes": 219
+    },
+    {
+      "path": "assets/minecraft/textures/block/spruce_planks.png",
+      "sha256": "43ddc665352825876985faaed7e5f7b958f9b8fc3cad56d7bca1c2db7a54949a",
+      "bytes": 202
+    },
+    {
+      "path": "assets/minecraft/textures/block/stone.png",
+      "sha256": "33ac70ba8cb701087642a12c5fd29c1ba3006dc4730e9b014ed3a19ce7cdda7b",
+      "bytes": 157
+    },
+    {
+      "path": "assets/minecraft/textures/block/stone_bricks.png",
+      "sha256": "33da66239c5586ee712ffa3fab45927cd7d4968cf111829d3049f84152d85953",
+      "bytes": 199
+    },
+    {
+      "path": "assets/minecraft/textures/block/tnt_bottom.png",
+      "sha256": "bb7837ad4d44f165f3fe78d5eec19dc0713e74e9a724f214643c900bc12c3778",
+      "bytes": 105
+    },
+    {
+      "path": "assets/minecraft/textures/block/tnt_side.png",
+      "sha256": "950388eb9f86f9882c11e4ef291c4da8416433d9cac8ce2713abfb322f2ca159",
+      "bytes": 176
+    },
+    {
+      "path": "assets/minecraft/textures/block/tnt_top.png",
+      "sha256": "59b071086ceddf43d8a95dec7441e450781215b89e7998c906224af859b04c25",
+      "bytes": 200
+    },
+    {
+      "path": "assets/minecraft/textures/block/white_concrete.png",
+      "sha256": "2498f62595e4520d2168b0a446bd5d616bbdeeb41983708f7c12a88e69edd7de",
+      "bytes": 182
+    },
+    {
+      "path": "assets/minecraft/textures/block/white_terracotta.png",
+      "sha256": "1d226054984bbbafb9ab517747c5903f557e546e7aaa2e6c4e725e8ff3ffa4b3",
+      "bytes": 431
+    },
+    {
+      "path": "assets/minecraft/textures/block/white_wool.png",
+      "sha256": "66688395b5ddc7f413c2e91ffabd33abfc78e0a870ce0111c45d7d09d9b4e100",
+      "bytes": 392
+    },
+    {
+      "path": "assets/minecraft/textures/block/yellow_concrete.png",
+      "sha256": "6d84546da37093e0142702163863bb130dbaa49acd82a4ad0978288fb90cc07a",
+      "bytes": 245
+    },
+    {
+      "path": "assets/minecraft/textures/block/yellow_terracotta.png",
+      "sha256": "9a58331a3f4f0cc1f0d886510a11c62649b4ac20019e45a23b5ebf443c09e316",
+      "bytes": 469
+    },
+    {
+      "path": "assets/minecraft/textures/block/yellow_wool.png",
+      "sha256": "230b85ec19649ccf29d10d314aa68a04bf55f4bc435635144bad17aeb667a2ed",
+      "bytes": 400
+    },
+    {
+      "path": "assets/minecraft/textures/gui/sprites/boss_bar/white_background.png",
+      "sha256": "b5b084f43cb950f54a8f97ba1dc7ca6134254bdb93f2aceebaa7e43bd53269c1",
+      "bytes": 137
+    },
+    {
+      "path": "assets/minecraft/textures/gui/sprites/boss_bar/white_progress.png",
+      "sha256": "176a5465e2a4700b60368d7f552ac25ca607288d987cc3403c1da1678ff46f9e",
+      "bytes": 162
+    },
+    {
+      "path": "assets/minecraft/textures/gui/sprites/hud/experience_bar_background.png",
+      "sha256": "1a465d395131f10fff6695fd7ca3243ef5fd2cccb0a496581a8c1d84c358a6d6",
+      "bytes": 167
+    },
+    {
+      "path": "assets/minecraft/textures/gui/sprites/hud/experience_bar_progress.png",
+      "sha256": "a94235503f186fd84ac66ce4b09a4ba9796bc4b8efb9ad43dcc3486698fc26dd",
+      "bytes": 1241
+    },
+    {
+      "path": "assets/minecraft/textures/gui/sprites/toast/advancement.png",
+      "sha256": "15a959d338d8ce98c1381f95d34f7143377669bcadae1198900bea88144d6634",
+      "bytes": 157
+    },
+    {
+      "path": "assets/minecraft/textures/gui/sprites/toast/system.png",
+      "sha256": "4e2a0fa4ef3dbfd3d7bd0012cb838ef2865120160ebac5a4239b853193991e7d",
+      "bytes": 147
+    },
+    {
+      "path": "assets/minecraft/textures/item/amethyst_shard.png",
+      "sha256": "24fa75f6b75202d890019ec7a901d525918cfacd3e8c0e6cb0580c7b7933b363",
+      "bytes": 184
+    },
+    {
+      "path": "assets/minecraft/textures/item/apple.png",
+      "sha256": "9b1aef1aaa41229dbe2bc97657b8650527b14cc20a6236e823f1682c4d44c5a2",
+      "bytes": 207
+    },
+    {
+      "path": "assets/minecraft/textures/item/arrow.png",
+      "sha256": "9dfc345c4ae71a7bab003d3d15f420376910162a000a99832e9ca63a51bc85dd",
+      "bytes": 148
+    },
+    {
+      "path": "assets/minecraft/textures/item/blaze_rod.png",
+      "sha256": "d402755c56b25d84ce73ba1f064252844b2ee9b2f6e3d17566450687a26d9c81",
+      "bytes": 168
+    },
+    {
+      "path": "assets/minecraft/textures/item/book.png",
+      "sha256": "e9f710d62e16776df7e5bf05dcaa187d40cc1428f4fd18644e3ff67062f9fff2",
+      "bytes": 203
+    },
+    {
+      "path": "assets/minecraft/textures/item/bow.png",
+      "sha256": "6f62b5a5eac576af20f1ddd79e69df37b19a036691aa26b7523753f995e3dd8d",
+      "bytes": 163
+    },
+    {
+      "path": "assets/minecraft/textures/item/bread.png",
+      "sha256": "7e0e4a9fcb8bd4b85820ee3aa7ea83b66f08687cd907a8d38cc98281b41fac1d",
+      "bytes": 201
+    },
+    {
+      "path": "assets/minecraft/textures/item/bucket.png",
+      "sha256": "3f14980d6d2dea8d547e44104a55a51d62bee71bd45f16068113b279b3d2d042",
+      "bytes": 194
+    },
+    {
+      "path": "assets/minecraft/textures/item/clock_00.png",
+      "sha256": "52652043a299f6d27da9229f1ccadd64e94018e6126c0bb2cbdf283bec114d87",
+      "bytes": 252
+    },
+    {
+      "path": "assets/minecraft/textures/item/coal.png",
+      "sha256": "31a5bf332d28c65e0e83368d4008b31c471023ae391e4533f80cd80ad13f54e0",
+      "bytes": 207
+    },
+    {
+      "path": "assets/minecraft/textures/item/compass_00.png",
+      "sha256": "4f39dc942808fb5fe37d3307eb22320523ead9bd38c808b54d516f20e20c9ae2",
+      "bytes": 219
+    },
+    {
+      "path": "assets/minecraft/textures/item/cooked_beef.png",
+      "sha256": "07d08a99d1b51230aa7edf4e6a890130cce02a6a5fa64407850354192bfdbea3",
+      "bytes": 197
+    },
+    {
+      "path": "assets/minecraft/textures/item/copper_ingot.png",
+      "sha256": "ebccaba00d1623ef8acce3768e104bf54c8ee157d92ba7c969d7100830414875",
+      "bytes": 204
+    },
+    {
+      "path": "assets/minecraft/textures/item/diamond.png",
+      "sha256": "b27b081fde6a794dfb52d37f4ab2a86931ce127323f786a27cea41d2dbe913a2",
+      "bytes": 208
+    },
+    {
+      "path": "assets/minecraft/textures/item/diamond_axe.png",
+      "sha256": "a3350a81dbc6bb3817c9c35ac09b74bc6985a785911ac81307009d8afd88440e",
+      "bytes": 179
+    },
+    {
+      "path": "assets/minecraft/textures/item/diamond_pickaxe.png",
+      "sha256": "7672c209d0c66c43d297b3d04513c9e789d03f5ea6ff1e564a4dbc1fd78a5c88",
+      "bytes": 182
+    },
+    {
+      "path": "assets/minecraft/textures/item/diamond_shovel.png",
+      "sha256": "810c79864c331d43c8a6d0c4e9866f91813a5a9602cb97b2a7f6e22bf4448f96",
+      "bytes": 168
+    },
+    {
+      "path": "assets/minecraft/textures/item/diamond_sword.png",
+      "sha256": "5634a8cb79a70beb306210de9ec492fc2d4dc8f739372683e9882ef06bf63008",
+      "bytes": 194
+    },
+    {
+      "path": "assets/minecraft/textures/item/emerald.png",
+      "sha256": "7aa1f12ee48666b2c3ae56fd9884ee95bf315795bfd1fd6e4ac3d3811ae3aacb",
+      "bytes": 182
+    },
+    {
+      "path": "assets/minecraft/textures/item/enchanted_book.png",
+      "sha256": "f96da147fcf6f373df00ab5181043ea0c76af4ba7025f43f377f678ac466fb43",
+      "bytes": 251
+    },
+    {
+      "path": "assets/minecraft/textures/item/ender_eye.png",
+      "sha256": "cb9003416a29bdd869a494467a01dba3403b221b88fe3e0a0dc41906d5d49afa",
+      "bytes": 214
+    },
+    {
+      "path": "assets/minecraft/textures/item/ender_pearl.png",
+      "sha256": "ff40529856c82317ce24cec4ba384971f56aec0f8ce3756e059d2eb17f3b310a",
+      "bytes": 206
+    },
+    {
+      "path": "assets/minecraft/textures/item/experience_bottle.png",
+      "sha256": "bf824bc91dc620010fed8c7ae9da9f91d4ce7910317b1a056029fd2dad4b3a8c",
+      "bytes": 240
+    },
+    {
+      "path": "assets/minecraft/textures/item/firework_rocket.png",
+      "sha256": "fea5f8fdf3a1517edbc7006d327fe09b8567a0e4c2e76f8aeb8aeac68eabf786",
+      "bytes": 165
+    },
+    {
+      "path": "assets/minecraft/textures/item/gold_ingot.png",
+      "sha256": "b4e38d8476c35fafd18dba27ab2ec0304cedc7296ca170fd723afae5a08b2a2d",
+      "bytes": 199
+    },
+    {
+      "path": "assets/minecraft/textures/item/golden_apple.png",
+      "sha256": "de0de35dfe21f5644a9de5b8c46c1154e004c1454e60100ed61e3d3aec8cb972",
+      "bytes": 204
+    },
+    {
+      "path": "assets/minecraft/textures/item/golden_sword.png",
+      "sha256": "ec9c723ff0d81cf7254ec59819a4179c65a15edcc9148bddea569e54791b25da",
+      "bytes": 196
+    },
+    {
+      "path": "assets/minecraft/textures/item/iron_ingot.png",
+      "sha256": "4625aa2c32c74bd6796c7ba8e7ee6300db8d2f24fb38c9d9324a63b262a44391",
+      "bytes": 189
+    },
+    {
+      "path": "assets/minecraft/textures/item/iron_pickaxe.png",
+      "sha256": "b211a9b920d8f22ce5451780855155644d14ca7b85ab16d31f9c0b572cdda7ee",
+      "bytes": 182
+    },
+    {
+      "path": "assets/minecraft/textures/item/iron_sword.png",
+      "sha256": "ed1fa2f83955583e70a19791455d13989e8bd93b1d7240e775a57141022bed6b",
+      "bytes": 196
+    },
+    {
+      "path": "assets/minecraft/textures/item/lapis_lazuli.png",
+      "sha256": "261b626e66fc29d6a28990ac36c74a04afa2e1d03daff00c5f3b3e5a79463a14",
+      "bytes": 188
+    },
+    {
+      "path": "assets/minecraft/textures/item/lava_bucket.png",
+      "sha256": "88093ce03b421a9504d42b79f2bee3a4d3ffcf3652bea3b5602cda8c86cfab2c",
+      "bytes": 218
+    },
+    {
+      "path": "assets/minecraft/textures/item/music_disc_13.png",
+      "sha256": "6a7812f3816dfe9a602664c3a8a021a6a072401ee49023c535f78a78a5dcc11e",
+      "bytes": 177
+    },
+    {
+      "path": "assets/minecraft/textures/item/nether_star.png",
+      "sha256": "1378e77a3ff64e219a3fa7d5812340a4b4c96c7b2066b728df1940a4f61b89f1",
+      "bytes": 186
+    },
+    {
+      "path": "assets/minecraft/textures/item/netherite_ingot.png",
+      "sha256": "21418e66ca43961e91fb8cfba645a4364ca340426bca82f073d140f202dfe28b",
+      "bytes": 214
+    },
+    {
+      "path": "assets/minecraft/textures/item/netherite_pickaxe.png",
+      "sha256": "41c9ad71baa4c2ccfa3fb983fe415526fcce173e53d13d9b8956b8da0e7b371e",
+      "bytes": 187
+    },
+    {
+      "path": "assets/minecraft/textures/item/netherite_sword.png",
+      "sha256": "78e0508b06b69bd8eddf06188b7c490b92778d0d036b9238ee9d6b562788fafc",
+      "bytes": 209
+    },
+    {
+      "path": "assets/minecraft/textures/item/redstone.png",
+      "sha256": "6d0e6a1fd54142cd3de649e1100c428733512b322a0b0a530f62eae9f86881ec",
+      "bytes": 179
+    },
+    {
+      "path": "assets/minecraft/textures/item/snowball.png",
+      "sha256": "4e4dff01a4935f58ad5a3f80700b4b85062baa0b395736b2e53e189107673d81",
+      "bytes": 189
+    },
+    {
+      "path": "assets/minecraft/textures/item/stick.png",
+      "sha256": "2b5a6b7202fcd3a45663ccf249fe87de076e8c735e0b6ab8a3bf2a812332b4ff",
+      "bytes": 136
+    },
+    {
+      "path": "assets/minecraft/textures/item/totem_of_undying.png",
+      "sha256": "2ee3ccdd17f0b9acb13bac37b3b9d4db6eac72aa350a2b1ab9cc587e2f02514a",
+      "bytes": 214
+    },
+    {
+      "path": "assets/minecraft/textures/item/water_bucket.png",
+      "sha256": "0efb2f243397e7d82a9a9e97b6e8fc39fc6c7972bf86b9b6ed97e7101b79c0a1",
+      "bytes": 219
+    }
+  ]
+}

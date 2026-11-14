@@ -11,6 +11,7 @@
     "website:dev": "pnpm --filter @allay/website dev",
     "website:build": "pnpm --filter @allay/website build",
     "website:preview": "pnpm --filter @allay/website preview",
+    "website:mc": "tsx scripts/extract-website-mc.ts",
     "build": "pnpm templates:build && pnpm --filter @allay/desktop build",
     "typecheck": "tsc -p tsconfig.json --noEmit && pnpm -r --workspace-concurrency=4 typecheck",
     "lint": "eslint . --max-warnings 0",

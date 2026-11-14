@@ -3,7 +3,8 @@
 // 桌面版渲染进程只通过 window.allay 和宿主打交道（docs/01-product-architecture.md 1.4、1.8），
 // 所以把这一个对象换掉，界面、引擎 Worker、内置模板就都是桌面版的同一份代码。这里只实现宿主层：
 // - 模板：构建时打包好的内置模板（templates.ts），和桌面版主进程读 .allaytpl 得到的数据相同；
-// - 资源：页面里现场生成的纯色演示层（demo-pack.ts）和仓库里的兜底像素字体；
+// - 资源：官网专用的原版贴图（mc-pack.ts，从本机正版游戏提取），缺的贴图退回页面里现场生成的纯色色块（demo-pack.ts）；
+//   文字的兜底字体是仓库里的像素字体；
 // - 设置、预设、缩略图缓存：只在内存里，关掉页面就没了；
 // - 导出：真实的导出 Worker 照常逐帧渲染，帧交到这里后直接丢弃（浏览器里没有 FFmpeg），结束时通知落地页；
 // - 文件、工程、资源包、游戏目录这类需要本机文件系统的操作：不做，通知落地页给出“下载桌面版”的引导。
@@ -17,12 +18,16 @@ import type { PresetEntry } from '../../../desktop/src/shared/templates';
 import desktopPackage from '../../../desktop/package.json';
 import type { DesktopOnlyFeature, SiteLanguage } from './bridge';
 import { demoTexture } from './demo-pack';
+import { mcGameVersion, mcTexture } from './mc-pack';
 import { builtinBundle, builtinEntries } from './templates';
 
 /** 宿主里给人看的几句话（文案在官网的语言文件里，由调用方传入） */
 export interface HostMessages {
   demoPackName: Record<SiteLanguage, string>;
   demoPackDescription: Record<SiteLanguage, string>;
+  /** 原版贴图层的名字，{{version}} 换成游戏版本 */
+  mcPackName: Record<SiteLanguage, string>;
+  mcPackDescription: Record<SiteLanguage, string>;
   exportTarget: Record<SiteLanguage, string>;
 }
 
@@ -39,9 +44,10 @@ export interface BrowserHostOptions {
   onSettings?(settings: UiSettings): void;
 }
 
-/** 资源栈指纹：固定值（演示层不会变），格式与主进程相同（16 位十六进制） */
-const STAMP = '0eb5de0000000001';
+/** 资源栈指纹：固定值（这一层构建后不会变），格式与主进程相同（16 位十六进制）；有没有原版贴图是两个不同的栈 */
+const STAMP = mcGameVersion ? '0eb5de00000000a2' : '0eb5de0000000001';
 const DEMO_LAYER_ID = 'web-demo';
+const MC_LAYER_ID = 'web-mc';
 
 type Listener<T> = (value: T) => void;
 
@@ -107,16 +113,28 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       stamp: STAMP,
       layers: [
         { id: 'builtin', kind: 'builtin', name: 'builtin', enabled: true, legacyFormat: false, warnings: [], empty: true },
-        {
-          id: DEMO_LAYER_ID,
-          kind: 'pack',
-          name: opts.messages.demoPackName[lang],
-          description: opts.messages.demoPackDescription[lang],
-          enabled: true,
-          legacyFormat: false,
-          warnings: [],
-          source: 'folder',
-        },
+        // 有提取好的原版贴图（官网专用，见 mc-pack.ts）就用它；没有时用页面里生成的纯色色块
+        mcGameVersion
+          ? {
+              id: MC_LAYER_ID,
+              kind: 'pack',
+              name: opts.messages.mcPackName[lang].replace('{{version}}', mcGameVersion),
+              description: opts.messages.mcPackDescription[lang],
+              enabled: true,
+              legacyFormat: false,
+              warnings: [],
+              source: 'folder',
+            }
+          : {
+              id: DEMO_LAYER_ID,
+              kind: 'pack',
+              name: opts.messages.demoPackName[lang],
+              description: opts.messages.demoPackDescription[lang],
+              enabled: true,
+              legacyFormat: false,
+              warnings: [],
+              source: 'folder',
+            },
       ],
       brokenPacks: [],
       vanilla: { consent: false, enabled: false, local: null, cached: null, active: null, problem: null },
@@ -216,6 +234,8 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       stamp: async () => STAMP,
       read: async () => null,
       readTexture: async (id) => {
+        const vanilla = await mcTexture(id);
+        if (vanilla) return vanilla;
         const png = await demoTexture(id);
         return png ? { png, mcmeta: null } : null;
       },

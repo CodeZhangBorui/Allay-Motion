@@ -11,11 +11,27 @@
 | 落地页 | `index.html`、`src/site/` | React + Tailwind CSS 4，样式直接用 `packages/ui` 的设计变量、字体和组件 |
 | 仿真器 | `simulator.html`、`src/simulator/` | 在落地页的 iframe 里懒加载；里面跑的是**桌面版渲染进程的真实代码**（`apps/desktop/src/renderer`） |
 | 浏览器宿主 | `src/host/browser-host.ts` | `window.allay` 的浏览器实现，代替 Electron 的 preload 和主进程 |
-| 演示素材 | `src/host/demo-pack.ts` | 页面里现场生成的纯色色块（仓库里没有、也不能有原版贴图） |
+| 原版贴图 | `public/mc/`、`src/host/mc-pack.ts` | 官网专用：`pnpm website:mc` 从本机正版游戏的 jar 里提取的方块、物品、界面贴图（见下文） |
+| 演示素材 | `src/host/demo-pack.ts` | 没有提取原版贴图时，页面里现场生成的纯色色块 |
 | 内置模板 | `build/plugins.ts` | 构建时用 `scripts/build-templates.ts` 的同一组函数把 `packages/templates/*` 打包 |
 | 过场与动效 | `src/site/motion/` | 方块擦除、像素溶解、方块坠落的分节过场，像素溶解的出场 |
 
 哪些是真实代码、哪些是仿写、为什么，见 `docs/decisions.md` 的“官网”一节。
+
+## 原版贴图（只在官网）
+
+用户在 2026-11-14 允许官网使用 Minecraft 的资源（对硬性规则 1 只针对官网的放宽，详见 `docs/decisions.md` 官网 · 原版素材）。边界：
+
+- 只放在 `public/mc/`；桌面应用、`packages/*`、安装包、测试夹具里仍然没有任何 Mojang 文件。
+- 只从本机已安装的正版游戏提取，不从网站下载：
+
+  ```bash
+  pnpm website:mc
+  ```
+
+  它复用应用自己的游戏探测和 jar 读取，取出方块目录、物品目录、界面贴图用到的贴图，路径与 jar 里相同，并写 `public/mc/index.json`（游戏版本、每个文件的 SHA-256）。本机没有游戏时什么也不写，官网退回生成的色块。
+- 版权归 Mojang / Microsoft，不在本仓库 GPL-3.0 范围内（`public/mc/README.md`）。每个文件都登记在 `ASSETS_PROVENANCE.json`，`pnpm check:provenance` 按 manifest 核对内容没被改过。
+- 不用 Minecraft 的 logo、字标、宣传图；页脚的非官方声明照旧。
 
 ## 开发
 
@@ -96,7 +112,7 @@ pnpm test:website
 
 ## 约定
 
-- 不放任何 Mojang 文件；演示画面用 `demo-pack.ts` 现场生成的色块。新增二进制素材要登记 `ASSETS_PROVENANCE.json`。
+- Mojang 的文件只能放在 `public/mc/`，只能由 `pnpm website:mc` 从本机正版游戏提取；别处一律不放。新增二进制素材要登记 `ASSETS_PROVENANCE.json`。
 - 不加统计、埋点和任何第三方在线资源。
 - 不写死产品名和“悦灵”，用 `brand.*` 文案键和 `packages/mascot` 的组件。
 - 界面文字两种语言都要有（`src/site/locales/`），T-WEB-4 会检查缺失的文案键。
