@@ -979,6 +979,18 @@
     "back": "上一步",
     "eyebrow": "初次设置",
     "next": "继续",
-    "previewLabel": "界面会是这样"
+    "previewLabel": "界面会是这样",
+    "illustrationLabel": "欢迎",
+    "mascot": {
+      "language": "嗨，我是{{mascot}}！先挑一种你看着顺眼的语言吧，选了马上就换。",
+      "appearance": "喜欢亮一点还是暗一点？点一下就能看到效果。",
+      "assets": "模板要用游戏里的贴图来画方块。告诉我从哪儿拿，我帮你取过来。",
+      "assetsRunning": "我正在搬运中，进度就在右边。",
+      "assetsDone": "取回来啦！预览里的方块会和游戏里一样。",
+      "assetsFailed": "这次没取到……可以重试，也可以先“稍后再说”。",
+      "folders": "做好的作品放在哪儿？现在不设也没关系。",
+      "done": "都准备好啦！",
+      "doneTour": "都准备好啦！进去以后，我再带你认一认编辑器的各个地方。"
+    }
   }
 }

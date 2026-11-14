@@ -6,6 +6,8 @@ export const brandMessages = {
   'zh-CN': {
     name: '悦灵动画',
     wordmark: 'Allay Motion',
+    // 吉祥物的名字：首次启动引导和新手引导里它自我介绍、说话时用（docs/decisions.md 新手引导）
+    mascot: '悦灵',
     disclaimer:
       'NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.\n本软件不是 Minecraft 官方产品，未经 Mojang 或 Microsoft 批准，也与它们无关。',
     // 许可范围（用户决定，2026-11-14，docs/decisions.md M8）：GPL-3.0 和商业授权都不包含 Minecraft 的内容，
@@ -16,10 +18,11 @@ export const brandMessages = {
   en: {
     name: 'Allay Motion',
     wordmark: 'Allay Motion',
+    mascot: 'Allay',
     disclaimer: 'NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.',
     licenseScope:
       'The GPL-3.0 license and the commercial license cover only this software’s own code and original assets. Neither includes any Minecraft content: the Minecraft name and trademarks; the vanilla resources the app downloads from Mojang at runtime or reads from your installed game (textures, models, sounds, fonts, language files and so on); third-party resource packs you add; and anything derived from them, including the Allay model data made after the original and the Allay images rendered from the original texture. Those rights belong to Mojang or to the resource pack authors. This software is not licensed by them, does not distribute vanilla resources and grants no rights to them; follow the Minecraft EULA and each resource pack’s license yourself.',
   },
-} as const satisfies Record<'zh-CN' | 'en', Record<'name' | 'wordmark' | 'disclaimer' | 'licenseScope', string>>;
+} as const satisfies Record<'zh-CN' | 'en', Record<'name' | 'wordmark' | 'mascot' | 'disclaimer' | 'licenseScope', string>>;
 
 export type BrandMessageKey = keyof (typeof brandMessages)['en'];

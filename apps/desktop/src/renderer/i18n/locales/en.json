@@ -979,6 +979,18 @@
     "back": "Back",
     "eyebrow": "First-run setup",
     "next": "Continue",
-    "previewLabel": "How it will look"
+    "previewLabel": "How it will look",
+    "illustrationLabel": "Welcome",
+    "mascot": {
+      "language": "Hi, I’m {{mascot}}! Pick the language you’re most comfortable with. It switches right away.",
+      "appearance": "Lighter or darker? Click one and see.",
+      "assets": "Templates draw blocks with the game’s textures. Tell me where to get them and I’ll fetch them for you.",
+      "assetsRunning": "I’m carrying them over. Progress is on the right.",
+      "assetsDone": "Got them! Blocks in the preview will look just like in the game.",
+      "assetsFailed": "That didn’t work… Try again, or pick “Decide later” for now.",
+      "folders": "Where should your work go? It’s fine to leave this for now.",
+      "done": "You’re all set!",
+      "doneTour": "You’re all set! Once you’re in, I’ll show you around the editor."
+    }
   }
 }

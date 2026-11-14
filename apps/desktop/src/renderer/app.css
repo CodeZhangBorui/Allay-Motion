@@ -20,17 +20,83 @@
 }
 
 
-/* 首次启动引导（docs/06-ui-design.md 6.10）：换步时内容淡入，只变透明度；减少动效时没有动画 */
+/*
+ * 首次启动引导（docs/06-ui-design.md 6.10）：换步时内容按方向滑入 16 px 并淡入（280 ms）；吉祥物换位置用 --dur-4 过渡，
+ * 上下漂浮；气泡换句时弹出；背景的像素方块慢慢漂。减少动效时全部没有（--dur-* 归零，动画关掉）。
+ */
 .onboarding-step {
-  animation: onboarding-step-in var(--dur-2) var(--ease-out) both;
+  animation: onboarding-step-in 280ms var(--ease-out) both;
+}
+.onboarding-step[data-dir='back'] {
+  animation-name: onboarding-step-back;
 }
 @keyframes onboarding-step-in {
   from {
     opacity: 0;
+    transform: translateX(16px);
   }
 }
-[data-reduced-motion='true'] .onboarding-step {
+@keyframes onboarding-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+.onboarding-companion {
+  transition: transform var(--dur-4) var(--ease-in-out);
+}
+
+/* 吉祥物和气泡（引导与新手引导共用，features/onboarding/Companion.tsx） */
+.companion-float {
+  animation: companion-float 3.2s var(--ease-in-out) infinite;
+}
+@keyframes companion-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.companion-bubble {
+  animation: companion-bubble-in 220ms var(--ease-out) both;
+}
+@keyframes companion-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.companion-bubble[data-tail='bottom'] > .companion-bubble-tail {
+  bottom: -6px;
+  left: calc(50% - 6px);
+}
+.companion-bubble[data-tail='top'] > .companion-bubble-tail {
+  top: -6px;
+  left: 28px;
+}
+.companion-bubble[data-tail='left'] > .companion-bubble-tail {
+  left: -6px;
+  top: 22px;
+}
+.companion-bubble[data-tail='right'] > .companion-bubble-tail {
+  right: -6px;
+  top: 22px;
+}
+.companion-bit {
+  animation: companion-bit 6s var(--ease-in-out) infinite;
+}
+@keyframes companion-bit {
+  50% {
+    transform: translateY(-14px);
+    opacity: 0.2;
+  }
+}
+[data-reduced-motion='true'] .onboarding-step,
+[data-reduced-motion='true'] .companion-float,
+[data-reduced-motion='true'] .companion-bubble,
+[data-reduced-motion='true'] .companion-bit {
   animation: none;
+}
+[data-reduced-motion='true'] .onboarding-companion {
+  transition: none;
 }
 /* 引导的面板是 surface-1：选项选中时外框的间隙用面板色 */
 [data-testid='onboarding'] {

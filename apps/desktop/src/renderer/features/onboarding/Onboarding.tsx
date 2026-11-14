@@ -2,7 +2,8 @@ import { AllayHead } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
 import { ICON } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
-import { ArrowLeft, ArrowRight, CheckCircle, Clock, CloudArrowDown, FolderOpen, GameController, type Icon } from '@phosphor-icons/react';
+import { ResourceThumb } from '@allay/ui/editor';
+import { ArrowLeft, ArrowRight, Check, CheckCircle, Clock, CloudArrowDown, FolderOpen, FolderSimple, GameController, type Icon } from '@phosphor-icons/react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FoldersInfo, FolderInfo, FolderKind } from '../../../shared/folders';
@@ -13,49 +14,57 @@ import { chooseGameDir, downloadVanilla, setVanilla } from '../resources/actions
 import { DownloadProgress } from '../resources/DownloadProgress';
 import { LanguageChoice, MotionChoice, ThemeChoice } from '../settings/choices';
 import { FolderRow } from '../settings/pages';
+import { Companion, CompanionIsland, CompanionScenery, SpeechBubble } from './Companion';
 
-// 首次启动引导（docs/06-ui-design.md 6.10）：整页，盖住主界面；和主界面同一套语言（底色上两块留缝的圆角面板）。
-// 左边一列是步骤（编号、名称、当前选的值），右边是这一步。语言和主题选了立刻生效；素材这一步只有用户点了
-// “开始下载”才联网（说明文字和资源栈弹层里的一样），进度用分阶段的组件（6.12），悦灵捧着方块飞（7.6 B，全应用只此一只）。
-// 每一步都能返回、能跳过；“跳过引导”直接结束。走完或跳过都记进设置（ui.onboardingCompleted），设置里可以重新运行。
+// 首次启动引导（docs/06-ui-design.md 6.10）：整页，盖住主界面。版面参照 Windows 的开箱设置：左边一大块插画区，
+// 吉祥物陪着（每一步不同的姿态和一句话），右边是步骤进度、这一步的标题、说明和选项，底部固定“上一步 / 跳过这一步 / 继续”。
+// 语言和主题选了立刻生效；素材这一步只有用户点了“开始下载”才联网（说明文字和资源栈弹层里的一样），进度用分阶段的组件（6.12），
+// 下载中由进度条上的吉祥物接手（export 优先级，全应用只此一只）。每一步都能返回、能跳过；“跳过引导”直接结束。
+// 走完或跳过都记进设置（ui.onboardingCompleted），帮助菜单和设置里可以重新运行。换步时内容按方向滑入、淡入；减少动效时没有动画。
 
 export const ONBOARDING_STEPS = ['language', 'appearance', 'assets', 'folders', 'done'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 type AssetChoice = 'download' | 'local' | 'later';
 
-function StepRail({ step, visited, go, summaries }: { step: OnboardingStep; visited: number; go(s: OnboardingStep): void; summaries: Record<OnboardingStep, string> }) {
+/**
+ * 步骤进度（6.10）：一排编号圆点和名称，用细线连起来；走过的是成功色对勾，当前步是强调色。
+ * 走过的步骤可以点回去。每一步当前选的值放在 title 里（悬停可见），完成页另有摘要
+ */
+function Stepper({ step, visited, go, summaries }: { step: OnboardingStep; visited: number; go(s: OnboardingStep): void; summaries: Record<OnboardingStep, string> }) {
   const { t } = useTranslation();
   const current = ONBOARDING_STEPS.indexOf(step);
   return (
-    <ol className="flex flex-col gap-1" aria-label={t('onboarding.stepsLabel')}>
+    <ol className="flex items-center gap-2" aria-label={t('onboarding.stepsLabel')} data-testid="onboarding-stepper">
       {ONBOARDING_STEPS.map((s, i) => {
         const active = i === current;
         const reachable = i <= visited;
         const done = i < current || (i <= visited && i !== current && s !== 'done');
         return (
-          <li key={s}>
+          <li key={s} className="flex min-w-0 items-center gap-2">
+            {i > 0 && <span aria-hidden="true" className={cn('h-px w-6 shrink-0 transition-colors duration-(--dur-2) xl:w-10', i <= visited ? 'bg-primary' : 'bg-divider')} />}
             <button
               type="button"
               disabled={!reachable}
               aria-current={active ? 'step' : undefined}
+              title={reachable && summaries[s] ? summaries[s] : undefined}
               data-testid={`onboarding-rail-${s}`}
               onClick={() => go(s)}
               className={cn(
-                // 每项固定 56 px、两行（名称 + 当前的值），当前步和走过的步高度一样，列表不跳
-                'flex h-14 w-full items-center gap-3 rounded-lg px-3 text-left transition-colors duration-(--dur-2) outline-none',
+                'flex h-8 min-w-0 items-center gap-2 rounded-full pr-3 pl-1 text-left transition-colors duration-(--dur-2) outline-none',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)',
                 active ? 'bg-control-hi' : reachable ? 'hover:bg-control' : 'cursor-default',
               )}
             >
-              <span className={cn('num w-5 shrink-0 self-start pt-[11px] text-xs', active ? 'text-primary-text' : 'text-fg-subtle')}>{String(i + 1).padStart(2, '0')}</span>
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className={cn('truncate text-sm', active ? 'font-medium text-foreground' : reachable ? 'text-fg-muted' : 'text-fg-subtle')}>{t(`onboarding.steps.${s}.name`)}</span>
-                <span className="h-4 truncate text-xs text-fg-subtle">{reachable && summaries[s] ? summaries[s] : ' '}</span>
+              <span
+                className={cn(
+                  'num flex size-6 shrink-0 items-center justify-center rounded-full text-2xs',
+                  active ? 'bg-primary text-primary-foreground' : done ? 'bg-primary-soft text-primary-text' : 'bg-well text-fg-subtle',
+                )}
+              >
+                {done && !active ? <Check size={12} weight="bold" aria-hidden="true" /> : i + 1}
               </span>
-              <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
-                {done && !active && <CheckCircle size={ICON.md} weight="fill" className="text-success" />}
-              </span>
+              <span className={cn('truncate text-xs', active ? 'font-medium text-foreground' : reachable ? 'text-fg-muted' : 'text-fg-subtle')}>{t(`onboarding.steps.${s}.name`)}</span>
             </button>
           </li>
         );
@@ -263,12 +272,72 @@ function DoneStep({ summaries }: { summaries: Record<OnboardingStep, string> }) 
   );
 }
 
+
+/** 这一步吉祥物的姿态和说的话（素材这一步跟着下载状态变） */
+function useCompanionPose(step: OnboardingStep): { clip: 'hover' | 'fly' | 'dance' | 'sad'; line: string; carry?: ReactNode; facing: 'left' | 'right' } {
+  const { t } = useTranslation();
+  const download = useResourceStore((s) => s.state?.download.status ?? 'idle');
+  const active = useResourceStore((s) => s.state?.vanilla.active ?? null);
+  const tourPending = useUiStore((s) => !s.settings.tourCompleted);
+  const mascot = t('brand.mascot');
+  switch (step) {
+    case 'language':
+      return { clip: 'hover', facing: 'right', line: t('onboarding.mascot.language', { mascot }) };
+    case 'appearance':
+      return { clip: 'hover', facing: 'left', line: t('onboarding.mascot.appearance') };
+    case 'assets':
+      if (download === 'running') return { clip: 'fly', facing: 'right', line: t('onboarding.mascot.assetsRunning') };
+      if (download === 'failed' || download === 'canceled') return { clip: 'sad', facing: 'right', line: t('onboarding.mascot.assetsFailed') };
+      if (download === 'done' || active) return { clip: 'dance', facing: 'right', line: t('onboarding.mascot.assetsDone') };
+      return { clip: 'hover', facing: 'right', line: t('onboarding.mascot.assets'), carry: <ResourceThumb kind="block" id="minecraft:grass_block" size={28} /> };
+    case 'folders':
+      return { clip: 'hover', facing: 'left', line: t('onboarding.mascot.folders'), carry: <FolderSimple size={26} weight="fill" className="text-mark" /> };
+    case 'done':
+      return { clip: 'dance', facing: 'right', line: tourPending ? t('onboarding.mascot.doneTour') : t('onboarding.mascot.done') };
+  }
+}
+
+/** 每一步吉祥物在插画区里的横向位置（占它自身宽度的比例），换步时挪一点，像是跟着你走 */
+const COMPANION_SHIFT: Record<OnboardingStep, number> = { language: -0.18, appearance: 0.14, assets: -0.08, folders: 0.18, done: 0 };
+
+/**
+ * 左侧的插画区：欢迎语、吉祥物和它的气泡、脚下的小方块、漂着的像素方块。换步时吉祥物挪位置
+ * （transform 过渡，--dur-4），气泡里的话换掉时轻轻弹出；减少动效时都没有动画。
+ */
+function Illustration({ step }: { step: OnboardingStep }) {
+  const { t } = useTranslation();
+  const pose = useCompanionPose(step);
+  return (
+    <section className="relative flex w-[40%] max-w-[560px] min-w-[340px] shrink-0 flex-col overflow-hidden rounded-xl bg-surface-1" aria-label={t('onboarding.illustrationLabel')} data-testid="onboarding-illustration">
+      <CompanionScenery />
+      <div className="relative flex flex-col gap-2 px-9 pt-[clamp(28px,7vh,72px)]">
+        <h1 className="text-xl font-semibold">{t('onboarding.welcome', { name: t('brand.name') })}</h1>
+        <p className="max-w-[44ch] text-sm leading-relaxed text-fg-subtle">{t('onboarding.intro')}</p>
+      </div>
+      <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center px-8 pb-6">
+        <div className="onboarding-companion flex flex-col items-center" style={{ transform: `translateX(${COMPANION_SHIFT[step] * 100}%)` }}>
+          <SpeechBubble key={`${step}:${pose.line}`} tail="bottom" className="mb-5 max-w-[300px]" testId="onboarding-bubble">
+            {pose.line}
+          </SpeechBubble>
+          <Companion clip={pose.clip} size={150} facing={pose.facing} carry={pose.carry} />
+          <div className="-mt-8">
+            <CompanionIsland />
+          </div>
+        </div>
+      </div>
+      <p className="relative px-9 pb-6 text-xs leading-relaxed text-fg-subtle">{t('onboarding.changeLater')}</p>
+    </section>
+  );
+}
+
 export function Onboarding() {
   const { t } = useTranslation();
   const settings = useUiStore((s) => s.settings);
   const resources = useResourceStore((s) => s.state);
   const [step, setStep] = useState<OnboardingStep>('language');
   const [visited, setVisited] = useState(0);
+  // 换步的方向：内容从右边（前进）或左边（返回）滑进来
+  const [dir, setDir] = useState<'forward' | 'back'>('forward');
   const [assetChoice, setAssetChoice] = useState<AssetChoice | null>(null);
   const [folders, setFolders] = useState<FoldersInfo | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -285,6 +354,7 @@ export function Onboarding() {
 
   const go = (s: OnboardingStep) => {
     const i = ONBOARDING_STEPS.indexOf(s);
+    setDir(i < idx ? 'back' : 'forward');
     setStep(s);
     setVisited((v) => Math.max(v, i));
   };
@@ -325,7 +395,7 @@ export function Onboarding() {
       data-step={step}
       className="fixed inset-0 z-[60] flex flex-col bg-background text-foreground"
     >
-      {/* 顶栏：和主界面同高，坐在底色上；空白处可以拖动窗口 */}
+      {/* 顶栏：和主界面同高，坐在底色上；空白处可以拖动窗口，右侧给系统的窗口按钮留位置 */}
       <header className="app-drag flex h-11 shrink-0 items-center gap-2 pr-[150px] pl-3.5">
         <AllayHead size={22} label={t('brand.name')} />
         <span className="text-[13px] font-semibold whitespace-nowrap">{t('brand.wordmark')}</span>
@@ -336,32 +406,29 @@ export function Onboarding() {
         </Button>
       </header>
 
+      {/* 全屏两栏（参照 Windows 的开箱设置）：左边是大的插画和吉祥物，右边是这一步的标题、说明和选项，底部按钮固定 */}
       <div className="flex min-h-0 flex-1 gap-1.5 px-1.5 pb-1.5">
-        <aside className="flex w-[300px] shrink-0 flex-col rounded-xl bg-surface-1 p-4">
-          <div className="flex flex-col gap-1.5 px-3 pt-2 pb-5">
-            <h1 className="text-lg font-semibold">{t('onboarding.welcome', { name: t('brand.name') })}</h1>
-            <p className="text-sm leading-relaxed text-fg-subtle">{t('onboarding.intro')}</p>
-          </div>
-          <StepRail step={step} visited={visited} go={go} summaries={summaries} />
-          <div className="flex-1" />
-          <p className="px-3 text-xs leading-relaxed text-fg-subtle">{t('onboarding.changeLater')}</p>
-        </aside>
+        <Illustration step={step} />
 
         <main className="flex min-w-0 flex-1 flex-col rounded-xl bg-surface-1">
-          {/* 一列限宽、水平居中，从面板上方约十分之一处起排（窗口越高留得越多），标题、内容、底部按钮左右对齐 */}
-          <div key={step} className="onboarding-step min-h-0 flex-1 overflow-y-auto px-10">
-            <div className="mx-auto flex w-full max-w-[920px] flex-col pt-[clamp(28px,9vh,104px)] pb-8">
+          <div className="shrink-0 overflow-x-auto px-10 pt-5 pb-1">
+            <div className="mx-auto w-full max-w-[760px]">
+              <Stepper step={step} visited={visited} go={go} summaries={summaries} />
+            </div>
+          </div>
+          <div key={step} className="onboarding-step min-h-0 flex-1 overflow-y-auto px-10" data-dir={dir}>
+            <div className="mx-auto flex w-full max-w-[760px] flex-col pt-[clamp(20px,6vh,72px)] pb-8">
               <div className="flex flex-col gap-2 pb-7">
                 <span className="num text-xs text-fg-subtle" data-testid="onboarding-counter">
                   {String(idx + 1).padStart(2, '0')} / {String(ONBOARDING_STEPS.length).padStart(2, '0')}
                 </span>
-                <h2 id="onboarding-title" tabIndex={-1} className="text-xl font-semibold outline-none">
+                <h2 id="onboarding-title" tabIndex={-1} className="text-[26px] leading-tight font-semibold outline-none">
                   {t(`onboarding.steps.${step}.title`)}
                 </h2>
                 <p className="max-w-[64ch] text-sm leading-relaxed text-fg-muted">{t(`onboarding.steps.${step}.body`)}</p>
               </div>
               {step === 'language' && (
-                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,400px)] items-start gap-10">
+                <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
                   <LanguageChoice testId="onboarding-language" />
                   <LivePreview />
                 </div>
@@ -385,27 +452,28 @@ export function Onboarding() {
           </div>
 
           <footer className="shrink-0 border-t border-divider px-10">
-            <div className="mx-auto flex h-16 w-full max-w-[920px] items-center gap-2">
-            <Button variant="ghost" disabled={idx === 0} data-testid="onboarding-back" onClick={back}>
-              <ArrowLeft size={ICON.sm} />
-              {t('onboarding.back')}
-            </Button>
-            <div className="flex-1" />
-            {step !== 'done' && (
-              <Button variant="ghost" data-testid="onboarding-skip" onClick={next}>
-                {t('onboarding.skip')}
+            <div className="mx-auto flex h-16 w-full max-w-[760px] items-center gap-2">
+              <Button variant="ghost" disabled={idx === 0} data-testid="onboarding-back" onClick={back}>
+                <ArrowLeft size={ICON.sm} />
+                {t('onboarding.back')}
               </Button>
-            )}
-            {step === 'done' ? (
-              <Button size="lg" data-testid="onboarding-finish" onClick={finish}>
-                {t('onboarding.finish')}
-              </Button>
-            ) : (
-              <Button size="lg" data-testid="onboarding-next" onClick={next}>
-                {t('onboarding.next')}
-                <ArrowRight size={ICON.sm} />
-              </Button>
-            )}
+              <div className="flex-1" />
+              {step !== 'done' && (
+                <Button variant="ghost" data-testid="onboarding-skip" onClick={next}>
+                  {t('onboarding.skip')}
+                </Button>
+              )}
+              {step === 'done' ? (
+                <Button size="lg" data-testid="onboarding-finish" onClick={finish}>
+                  {t('onboarding.finish')}
+                  <ArrowRight size={ICON.sm} />
+                </Button>
+              ) : (
+                <Button size="lg" data-testid="onboarding-next" onClick={next}>
+                  {t('onboarding.next')}
+                  <ArrowRight size={ICON.sm} />
+                </Button>
+              )}
             </div>
           </footer>
         </main>
