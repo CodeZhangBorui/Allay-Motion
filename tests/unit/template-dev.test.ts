@@ -1,7 +1,7 @@
 // 模板开发模式的主进程部分（docs/08-milestones.md MD-a；docs/code-editing-and-mcp-plan.md H8、H10）：
 // 监视服务（防抖、内容哈希去重、忽略临时文件、自己写入不触发、原子保存只触发一次、目录外的路径被拒绝）、
 // 复制内置模板、写入类型定义与 jsconfig.json、打开文件夹。用临时目录和真实的文件系统事件，模板是测试时生成的。
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import ts from 'typescript';
@@ -44,7 +44,8 @@ describe('H10 模板目录的监视服务', () => {
   let events: TemplateChangeEvent[];
 
   beforeEach(async () => {
-    base = mkdtempSync(join(tmpdir(), 'allay-watch-'));
+    // 真实路径：CI 上 TEMP 是 8.3 短名（RUNNER~1），被测代码按真实路径（长名）比较
+    base = realpathSync.native(mkdtempSync(join(tmpdir(), 'allay-watch-')));
     root = join(base, 'templates');
     writeTemplate(root, 'user.test.a', '1.0.0');
     watcher = new TemplateWatcher({ root, log, debounceMs: DEBOUNCE });
@@ -168,7 +169,7 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
   let changes: TemplateDevChange[];
 
   beforeAll(async () => {
-    base = mkdtempSync(join(tmpdir(), 'allay-dev-'));
+    base = realpathSync.native(mkdtempSync(join(tmpdir(), 'allay-dev-')));
     await buildBuiltins(join(base, 'builtin'));
   }, 60_000);
 
