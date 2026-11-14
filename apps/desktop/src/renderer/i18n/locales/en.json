@@ -1095,7 +1095,8 @@
       "no-asset": "The latest version has no installer for this platform yet. Try again later.",
       "checksum": "The installer failed verification and was discarded. Try again.",
       "install": "Couldn't start the installer.",
-      "disk": "Couldn't save the downloaded installer. Check your free disk space."
+      "disk": "Couldn't save the downloaded installer. Check your free disk space.",
+      "space": "Not enough free space on the drive with the temporary folder: installing needs at least {{size}} MB. Free up space, then click “Restart and install” again. Your current version is untouched."
     },
     "toast": {
       "available": "Version {{version}} is available",

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { checkUpdateUrl } from '../../apps/desktop/src/main/updates/service';
 import { migrateSettingsFile } from '../../apps/desktop/src/shared/settings';
-import { assetPattern, compareVersions, parseChecksums, resolveUpdateSource, versionFromTag } from '../../apps/desktop/src/shared/updates';
+import { assetPattern, compareVersions, parseChecksums, resolveUpdateSource, staleDownload, versionFromTag } from '../../apps/desktop/src/shared/updates';
+import { spaceCheckMacro } from '../../scripts/dist-extras';
 
 // 自动更新的纯逻辑（docs/decisions.md“自动更新”）
 
@@ -51,6 +52,23 @@ describe('自动更新', () => {
     expect(() => checkUpdateUrl('https://github.com:8443/a')).toThrow();
     expect(() => checkUpdateUrl('https://evil.example.com/a')).toThrow();
     expect(() => checkUpdateUrl('https://github.com.evil.example/a')).toThrow();
+  });
+
+  it('启动时清理：半成品和不比当前新的安装包可以删，更新的留着', () => {
+    expect(staleDownload('Allay-Motion-0.1.2-x64-setup.exe.1b2c.part', '0.1.2')).toBe(true);
+    expect(staleDownload('Allay-Motion-0.1.2-x64-setup.exe', '0.1.2')).toBe(true);
+    expect(staleDownload('Allay-Motion-0.1.1-arm64.dmg', '0.1.2')).toBe(true);
+    expect(staleDownload('Allay-Motion-0.1.3-x64-setup.exe', '0.1.2')).toBe(false);
+    expect(staleDownload('notes.txt', '0.1.2')).toBe(false);
+  });
+
+  it('安装程序的临时空间检查：变量不被转义，空间不够时退出码 2', () => {
+    const macro = spaceCheckMacro();
+    expect(macro).toContain('${GetRoot} "$TEMP" $R9');
+    expect(macro).toContain('${If} $R8 < 1024');
+    expect(macro).toContain('（$R9）只剩 $R8 MB');
+    expect(macro).not.toContain('$$R');
+    expect(macro).toContain('SetErrorLevel 2');
   });
 
   it('旧设置文件没有 updates 时用默认值，坏掉的字段各自兜底', () => {

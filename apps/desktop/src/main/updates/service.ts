@@ -11,12 +11,13 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, rename, rm, stat, statfs } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
   CHECKSUMS_ASSET,
+  INSTALL_TEMP_SPACE_MB,
   ReleaseJsonSchema,
   UPDATE_REPO,
   assetPattern,
@@ -24,6 +25,7 @@ import {
   otherSource,
   parseChecksums,
   resolveUpdateSource,
+  staleDownload,
   versionFromTag,
   type UpdateErrorCode,
   type UpdatePrefs,
@@ -114,6 +116,16 @@ async function readText(res: Response, maxBytes: number): Promise<string> {
   return buf.toString('utf8');
 }
 
+/** 所在磁盘的可用字节数；查不到时为 null */
+async function freeBytes(dir: string): Promise<number | null> {
+  try {
+    const s = await statfs(dir);
+    return s.bavail * s.bsize;
+  } catch {
+    return null;
+  }
+}
+
 async function sha256File(file: string): Promise<string> {
   const h = createHash('sha256');
   for await (const chunk of createReadStream(file)) h.update(chunk as Buffer);
@@ -141,6 +153,13 @@ export interface UpdateServiceOptions {
   quit(): void;
   /** macOS：用系统默认程序打开 dmg；返回错误信息，成功时为空串 */
   openPath(path: string): Promise<string>;
+  /** 系统临时文件夹（os.tmpdir()） */
+  tempDir: string;
+  /**
+   * Windows：系统临时文件夹所在磁盘不够安装用时，改让安装程序用这个文件夹当临时文件夹（安装目录旁边，在安装盘上）。
+   * 未打包或不是 Windows 时为 null
+   */
+  fallbackTempDir: string | null;
 }
 
 export class UpdateService {
@@ -179,6 +198,7 @@ export class UpdateService {
 
   /** 打包后的应用：启动一会儿后检查一次，之后定时检查（设置为 off 时跳过） */
   start(): void {
+    void this.cleanUp();
     if (!this.o.packaged || this.state.status === 'unsupported') return;
     this.timers.push(setTimeout(() => void this.autoCheck(), FIRST_CHECK_DELAY_MS));
     this.timers.push(setInterval(() => void this.autoCheck(), TICK_MS));
@@ -190,6 +210,45 @@ export class UpdateService {
       this.timers.push(setTimeout(() => void this.autoCheck(true), 1000));
     }
     if (prev.source !== next.source) this.o.onChanged(this.current);
+  }
+
+  /** 启动时清掉用不着的下载（半成品、不比当前新的安装包）和上次安装用过的备用临时文件夹 */
+  private async cleanUp(): Promise<void> {
+    try {
+      for (const name of await readdir(this.o.downloadDir).catch(() => [] as string[])) {
+        if (staleDownload(name, this.o.currentVersion)) await rm(join(this.o.downloadDir, name), { recursive: true, force: true });
+      }
+      // 装完被安装程序重新启动的这一次，临时文件夹可能正是它（环境变量继承下来），不删
+      const fallback = this.o.fallbackTempDir;
+      if (fallback && fallback.toLowerCase() !== this.o.tempDir.toLowerCase()) await rm(fallback, { recursive: true, force: true });
+    } catch (error) {
+      this.o.log.warn('updates', 'clean up failed', { error: String(error) });
+    }
+  }
+
+  /**
+   * Windows 安装程序用哪个临时文件夹：系统临时文件夹够用就不改；不够时用安装盘上的备用文件夹；都不够时为 null。
+   * 返回要传给安装程序的环境变量
+   */
+  private async installerEnv(): Promise<NodeJS.ProcessEnv | null> {
+    const need = INSTALL_TEMP_SPACE_MB * 1024 * 1024;
+    const free = await freeBytes(this.o.tempDir);
+    if (free === null || free >= need) return process.env;
+    const fallback = this.o.fallbackTempDir;
+    if (fallback) {
+      try {
+        await mkdir(fallback, { recursive: true });
+        const fallbackFree = await freeBytes(fallback);
+        if (fallbackFree !== null && fallbackFree >= need) {
+          this.o.log.info('updates', 'temp drive is low, installer uses fallback temp folder', { free, fallbackFree });
+          return { ...process.env, TEMP: fallback, TMP: fallback };
+        }
+      } catch (error) {
+        this.o.log.warn('updates', 'fallback temp folder unusable', { error: String(error) });
+      }
+    }
+    this.o.log.warn('updates', 'not enough temp space to install', { free, need });
+    return null;
   }
 
   stop(): void {
@@ -292,6 +351,8 @@ export class UpdateService {
     this.set({ status: 'downloading', error: null, progress: { received: 0, total: found.release.asset.size } });
     try {
       await mkdir(this.o.downloadDir, { recursive: true });
+      const free = await freeBytes(this.o.downloadDir);
+      if (free !== null && free < found.release.asset.size + 64 * 1024 * 1024) throw new UpdateError('disk', 'not enough space to download');
       // 已经下好、校验也对：不重下
       if ((await stat(dest).catch(() => null))?.isFile() && (await sha256File(dest)) === found.sha256) {
         this.downloadedFile = dest;
@@ -377,14 +438,18 @@ export class UpdateService {
   async install(): Promise<UpdateState> {
     const file = this.downloadedFile;
     if (this.state.status !== 'downloaded' || !file) return this.current;
+    // 失败时状态留在“已下载”，界面上仍能再点安装
     if (!this.o.packaged) {
       this.o.log.warn('updates', 'install skipped: not packaged');
-      return this.set({ status: 'error', error: 'install' });
+      return this.set({ error: 'install' });
     }
     try {
       if (this.o.platform === 'win32') {
+        // 临时空间不够时安装程序会装出半截的应用（它自己也会检查并退出，但那时应用已经退出了）：先查，不够就不装
+        const env = await this.installerEnv();
+        if (!env) return this.set({ error: 'space' });
         // NSIS（electron-builder）：--updated 按更新处理，/S 静默安装到原来的位置，--force-run 装完重新启动应用
-        const child = spawn(file, ['--updated', '/S', '--force-run'], { detached: true, stdio: 'ignore' });
+        const child = spawn(file, ['--updated', '/S', '--force-run'], { detached: true, stdio: 'ignore', env });
         child.unref();
       } else {
         const error = await this.o.openPath(file);
@@ -392,7 +457,7 @@ export class UpdateService {
       }
     } catch (error) {
       this.o.log.error('updates', 'install failed', { error: String(error) });
-      return this.set({ status: 'error', error: 'install' });
+      return this.set({ error: 'install' });
     }
     this.o.log.info('updates', 'installing, quitting', { version: this.state.latest?.version });
     this.o.quit();

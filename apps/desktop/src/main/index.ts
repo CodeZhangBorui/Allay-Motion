@@ -1,5 +1,5 @@
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { app, session, shell, type BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels';
 import { handleAppProtocol, registerAppScheme } from './app-protocol';
@@ -122,6 +122,9 @@ if (!app.requestSingleInstanceLock()) {
     },
     quit: () => app.quit(),
     openPath: (path) => shell.openPath(path),
+    tempDir: tmpdir(),
+    // 安装目录旁边（安装盘上）：系统临时文件夹所在磁盘不够时让安装程序用它（docs/decisions.md“安装时临时空间不足”）
+    fallbackTempDir: app.isPackaged && process.platform === 'win32' ? join(dirname(dirname(process.execPath)), 'AllayMotion-update-temp') : null,
   });
   // 模板：内置的来自 resources/templates/（pnpm templates:build 的产物），用户的在 userData/templates/（4.8、4.9）
   const templates = new TemplateService({ builtinDir: join(bundledResources, 'templates'), userDataDir: userData, appVersion: app.getVersion(), log });

@@ -194,6 +194,7 @@ jobs:
           发布清单（`docs/release-checklist.md`）记录了品牌、名称、代码签名等事项的状态。
 
           - Windows（x64）：`*-x64-setup.exe`。安装包**没有代码签名**：Windows SmartScreen 会提示“未知发布者”。
+            安装时临时文件夹所在的磁盘（通常是 C 盘）至少要有 1 GB 可用空间，不够时安装程序会提示并退出。
           - macOS：Apple 芯片选 `*-arm64.dmg`，Intel 选 `*-x64.dmg`（同样内容的 `*-mac.zip` 也一并提供），需要 macOS 12 或更新。
             应用只做了 ad-hoc 签名、**没有经过 Apple 公证**：首次打开时系统会拦下。在“访达”里右键（或按住 Control 点按）应用选“打开”；
             macOS 15 起要到“系统设置 → 隐私与安全性”里点“仍要打开”。

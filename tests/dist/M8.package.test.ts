@@ -95,6 +95,9 @@ describe.runIf(IS_WIN)('M8 安装脚本（electron-builder 生成的 NSIS 脚本
     expect(debug()).toMatch(/!include ".*[\\/]apps[\\/]desktop[\\/]build[\\/]installer\.nsh"/);
     const nsh = readFileSync(join(BUILD, 'installer.nsh'), 'utf8');
     expect(nsh).toContain('!macro customWelcomePage');
+    // 临时空间不足时在卸载旧版本之前退出（docs/decisions.md“安装时临时空间不足”）
+    expect(nsh).toContain('!macro customInit');
+    expect(nsh).toMatch(/\$\{DriveSpace\} "\$R9\\" "\/D=F \/S=M" \$R8/);
     expect(nsh).toContain('NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.');
     expect(nsh).toContain('本软件不是 Minecraft 官方产品');
   });

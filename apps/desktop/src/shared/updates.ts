@@ -46,7 +46,8 @@ export const UpdatePrefsPatchSchema = z.strictObject({
 export const UPDATE_STATUSES = ['idle', 'checking', 'up-to-date', 'available', 'downloading', 'downloaded', 'error', 'unsupported'] as const;
 export type UpdateStatus = (typeof UPDATE_STATUSES)[number];
 
-export const UPDATE_ERRORS = ['network', 'no-release', 'no-asset', 'checksum', 'install', 'disk'] as const;
+/** space：临时文件夹所在的磁盘不够安装用（见 INSTALL_TEMP_SPACE_MB） */
+export const UPDATE_ERRORS = ['network', 'no-release', 'no-asset', 'checksum', 'install', 'disk', 'space'] as const;
 export type UpdateErrorCode = (typeof UPDATE_ERRORS)[number];
 
 export interface UpdateRelease {
@@ -144,6 +145,20 @@ export function assetPattern(platform: string, arch: string): RegExp | null {
 }
 
 export const CHECKSUMS_ASSET = 'SHA256SUMS.txt';
+
+/**
+ * Windows 安装程序要的临时空间（MB）：electron-builder 的安装程序先把整个应用解压进临时文件夹再复制进安装目录，
+ * 空间不够时会装出半截、打不开的应用（docs/decisions.md“安装时临时空间不足”）。
+ * 安装程序自己在启动时按这个数检查（scripts/dist-extras.ts），应用内更新在启动安装程序之前也按它检查
+ */
+export const INSTALL_TEMP_SPACE_MB = 1024;
+
+/** 下载目录里的安装包或半成品：版本号不比当前新的可以删 */
+export function staleDownload(name: string, currentVersion: string): boolean {
+  if (name.endsWith('.part')) return true;
+  const m = /-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)-(?:x64|arm64)/.exec(name);
+  return m ? compareVersions(m[1]!, currentVersion) <= 0 : false;
+}
 
 /** SHA256SUMS.txt：每行“<64 位十六进制>  <文件名>” */
 export function parseChecksums(text: string): Map<string, string> {

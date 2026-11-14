@@ -5,7 +5,7 @@ import { ArrowsClockwise, CloudArrowDown, X } from '@phosphor-icons/react';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { UPDATE_MODES, UPDATE_SOURCE_PREFS, type UpdateMode, type UpdateSourcePref, type UpdateState } from '../../../shared/updates';
+import { INSTALL_TEMP_SPACE_MB, UPDATE_MODES, UPDATE_SOURCE_PREFS, type UpdateMode, type UpdateSourcePref, type UpdateState } from '../../../shared/updates';
 import { useUiStore } from '../../stores/uiStore';
 import { formatBytes } from '../resources/DownloadProgress';
 import { CONTROL_W, SettingsPageHeader, SettingsRow, SettingsSection } from '../settings/layout';
@@ -18,6 +18,8 @@ const mac = () => navigator.userAgent.includes('Mac');
 function statusText(t: TFunction, s: UpdateState, locale: string): string {
   const version = s.latest?.version ?? '';
   const source = s.latest ? t(`updates.sources.${s.latest.source}`) : '';
+  // 安装失败时状态留在“已下载”，显示原因
+  if (s.error && s.status === 'downloaded') return t(`updates.errors.${s.error}`, { size: INSTALL_TEMP_SPACE_MB });
   switch (s.status) {
     case 'idle':
       return t('updates.status.idle');
