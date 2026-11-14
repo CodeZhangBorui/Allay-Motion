@@ -13,6 +13,7 @@ import type { HostCommandRequest, HostCommandResult } from '../shared/host-comma
 import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
+import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
 import type {
   CommitResult,
   CopyBuiltinRequest,
@@ -171,6 +172,12 @@ export interface AllayApi {
     commandResult(result: HostCommandResult): Promise<boolean>;
     /** 界面就绪：首屏画完、初始模板装好、命令通道接好之后调用一次（M8） */
     ready(): Promise<void>;
+  };
+  /** 默认文件夹（6.11）：只传“哪一个”，路径由主进程的文件夹对话框选，回来的路径只用于显示 */
+  folders: {
+    get(): Promise<FoldersInfo>;
+    choose(kind: FolderKind): Promise<FolderChooseResult>;
+    reset(kind: FolderKind): Promise<FolderInfo>;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;
