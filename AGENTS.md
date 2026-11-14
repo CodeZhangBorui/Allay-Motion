@@ -4,7 +4,7 @@
 
 技术栈：Electron + TypeScript + React + shadcn/ui（Base UI）+ Three.js，导出交给独立进程的 FFmpeg。
 
-这个仓库目前只有规格，没有代码。你的任务是按规格把它做出来。
+项目已有实现；修改前先了解现有代码和对应规格。
 
 ## 先读什么
 
@@ -32,7 +32,7 @@
 8. **导出的色彩和透明通道照 `docs/05-export.md` 5.4 做。** 那些要求来自实测，不是风格偏好。
 9. **品牌资产只放在 `packages/mascot` 和 `packages/ui/src/brand/`。** 其他地方的用户可见文字里不写死产品名和“悦灵”。
 10. **应用不联网。** 不加遥测、自动更新、在线素材、崩溃上报。
-11. **不对外发布。** 不推送安装包到任何公开位置，不创建公开的发布页。
+11. **按约定的发版流程发布。** 推送 `v*` 标签会在构建和打包检查通过后自动发布，并同步到 GitCode；不要擅自创建发版标签。
 
 ## 怎么干活
 
@@ -42,6 +42,13 @@
 - 规格和现实对不上的地方（库的接口变了、某个命令行参数在固定的 FFmpeg 版本上行为不同）：以通过验收测试为准，把偏差和原因记进 `docs/decisions.md`。
 - 规格里的版本号是 2026-11 查到的。安装时取当时的最新稳定版，锁进 lockfile。
 - 性能数字是预算。达不到时先量出瓶颈再优化，不要靠降低画质或跳过子帧来凑数。
+
+## CI 与发布
+
+- `.github/workflows/ci.yml` 对任意分支的推送、PR 和手动触发运行一个 Windows 作业，默认只执行一遍 `pnpm check`（含类型、lint、单元、引擎、导出、素材来源、许可和端到端检查）。推送和 PR 是独立事件，存在 PR 时同一次推送可能触发两次运行。
+- `pnpm check:removable` 验证移除 `packages/optional` 后项目仍能工作；日常 CI 不重复运行。修改可选模块或其装载方式时，在 GitHub Actions 的 `ci` 工作流手动运行并勾选 `check_removable`。
+- 完整构建和测试以 GitHub Actions 结果为准；在本机只运行适合改动的静态或针对性检查，测试保持后台运行。
+- `.github/workflows/release.yml` 在推送 `v*` 标签时构建和自动发布；手动触发只产出构建结果。`.github/workflows/gitcode-mirror.yml` 单向同步代码、标签和已发布 Release，具体见 `docs/gitcode-mirror.md`。
 
 ## 必须停下来问人的情况
 

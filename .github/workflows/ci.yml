@@ -1,16 +1,18 @@
-# CI（docs/01-product-architecture.md 1.10，docs/decisions.md M8）：跑 pnpm check 和 pnpm check:removable。
-# 安装包由 release.yml 构建。这里只读仓库，没有任何密钥。
-# 第三方 action 固定到提交哈希（注释里是对应的版本标签），升级时一起改。
-#
-# 流程（用户决定，2026-11-14，“测完直接推送，没有必要开pr”）：推工作分支（claude/**）→ CI 在这个提交上通过 →
-# 把同一个提交快进推到 main。同一个提交不重复跑：main 上的 push 先看这个提交在别的分支上是否已经通过，通过了就跳过；
-# 本仓库自己分支发起的 PR 也跳过（分支的 push 已经跑过）。外部贡献者从 fork 发 PR，照常跑。
+# 每次推送或 PR 跑一遍完整检查；可选模块拆除检查按需手动运行。
+# 安装包由 release.yml 构建。这里只读仓库，第三方 action 固定到提交哈希。
 name: ci
 
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: ['**']
   pull_request:
+  workflow_dispatch:
+    inputs:
+      check_removable:
+        description: 额外检查移除可选模块后的完整构建和测试
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,40 +22,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  gate:
-    name: 是否需要跑
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      actions: read
-    outputs:
-      run: ${{ steps.decide.outputs.run }}
-    steps:
-      - id: decide
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          EVENT: ${{ github.event_name }}
-          REF: ${{ github.ref }}
-          SHA: ${{ github.sha }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-        run: |
-          run=true
-          if [ "$EVENT" = "pull_request" ] && [ "$HEAD_REPO" = "$GH_REPO" ]; then
-            run=false; echo "本仓库分支的 PR：分支的 push 已经跑过"
-          elif [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
-            ok=$(gh run list --workflow ci.yml --commit "$SHA" --status success --json databaseId --jq 'length')
-            if [ "${ok:-0}" -gt 0 ]; then run=false; echo "这个提交已经在别的分支上通过：$SHA"; fi
-          fi
-          echo "run=$run" >> "$GITHUB_OUTPUT"
-
   check:
     name: pnpm check
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
     runs-on: windows-latest
     # CI 的 WebGL 是软件渲染（WARP），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
-    timeout-minutes: 180
+    timeout-minutes: ${{ inputs.check_removable && 360 || 180 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -87,6 +60,11 @@ jobs:
       - name: pnpm check
         run: pnpm check
 
+      # 只有手动勾选时才重复跑完整测试，验证移除可选模块后的行为。
+      - name: pnpm check:removable
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_removable }}
+        run: pnpm check:removable
+
       - name: 上传失败时的测试记录
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -95,42 +73,3 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
-
-  removable:
-    # 可选模块可以整块拆除（docs/code-editing-and-mcp-plan.md 3.1 第 5 条，T-DEV-4）：
-    # 把 packages/optional 移走后再跑一遍完整的 pnpm check，跑完放回
-    name: pnpm check:removable
-    needs: gate
-    if: needs.gate.outputs.run == 'true'
-    runs-on: windows-latest
-    # CI 的 WebGL 是软件渲染（WARP），引擎测试比显卡上慢二三十倍（tests/engine/software.ts）
-    timeout-minutes: 180
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-
-      # Electron 45 没有 postinstall，二进制在第一次用时才下载；先取好，免得并行的测试同时去启动一个还在下载的 Electron
-      - name: 取 Electron 二进制
-        run: pnpm exec tsx scripts/ensure-electron-dist.ts
-
-      # T-UI-5 的截图基线是 1440×902 的窗口；runner 默认的显示分辨率放不下，窗口被压到 1120×720（docs/decisions.md M8）
-      - name: 显示分辨率 1920×1080
-        shell: powershell
-        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
-
-      - name: pnpm ffmpeg:fetch
-        run: pnpm ffmpeg:fetch
-
-      - name: pnpm check:removable
-        run: pnpm check:removable

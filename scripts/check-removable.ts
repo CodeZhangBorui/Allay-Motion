@@ -1,6 +1,6 @@
 // “可拆除”检查（docs/code-editing-and-mcp-plan.md 3.1 第 5 条；T-DEV-4）：把 packages/optional 整个挪走
 // （--mode=empty 时换成一个空目录），在这个状态下跑完整的 pnpm check，证明主程序不依赖任何可选模块。
-// 跑完（无论成败、包括 Ctrl+C）把目录和 lockfile 原样放回。CI 在 pnpm check 之后跑它。
+// 跑完（无论成败、包括 Ctrl+C）把目录和 lockfile 原样放回。CI 手动勾选 check_removable 时运行。
 //
 // 目录里有模块时，挪走后先用 pnpm install --offline 刷新依赖（不联网：包都已经在本机的 store 里），
 // 放回后再按原来的 lockfile 装一次。现在 packages/optional 下没有模块，这两步都是空操作。

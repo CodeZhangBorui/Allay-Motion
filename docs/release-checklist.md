@@ -30,7 +30,7 @@
 | 带音轨导出的听感 | ProRes、WebM、MP4 带音轨时的音画同步、音量（含峰值压低）、AAC/Opus 开头的编码延迟 | 待确认 | 在播放器和剪辑软件里听：音效和画面对得上、没有爆音和明显延迟。自动测试只按 ffprobe 的包时长核对过 | `docs/decisions.md` “四路合并的对接 · 没验证的”、M6b |
 | H-H264 | 是否保留 `libopenh264` 作为 H.264 的最后兜底 | 待确认 | 保留（现状：排在硬件和系统编码器之后）还是去掉（没有可用硬件或系统编码器的机器上“绿幕 MP4”会被禁用）。自行编译进 FFmpeg 的 openh264 不在 Cisco 二进制的专利许可覆盖范围内 | 9.9；`docs/decisions.md` M7“编码器探测” |
 | T-ARC-7 冷启动 | 打包后的应用：启动画面 0.5 秒内出现，3 秒内主界面可交互 | 待确认 | 规格没定义“参考机器”。本机实测（见 `docs/decisions.md` M8“冷启动”）：主界面可交互约 1.1 秒；启动画面从进程启动算中位数约 0.46 秒、从双击算约 0.5 秒，在预算边上，安装后第一次启动约 1.1–1.2 秒。CI 上只记数字不判定。请确认参考机器，以及这个结果是否可以接受 | `docs/decisions.md` M8；`tests/dist/T-ARC-7.cold-start.test.ts` |
-| CI 首次运行 | `ci.yml`、`release.yml` 在 GitHub 上第一次跑 | 待确认 | 两个工作流都还没跑过（还没推送）；最终提交上的 `pnpm check`、`pnpm check:removable`、`pnpm dist` 只在 CI 上跑。看运行结果，以及草稿 Release 上的安装包能不能装 | `docs/decisions.md` M8“上 GitHub 与 Actions 发版” |
+| CI 和安装包验证 | `ci.yml`、`release.yml` 在 GitHub 上的运行结果 | 待确认 | 查看最终提交的 CI 和发版工作流结果，在干净的 Windows 上确认生成的安装包能否安装 | `docs/decisions.md` M8“上 GitHub 与 Actions 发版” |
 | 原版层开关（M2） | 装了游戏的机器上同意使用原版素材后，开关原版层，预览在原版钻石块和品红黑占位之间切换；资源包盖在原版之上 | 待确认 | 照做一遍看结果 | `docs/review/M2b/README.md` |
 | 悦灵在导出对话框里的位置 | 位置、大小与设计稿是否一致 | 待确认 | 看一眼 | `docs/decisions.md` “四路合并的对接 · 没验证的” |
 | 启动画面与主窗口的衔接 | 可见窗口里的淡出、最大化时机 | 待确认 | 正常启动应用看一次（自动测试的窗口都不显示） | `docs/decisions.md` M5b“没做的、没验证的” |
@@ -57,7 +57,7 @@
 - 手动触发只构建并上传工作流产物，不发布 Release。正式发布后，另一个工作流把发行版和附件同步到 GitCode，详见 `docs/gitcode-mirror.md`。
 - v0.1.0 的公开发布和此后的自动发布由仓库所有者决定；★ 项是否确认仍以本表为准，自动发布不代表它们已确认。
 - 安装包没有代码签名，工作流里也没有任何证书或密钥；没有自动更新。
-- PR 和 `main` 上的 CI（`.github/workflows/ci.yml`）跑 `pnpm check` 和 `pnpm check:removable`。发版工作流里的 `pnpm dist` 跑打包后的检查；T-ARC-7 在 CI 的共享机器上只记数字、不按预算判定（不是参考机器）。
+- 分支推送和 PR 上的 CI（`.github/workflows/ci.yml`）默认跑一遍 `pnpm check`；`pnpm check:removable` 在手动运行 CI 时按需勾选。发版工作流里的 `pnpm dist` 跑打包后的检查；T-ARC-7 在 CI 的共享机器上只记数字、不按预算判定（不是参考机器）。
 
 发版操作：
 
