@@ -170,8 +170,10 @@ export function CutScene() {
       const top = (g.geometry.top - s.y) / s.vh;
       const live = liveRef.current;
       if (!ready || !live) {
-        // 引擎没起来：没有转场，开场白一直可见
+        // 引擎没起来（还在起、或者没有 WebGL）：没有转场，开场白一直可见；整节滚过去了就算终态（跳过时不补播）
         showB(true);
+        if (state === 'idle' && top < -0.5) set('done');
+        else if (state === 'done' && top > 1.05) set('idle');
         return;
       }
       if (state === 'idle') {
