@@ -21,13 +21,17 @@ interface Props {
   delay?: number;
   /** 一挂上就播（首屏用），不等进视口 */
   immediate?: boolean;
+  /** 一小部分方块用阶段色和强调色（品牌的味道），消失之前看得到 */
+  accent?: boolean;
   className?: string;
 }
 
 /** 盖上之后最多等这么久（毫秒，不含 delay 和 duration），还没揭开就直接撤掉 */
 const SAFETY_MS = 450;
 
-export function PixelReveal({ children, bg, variant = 'dissolve', cell = 10, duration = 700, delay = 0, immediate = false, className }: Props) {
+const ACCENTS = ['--stage-enter', '--stage-exit', '--primary', '--cue'];
+
+export function PixelReveal({ children, bg, variant = 'dissolve', cell = 10, duration = 700, delay = 0, immediate = false, accent = false, className }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // idle：还没盖（内容可见）；covered：盖着，等进视口或正在揭；done：揭完了
@@ -98,6 +102,7 @@ export function PixelReveal({ children, bg, variant = 'dissolve', cell = 10, dur
       if (!geo || !g) return finish();
       safety = window.setTimeout(finish, delay + duration + SAFETY_MS);
       const color = tokenColor(bg);
+      const accents = ACCENTS.map((a) => tokenColor(a));
       let start = 0;
       const step = (now: number) => {
         start ||= now + delay;
@@ -105,10 +110,11 @@ export function PixelReveal({ children, bg, variant = 'dissolve', cell = 10, dur
         if (now >= start) {
           g.setTransform(geo.dpr, 0, 0, geo.dpr, 0, 0);
           g.clearRect(0, 0, geo.w, geo.h);
-          g.fillStyle = color;
           for (let r = 0; r < geo.rows; r++)
             for (let c = 0; c < geo.cols; c++) {
               const local = clamp01((p - geo.order[r * geo.cols + c]! * 0.7) / 0.3);
+              const a = accent ? hash01(c + 7, r + 13, 21) : 1;
+              g.fillStyle = a < 0.07 ? accents[Math.floor(a * 1000) % accents.length]! : color;
               if (variant === 'dissolve') {
                 if (local < 0.5) g.fillRect(c * cell, r * cell, cell + 0.5, cell + 0.5);
               } else if (local < 1) {
@@ -149,7 +155,7 @@ export function PixelReveal({ children, bg, variant = 'dissolve', cell = 10, dur
       window.clearTimeout(safety);
       window.clearInterval(safety);
     };
-  }, [phase, bg, variant, cell, duration, delay, immediate]);
+  }, [phase, bg, variant, cell, duration, delay, immediate, accent]);
 
   const covering = phase === 'covered';
   return (

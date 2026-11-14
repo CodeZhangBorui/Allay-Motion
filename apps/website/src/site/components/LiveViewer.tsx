@@ -11,6 +11,7 @@ import { mcGameVersion } from '../../host/mc-pack';
 import { builtinEntries } from '../../host/templates';
 import { usePrefs } from '../prefs';
 import type { LivePreview, LiveState } from '../engine/runtime';
+import { publishLiveTick } from '../motion/HeroField';
 
 interface Props {
   /** 自动轮换模板（首屏）；用户点了任何一个就停 */
@@ -20,11 +21,13 @@ interface Props {
   testId?: string;
   /** 被选中的模板（外部控制，例如模板卡片里点“在预览里看”） */
   initialId?: string;
+  /** 把播放进度广播出去（首屏四周的方块场跟着它动） */
+  publish?: boolean;
 }
 
 type Status = 'starting' | 'ready' | 'unsupported' | 'failed';
 
-export function LiveViewer({ autoCycle = false, scrubbable = false, testId, initialId }: Props) {
+export function LiveViewer({ autoCycle = false, scrubbable = false, testId, initialId, publish = false }: Props) {
   const { t } = useTranslation();
   const { language } = usePrefs();
   const entries = useMemo(() => builtinEntries(), []);
@@ -38,6 +41,8 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
   const playheadRef = useRef<HTMLDivElement>(null);
   const timeRef = useRef<HTMLSpanElement>(null);
   const entry: TemplateEntry | undefined = entries[index];
+  /** 当前模板各段结束处占总时长的比例（给 publish 用，引擎回调里读最新的） */
+  const marksRef = useRef<number[]>([]);
 
   // 引擎：懒加载 runtime（three 和引擎在单独的代码块里），挂到画布上
   useEffect(() => {
@@ -73,6 +78,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
         if (playheadRef.current) playheadRef.current.style.transform = `translateX(${p * 100}%)`;
         if (timeRef.current) timeRef.current.textContent = `${Math.min(s.time, s.duration).toFixed(2)} / ${s.duration.toFixed(2)} s`;
         setState((prev) => (prev.duration === s.duration && prev.playing === s.playing && prev.cutTime === s.cutTime ? prev : s));
+        if (publish) publishLiveTick({ time: s.time, duration: s.duration, marks: marksRef.current });
       });
       const stage = stageRef.current;
       if (stage) {
@@ -86,7 +92,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
       liveRef.current = null;
       live?.dispose();
     };
-  }, [entries.length]);
+  }, [entries.length, publish]);
 
   // 换模板、换语言（带文字的模板跟着换）
   useEffect(() => {
@@ -127,6 +133,10 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
     const total = items.reduce((n, s) => n + s.value, 0) || 1;
     return items.map((s) => ({ ...s, share: s.value / total }));
   }, [entry, language]);
+  useEffect(() => {
+    let acc = 0;
+    marksRef.current = segments.map((sg) => (acc += sg.share));
+  }, [segments]);
   const stageColors = ['var(--stage-enter)', 'var(--stage-hold)', 'var(--stage-exit)'];
 
   const scrubTo = (clientX: number, el: HTMLElement) => {

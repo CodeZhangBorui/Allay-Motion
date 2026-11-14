@@ -12,6 +12,8 @@ declareMascotAssetsMissing();
 
 async function bootstrap(): Promise<void> {
   const prefs = initPrefs();
+  // 页面确实在逐帧渲染（不是后台标签页）才开 CSS 出场动画
+  requestAnimationFrame(() => document.documentElement.classList.add('motion-ok'));
   const i18n = await initSiteI18n(prefs.language);
   // 冒烟测试读它
   (window as unknown as { __siteMissingKeys: Set<string> }).__siteMissingKeys = missingKeys;
