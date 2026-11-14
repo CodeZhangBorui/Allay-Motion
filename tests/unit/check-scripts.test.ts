@@ -1,9 +1,10 @@
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { findViolations, isLicenseAllowed } from '../../scripts/check-licenses';
-import { checkFiles, findUnusedEntries, ProvenanceSchema, verifyGenerated, type ProvenanceEntry } from '../../scripts/check-provenance';
+import { checkFiles, findUnusedEntries, ProvenanceSchema, verifyGenerated, verifyMojang, type ProvenanceEntry } from '../../scripts/check-provenance';
 
 describe('check-licenses（9.8）', () => {
   it.each([
@@ -91,6 +92,53 @@ describe('check-provenance（9.6）', () => {
     expect(checkFiles(['tests/fixtures/baselines/t/16x9-p0.png'], e)).toEqual([]);
     expect(checkFiles(['docs/review/M3/x.png'], e)).toHaveLength(1);
     expect(ProvenanceSchema.safeParse([{ path: 'x', origin: 'rendered', generator: 'node evil.js', license: 'x' }]).success).toBe(false);
+  });
+
+  describe('官网的原版素材（origin: mojang，只对官网的放宽，docs/decisions.md 官网 · 原版素材）', () => {
+    const MC = 'apps/website/public/mc/';
+    const mojang = ProvenanceSchema.parse([
+      {
+        path: `${MC}assets/minecraft/**`,
+        origin: 'mojang',
+        gameVersion: '1.21.1',
+        extractedFrom: 'versions/1.21.1/1.21.1.jar',
+        manifest: `${MC}index.json`,
+        generator: 'pnpm website:mc',
+        license: '© Mojang',
+      },
+    ]);
+    const stone = `${MC}assets/minecraft/textures/block/stone.png`;
+    const meta = `${MC}assets/minecraft/textures/block/magma.png.mcmeta`;
+
+    it('官网目录下由 mojang 记录覆盖的贴图和 .mcmeta 通过', () => {
+      expect(checkFiles([stone, meta, `${MC}index.json`, `${MC}README.md`], mojang)).toEqual([]);
+    });
+
+    it('官网目录下没有 mojang 记录覆盖的文件（包括 .mcmeta）失败', () => {
+      const other = ProvenanceSchema.parse([{ path: '**', origin: 'original', author: 'x', license: 'x' }]);
+      expect(checkFiles([stone, meta], other).map((p) => p.path)).toEqual([stone, meta]);
+    });
+
+    it('mojang 记录不能覆盖官网目录以外的任何文件；别处的 assets/minecraft/ 照旧拒绝', () => {
+      const wide = ProvenanceSchema.parse([{ ...mojang[0]!, path: '**' }]);
+      expect(checkFiles(['packages/x/assets/minecraft/textures/block/dirt.png', 'apps/desktop/build/x.png', 'apps/website/src/a.png'], wide)).toHaveLength(3);
+      const other = ProvenanceSchema.parse([{ path: '**', origin: 'original', author: 'x', license: 'x' }]);
+      expect(checkFiles(['apps/website/public/assets/minecraft/textures/block/dirt.png'], other)).toHaveLength(1);
+    });
+
+    it('按 manifest 核对：内容改过、manifest 里没有、仓库里缺，都报出来', () => {
+      const bytes = Buffer.from('png-bytes');
+      const sha = createHash('sha256').update(bytes).digest('hex');
+      const manifest = (files: { path: string; sha256: string; bytes: number }[]) => Buffer.from(JSON.stringify({ gameVersion: '1.21.1', files }));
+      const ok = { path: 'assets/minecraft/textures/block/stone.png', sha256: sha, bytes: bytes.length };
+      const read = (m: Buffer, content: Buffer) => (p: string) => (p === `${MC}index.json` ? m : content);
+      expect(verifyMojang([stone], mojang, read(manifest([ok]), bytes))).toEqual([]);
+      expect(verifyMojang([stone], mojang, read(manifest([ok]), Buffer.from('edited')))).toHaveLength(1);
+      expect(verifyMojang([stone], mojang, read(manifest([]), bytes))).toHaveLength(1);
+      expect(verifyMojang([], mojang, read(manifest([ok]), bytes))).toHaveLength(1);
+      const wrongVersion = Buffer.from(JSON.stringify({ gameVersion: '9.9', files: [ok] }));
+      expect(verifyMojang([stone], mojang, read(wrongVersion, bytes))).toHaveLength(1);
+    });
   });
 
   it('不覆盖任何文件的记录被报出来', () => {

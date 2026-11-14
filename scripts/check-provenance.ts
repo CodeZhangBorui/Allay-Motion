@@ -2,12 +2,14 @@
 //
 // 1. 仓库里的每个图片、音频、字体、压缩包都必须被 ASSETS_PROVENANCE.json 的某条记录覆盖。
 // 2. 拒绝：路径里有 assets/minecraft/ 却不在 resources/builtin-pack/ 或测试夹具目录下；扩展名为 .jar。
+//    唯一的例外是官网的 apps/website/public/mc/assets/minecraft/（origin: mojang，按 manifest 核对 SHA-256；docs/decisions.md 官网 · 原版素材）。
 // 3. origin 为 generated 的记录：重新运行生成器，产物必须与仓库里的文件逐字节相同
 //    （这样“与原版贴图同名、内容却不是生成脚本产出的”文件过不了）。
 //    生成器约定：以环境变量 ALLAY_GEN_OUT=<临时目录> 运行时，把产物按仓库相对路径写进那个目录。
 // 4. origin 为 rendered 的记录（模板的渲染基准图，docs/decisions.md M3）：由脚本用显卡渲染重新生成，
 //    不同显卡的输出不逐字节相同，所以不比对；只要求生成命令存在，且只能放在测试夹具目录下。
 import { execFileSync, execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -60,6 +62,18 @@ const EntrySchema = z.discriminatedUnion('origin', [
     license: z.string().min(1),
     note: z.string().optional(),
   }),
+  // Minecraft 原版素材：只允许在官网的 apps/website/public/mc/ 下（硬性规则 1 只对官网的放宽，docs/decisions.md 官网 · 原版素材）。
+  // 从本机正版游戏的 jar 里提取，路径与 jar 里的原始路径相同；manifest 记着每个文件的 SHA-256，这里核对没被改过、没多没少。
+  z.strictObject({
+    path: z.string().min(1),
+    origin: z.literal('mojang'),
+    gameVersion: z.string().min(1),
+    extractedFrom: z.string().min(1),
+    manifest: z.string().min(1),
+    generator: z.string().regex(/^pnpm [\w:-]+$/),
+    license: z.string().min(1),
+    note: z.string().optional(),
+  }),
 ]);
 export const ProvenanceSchema = z.array(EntrySchema);
 export type ProvenanceEntry = z.infer<typeof EntrySchema>;
@@ -67,6 +81,8 @@ export type ProvenanceEntry = z.infer<typeof EntrySchema>;
 /** 测试夹具目录：只放脚本生成的假数据 */
 const FIXTURE_DIRS = ['tests/fixtures/'];
 const BUILTIN_PACK = 'resources/builtin-pack/';
+/** 官网专用的原版素材目录：仓库里唯一允许放 Mojang 文件的地方（只对官网的放宽，范围就这一个目录） */
+export const WEBSITE_MC_ASSETS = 'apps/website/public/mc/assets/minecraft/';
 
 export function isBinaryAsset(path: string): boolean {
   const dot = path.lastIndexOf('.');
@@ -90,12 +106,21 @@ export function checkFiles(files: readonly string[], entries: readonly Provenanc
       problems.push({ path, problem: '不允许 .jar 文件（9.6）' });
       continue;
     }
+    const covering = matchers.find((m) => m.match(path));
+    if (path.startsWith(WEBSITE_MC_ASSETS)) {
+      // 官网的原版素材目录：里面每个文件（贴图和 .mcmeta）都必须由 origin: mojang 的记录覆盖
+      if (covering?.entry.origin !== 'mojang') problems.push({ path, problem: '官网的原版素材必须由 origin: mojang 的记录覆盖（docs/decisions.md 官网 · 原版素材）' });
+      continue;
+    }
+    if (covering?.entry.origin === 'mojang') {
+      problems.push({ path, problem: `origin: mojang 只能用于 ${WEBSITE_MC_ASSETS} 下的文件` });
+      continue;
+    }
     if (lower.includes('assets/minecraft/') && !lower.startsWith(BUILTIN_PACK) && !FIXTURE_DIRS.some((d) => lower.startsWith(d))) {
       problems.push({ path, problem: 'assets/minecraft/ 只能出现在 resources/builtin-pack/ 或测试夹具目录下（9.6）' });
       continue;
     }
     if (!isBinaryAsset(path)) continue;
-    const covering = matchers.find((m) => m.match(path));
     if (!covering) {
       problems.push({ path, problem: '没有被 ASSETS_PROVENANCE.json 的任何记录覆盖（9.6）' });
       continue;
@@ -154,6 +179,45 @@ export function verifyGenerated(
   return problems;
 }
 
+const McManifestSchema = z.object({
+  gameVersion: z.string(),
+  files: z.array(z.object({ path: z.string(), sha256: z.string().regex(/^[0-9a-f]{64}$/), bytes: z.int().min(0) })),
+});
+
+/**
+ * origin: mojang 的记录：按它的 manifest（提取脚本写的 index.json）逐个核对，
+ * 仓库里的文件和 manifest 一一对应、SHA-256 相同、游戏版本与登记一致。离线完成，不需要游戏。
+ */
+export function verifyMojang(files: readonly string[], entries: readonly ProvenanceEntry[], read: (path: string) => Buffer | null): ProvenanceProblem[] {
+  const problems: ProvenanceProblem[] = [];
+  for (const e of entries) {
+    if (e.origin !== 'mojang') continue;
+    const raw = read(e.manifest);
+    const parsed = raw ? McManifestSchema.safeParse(JSON.parse(raw.toString('utf8'))) : null;
+    if (!parsed?.success) {
+      problems.push({ path: e.manifest, problem: '原版素材的 manifest 读不到或格式不对' });
+      continue;
+    }
+    if (parsed.data.gameVersion !== e.gameVersion) problems.push({ path: e.manifest, problem: `游戏版本 ${parsed.data.gameVersion} 与登记的 ${e.gameVersion} 不一致` });
+    const base = e.manifest.slice(0, e.manifest.lastIndexOf('/') + 1);
+    const listed = new Map(parsed.data.files.map((f) => [`${base}${f.path}`, f]));
+    const match = picomatch(e.path, { dot: true });
+    const covered = files.filter((f) => match(f));
+    for (const f of covered) {
+      const want = listed.get(f);
+      if (!want) {
+        problems.push({ path: f, problem: '不在原版素材的 manifest 里' });
+        continue;
+      }
+      const bytes = read(f);
+      if (!bytes || createHash('sha256').update(bytes).digest('hex') !== want.sha256) problems.push({ path: f, problem: '内容与 manifest 记录的 SHA-256 不一致（原版素材不得修改）' });
+    }
+    const present = new Set(covered);
+    for (const f of listed.keys()) if (!present.has(f)) problems.push({ path: f, problem: 'manifest 里有、仓库里没有' });
+  }
+  return problems;
+}
+
 /** git 跟踪的文件，加上未被忽略的新文件 */
 export function listRepoFiles(root: string): string[] {
   const out = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' });
@@ -180,8 +244,9 @@ function main(): void {
   const problems = [
     ...checkFiles(files, entries),
     ...entries
-      .filter((e) => e.origin === 'rendered' && !Object.hasOwn(scripts, e.generator.slice('pnpm '.length)))
-      .map((e) => ({ path: e.path, problem: `生成命令 ${e.origin === 'rendered' ? e.generator : ''} 不在 package.json 的 scripts 里` })),
+      .filter((e) => (e.origin === 'rendered' || e.origin === 'mojang') && !Object.hasOwn(scripts, e.generator.slice('pnpm '.length)))
+      .map((e) => ({ path: e.path, problem: `生成命令 ${e.origin === 'rendered' || e.origin === 'mojang' ? e.generator : ''} 不在 package.json 的 scripts 里` })),
+    ...verifyMojang(files, entries, (p) => (existsSync(join(root, p)) ? readFileSync(join(root, p)) : null)),
     ...findUnusedEntries(files, entries).map((e) => ({ path: e.path, problem: 'ASSETS_PROVENANCE.json 里的这条记录不覆盖任何文件' })),
   ];
   if (problems.length === 0) {
