@@ -188,7 +188,8 @@
     transform: none;
   }
 }
-.site-rise {
+/* 只在确认页面在逐帧渲染之后才做（main.tsx 在第一帧里给 <html> 加 motion-ok）：后台标签页里不会先变透明再卡住 */
+.motion-ok .site-rise {
   animation: site-rise 720ms var(--ease-out) both;
 }
 [data-reduced-motion='true'] .site-rise {
@@ -225,4 +226,95 @@
 }
 [data-reduced-motion='true'] .site-lift:hover {
   transform: none;
+}
+
+/*
+ * 进视口时的交错出场（motion/useInView 打 data-armed / data-shown）。
+ * 只做透明度和很小的位移，缓动用应用的 --ease-out；没武装（已在视口里、后台标签页、减少动效）时就是终态。
+ */
+.site-stagger > * {
+  transition:
+    opacity 560ms var(--ease-out),
+    transform 560ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+[data-armed='true'][data-shown='false'] .site-stagger > *,
+[data-armed='true'][data-shown='false'].site-stagger > * {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.site-slide > * {
+  transition: transform 640ms var(--ease-out), opacity 640ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+[data-armed='true'][data-shown='false'] .site-slide > * {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+/* “预览就是成片”：两行刻度用同一个节奏点亮，一眼看出逐帧一致 */
+@keyframes site-tick {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  12% {
+    filter: brightness(1.9);
+  }
+}
+.site-ticks > span {
+  animation: site-tick 2.4s var(--ease-in-out) infinite;
+  animation-delay: calc(var(--i, 0) * 120ms);
+}
+[data-shown='false'] .site-ticks > span {
+  animation-play-state: paused;
+}
+
+/* “完全离线”：被删掉的全局一个个划掉 */
+.site-strike > li {
+  position: relative;
+}
+.site-strike > li::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 28px;
+  top: 50%;
+  height: 1px;
+  background: var(--fg-subtle);
+  transform-origin: left;
+  transform: scaleX(1);
+  transition: transform 420ms var(--ease-out);
+  transition-delay: calc(240ms + var(--i, 0) * 80ms);
+}
+[data-armed='true'][data-shown='false'] .site-strike > li::after {
+  transform: scaleX(0);
+}
+
+/* 工作流：滚动推进的三段进度条，各步在走到时点亮 */
+.site-step .site-steps-bar > span {
+  transform-origin: left;
+  transform: scaleX(var(--fill, 1));
+}
+.site-step[data-active='false'] .site-step-num {
+  color: var(--fg-subtle);
+}
+.site-step-num,
+.site-step-icon {
+  transition:
+    color 320ms var(--ease-out),
+    background-color 320ms var(--ease-out);
+}
+.site-step[data-active='true'] .site-step-icon {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+[data-reduced-motion='true'] .site-stagger > *,
+[data-reduced-motion='true'] .site-slide > *,
+[data-reduced-motion='true'] .site-strike > li::after {
+  transition: none;
+}
+[data-reduced-motion='true'] .site-ticks > span {
+  animation: none;
 }
