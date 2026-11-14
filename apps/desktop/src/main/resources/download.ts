@@ -48,11 +48,24 @@ export class DownloadError extends Error {
   }
 }
 
-export interface DownloadProgress {
-  phase: 'manifest' | 'version' | 'jar' | 'index' | 'object';
-  received: number;
-  total: number | null;
-}
+/**
+ * 下载器上报的进度（经 DownloadProgressSchema 校验后交给 DownloadTracker，docs/decisions.md 界面增强）。
+ * received / total 是这一个文件的字节数；另外几个可选字段：
+ * - versionId、plan：读到版本 JSON 之后，jar 和资源索引的大小（整体进度按字节算要用）；
+ * - cached：这个文件已在缓存里且校验通过，没有下载；
+ * - items：音效对象的文件计数。
+ */
+const Count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
+export const DownloadProgressSchema = z.strictObject({
+  phase: z.enum(['manifest', 'version', 'jar', 'index', 'object']),
+  received: Count,
+  total: Count.nullable(),
+  versionId: z.string().max(64).optional(),
+  plan: z.strictObject({ jarBytes: Count, indexBytes: Count }).optional(),
+  cached: z.literal(true).optional(),
+  items: z.strictObject({ done: Count, total: Count }).optional(),
+});
+export type DownloadProgress = z.infer<typeof DownloadProgressSchema>;
 
 export interface DownloaderOptions {
   /** userData/vanilla-cache */
@@ -311,12 +324,17 @@ export function createVanillaDownloader(options: DownloaderOptions) {
       const v = version.data;
       const inst = toInstall(v);
       const dir = join(versionsDir, v.id);
+      onProgress?.({ phase: 'version', received: bytes.length, total: bytes.length, versionId: v.id, plan: { jarBytes: v.downloads.client.size, indexBytes: v.assetIndex?.size ?? 0 } });
       await mkdir(dir, { recursive: true });
+      onProgress?.({ phase: 'jar', received: 0, total: v.downloads.client.size });
       if (!(await fileMatches(inst.jarPath, v.downloads.client.size, v.downloads.client.sha1))) {
         await fetchToFile(v.downloads.client.url, inst.jarPath, { size: v.downloads.client.size, sha1: v.downloads.client.sha1, maxBytes: limits.jarBytes, phase: 'jar' }, signal, onProgress);
-      }
-      if (v.assetIndex && inst.assetIndexPath && !(await fileMatches(inst.assetIndexPath, v.assetIndex.size, v.assetIndex.sha1))) {
-        await fetchToFile(v.assetIndex.url, inst.assetIndexPath, { size: v.assetIndex.size, sha1: v.assetIndex.sha1, maxBytes: limits.jsonBytes, phase: 'index' }, signal, onProgress);
+      } else onProgress?.({ phase: 'jar', received: v.downloads.client.size, total: v.downloads.client.size, cached: true });
+      if (v.assetIndex && inst.assetIndexPath) {
+        onProgress?.({ phase: 'index', received: 0, total: v.assetIndex.size });
+        if (!(await fileMatches(inst.assetIndexPath, v.assetIndex.size, v.assetIndex.sha1))) {
+          await fetchToFile(v.assetIndex.url, inst.assetIndexPath, { size: v.assetIndex.size, sha1: v.assetIndex.sha1, maxBytes: limits.jsonBytes, phase: 'index' }, signal, onProgress);
+        } else onProgress?.({ phase: 'index', received: v.assetIndex.size, total: v.assetIndex.size, cached: true });
       }
       // 版本 JSON 最后写：它在，表示这一版完整（findCached 仍会再校验）
       const tmp = join(dir, `version.json.${randomUUID()}.part`);
@@ -366,10 +384,13 @@ export function createVanillaDownloader(options: DownloaderOptions) {
       }
       const total = [...wanted.values()].reduce((s, o) => s + o.size, 0);
       let received = 0;
+      let done = 0;
+      opts.onProgress?.({ phase: 'object', received, total, items: { done, total: wanted.size } });
       for (const obj of wanted.values()) {
         await fetchObject(obj.hash, obj.size, opts.signal);
         received += obj.size;
-        opts.onProgress?.({ phase: 'object', received, total });
+        done += 1;
+        opts.onProgress?.({ phase: 'object', received, total, items: { done, total: wanted.size } });
       }
       return { fetched: wanted.size + 1, missing };
     },

@@ -44,7 +44,8 @@ import type {
 } from '../../shared/resources';
 import type { Logger } from '../logger';
 import type { SettingsStore } from '../settings-store';
-import { chooseVanillaSource, DownloadError, type CachedVanilla, type DownloadProgress, type VanillaDownloader } from './download';
+import { chooseVanillaSource, DownloadError, type CachedVanilla, type VanillaDownloader } from './download';
+import { DownloadTracker } from './download-progress';
 import { BUILTIN_LAYER_ID, openBuiltinLayer, openFolderPack, openZipPack, type ClosableLayer } from './layers';
 import { importZipPack, packZipPath } from './pack-import';
 import { detectMinecraft, findLatestRelease, openVanillaLayer, VANILLA_LAYER_ID, type CandidateEnv, type VanillaInstall } from './vanilla';
@@ -251,52 +252,81 @@ export class ResourceService {
     });
   }
 
-  /** 联网：只在用户点了“下载原版资源”之后调用（decisions.md M2a 的联网例外） */
+  /**
+   * 联网：只在用户点了“下载原版资源”之后调用（decisions.md M2a 的联网例外）。
+   * 进度按五个阶段和字节数上报（DownloadTracker，docs/decisions.md 界面增强）：取版本清单 → 下载客户端 jar →
+   * 提取资源（资源索引、读 jar 的条目目录）→ 取常用音效 → 建立资源栈。失败、取消时记下停在哪一步，重试从头再走一遍
+   * （已下载且校验通过的文件不重复下载）。
+   */
   async downloadVanilla(): Promise<DownloadResult> {
     if (this.downloadAbort) return { ok: false, error: 'busy' };
     const abort = new AbortController();
     this.downloadAbort = abort;
-    this.download = { status: 'running', phase: 'manifest', received: 0, total: null };
-    this.emit();
+    const tracker = new DownloadTracker();
+    const publish = (force: boolean) => {
+      this.download = { status: 'running', progress: tracker.snapshot() };
+      const now = Date.now();
+      if (force || now - this.lastProgress >= PROGRESS_INTERVAL_MS) {
+        this.lastProgress = now;
+        this.emit();
+      } else {
+        // 节流掉的这一次在间隔结束时补发，免得下载停住时界面停在旧的进度上
+        this.progressTimer ??= setTimeout(() => {
+          this.progressTimer = null;
+          this.lastProgress = Date.now();
+          if (this.download.status === 'running') {
+            this.download = { status: 'running', progress: tracker.snapshot() };
+            this.emit();
+          }
+        }, PROGRESS_INTERVAL_MS);
+      }
+    };
+    const onProgress = (p: unknown) => {
+      const before = tracker.stage;
+      if (!tracker.event(p)) {
+        this.opts.log.warn('resources', 'malformed download progress ignored', { progress: p });
+        return;
+      }
+      publish(tracker.stage !== before);
+    };
+    const step = (stage: Parameters<DownloadTracker['enter']>[0], activity: Parameters<DownloadTracker['enter']>[1]) => {
+      tracker.enter(stage, activity);
+      publish(true);
+    };
+    publish(true);
     try {
-      const onProgress = (p: DownloadProgress) => {
-        const phaseChanged = this.download.status !== 'running' || this.download.phase !== p.phase;
-        this.download = { status: 'running', phase: p.phase, received: p.received, total: p.total };
-        const now = Date.now();
-        if (phaseChanged || now - this.lastProgress >= PROGRESS_INTERVAL_MS) {
-          this.lastProgress = now;
-          this.emit();
-        } else {
-          // 节流掉的这一次在间隔结束时补发，免得下载停住时界面停在旧的进度上
-          this.progressTimer ??= setTimeout(() => {
-            this.progressTimer = null;
-            this.lastProgress = Date.now();
-            if (this.download.status === 'running') this.emit();
-          }, PROGRESS_INTERVAL_MS);
-        }
-      };
       const cached = await this.opts.downloader.downloadLatest({ signal: abort.signal, onProgress });
+      // 提取资源：读 jar 的条目目录（jar 整体保留、不解包），打不开的 jar 在这里就报出来
+      step('extract', 'scan');
+      const probe = await openVanillaLayer(cached);
+      probe.close();
+      if (abort.signal.aborted) throw new DownloadError('已取消', 'aborted');
       // 同一次下载里取回音效事件用到的对象（decisions.md M6b）：之后不再按需联网
+      step('sounds', 'sounds-list');
       const sounds = await this.opts.downloader.fetchSoundObjects(cached, SOUND_EVENTS, { signal: abort.signal, onProgress });
       this.opts.log.info('resources', 'vanilla downloaded', { version: cached.versionId, soundObjects: sounds.fetched, soundsMissing: sounds.missing.slice(0, 20) });
-      this.download = { status: 'idle' };
+      step('finalize', 'stack');
       await this.serial(async () => {
         this.cached = cached;
         await this.saveSettings({ ...this.settings, vanilla: { ...this.settings.vanilla, consent: true, enabled: true } });
         await this.applyVanilla();
+        tracker.complete();
+        this.download = { status: 'done', progress: tracker.snapshot() };
         this.rebuild();
       });
       return { ok: true };
     } catch (error) {
       if (abort.signal.aborted) {
-        this.opts.log.info('resources', 'vanilla download canceled');
-        this.download = { status: 'idle' };
+        this.opts.log.info('resources', 'vanilla download canceled', { stage: tracker.stage });
+        tracker.stop('canceled');
+        this.download = { status: 'canceled', progress: tracker.snapshot() };
         this.emit();
         return { canceled: true };
       }
       const kind = downloadErrorKind(error);
-      this.opts.log.warn('resources', 'vanilla download failed', { kind, error });
-      this.download = { status: 'failed', error: kind };
+      this.opts.log.warn('resources', 'vanilla download failed', { kind, stage: tracker.stage, error });
+      tracker.stop('failed');
+      this.download = { status: 'failed', error: kind, progress: tracker.snapshot() };
       this.emit();
       return { ok: false, error: kind };
     } finally {
