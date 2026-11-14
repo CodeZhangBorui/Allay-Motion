@@ -10,9 +10,10 @@
 
 | 编号 | 事项 | 状态 | 要人判断什么 | 材料 |
 |---|---|---|---|---|
-| ★ H-BRAND | 产品名与吉祥物走 9.4 的 A、B 还是 C。**比规格写的更重**：现在不是“自绘的悦灵”，而是安装包里带着由 Minecraft 原版悦灵贴图烘焙出的图集、头像和**应用图标**（用户决定并担责，decisions.md M5a）；而且公开仓库里有照原版悦灵做的模型代码和这些派生图像（decisions.md M8） | **用户已知悉并承担风险**（公开仓库含模型代码和原版贴图的派生图像，2026-11-13）；名称与吉祥物的方案（A/B/C）、是否向 Mojang 申请书面许可仍待确认 | ① 名称“Allay Motion / 悦灵动画”和以悦灵为吉祥物是否保留（A/B/C）；② 安装包分发原版贴图的派生图像是否可以接受，按 9.4 的建议是否先向 Mojang 申请书面许可；③ 选 B 或 C 时，品牌资产只在 `packages/mascot`、`packages/ui/src/brand/`，另有 `electron-builder.yml` 的 `productName` 和文件关联的 `description` 要一起改 | `docs/09-compliance.md` 9.3、9.4；`docs/decisions.md` M5a“来源规则变更”；关于页的 `brand.mascotCredit` |
+| ★ H-BRAND | 产品名与吉祥物走 9.4 的 A、B 还是 C。**比规格写的更重**：现在不是“自绘的悦灵”，而是安装包里带着由 Minecraft 原版悦灵贴图烘焙出的图集、头像和**应用图标**（用户决定并担责，decisions.md M5a）；而且公开仓库里有照原版悦灵做的模型代码和这些派生图像（decisions.md M8） | **用户已知悉并承担风险**（公开仓库含模型代码和原版贴图的派生图像，2026-11-13）；名称与吉祥物的方案（A/B/C）、是否向 Mojang 申请书面许可仍待确认 | ① 名称“Allay Motion / 悦灵动画”和以悦灵为吉祥物是否保留（A/B/C）；② 安装包分发原版贴图的派生图像是否可以接受，按 9.4 的建议是否先向 Mojang 申请书面许可；③ 选 B 或 C 时，品牌资产只在 `packages/mascot`、`packages/ui/src/brand/`，另有 `electron-builder.yml` 的 `productName` 和文件关联的 `description` 要一起改 | `docs/09-compliance.md` 9.3、9.4；`docs/decisions.md` M5a“来源规则变更”；关于页的 `brand.licenseScope` |
 | ★ H-NAME | “Allay Motion”的重名与商标检索 | 待确认 | 检索结果是否允许用这个名字（检索要把名字发给外部服务，实现会话没有做） | 9.4 末段 |
-| ★ H-LICENSE | 项目自己的许可证 | 待确认（用户正在考虑） | 选哪种许可证。现状：GitHub 仓库的 `main` 上已有一个 GPL-3.0 的 `LICENSE`（建仓时的初始提交，与本地历史无关）；用户在考虑换成“自己可商用、下游商用需付费授权”的许可。定了之后：`LICENSE`、README 的“许可”一节、第三方许可清单里写本项目自身许可的地方一起改；同时决定远程那个初始提交是合并还是覆盖。依赖一直按“可闭源分发”的标准选（许可检查的允许列表）；选非开源许可时还要核对仓库里的派生图像与该许可的关系 | 9.8；`pnpm check:licenses`；`apps/desktop/src/renderer/features/settings/third-party-licenses.json` |
+| ★ H-LICENSE | 项目自己的许可证 | **用户已定：GPL-3.0 + 商业授权（2026-11-14）**；`-only` 还是 `-or-later` 待确认 | 用户原话“先用GPL-3.0 + 商业授权，防止下游闭源”。现在写的是更保守的 `GPL-3.0-only`（`LICENSE` 是 GitHub 建仓时那份 GPL-3.0 全文，原文未改；各 `package.json` 的 `license` 字段、README、关于页、`THIRD_PARTY_NOTICES.txt` 一致）。要人确认：① `-only` 还是 `-or-later`；② 商业授权的条款和联系方式（现在只写“通过仓库的 Issues 联系”）；③ 外部贡献的贡献者许可协议文本（`CONTRIBUTING.md` 只写了规则，没有协议正文、没有 CLA 机器人）。**许可范围**：GPL-3.0 和商业授权都不包含 Minecraft 的内容——名称与商标、运行时下载或从本机游戏读取的原版资源、用户添加的资源包，以及由它们派生的内容（含仓库里的悦灵模型数据和烘焙图像）；见 README“许可”一节 | 9.8；`pnpm check:licenses`；`apps/desktop/src/renderer/features/settings/third-party-licenses.json` |
+| ★ 商业授权与 Mojang 的内容 | 商业授权一旦收费，应用里照原版悦灵做的模型、由原版贴图派生的图像和图标、以 Minecraft 生物命名的产品名，风险都比免费分发高（9.4 末条：打算收费时要回到 9.4 重新评估） | 待确认 | 收费版本是否排除或替换悦灵相关的模型、图像、图标和名称（建议排除或换成原创），以及在那之前是否先向 Mojang 申请书面许可。许可文本里已写明两种授权都不包含这些内容，但安装包里实际带着它们 | `docs/09-compliance.md` 9.4；README“许可”一节 |
 | ★ H-SIGN | 代码签名证书 | 待确认 | 是否购买证书（要花钱、要账号，实现会话不做）。**现在的安装包和 exe 都没有签名**：Windows SmartScreen 会拦下并显示“未知发布者”，用户要点“更多信息 → 仍要运行”。不签名的话只适合内部测试 | `electron-builder.yml`（`win.signAndEditExecutable` 不带证书，打包日志里是 “signing is skipped”） |
 | ★ H-DOWNLOAD | 运行时替用户从 Mojang 官方服务器下载客户端 jar 和音效对象是否符合 Minecraft 最终用户许可协议和使用准则 | 待确认 | 条款是否允许第三方工具这样做。“要这么做”是用户的决定（见下方已确认项），这里确认的是条款核对。下载只发生在用户机器上、用户点按钮之后，仓库和安装包里没有任何 Mojang 文件（悦灵的派生图像见 H-BRAND） | `docs/decisions.md` M2a“对‘应用不联网’的例外”、M6b“音效从哪里来”；`apps/desktop/src/main/resources/download.ts` |
 | ★ FFmpeg 的 LGPL 义务 | 随包附带 LGPLv3 全文、`ffmpeg.exe` 是可替换的独立文件、关于页写明构建来源和源码去处 | 待确认 | 现在的“取得源码的方式”是指向上游（FFmpeg 官方仓库的提交 `d838f9f9ae`、FFmpeg-Builds 的发布标签）。是否足够，还是要像 LGPLv3 第 4 条的常见做法那样自己托管一份对应的源码或附书面提供承诺 | 9.9；关于页“FFmpeg 构建”；安装目录 `resources/ffmpeg/win32-x64/LICENSE.txt`、`build.json`、`THIRD_PARTY_NOTICES.txt` |
@@ -51,7 +52,7 @@
 用户决定（2026-11-13）：代码放在公开仓库 `Mystic-Stars/Allay-Motion`，安装包由 GitHub Actions 构建（`.github/workflows/release.yml`）。
 
 - 推 `v*` 标签或手动触发发版工作流：构建 NSIS 安装包，作为工作流产物上传，并建一个**草稿** Release（挂安装包和 `SHA256SUMS.txt`）。工作流**永远只建草稿**，不会自动发布。
-- **上面一、二节还有“待确认”时，不要点“发布”**：草稿只有仓库的维护者看得到，点了发布就是对外分发。现在 ★ 项（H-BRAND 的方案、H-NAME、H-LICENSE、H-SIGN、H-DOWNLOAD、FFmpeg 的 LGPL 义务）都还没有人确认。
+- **上面一、二节还有“待确认”时，不要点“发布”**：草稿只有仓库的维护者看得到，点了发布就是对外分发。现在 ★ 项（H-BRAND 的方案、H-NAME、H-LICENSE 的细节、商业授权与 Mojang 的内容、H-SIGN、H-DOWNLOAD、FFmpeg 的 LGPL 义务）都还没有人确认。
 - 安装包没有代码签名，工作流里也没有任何证书或密钥；没有自动更新。
 - PR 和 `main` 上的 CI（`.github/workflows/ci.yml`）跑 `pnpm check` 和 `pnpm check:removable`。发版工作流里的 `pnpm dist` 跑打包后的检查；T-ARC-7 在 CI 的共享机器上只记数字、不按预算判定（不是参考机器）。
 

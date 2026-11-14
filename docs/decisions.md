@@ -555,6 +555,7 @@ T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定
 - **代码上 GitHub、由 Actions 构建安装包（2026-11-13，用户在主控会话里决定，经主控转达原话）**：“不要在本机上进行构建测试了，代码直接上GitHub，仓库：https://github.com/Mystic-Stars/Allay-Motion 自行配置 gitignore 然后配置actions自动化发版流程，通过actions构建出安装包”。仓库是公开的。这改变了硬性规则 11（不对外发布）的前提：代码公开，安装包由 Actions 构建、挂在**草稿** Release 上，正式发布仍由人在发布清单全部确认后自己点。
 - **悦灵的模型代码和烘焙产物公开（2026-11-13，用户决定，经主控转达原话）**：`packages/mascot/model/` 下照原版悦灵做的模型、骨架、动作代码，“这些可以上传，风险我自己承担”；烘焙出来的悦灵图片选了“也提交进仓库”。只限运行时和打包用到的那几个产物（`COMMITTED_FILES`），原版贴图本身、jar、下载缓存、`docs/review/*/out/` 仍不提交。这是硬性规则 1 的又一处例外（M5a 的例外是“进安装包”，这次是“进公开仓库”）。
 - **提交作者邮箱（2026-11-13，用户决定）**：公开后历史里的作者邮箱选了“保留这个邮箱”，不改写历史。
+- **项目许可：GPL-3.0 + 商业授权（2026-11-14，用户决定，经主控转达原话）**：“先用GPL-3.0 + 商业授权，防止下游闭源”；许可范围：“开源协议和商业授权不包含Minecraft资源包”。远程仓库建仓时的 GPL-3.0 `LICENSE` 保留原文，用合并（不是强推）接上本地历史。H-LICENSE 因此定了；`-only` 还是 `-or-later` 用户没说，写了更保守的 `GPL-3.0-only`，待用户确认。
 
 ## 发布前待人确认的事项（汇总，M8 写入 `docs/release-checklist.md`）
 
@@ -1085,7 +1086,7 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 
 - **清单的来源**：`scripts/third-party.ts` 复用 `check-licenses.ts` 的 `pnpm -r licenses list --prod`（加了安装路径、作者、主页），读每个包里的许可文件原文；另加构建时编进 CSS 的 `tailwindcss`、`shadcn`，以及 Electron（Chromium 的许可全文太大，指向安装目录的 `LICENSES.chromium.html`）、FFmpeg、方舟像素字体。生成的 `third-party-licenses.json`（约 130 KB，75 项）**提交进仓库**，关于页按需加载成单独的块；单元测试 `M8.third-party` 重新生成一遍和提交的比对，依赖变了忘了 `pnpm licenses:gen` 就失败，并核对每项都在允许列表里、LGPL 只有 FFmpeg。有一个包（`react-remove-scroll-bar`）里没有许可文件，清单照实写“包里没有许可文件；按 MIT 授权”。
 - **FFmpeg 的来源**：固定的构建从 `fetch-ffmpeg.ts` 挪到 `scripts/ffmpeg-build.ts`（`fetch-ffmpeg.ts` 一导入就会运行，没法复用），加了 FFmpeg 自己的版本和提交（`n9.0.2-57-gd838f9f9ae`）。关于页和 `THIRD_PARTY_NOTICES.txt` 写明构建来源、版本、SHA-256、源码（FFmpeg 官方仓库的这个提交）和构建脚本的去处。**是否满足 LGPLv3 的“提供对应源码”**，列进了发布清单待人确认。
-- **悦灵图像的来源**：新文案键 `brand.mascotCredit`（品牌目录里，两种语言），关于页显示，`THIRD_PARTY_NOTICES.txt` 里也有。
+- **悦灵图像的来源**：起初是单独的文案键 `brand.mascotCredit`；许可定下来以后并进了 `brand.licenseScope`（见“项目许可”），不再单独写一处。
 - **使用准则的链接**（9.3）：关于页显示地址文本，可以选中复制，**不做成可点的链接**：1.8 的 `shell.openLink` 一直没有实现，为它新开一条打开外部浏览器的 IPC 不值得。
 - 原来那几行许可摘要保留在清单上面；FFmpeg 一行加了“可以自行替换 ffmpeg.exe”。
 
@@ -1109,7 +1110,15 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - **`.gitignore`** 按公开仓库补全：安装包与发版产物、jar、`.ogg`、下载缓存和游戏目录、密钥与证书、`.env`、`.claude/`、编辑器目录。
 - **悦灵的烘焙产物提交进仓库**（用户决定）：只提交 `packages/mascot/src/atlas.ts` 的 `COMMITTED_FILES`（两张图集、`allay.atlas.json`、十张头像、`icon.ico`），应用图标的各尺寸 PNG 仍忽略；`pnpm dist` 只要求这些，CI 不需要游戏、不现场烘焙、不用占位开关。来源检查新增 `origin: vanilla-derived`：只允许在 `packages/mascot/generated/` 下，必须写明游戏版本、批准的人和日期；重新生成要原版 jar，所以不比对。T-ALY-7 改为“`packages/mascot` 里提交的图片只能是约定的烘焙产物”。**这些产物是 2026-11-13 21:39 从本机 1.21.1 的 jar 烘焙的**；之后烘焙代码只改过 e5fe329（给内部模板声明它用到的参数，配合同一提交里引擎开始的参数清洗），按代码看输出不变，但没有重新烘焙逐字节核对（用户要求不在本机再跑构建）。
 - **工作流**：`ci.yml` 在 PR 和 main 上跑 `pnpm check`、`pnpm check:removable` 两个作业；`release.yml` 在推 `v*` 标签或手动触发时 `pnpm dist`，上传安装包和 `SHA256SUMS.txt`，再建**草稿** Release（手动触发时标签名是 `v<版本>-draft.<运行号>`，草稿不会真的建标签）。权限：工作流默认 `contents: read`，只有建草稿的作业 `contents: write`，用 GitHub 自带的令牌，没有任何证书或密钥；不签名、不配置自动更新。第三方 action 固定到提交哈希：checkout v7.0.1、setup-node v7.1.0、upload-artifact v7.0.2、download-artifact v8.0.2；pnpm/action-setup 的最新版 v6.1.1 发布不满两周，用 v6.1.0。草稿 Release 用 runner 自带的 `gh` 建，不引入第三方的发版 action。
-- **远程仓库不是空的**：`main` 上有一个与本地历史无关的提交 `da808f1`（“Initial commit”，只有一个 GPL-3.0 的 `LICENSE`）。本地 `main` 推不上去（不是快进），合并还是覆盖要等用户定项目许可（H-LICENSE），**到写这段时什么都没有推送**。
+- **远程仓库不是空的**：`main` 上有一个与本地历史无关的提交 `da808f1`（“Initial commit”，只有一个 GPL-3.0 的 `LICENSE`）。用户定了许可之后选了合并：新建分支 `claude/main-merged` = 本地 `main`（f06fe18）加 `git merge --allow-unrelated-histories da808f1`，`LICENSE` 原文不改；推到远程的 `main`。本机的 `main` 分支不动（主检出正用着它），M8 分支变基到这个合并提交上。
+
+### 项目许可（用户决定，2026-11-14）
+
+- **GPL-3.0-only + 商业授权**：`LICENSE` 是 GPL-3.0 全文；各 `package.json` 的 `license` 字段统一为 `GPL-3.0-only`（`pnpm licenses list --prod` 不列 workspace 自己的包，许可检查和第三方清单都不受影响）。商业授权的联系方式只写“通过仓库的 Issues 联系”，不写邮箱。用本软件导出的视频归使用者所有，不受本许可约束。
+- **许可范围只写一段**：README“许可”一节（中英）、关于页（`brand.licenseScope`，提到悦灵，所以放在品牌目录里）、`THIRD_PARTY_NOTICES.txt` 用同一段话：两种授权只覆盖本项目自己的代码和原创素材，都不包含 Minecraft 的名称与商标、运行时下载或从本机游戏读取的原版资源、用户添加的资源包，以及由它们派生的内容（照原版悦灵做的模型数据、由原版贴图渲染的悦灵图像）。原来单独的 `brand.mascotCredit` 并进这一段。`ASSETS_PROVENANCE.json` 里 13 条 `vanilla-derived` 的许可字段写成“不在本项目的 GPL-3.0 和商业授权范围内”。
+- **依赖的理由改了，规则没改**：原来是“按可以闭源分发的标准选”，现在是“必须同时兼容 GPL-3.0 和将来的商业授权”，所以仍然不得引入 GPL、AGPL 的第三方依赖；允许列表和 `check-licenses.ts` 的行为都不变（`09-compliance.md` 9.8）。
+- **贡献者许可协议**：`CONTRIBUTING.md` 写明外部贡献要同意 CLA（允许版权人在 GPL 之外另行授权）才合并；没有协议正文，没有配 CLA 机器人。
+- 发布清单新增一条待确认：商业授权一收费，悦灵相关的模型、图像、图标和名称风险更高，建议收费版本排除或替换。
 - **规则文字**：`AGENTS.md` 硬性规则 1（悦灵烘焙产物进仓库的例外）和 11（代码公开、安装包只建草稿）要按上面的决定改，等用户在实现会话里亲自确认后再改。
 
 ### 没验证的
