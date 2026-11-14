@@ -6,7 +6,8 @@ import { buildZip, type ZipEntrySpec } from '../unit/helpers/resource-fixtures';
 
 const sha1 = (b: Buffer) => createHash('sha1').update(b).digest('hex');
 
-export type JarMode = 'ok' | 'fail' | 'hold';
+/** slow：限速，jar 分 60 份、每 150 ms 一份（约 9 秒），界面上能看到速度和剩余时间 */
+export type JarMode = 'ok' | 'fail' | 'hold' | 'slow';
 
 export interface FakeMojang {
   origin: string;
@@ -80,6 +81,23 @@ export async function startFakeMojang(versionId: string, jarEntries: readonly Zi
         res.on('close', () => {
           if (holding === res) holding = null;
         });
+        return;
+      }
+      if (state.jarMode === 'slow') {
+        res.writeHead(200, { 'content-length': String(jar.length) });
+        const parts = 60;
+        let i = 0;
+        const timer = setInterval(() => {
+          if (res.destroyed) return clearInterval(timer);
+          const a = Math.floor((i * jar.length) / parts);
+          const b = Math.floor(((i + 1) * jar.length) / parts);
+          i += 1;
+          if (i >= parts) {
+            clearInterval(timer);
+            res.end(jar.subarray(a, b));
+          } else res.write(jar.subarray(a, b));
+        }, 150);
+        res.on('close', () => clearInterval(timer));
         return;
       }
       return void res.writeHead(200, { 'content-length': String(jar.length) }).end(jar);

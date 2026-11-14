@@ -23,7 +23,7 @@ function TileGroup<T extends string>({ label, value, options, onChange, render, 
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-testid="${testId}-${next}"]`)?.focus());
   };
   return (
-    <div role="radiogroup" aria-label={label} className="grid gap-3" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} data-testid={testId}>
+    <div role="radiogroup" aria-label={label} className="-m-1 grid gap-3 p-1" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }} data-testid={testId}>
       {options.map((o, i) => {
         const selected = o === value;
         return (
@@ -125,7 +125,10 @@ export function ThemeChoice({ testId = 'choice-theme' }: { testId?: string }) {
   );
 }
 
-/** 语言的选项里各用自己的语言写（选错了也认得出来）；“跟随系统”注明现在解析成哪一种 */
+/**
+ * 语言：一列三行。每行只有两样东西——语言名（用那种语言自己的写法）和一行说明（也用那种语言写，选错了也认得出来；
+ * “跟随系统”写现在会解析成哪种），选中的对勾固定在右侧。
+ */
 export function LanguageChoice({ testId = 'choice-language' }: { testId?: string }) {
   const { t } = useTranslation();
   const language = useUiStore((s) => s.settings.language);
@@ -135,23 +138,23 @@ export function LanguageChoice({ testId = 'choice-language' }: { testId?: string
       label={t('settings.language')}
       value={language}
       options={LANGUAGE_PREFS}
-      columns={3}
+      columns={1}
       testId={testId}
       onChange={(v) => useUiStore.getState().update({ language: v })}
       render={(v, selected) => {
         const fixed = i18next.getFixedT(resolved(v));
+        const name = v === 'system' ? t('settings.languages.system') : fixed(`settings.languages.${v}`);
+        const desc = v === 'system' ? t('onboarding.language.systemNow', { language: t(`settings.languages.${resolved(v)}`) }) : fixed('onboarding.language.desc');
         return (
-          <>
-            <span className="flex h-16 flex-col justify-end gap-1 rounded-md bg-well px-3 py-2.5">
-              <span className="truncate text-base font-semibold text-foreground">{v === 'system' ? t('settings.languages.system') : fixed(`settings.languages.${v}`)}</span>
-              <span className="truncate text-xs text-fg-subtle">{fixed('onboarding.language.sample')}</span>
+          <span className="flex min-h-12 items-center gap-4 px-2">
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className={cn('truncate text-base', selected ? 'font-semibold text-foreground' : 'font-medium text-fg-muted')}>{name}</span>
+              <span className="truncate text-xs text-fg-subtle">{desc}</span>
             </span>
-            {/* 名称已经在上面用那种语言写了；下面一行只放“跟随系统”现在解析成哪种，和选中的对勾 */}
-            <span className="flex min-h-5 items-center justify-between gap-2 px-0.5">
-              <span className="truncate text-xs text-fg-subtle">{v === 'system' ? t('onboarding.language.systemDetail', { language: t(`settings.languages.${resolved(v)}`) }) : ''}</span>
-              {selected && <Check size={ICON.sm} weight="bold" className="shrink-0 text-primary-text" aria-hidden="true" />}
+            <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+              {selected && <Check size={ICON.md} weight="bold" className="text-primary-text" />}
             </span>
-          </>
+          </span>
         );
       }}
     />

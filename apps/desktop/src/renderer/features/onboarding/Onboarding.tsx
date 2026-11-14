@@ -42,17 +42,20 @@ function StepRail({ step, visited, go, summaries }: { step: OnboardingStep; visi
               data-testid={`onboarding-rail-${s}`}
               onClick={() => go(s)}
               className={cn(
-                'flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors duration-(--dur-2) outline-none',
+                // 每项固定 56 px、两行（名称 + 当前的值），当前步和走过的步高度一样，列表不跳
+                'flex h-14 w-full items-center gap-3 rounded-lg px-3 text-left transition-colors duration-(--dur-2) outline-none',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)',
                 active ? 'bg-control-hi' : reachable ? 'hover:bg-control' : 'cursor-default',
               )}
             >
-              <span className={cn('num w-5 shrink-0 pt-px text-xs', active ? 'text-primary-text' : 'text-fg-subtle')}>{String(i + 1).padStart(2, '0')}</span>
+              <span className={cn('num w-5 shrink-0 self-start pt-[11px] text-xs', active ? 'text-primary-text' : 'text-fg-subtle')}>{String(i + 1).padStart(2, '0')}</span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className={cn('truncate text-sm', active ? 'font-medium text-foreground' : reachable ? 'text-fg-muted' : 'text-fg-subtle')}>{t(`onboarding.steps.${s}.name`)}</span>
-                {reachable && summaries[s] && <span className="truncate text-xs text-fg-subtle">{summaries[s]}</span>}
+                <span className="h-4 truncate text-xs text-fg-subtle">{reachable && summaries[s] ? summaries[s] : ' '}</span>
               </span>
-              {done && !active && <CheckCircle size={ICON.md} weight="fill" className="mt-px shrink-0 text-success" aria-hidden="true" />}
+              <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                {done && !active && <CheckCircle size={ICON.md} weight="fill" className="text-success" />}
+              </span>
             </button>
           </li>
         );
@@ -64,7 +67,8 @@ function StepRail({ step, visited, go, summaries }: { step: OnboardingStep; visi
 function OptionCard({ icon: IconC, title, detail, selected, disabled, onSelect, testId, children }: { icon: Icon; title: string; detail: ReactNode; selected: boolean; disabled?: boolean; onSelect(): void; testId: string; children?: ReactNode }) {
   return (
     <div
-      className={cn('flex flex-col rounded-lg bg-control transition-colors duration-(--dur-1)', selected && 'bg-control-hi shadow-[0_0_0_2px_var(--surface-1),0_0_0_4px_var(--primary)]', disabled && 'opacity-60')}
+      // 选中只靠外框，底色不变：卡片里的进度条轨道（control-hi）在 control 底上看得见
+      className={cn('flex flex-col rounded-lg bg-control transition-colors duration-(--dur-1)', selected && 'shadow-[0_0_0_2px_var(--surface-1),0_0_0_4px_var(--primary)]', disabled && 'opacity-60')}
       data-testid={testId}
       data-selected={selected || undefined}
     >
@@ -97,7 +101,7 @@ function AssetsStep({ choice, setChoice }: { choice: AssetChoice | null; setChoi
   const active = vanilla.active ? (vanilla.active === 'local' ? vanilla.local?.versionId : vanilla.cached?.versionId) : null;
   const showProgress = download.status !== 'idle';
   return (
-    <div className="flex flex-col gap-3" role="radiogroup" aria-label={t('onboarding.steps.assets.name')}>
+    <div className="-m-1 flex flex-col gap-3 p-1" role="radiogroup" aria-label={t('onboarding.steps.assets.name')}>
       {active && (
         <p className="flex items-center gap-2 text-sm text-foreground" data-testid="onboarding-assets-active">
           <CheckCircle size={ICON.md} weight="fill" className="text-success" />
@@ -153,6 +157,73 @@ function AssetsStep({ choice, setChoice }: { choice: AssetChoice | null; setChoi
       </OptionCard>
       <OptionCard icon={Clock} title={t('onboarding.assets.later.title')} detail={t('onboarding.assets.later.detail')} selected={choice === 'later'} onSelect={() => setChoice('later')} testId="onboarding-asset-later" />
     </div>
+  );
+}
+
+/**
+ * 语言这一步的即时预览：主界面的缩略示意，用当前的主题变量和当前语言的真实文案（菜单、面板标题、轨道名、状态），
+ * 选了语言立刻跟着变。只是示意，不可交互、读屏跳过。
+ */
+function LivePreview() {
+  const { t } = useTranslation();
+  const label = 'text-[9px] leading-none';
+  return (
+    <figure className="flex flex-col gap-2" data-testid="onboarding-preview">
+      <figcaption className="text-xs text-fg-subtle">{t('onboarding.previewLabel')}</figcaption>
+      <div aria-hidden="true" className="flex aspect-[16/11] w-full flex-col gap-[3px] overflow-hidden rounded-lg bg-background p-[4px] select-none">
+        <div className="flex h-[16px] shrink-0 items-center gap-[6px] px-[3px]">
+          <span className="size-[9px] rounded-[2px] bg-allay" />
+          {(['file', 'edit', 'view', 'help'] as const).map((m) => (
+            <span key={m} className={cn(label, 'text-fg-muted')}>
+              {t(`menu.${m}`)}
+            </span>
+          ))}
+          <span className={cn(label, 'ml-auto rounded-[3px] bg-primary px-[5px] py-[2px] font-semibold text-primary-foreground')}>{t('topbar.export')}</span>
+        </div>
+        <div className="grid min-h-0 flex-1 grid-cols-[26%_1fr_28%] gap-[3px]">
+          <div className="flex flex-col gap-[4px] rounded-[5px] bg-surface-1 p-[5px]">
+            <span className={cn(label, 'font-semibold text-foreground')}>{t('gallery.title')}</span>
+            <div className="grid grid-cols-2 gap-[3px]">
+              {[0, 1, 2, 3].map((i) => (
+                <span key={i} className={cn('aspect-video rounded-[2px] bg-well', i === 0 && 'shadow-[0_0_0_1px_var(--primary)]')} />
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-[4px] rounded-[5px] bg-viewer p-[5px]">
+            <span className={cn(label, 'font-semibold text-foreground')}>{t('preview.title')}</span>
+            <span className="m-auto aspect-video w-[78%] rounded-[2px] bg-(--checker-b)" />
+          </div>
+          <div className="row-span-2 flex flex-col gap-[5px] rounded-[5px] bg-surface-1 p-[5px]">
+            <span className={cn(label, 'font-semibold text-foreground')}>
+              {t('params.tabs.props')} <span className="font-normal text-fg-subtle">{t('params.tabs.output')}</span>
+            </span>
+            {[38, 64, 22, 50].map((w, i) => (
+              <span key={i} className="relative h-[8px] overflow-hidden rounded-[2px] bg-control">
+                <span className="absolute inset-y-0 left-0 bg-primary-soft" style={{ width: `${w}%` }} />
+              </span>
+            ))}
+          </div>
+          <div className="col-span-2 flex flex-col justify-center gap-[3px] rounded-[5px] bg-surface-1 px-[5px] py-[4px]">
+            {(['stages', 'sound', 'cut'] as const).map((k, i) => (
+              <div key={k} className="flex items-center gap-[4px]">
+                <span className={cn(label, 'w-[38px] shrink-0 truncate text-fg-muted')}>{t(`timeline.${k}`)}</span>
+                <span className="flex h-[7px] flex-1 gap-[1px] overflow-hidden rounded-[2px] bg-well">
+                  {i === 0 && (
+                    <>
+                      <span className="w-[42%] bg-stage-enter" />
+                      <span className="w-[10%] bg-stage-hold" />
+                      <span className="w-[42%] bg-stage-exit" />
+                    </>
+                  )}
+                  {i === 2 && <span className="ml-[50%] w-[5px] bg-mark" />}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <span className={cn(label, 'shrink-0 px-[3px] pt-[1px] text-fg-subtle')}>{t('status.ready')}</span>
+      </div>
+    </figure>
   );
 }
 
@@ -277,39 +348,44 @@ export function Onboarding() {
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col rounded-xl bg-surface-1">
-          <div key={step} className="onboarding-step flex min-h-0 flex-1 flex-col">
-            <div className="flex flex-col gap-2 px-10 pt-9 pb-6">
-              <span className="num text-xs text-fg-subtle" data-testid="onboarding-counter">
-                {String(idx + 1).padStart(2, '0')} / {String(ONBOARDING_STEPS.length).padStart(2, '0')}
-              </span>
-              <h2 id="onboarding-title" tabIndex={-1} className="text-xl font-semibold outline-none">
-                {t(`onboarding.steps.${step}.title`)}
-              </h2>
-              <p className="max-w-[64ch] text-sm leading-relaxed text-fg-muted">{t(`onboarding.steps.${step}.body`)}</p>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-10 pb-6">
-              <div className="max-w-[760px]">
-                {step === 'language' && <LanguageChoice testId="onboarding-language" />}
-                {step === 'appearance' && (
-                  <div className="flex flex-col gap-6">
-                    <ThemeChoice testId="onboarding-theme" />
-                    <div className="flex items-center justify-between gap-6 border-t border-divider pt-5">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm">{t('settings.reducedMotion')}</span>
-                        <span className="text-xs text-fg-subtle">{t('settings.reducedMotionHint')}</span>
-                      </div>
-                      <MotionChoice testId="onboarding-motion" />
-                    </div>
-                  </div>
-                )}
-                {step === 'assets' && <AssetsStep choice={assetChoice} setChoice={setAssetChoice} />}
-                {step === 'folders' && <FoldersStep />}
-                {step === 'done' && <DoneStep summaries={summaries} />}
+          {/* 一列限宽、水平居中，从面板上方约十分之一处起排（窗口越高留得越多），标题、内容、底部按钮左右对齐 */}
+          <div key={step} className="onboarding-step min-h-0 flex-1 overflow-y-auto px-10">
+            <div className="mx-auto flex w-full max-w-[920px] flex-col pt-[clamp(28px,9vh,104px)] pb-8">
+              <div className="flex flex-col gap-2 pb-7">
+                <span className="num text-xs text-fg-subtle" data-testid="onboarding-counter">
+                  {String(idx + 1).padStart(2, '0')} / {String(ONBOARDING_STEPS.length).padStart(2, '0')}
+                </span>
+                <h2 id="onboarding-title" tabIndex={-1} className="text-xl font-semibold outline-none">
+                  {t(`onboarding.steps.${step}.title`)}
+                </h2>
+                <p className="max-w-[64ch] text-sm leading-relaxed text-fg-muted">{t(`onboarding.steps.${step}.body`)}</p>
               </div>
+              {step === 'language' && (
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,400px)] items-start gap-10">
+                  <LanguageChoice testId="onboarding-language" />
+                  <LivePreview />
+                </div>
+              )}
+              {step === 'appearance' && (
+                <div className="flex flex-col gap-6">
+                  <ThemeChoice testId="onboarding-theme" />
+                  <div className="flex items-center justify-between gap-6 border-t border-divider pt-5">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm">{t('settings.reducedMotion')}</span>
+                      <span className="text-xs text-fg-subtle">{t('settings.reducedMotionHint')}</span>
+                    </div>
+                    <MotionChoice testId="onboarding-motion" />
+                  </div>
+                </div>
+              )}
+              {step === 'assets' && <AssetsStep choice={assetChoice} setChoice={setAssetChoice} />}
+              {step === 'folders' && <FoldersStep />}
+              {step === 'done' && <DoneStep summaries={summaries} />}
             </div>
           </div>
 
-          <footer className="flex h-16 shrink-0 items-center gap-2 border-t border-divider px-10">
+          <footer className="shrink-0 border-t border-divider px-10">
+            <div className="mx-auto flex h-16 w-full max-w-[920px] items-center gap-2">
             <Button variant="ghost" disabled={idx === 0} data-testid="onboarding-back" onClick={back}>
               <ArrowLeft size={ICON.sm} />
               {t('onboarding.back')}
@@ -330,6 +406,7 @@ export function Onboarding() {
                 <ArrowRight size={ICON.sm} />
               </Button>
             )}
+            </div>
           </footer>
         </main>
       </div>

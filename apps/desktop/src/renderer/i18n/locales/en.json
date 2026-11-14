@@ -964,8 +964,9 @@
       "project": "System default"
     },
     "language": {
-      "sample": "Pick, tweak, export",
-      "systemDetail": "Follow system ({{language}})"
+      "systemDetail": "Follow system ({{language}})",
+      "systemNow": "Uses your Windows display language — {{language}} right now",
+      "desc": "Interface, menus and messages in English"
     },
     "skipAll": "Skip setup",
     "stepsLabel": "Setup steps",
@@ -977,6 +978,7 @@
     "skip": "Skip this step",
     "back": "Back",
     "eyebrow": "First-run setup",
-    "next": "Continue"
+    "next": "Continue",
+    "previewLabel": "How it will look"
   }
 }

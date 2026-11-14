@@ -43,15 +43,15 @@ const next = async (p: Page, n = 1) => {
   }
 };
 
-async function startDownload(p: Page, server: FakeMojang, mode: 'hold' | 'fail'): Promise<void> {
+async function startDownload(p: Page, server: FakeMojang, mode: 'slow' | 'fail'): Promise<void> {
   server.jarMode = mode;
   await next(p, 2);
   await p.getByTestId('onboarding-asset-download').getByRole('radio').click();
   await p.getByTestId('onboarding').getByTestId('vanilla-download').click();
-  if (mode === 'hold') {
-    for (let i = 0; i < 100 && !server.holding(); i++) await p.waitForTimeout(100);
-  } else await p.getByTestId('onboarding').getByTestId('download-error').waitFor();
-  await p.waitForTimeout(900);
+  // 限速时等到读数里有速度（约 9 秒下完，截在一半左右）
+  if (mode === 'slow') await p.getByTestId('onboarding').getByTestId('download-numbers').filter({ hasText: '/s' }).waitFor({ timeout: 15_000 });
+  else await p.getByTestId('onboarding').getByTestId('download-error').waitFor();
+  await p.waitForTimeout(mode === 'slow' ? 2500 : 900);
 }
 
 async function openSettings(p: Page, page: string): Promise<void> {
@@ -78,8 +78,8 @@ const SCENES: Scene[] = [
       await p.waitForTimeout(300);
     },
   },
-  { name: 'onboarding-download-running-dark-zh', theme: 'dark', language: 'zh-CN', firstRun: true, act: (p, { server }) => startDownload(p, server, 'hold') },
-  { name: 'onboarding-download-running-light-en', theme: 'light', language: 'en', firstRun: true, act: (p, { server }) => startDownload(p, server, 'hold') },
+  { name: 'onboarding-download-running-dark-zh', theme: 'dark', language: 'zh-CN', firstRun: true, act: (p, { server }) => startDownload(p, server, 'slow') },
+  { name: 'onboarding-download-running-light-en', theme: 'light', language: 'en', firstRun: true, act: (p, { server }) => startDownload(p, server, 'slow') },
   { name: 'onboarding-download-failed-dark-en', theme: 'dark', language: 'en', firstRun: true, act: (p, { server }) => startDownload(p, server, 'fail') },
   {
     name: 'onboarding-folders-light-zh',
@@ -168,11 +168,11 @@ const SCENES: Scene[] = [
     theme: 'dark',
     language: 'zh-CN',
     act: async (p, { server }) => {
-      server.jarMode = 'hold';
+      server.jarMode = 'slow';
       await p.getByTestId('resources-button').click();
       await p.getByTestId('resources-popover').getByTestId('vanilla-download').click();
-      for (let i = 0; i < 100 && !server.holding(); i++) await p.waitForTimeout(100);
-      await p.waitForTimeout(900);
+      await p.getByTestId('resources-popover').getByTestId('download-numbers').filter({ hasText: '/s' }).waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(2500);
     },
   },
 ];

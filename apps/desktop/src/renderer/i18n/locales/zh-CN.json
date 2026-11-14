@@ -964,8 +964,9 @@
       "project": "系统默认位置"
     },
     "language": {
-      "sample": "选模板、调参数、导出",
-      "systemDetail": "跟随系统（{{language}}）"
+      "systemDetail": "跟随系统（{{language}}）",
+      "systemNow": "按 Windows 的显示语言，现在是{{language}}",
+      "desc": "界面、菜单和提示都用简体中文"
     },
     "skipAll": "跳过引导",
     "stepsLabel": "引导的步骤",
@@ -977,6 +978,7 @@
     "skip": "跳过这一步",
     "back": "上一步",
     "eyebrow": "初次设置",
-    "next": "继续"
+    "next": "继续",
+    "previewLabel": "界面会是这样"
   }
 }

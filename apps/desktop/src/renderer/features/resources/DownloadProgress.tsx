@@ -139,7 +139,7 @@ export function DownloadProgress({ state, size = 'compact', onRetry }: { state: 
       </ol>
 
       {state.status === 'running' && (
-        <Button variant="secondary" className="self-start" data-testid="download-cancel" onClick={() => void window.allay.resources.cancelDownload()}>
+        <Button variant="secondary" className={cn('self-start', large && 'bg-control-hi hover:bg-well')} data-testid="download-cancel" onClick={() => void window.allay.resources.cancelDownload()}>
           {t('resources.download.cancel')}
         </Button>
       )}
@@ -159,7 +159,7 @@ export function DownloadProgress({ state, size = 'compact', onRetry }: { state: 
         </p>
       )}
       {(state.status === 'failed' || state.status === 'canceled') && (
-        <Button variant="secondary" className="self-start" data-testid="download-retry" onClick={retry}>
+        <Button variant="secondary" className={cn('self-start', large && 'bg-control-hi hover:bg-well')} data-testid="download-retry" onClick={retry}>
           <ArrowClockwise size={ICON.sm} />
           {t('resources.download.retry')}
         </Button>
