@@ -23,9 +23,13 @@ on:
 permissions:
   contents: read
 
-# 分成两个作业，各自排队（2026-11-14：v0.1.1 的安装包跨境上传几个小时传不完，旧的单一作业把之后所有分支和标签的同步都堵在后面）：
+# 分成两个作业，各自排队：
 # - code：分支和标签，几十秒就完；
-# - releases：发行版和附件，可能要几个小时。并发组仍叫 gitcode-mirror（和旧版本的工作流同名），新旧运行不会同时上传同一个附件。
+# - releases：在 GitCode 上建好发行版、同步说明和“最新版本”标记。附件（安装包）默认不从这里传：
+#   从 GitHub 的机器跨境上传太慢（2026-11-14：一个 150 MB 的安装包 50 分钟传不完），改由 GitCode 流水线
+#   （.gitcode/workflows/pull-release-assets.yml，随代码同步过去）从 GitHub 拉取、在国内传进 GitCode。
+#   仓库变量 GITCODE_ASSETS_FROM 设为 github 时退回旧做法，附件也从这里上传（两边别同时开）。
+#   并发组仍叫 gitcode-mirror（和旧版本的工作流同名），新旧运行不会同时上传同一个附件。
 # 两个组里都只保留一个待运行的：每次都读取当前全部分支、标签和已发布版本，待运行的被新的替换也不会漏同步。
 jobs:
   code:
@@ -116,7 +120,7 @@ jobs:
 
   # 标签同步失败时不同步发行版，以免版本指向错误提交
   releases:
-    name: 同步发行版和附件
+    name: 同步发行版信息
     needs: code
     if: ${{ !cancelled() && needs.code.outputs.tags == 'success' }}
     runs-on: ubuntu-latest
@@ -134,6 +138,7 @@ jobs:
       GITCODE_REPO: Mystic-Stars/Allay-Motion
       SELECTED_TAG: ${{ inputs.tag }}
       GITCODE_UPLOAD_CONCURRENCY: '3'
+      GITCODE_ASSETS_FROM: ${{ vars.GITCODE_ASSETS_FROM || 'gitcode' }}
     steps:
       # 始终运行默认分支中的同步脚本，避免把其他分支或标签的代码当成同步脚本执行。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,8 +147,8 @@ jobs:
           persist-credentials: false
 
       - name: 检查 Release 同步逻辑
-        run: node --test tests/sync-gitcode-release.test.mjs
+        run: node --test tests/sync-gitcode-release.test.mjs tests/pull-github-release-assets.test.mjs
 
-      # 附件按“最新正式版优先、校验和与安装包优先”的顺序上传，几个同时传；每分钟在日志里记一次上传进度
-      - name: 同步已发布的 Release 和附件
+      # 默认只同步发行版信息；GITCODE_ASSETS_FROM=github 时附件也从这里传（最新正式版优先、校验和与安装包优先，几个同时传）
+      - name: 同步已发布的 Release
         run: node scripts/sync-gitcode-release.mjs

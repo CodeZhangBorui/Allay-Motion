@@ -1,0 +1,58 @@
+# 在 GitCode 上运行（AtomGit Action，docs/gitcode-mirror.md）：从 GitHub 的公开下载地址拉取发行版的附件，传进 GitCode。
+# 这个文件随 GitHub Actions 的代码同步来到 GitCode；GitHub 上不运行它（GitHub 只认 .github/workflows）。
+#
+# 分工：GitHub Actions（.github/workflows/gitcode-mirror.yml）同步代码、标签，并在 GitCode 上建好发行版和说明；
+# 这里只补附件。安装包从 GitHub 下载、在国内传进 GitCode，不再从 GitHub 的机器跨境上传。
+#
+# - 推送 v* 标签时：等 GitHub 上的发版构建完成并发布（最多 2 小时），然后立即补附件；
+# - 每小时检查一次最近的发行版，补上缺的附件（已有且摘要一致的跳过）；也可以手动运行，只补某个标签。
+# - 同一时刻只跑一个，后来的排队，不会两边同时传同一个附件。
+# - 令牌：仓库密钥里有 GITCODE_TOKEN 时用它，否则用流水线自动生成的 ATOMGIT_TOKEN（下面的 permissions 给它仓库读写）。
+name: 从 GitHub 拉取发行版附件
+
+on:
+  push:
+    tags:
+      - 'v*'
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 只补这个标签的附件；留空检查最近的发行版
+        required: false
+        default: ''
+        type: string
+
+concurrency:
+  max: 1
+  exceed-action: QUEUE
+
+permissions:
+  repository: write
+  project: write
+
+jobs:
+  pull:
+    name: 拉取并上传附件
+    runs-on: [ubuntu-latest, x64, small]
+    timeout-minutes: 300
+    steps:
+      - name: 检出代码
+        uses: checkout
+
+      - name: 设置 Node.js
+        uses: setup-node
+        with:
+          node-version: '20'
+
+      - name: 检查同步逻辑
+        run: node --test tests/pull-github-release-assets.test.mjs
+
+      - name: 拉取并上传附件
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          ATOMGIT_TOKEN: ${{ atomgit.token }}
+          SELECTED_TAG: ${{ inputs.tag }}
+          GH_REPO: Mystic-Stars/Allay-Motion
+        run: node scripts/pull-github-release-assets.mjs

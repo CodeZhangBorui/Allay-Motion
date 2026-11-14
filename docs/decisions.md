@@ -1494,3 +1494,11 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
   - 应用内更新：启动安装程序前查系统临时文件夹所在磁盘；不够时把安装程序的 `TEMP`/`TMP` 设为安装目录旁边的 `AllayMotion-update-temp`（在安装盘上），也不够就报“空间不足”、不启动安装程序，状态留在“已下载”可以再点安装。下载前也查下载目录的空间。启动时清掉半成品、不比当前新的安装包和那个备用临时文件夹。
 - 验证：本机打包（`pnpm --filter @allay/desktop dist`）后，C 盘剩 568 MB 时静默安装以退出码 2 退出，安装目录 100 个文件、字节数不变，运行中的应用没被关；把 `TEMP` 指到 E 盘时打开安装程序显示欢迎页（没有误拦），随即结束、未安装。单元测试覆盖宏的生成和旧下载的清理。
 - 没验证的：应用内更新的备用临时文件夹只做了类型检查，没有真的走一次（要一个比 0.1.2 新的版本）；安装程序的提示框（非静默时）没有截图看过，只读到了空间够时的欢迎页。
+
+### 附件改由 GitCode 流水线拉取（2026-11-14，所有者要求）
+
+- 仓库所有者原话：“由于 github 上传 gitcode 实在过慢，也许需要更改同步方式，尝试改为从 gitcode 拉取 github 文件……这样全程就不需要你登录 gitcode 了”。改并发、改顺序之后，v0.1.2 的三个附件同时从 GitHub 的机器上传了 30 分钟，GitCode 上仍只有 `SHA256SUMS.txt`。
+- 做法：GitHub Actions 只推送代码、标签，并在 GitCode 上建好发行版和说明；附件由 GitCode（AtomGit）流水线 `.gitcode/workflows/pull-release-assets.yml` 从 GitHub 的公开下载地址拉取、在国内传进 GitCode。两边共用 `scripts/gitcode-uploader.mjs` 里的上传逻辑（上传地址、重试、登记确认）。GitHub 上的附件上传留作备用（仓库变量 `GITCODE_ASSETS_FROM=github`）。
+- 依据（docs.gitcode.com 流水线文档，2026-11-14 读的）：工作流放在 `.gitcode/workflows/`；支持 `push`（`tags` 过滤）、`schedule`（UTC+8 的 cron）、`workflow_dispatch`；`uses: checkout`、`uses: setup-node`；`concurrency: { max: 1, exceed-action: QUEUE }`；`timeout-minutes`；每次运行自动生成 `ATOMGIT_TOKEN`，权限由 `permissions`（`repository`、`project` 等）控制，文档示例用 `Authorization: token $ATOMGIT_TOKEN` 调 v5 API；环境变量里有 `ATOMGIT_API_URL`（`https://api.atomgit.com`）、`ATOMGIT_REF_TYPE`、`ATOMGIT_REF_NAME`、`ATOMGIT_EVENT_NAME`、`ATOMGIT_REPOSITORY`。托管机器是 Ubuntu，预装 Node.js 18/20。
+- 要人做的：代码化流水线**目前要申请内测名额**（文档“前提条件”），没有开通时 `.gitcode/workflows/` 里的文件不会运行，GitCode 上的发行版只有说明、没有安装包（应用内更新会改从 GitHub 下载）。`ATOMGIT_TOKEN` 能否上传发行版附件文档没有明说；不行时在 GitCode 仓库密钥里配 `GITCODE_TOKEN`。
+- 没验证的：GitCode 流水线没有真正跑过（这边没有 GitCode 账号，也不知道仓库是否开通了流水线）；从 GitCode 的机器下载 GitHub 附件的速度未知。脚本只有模拟测试（`tests/pull-github-release-assets.test.mjs`）。
