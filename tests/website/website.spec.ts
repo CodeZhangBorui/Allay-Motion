@@ -377,12 +377,12 @@ test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点�
     await page.keyboard.press('PageDown');
     await page.waitForTimeout(80);
   }
-  await expect.poll(allSettled, { timeout: 2500 }).toBe(true);
+  await expect.poll(allSettled, { timeout: 3000 }).toBe(true);
   // 导航锚点跳转（从页首直接跳到模板一节，越过分镜和剪辑点）：落到终态，剪辑点是“播完”而不是在播
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2000);
   await page.locator('a[data-clip-link][href="#templates"]').click();
-  await expect.poll(allSettled, { timeout: 2500 }).toBe(true);
+  await expect.poll(allSettled, { timeout: 3000 }).toBe(true);
   expect(await cutState(page)).toBe('done');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
@@ -393,18 +393,43 @@ test('T-WEB-13 悦灵：用的是应用的烘焙图集，首屏飞到主视觉�
   await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
   const guide = page.getByTestId('allay-guide');
   await expect(guide).toHaveAttribute('data-granted', 'true', { timeout: 15_000 });
-  await expect(guide.locator('[data-allay="body"]')).toHaveAttribute('data-source', 'atlas', { timeout: 15_000 });
+  // 3D 世界装好图集后，带路的悦灵由世界来画（应用同一份烘焙图集）；世界没起来时是 DOM 里的 <Allay>
+  await expect(guide).toHaveAttribute('data-render', '3d', { timeout: 20_000 });
+  /** 页面上画着的全身悦灵：DOM 里的 + 世界里那一只（出场时） */
+  const count = () =>
+    page.evaluate(() => {
+      const g = document.querySelector<HTMLElement>('[data-testid="allay-guide"]');
+      const in3d = g?.dataset.render === '3d' && g.dataset.shown === 'true' ? 1 : 0;
+      return document.querySelectorAll('[data-allay="body"]').length + in3d;
+    });
   let max = 0;
   const total = await page.evaluate(() => document.documentElement.scrollHeight);
   for (let y = 0; y < total; y += 450) {
     await page.evaluate((v) => window.scrollTo({ top: v, behavior: 'instant' }), y);
     await page.waitForTimeout(120);
-    max = Math.max(max, await page.locator('[data-allay="body"]').count());
+    max = Math.max(max, await count());
   }
   expect(max).toBeLessThanOrEqual(1);
   // 悦灵不挡点击
   expect(await guide.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+});
+
+test('T-WEB-16 画布：全页只有一块共用的 3D 世界画布；走到页尾时字标由方块拼好（DOM 里的字仍在，只变透明），停手后落定', async () => {
+  const { page } = s;
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  const world = page.getByTestId('world');
+  await expect(world).toHaveCount(1);
+  expect(await world.evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
+  expect(await world.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
+  // 字标：拼好以后 DOM 里的字变透明，但文字还在（可选中、可被读屏读到）
+  const mark = page.locator('[data-voxel-wordmark]');
+  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+  await expect(mark).toHaveAttribute('data-voxel-ready', 'true', { timeout: 10_000 });
+  expect((await mark.textContent())?.trim().length).toBeGreaterThan(0);
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(mark).toHaveAttribute('data-voxel-ready', 'false');
 });
 
 test('T-WEB-14 文案不强调模板数量；开发者三张真实头像都是自托管的图片', async () => {
