@@ -1,8 +1,8 @@
 import { expect, test, type ElectronApplication, type Locator, type Page } from '@playwright/test';
 import { launchApp, makeUserDataDir, removeUserDataDir, type Launched } from './helpers';
 
-// 界面冒烟（docs/decisions.md “试用版的三个崩溃”）：主界面上每个下拉、每个菜单项（含子菜单）、每个对话框、
-// 命令面板里的每条命令，在几种状态下各走一遍，断言没有未捕获的异常、没有控制台 error、界面没有整棵卸载（黑屏）、
+// 界面冒烟（docs/decisions.md “试用版的三个崩溃”）：主界面上每个下拉、每个菜单项（含子菜单）、每个对话框（设置的每一类）、
+// 命令面板里的每条命令、首次启动引导的每一步，在几种状态下各走一遍，断言没有未捕获的异常、没有控制台 error、界面没有整棵卸载（黑屏）、
 // 没有落到错误边界的错误页。三个试用时的崩溃（预设下拉、最近的工程子菜单、派生模板装载失败）都是现有 e2e 没走到的路径。
 //
 // 状态：内置模板（全新安装：没有任何素材层）、没选模板、用户模板（复制内置模板得到）、派生模板（另存为模板得到）。
@@ -63,6 +63,9 @@ async function healthOf(page: Page): Promise<string | null> {
 const OVERLAY = '[role="menu"], [role="listbox"], [role="dialog"], [role="alertdialog"], [data-popup-open], [data-base-ui-inert]';
 
 async function closeOverlays(page: Page): Promise<void> {
+  // 帮助菜单、命令面板里的“首次启动引导”会打开整页的引导，主界面随之 inert：跳过它（引导本身由 walkOnboarding 走）
+  const skip = page.getByTestId('onboarding-skip-all');
+  if (await skip.isVisible().catch(() => false)) await skip.click().catch(() => undefined);
   for (let i = 0; i < 6; i++) {
     const open = await page.evaluate((sel) => !!document.querySelector(sel), OVERLAY);
     if (!open) return;
@@ -136,6 +139,8 @@ async function walkMenus(page: Page, r: Runner): Promise<void> {
     await r.step(`menu ${name} (open)`, async () => {
       await trigger().click();
       const items = page.locator('[role="menu"]:visible').last().locator('[role^="menuitem"]');
+      // 等菜单项画出来再数：否则偶尔数到 0，整个菜单被悄悄跳过
+      await items.first().waitFor();
       labels = await items.evaluateAll((ns) => ns.map((n) => ({ text: (n.textContent ?? '').trim().slice(0, 40), sub: n.hasAttribute('aria-haspopup'), disabled: n.getAttribute('aria-disabled') === 'true' || n.hasAttribute('data-disabled') })));
     });
     for (let i = 0; i < labels.length; i++) {
@@ -263,8 +268,11 @@ async function walkDialogs(page: Page, r: Runner): Promise<void> {
 async function walkPalette(page: Page, r: Runner): Promise<void> {
   await page.evaluate(() => window.__allayTest!.dispatch('palette'));
   await page.getByTestId('command-palette').waitFor();
+  // 同上：等第一条命令出来再收集
+  await page.locator('[data-testid^="command-"]:not([data-testid="command-palette"])').first().waitFor();
   const ids = await page.locator('[data-testid^="command-"]:not([data-testid="command-palette"])').evaluateAll((ns) =>
-    ns.filter((n) => n.getAttribute('aria-disabled') !== 'true' && !n.hasAttribute('data-disabled')).map((n) => n.getAttribute('data-testid')!),
+    // cmdk 给可用的项也写 data-disabled="false"：按值判断，不能只看有没有这个属性
+    ns.filter((n) => n.getAttribute('aria-disabled') !== 'true' && n.getAttribute('data-disabled') !== 'true').map((n) => n.getAttribute('data-testid')!),
   );
   await closeOverlays(page);
   for (const id of ids) {
@@ -278,8 +286,63 @@ async function walkPalette(page: Page, r: Runner): Promise<void> {
       // 新建工程有未保存改动时会问一句：确认，走完整条路
       const ok = page.getByTestId('confirm-ok');
       if (await ok.isVisible().catch(() => false)) await ok.click();
+      // “首次启动引导”会盖住整个主界面：跳过它（引导本身由 walkOnboarding 走）
+      const skip = page.getByTestId('onboarding-skip-all');
+      if (await skip.isVisible().catch(() => false)) await skip.click();
     });
   }
+}
+
+/**
+ * 首次启动引导（docs/06-ui-design.md 6.10）：经命令打开，每一步的选项都点一遍（素材那一步也点“开始下载”，
+ * 测试的下载地址是没人监听的本机端口，走的是失败路径；文件夹对话框是立即取消的假实现），返回、从步骤列表跳回、
+ * 最后“开始使用”。语言、主题、减少动效点完都换回原来的值。
+ */
+async function walkOnboarding(page: Page, r: Runner): Promise<void> {
+  const ob = page.getByTestId('onboarding');
+  const open = async () => {
+    if (!(await ob.isVisible().catch(() => false))) await page.evaluate(() => window.__allayTest!.dispatch('onboarding'));
+    await ob.waitFor();
+  };
+  const goto = async (step: string) => {
+    await open();
+    const rail = page.getByTestId(`onboarding-rail-${step}`);
+    if (await rail.isEnabled()) await rail.click();
+    else while ((await ob.getAttribute('data-step')) !== step) await page.getByTestId('onboarding-next').click();
+    await page.waitForTimeout(150);
+  };
+  await r.step('onboarding open', open);
+  await r.step('onboarding language', async () => {
+    await goto('language');
+    for (const l of ['en', 'zh-CN', 'system']) await page.getByTestId(`onboarding-language-${l}`).click();
+  });
+  await r.step('onboarding appearance', async () => {
+    await goto('appearance');
+    const theme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
+    for (const t of ['light', 'dark']) await page.getByTestId(`onboarding-theme-${t}`).click();
+    if (theme) await page.getByTestId(`onboarding-theme-${theme}`).click();
+    for (const m of ['on', 'off', 'system']) await page.getByTestId(`onboarding-motion-${m}`).click();
+    await page.getByTestId('onboarding-back').click();
+  });
+  await r.step('onboarding assets', async () => {
+    await goto('assets');
+    for (const o of ['local', 'later', 'download']) await page.getByTestId(`onboarding-asset-${o}`).getByRole('radio').click();
+    const download = ob.getByTestId('vanilla-download');
+    if (await download.isVisible().catch(() => false)) {
+      await download.click();
+      await ob.getByTestId('download-progress').waitFor();
+      await page.waitForFunction(() => window.__allayTest!.resourceState()?.download.status !== 'running', undefined, { timeout: 15_000 });
+    }
+  });
+  await r.step('onboarding folders', async () => {
+    await goto('folders');
+    for (const k of ['project', 'export']) await page.getByTestId(`folder-${k}-choose`).click();
+  });
+  await r.step('onboarding done', async () => {
+    await goto('done');
+    await page.getByTestId('onboarding-finish').click();
+    await ob.waitFor({ state: 'detached' });
+  });
 }
 
 const waitPreview = (page: Page) => page.waitForFunction(() => window.__allayTest?.previewUpToDate() === true, undefined, { timeout: 30_000 });
@@ -362,6 +425,8 @@ for (const state of STATES) {
     await walkMenus(page, r);
     await r.recover();
     await walkPalette(page, r);
+    await r.recover();
+    await walkOnboarding(page, r);
 
     console.log(`[smoke] ${state.name}: ${r.actions} actions, ${r.problems.length} problems`);
     for (const p of r.problems) console.log(`[smoke]   ${p.action}: ${p.detail}`);
