@@ -261,6 +261,40 @@ test('T-WEB-8 减少动效：没有出场盖层，内容一开始就完整可读
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 });
 
+test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被拦、requestAnimationFrame 不跑（像后台标签页）', async () => {
+  const bad = await launch();
+  try {
+    const { page } = bad;
+    await page.route(/\.woff2(\?|$)/, (r) => r.abort());
+    // 后台标签页里 requestAnimationFrame 不回调：出场动画走不动，盖层必须靠保底计时器撤掉
+    await page.addInitScript(() => {
+      window.requestAnimationFrame = () => 0;
+    });
+    await page.reload();
+    /** 有没有出场盖层压在这个元素上 */
+    const covered = (selector: string) =>
+      page.evaluate((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return true;
+        const r = el.getBoundingClientRect();
+        return [...document.querySelectorAll('canvas[data-reveal]')].some((c) => {
+          const b = c.getBoundingClientRect();
+          return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+        });
+      }, selector);
+    const t0 = Date.now();
+    await expect(page.locator('h1')).toBeVisible();
+    await expect.poll(() => covered('h1'), { timeout: 2500 }).toBe(false);
+    test.info().annotations.push({ type: 'T-WEB-10', description: `首屏标题 ${Date.now() - t0} ms 内可见（字体被拦、rAF 不跑）` });
+    // 滚到页面中段的节标题也一样
+    await page.evaluate(() => document.getElementById('features')?.scrollIntoView({ behavior: 'instant' }));
+    await expect.poll(() => covered('#features h2'), { timeout: 3500 }).toBe(false);
+    expect(bad.errors.filter((e) => !/woff2|Failed to load resource|net::ERR_FAILED/.test(e))).toEqual([]);
+  } finally {
+    await bad.app.close();
+  }
+});
+
 test('T-WEB-9 以上全部操作之后：控制台没有报错，没有外部请求', async () => {
   expect(s.errors).toEqual([]);
   expect(await externalRequests(s.app)).toEqual([]);

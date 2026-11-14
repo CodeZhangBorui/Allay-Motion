@@ -91,6 +91,31 @@ export const SITE_CSP = [
   "form-action 'none'",
 ].join('; ');
 
+/**
+ * 首屏要用的西文字体（IBM Plex 的 latin 子集，每个十几 KB）在 index.html 里预加载，标题不用等 CSS 解析完才去取字体。
+ * 文件名带哈希，只能在打包完以后从产物里找。
+ */
+const PRELOAD_FONTS = [/ibm-plex-sans-latin-400-normal-[\w-]+\.woff2$/, /ibm-plex-sans-latin-600-normal-[\w-]+\.woff2$/, /ibm-plex-mono-latin-500-normal-[\w-]+\.woff2$/];
+
+export function preloadFonts(): Plugin {
+  return {
+    name: 'allay-website-preload-fonts',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        if (!ctx.bundle || !ctx.filename.endsWith('index.html')) return [];
+        const files = Object.keys(ctx.bundle);
+        return PRELOAD_FONTS.flatMap((re) => files.filter((f) => re.test(f)).slice(0, 1)).map((f) => ({
+          tag: 'link',
+          attrs: { rel: 'preload', as: 'font', type: 'font/woff2', crossorigin: '', href: `./${f}` },
+          injectTo: 'head' as const,
+        }));
+      },
+    },
+  };
+}
+
 export function contentSecurityPolicy(): Plugin {
   return {
     name: 'allay-website-csp',

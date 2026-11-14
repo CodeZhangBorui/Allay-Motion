@@ -8,6 +8,17 @@
 @source "../../../../packages/mascot/src";
 @source "./";
 
+/*
+ * 字体：英文与数字照旧是 IBM Plex Sans / Mono（与应用相同，体积小，构建时预加载）。
+ * 中文先用系统自带的黑体（苹方、微软雅黑等），Noto Sans SC 只在系统没有中文字体时才下载：
+ * 它按 unicode-range 切成上百个分片，中文首屏要下载约 1.4 MB（docs/decisions.md 官网 · 字体）。
+ * 仿真器 iframe 里是应用自己的样式，仍然用 Noto Sans SC。
+ */
+:root {
+  --font-ui: "IBM Plex Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", Consolas, monospace;
+}
+
 /* 页面级的面色：深色沿用窗口底色和面板色；浅色用面板色做页面底（不用纯白大面积），凹槽色做交替节 */
 :root,
 [data-theme='dark'] {
