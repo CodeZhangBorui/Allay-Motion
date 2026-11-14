@@ -1,6 +1,7 @@
 // 兜底像素字体的下载、解压、解析放在这个 Worker 里：BDF 有 3.6 MB 文本，在主线程上解析会卡住几十毫秒
 // （首屏预览轮到带文字的模板时掉帧）。结果的几张表零拷贝转回主线程。
-import { parseBdf } from '@allay/assets';
+// 只引 BDF 解析器本身，不经 @allay/assets 的入口（那会把 zod 等一起打进这个 Worker）
+import { parseBdf } from '../../../../packages/assets/src/bdf';
 
 async function load(url: string): Promise<string> {
   const res = await fetch(url);
