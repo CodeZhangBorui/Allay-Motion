@@ -1427,7 +1427,7 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - `pnpm test`（单元测试）没有放到 macOS 上：有一批测试用的是 Windows 路径的字面量（`C:\\…`），它们测的是平台无关的逻辑，在 Windows 的 CI 上跑。
 - 发版工作流：三份构建（Windows x64、macOS arm64、macOS x64）是一个矩阵，`fail-fast: false` 让一份失败时其余照常跑完、日志都看得到。每份产出自己的校验和。
 - 与仓库所有者的自动发布流程（上文“GitCode 镜像与自动发布”）合并：发布作业 `publish-release` 只在推 `v*` 标签时运行，`needs: build` 要三份都成功；它把三份校验和合成一份 `SHA256SUMS.txt`（按文件名排序），核对五个安装包（Windows 的 exe，两种架构的 dmg、zip）都在并 `sha256sum -c`，然后建草稿、挂上全部附件，再 `gh release edit --draft=false` 公开。任何一份构建失败、缺文件或校验不过，都不会建 Release，更不会公开。手动触发只构建并上传工作流产物，不建 Release，也就不跑合并校验和这一步（各平台的校验和在各自的构建里已算好）。权限、固定到提交哈希的 action、没有证书和密钥这些都不变；新增的第三方 action 只有 `actions/cache`。Release 说明加了 macOS 版未公证、首次打开怎么放行。
-- GitCode 同步脚本（`scripts/sync-gitcode-release.mjs`）不按文件名挑附件：GitHub Release 上有几个附件就逐个下载、核对 SHA-256、上传几个，所以 macOS 的 dmg、zip 不用改脚本；`tests/sync-gitcode-release.test.mjs` 加了一条三平台五个安装包加 `SHA256SUMS.txt` 全部同步的用例。
+- GitCode 同步脚本（`scripts/sync-gitcode-release.mjs`）不按文件名挑附件：GitHub Release 上有几个附件就逐个下载、核对 SHA-256、上传几个，所以 macOS 的 dmg、zip 不用改脚本；`tests/sync-gitcode-release.test.mjs` 加了一条三平台五个安装包加 `SHA256SUMS.txt` 全部同步的用例。这个测试文件用的是 `node:test`，不在 vitest 的 include 里，只有镜像工作流在同步前跑它；`pnpm test` 末尾加了 `node --test tests/sync-gitcode-release.test.mjs`，这样每次推送和 PR 的 `pnpm check` 也会跑，改坏了在合并前就能看到。
 
 ### 验证
 
