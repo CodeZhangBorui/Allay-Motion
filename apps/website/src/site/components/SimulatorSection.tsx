@@ -11,6 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { FromSimulatorSchema, readMessage, type DesktopOnlyFeature, type ToSimulator } from '../../host/bridge';
 import { REPO_URL, SECTION } from '../links';
 import { setLanguage, setTheme, usePrefs } from '../prefs';
+import { AllayLoader } from '@allay/mascot';
+import { PixelReveal } from '../motion/PixelReveal';
 import { LiveViewer } from './LiveViewer';
 import { Section, SectionHead } from './Section';
 
@@ -49,6 +51,49 @@ function simulatorUrl(theme: string, language: string): string {
   const q = new URLSearchParams({ theme, lang: language });
   if (new URLSearchParams(window.location.search).has('e2e')) q.set('e2e', '1');
   return `./simulator.html?${q.toString()}`;
+}
+
+/** 编辑器启动时的骨架：和桌面版主界面同样的分区（顶栏、模板库、预览、属性、时间轴、状态栏），悦灵在上面飞（07 7.5 第 3 项） */
+function EditorSkeleton({ label }: { label: string }) {
+  const panel = 'rounded-[10px] bg-surface-1';
+  return (
+    <div className="absolute inset-0 flex flex-col bg-background" data-testid="sim-skeleton">
+      <div className="flex h-11 shrink-0 items-center gap-3 px-3">
+        <span className="size-[22px] rounded-md bg-skeleton" />
+        <span className="h-3 w-24 rounded bg-skeleton" />
+        <span className="ml-auto h-7 w-28 rounded-md bg-skeleton" />
+        <span className="mr-[150px] h-7 w-20 rounded-md bg-skeleton" />
+      </div>
+      <AllayLoader loading label={label} priority="preview" className="min-h-0 flex-1">
+        <div className="flex size-full gap-1.5 px-1.5 pb-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex min-h-0 flex-1 gap-1.5">
+              <div className={`${panel} w-[280px] shrink-0 p-3`}>
+                <div className="grid grid-cols-2 gap-2">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <span key={i} className="aspect-video rounded-[7px] bg-skeleton" />
+                  ))}
+                </div>
+              </div>
+              <div className={`${panel} flex flex-1 items-center justify-center bg-viewer`}>
+                <span className="aspect-video w-[62%] rounded-md bg-skeleton" />
+              </div>
+            </div>
+            <div className={`${panel} h-[236px] shrink-0 p-3`}>
+              <span className="block h-7 w-1/3 rounded bg-skeleton" />
+              <span className="mt-5 block h-6 rounded bg-skeleton" />
+              <span className="mt-3 block h-6 rounded bg-skeleton" />
+            </div>
+          </div>
+          <div className={`${panel} w-[320px] shrink-0 p-3`}>
+            {Array.from({ length: 9 }, (_, i) => (
+              <span key={i} className="mt-3 block h-6 rounded bg-skeleton" />
+            ))}
+          </div>
+        </div>
+      </AllayLoader>
+    </div>
+  );
 }
 
 function SimulatorWindow() {
@@ -161,17 +206,21 @@ function SimulatorWindow() {
 
   return (
     <div ref={outer} className="mt-12 w-full">
+      {/* 窗口进视口时由方块拼出来（方块擦除），和产品的转场同一种语言 */}
+      <PixelReveal bg="--site-bg" variant="wipe" cell={44} duration={950} className="mx-auto" >
       <div className="site-window relative mx-auto" style={{ height, width: box.width * box.scale }} data-testid="sim-window" aria-label={t('site.sim.frameLabel')}>
         {src ? (
-          <div style={{ width: box.width, height: LOGICAL_H, transform: `scale(${box.scale})`, transformOrigin: '0 0' }}>
+          <div className="relative" style={{ width: box.width, height: LOGICAL_H, transform: `scale(${box.scale})`, transformOrigin: '0 0' }}>
             <iframe
               ref={frame}
               src={src}
               title={t('site.sim.frameLabel')}
               data-testid="sim-frame"
-              className="block size-full border-0"
-              style={{ colorScheme: 'normal' }}
+              className="block size-full border-0 transition-opacity duration-300 ease-(--ease-out)"
+              // 编辑器装好之前不显示 iframe（加载中的文档是白底），下面是同样布局的骨架
+              style={{ colorScheme: 'normal', opacity: ready ? 1 : 0 }}
             />
+            {!ready && <EditorSkeleton label={t('site.sim.starting')} />}
           </div>
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-4 bg-background p-6 text-center">
@@ -219,6 +268,7 @@ function SimulatorWindow() {
           </div>
         )}
       </div>
+      </PixelReveal>
       <p className="mt-4 text-center text-[12.5px] text-fg-subtle">{t('site.sim.exportNote')}</p>
     </div>
   );
@@ -228,7 +278,7 @@ export function SimulatorSection() {
   const { t } = useTranslation();
   const wide = useWide();
   return (
-    <Section id={SECTION.try}>
+    <Section id={SECTION.try} label={`01  ${t('site.sim.kicker')}`}>
       <SectionHead kicker={t('site.sim.kicker')} title={t('site.sim.title')} lead={t('site.sim.lead')} />
       {wide ? (
         <SimulatorWindow />
