@@ -1,22 +1,26 @@
-// 全页共用的体素雕塑：一块固定在所有内容后面的全视口画布、一个 WebGL 上下文、挂在共享帧循环上（motion/world/world-scene.ts）。
-// - 该拼成哪个形，由各节里给雕塑留的空白占位框（data-voxel-slot）决定：哪个框在视口里露出得最多就拼哪个
-//   （带回差，免得在边界上来回跳），都不在就散成细尘；重组一次触发、按时间播完，不绑滚动位置；
-// - 页尾字标：按 DOM 里那段字的字体栅格化成点阵交给世界，每帧把墨迹框的位置告诉世界，方块对齐它拼出来；
-//   拼成字标时 DOM 里的字只是变透明（仍然可选中、可被读屏读到），世界没起来就照常显示；
-// - 指针：最近一秒的轨迹交给世界拨开方块；在空白处（不是文字、按钮、链接、卡片）按下放出一圈冲击波，
-//   按住拖动转当前的雕塑，松手后弹回；指针在雕塑的框里时光标是“可抓”；
-// - 首屏的体素悦灵从应用那只 3D 悦灵的同一份模型和原版贴图精确生成（forms.ts 的 allayVoxels）。原版贴图在官网的
-//   public/mc/ 里没有时不拼它（不拿近似的颜色凑），首屏散成细尘，带路的悦灵照常用首屏的锚点；
-// - 首屏的体素悦灵在场时，带路的悦灵让位（bridge.ts）；
-// - 减少动效：只在首屏后面画一帧静止的体素悦灵（随页面滚走）；没有 WebGL 时什么也不画（文字照常、带路悦灵照常）。
+// 全页共用的 3D 方块世界：一块固定在所有内容后面的全视口画布、一个 WebGL 上下文、挂在共享帧循环上（motion/world/world-scene.ts）。
+// - 走到哪一节（视口中线落在哪一节里）由滚动决定，相机用弹簧飞到那一节的机位；方块给正文让位；
+// - 页尾字标：按 DOM 里那段字的字体栅格化成点阵交给世界，方块对齐它拼出来；拼好以后 DOM 里的字只是变透明；
+// - 背景的方块能玩（只在方块本身上按下才算，正文、按钮、链接、仿真器上的操作完全照旧，文字照样能选中）：
+//   按下不动再松开 = 单击，敲碎它；按下后移动超过 5 px = 拖，方块跟手走，靠近别的方块像磁铁一样贴成一组；
+//   拖的时候滚轮照常滚页面（相机去下一节，方块跟着指针一起过去）；用力甩甩脱最外面那块；双击把一块从组里弹出去；
+//   触摸屏上不抓不敲（不和滑动页面抢）；
+// - 体素雕塑（sculpture.ts）：首屏的体素悦灵（从应用那只 3D 悦灵的同一份模型和原版贴图精确生成，原版贴图不在时不拼）、
+//   剪辑点的 ◆、开源的时间线，放在各节 data-voxel-slot 留的空白里；指针划过拨开它的体素，空白处按下放冲击波，
+//   在它的框里（没按在背景方块上）按住拖动转它；
+// - 首屏的体素悦灵在场时带路的悦灵让位（bridge.ts）；拼出一大块时带路的悦灵飞过来看一眼；
+// - 减少动效：只在首屏后面画一帧静止的画面（随页面滚走）；没有 WebGL 时什么也不画（文字照常、带路悦灵照常）。
 import { whenMascotAssetsSettled } from '@allay/mascot';
-import { useEffect, useRef, useState } from 'react';
-import { usePrefs } from '../../prefs';
-import { onFrame, onFrameRead, onGeometryChange } from '../frame';
 import { ALLAY_TEXTURE_ID } from '@allay/mascot/model';
+import { useEffect, useRef, useState } from 'react';
 import { mcTexture, mcTextureUrl } from '../../../host/mc-pack';
+import { usePrefs } from '../../prefs';
+import { onFrame, onFrameRead, onGeometryChange, track, type Geometry } from '../frame';
 import { allay3d, setSculptureExpected } from './bridge';
 import type { Box, FormName, Tier, World as WorldScene, WordmarkGrid } from './world-scene';
+
+/** 机位对应的各节（顺序就是世界里从上到下的顺序） */
+const STATION_IDS = ['top', 'workflow', 'cut', 'try', 'templates', 'features', 'open-source', 'end'];
 
 /** 正文：方块不能落在它们后面（卡片、面板本身是不透明的，挡得住，不用算） */
 const TEXT = 'main h1, main h2, main h3, main p, main li, main [role=tablist], footer p:not([data-voxel-wordmark]), footer a, footer span';
@@ -52,7 +56,7 @@ function collectTextRects(): Float32Array {
   return new Float32Array(out);
 }
 
-/** 不能当“空白处”的东西：在它们上面按下时不放冲击波、不拖雕塑 */
+/** 不能当“空白处”的东西：在它们上面按下时不抓方块、不放冲击波、不转雕塑（事件照常落到 DOM 上） */
 const INTERACTIVE = 'a,button,input,textarea,select,label,summary,iframe,[role=button],[role=tab],[role=slider],[contenteditable],.card,.monitor,pre,code,img,nav,header';
 /** 文字：只有按在字上（行框里）才算文字，标题盒子右边空着的那一大块算空白 */
 const TEXTY = 'p,h1,h2,h3,h4,li';
@@ -63,8 +67,6 @@ function onText(el: Element, x: number, y: number): boolean {
   return hit;
 }
 
-/** 有占位框的形（字标另算：对齐 DOM 里的字） */
-const SLOT_FORMS = ['allay', 'cut', 'timeline'] as const;
 
 /** 字标的点阵，外加把它对齐到 DOM 里那段字所需的度量（都以字号为单位） */
 interface WordmarkRaster extends WordmarkGrid {
@@ -194,8 +196,9 @@ export function World() {
           if (!alive) return;
           const tier = pickTier();
           tierRef.current = tier;
+          const narrow = window.innerWidth < 1024;
           const slotHeight = document.querySelector('[data-voxel-slot="allay"]')?.getBoundingClientRect().height || window.innerHeight * 0.4;
-          const scene = await Scene.create(canvas, { theme: themeRef.current, tier, slotHeight });
+          const scene = await Scene.create(canvas, { theme: themeRef.current, narrow, tier, slotHeight });
           if (!alive) {
             scene.dispose();
             return;
@@ -209,7 +212,7 @@ export function World() {
           ro = new ResizeObserver(size);
           ro.observe(canvas);
           canvas.dataset.tier = tier;
-          canvas.dataset.instances = String(scene.instances);
+          canvas.dataset.instances = String(scene.sculpture?.instances ?? 0);
           canvas.dataset.allayVoxels = 'missing';
           // 原版悦灵贴图（与应用同一张）：装好后按它生成体素悦灵
           if (hasAllayTexture) {
@@ -244,6 +247,7 @@ export function World() {
       ro?.disconnect();
       allay3d.ready = false;
       allay3d.sculpture = null;
+      allay3d.attention = null;
       setSculptureExpected(false);
       sceneRef.current?.dispose();
       sceneRef.current = null;
@@ -264,10 +268,8 @@ export function World() {
     if (!ready || !scene || reducedMotion) return;
     const el = document.querySelector<HTMLElement>('[data-voxel-wordmark]');
     if (!el) return;
-    // 点阵多细跟着档位走（一格一块方块）：高档 30 px 一个字号，中档 24，窄屏 16
-    const px = { high: 30, mid: 24, narrow: 16 }[tierRef.current];
     const apply = () => {
-      const grid = rasterizeWordmark(el, px);
+      const grid = rasterizeWordmark(el, 18);
       rasterRef.current = grid;
       if (grid) scene.setWordmark(grid);
     };
@@ -275,13 +277,15 @@ export function World() {
     void document.fonts?.ready.then(apply);
   }, [ready, reducedMotion, theme]);
 
-  // 每帧：读占位框、字标、正文的位置（读阶段），再交给世界画（写阶段）
+  // 每帧：读各节、占位框、字标的位置（读阶段），再交给世界画（写阶段）
   useEffect(() => {
     const scene = sceneRef.current;
     const canvas = canvasRef.current;
     if (!ready || !scene || !canvas) return;
     const root = document.documentElement;
     const still = reducedMotion;
+    const stations = STATION_IDS.map((id) => document.getElementById(id));
+    const tracked = stations.map((el) => (el ? track(el) : null));
     let slotEls = new Map<FormName, HTMLElement>();
     const findSlots = () => {
       slotEls = new Map();
@@ -291,6 +295,7 @@ export function World() {
     const wordEl = document.querySelector<HTMLElement>('[data-voxel-wordmark]');
     let docRects = collectTextRects();
     const screenRects = new Float32Array(4096);
+    const keepOut = new Float32Array(4);
     const recollect = () => {
       docRects = collectTextRects();
       findSlots();
@@ -300,16 +305,21 @@ export function World() {
 
     const slots: Partial<Record<FormName, Box | null>> = {};
     const vis: Partial<Record<FormName, number>> = {};
-    let word: { left: number; top: number; height: number } | null = null;
-    let target: FormName = still ? 'allay' : 'rest';
+    let wordRect: { left: number; top: number; height: number } | null = null;
+    let target: FormName = 'rest';
     let vw = window.innerWidth;
     let vh = window.innerHeight;
-    // 指针轨迹（最近的在前）、冲击波、拖动
+    // 指针轨迹（最近的在前）、冲击波、转雕塑
     const trailPts: { x: number; y: number; t: number; speed: number }[] = [];
     const trail = new Float32Array(16 * 4);
     const shocks: { x: number; y: number; t: number; k: number }[] = [];
     const shockBuf = new Float32Array(8);
-    const drag = { yaw: 0, pitch: 0, vy: 0, vp: 0, on: false, x: 0, y: 0, moved: 0 };
+    const turn = { yaw: 0, pitch: 0, vy: 0, vp: 0, on: false, x: 0, y: 0 };
+    // 按在背景方块上：按下的位置和时刻、有没有拖起来、上一次单击（认双击）
+    let press: { id: number; x: number; y: number; t: number; moved: boolean } | null = null;
+    let lastClick: { id: number; t: number } | null = null;
+    let pendingBreak = 0;
+    let lastMove = { x: 0, y: 0, t: 0, speed: 0 };
 
     const offRead = onFrameRead((s) => {
       // 减少动效：画布贴在首屏上（随页面滚动），坐标换成相对画布的
@@ -317,7 +327,7 @@ export function World() {
       vw = base ? base.width : s.vw;
       vh = base ? base.height : s.vh;
       const navH = still ? 0 : 56;
-      for (const name of SLOT_FORMS) {
+      for (const name of ['allay', 'cut', 'timeline'] as const) {
         const el = slotEls.get(name);
         const r = el?.getBoundingClientRect();
         if (!r || r.width < 2 || r.height < 2) {
@@ -329,27 +339,25 @@ export function World() {
         slots[name] = box;
         vis[name] = visible(box, navH, vh);
       }
-      // 首屏的占位框不显示（窄屏的减少动效版）时不拼体素悦灵，带路的悦灵照常用首屏的锚点
-      setSculptureExpected(!!slots.allay && scene.hasAllay);
+      const hasAllay = scene.sculpture?.hasAllay ?? false;
+      // 首屏的占位框不显示（窄屏的减少动效版）或没有原版贴图时不拼体素悦灵，带路的悦灵照常用首屏的锚点
+      setSculptureExpected(!!slots.allay && hasAllay);
       const raster = rasterRef.current;
-      word = null;
-      vis.word = 0;
+      wordRect = null;
       if (wordEl && raster && !still) {
         const r = wordEl.getBoundingClientRect();
-        if (r.bottom > -s.vh && r.top < s.vh * 2) word = inkBox(wordEl, r, raster);
-        vis.word = visible({ top: r.top, height: r.height }, navH, s.vh);
+        wordRect = r.bottom > 0 && r.top < s.vh ? inkBox(wordEl, r, raster) : null;
       }
       if (still) {
-        target = scene.hasAllay ? 'allay' : 'rest';
+        target = hasAllay ? 'allay' : 'rest';
         return;
       }
-      // 换成露出最多的那个（至少露出六成）；当前的形还露出三成以上、又没有明显更合适的，就留着（回差，免得在边界上来回跳）；
-      // 都不够就散成细尘
+      // 换成露出最多的那个（至少露出六成）；当前的还露出三成以上、又没有明显更合适的，就留着（回差）
       const cur = target !== 'rest' ? (vis[target] ?? 0) : 0;
       let best: FormName = 'rest';
       let bestVis = 0.6;
-      for (const name of [...SLOT_FORMS, 'word'] as const) {
-        if (name === 'allay' && !scene.hasAllay) continue;
+      for (const name of ['allay', 'cut', 'timeline'] as const) {
+        if (name === 'allay' && !hasAllay) continue;
         const v = vis[name] ?? 0;
         if (v >= bestVis) {
           best = name;
@@ -363,12 +371,17 @@ export function World() {
     let lastForm = '';
     let lastSettled = '';
     let lastWordReady = false;
-    let lastHot = false;
     const offWrite = onFrame((s) => {
+      // 视口中线落在哪一节里（相机的机位）
+      let station = 0;
+      const mid = s.y + s.vh * 0.5;
+      tracked.forEach((t, i) => {
+        if (t && (t.geometry as Geometry).top <= mid) station = i;
+      });
+      if (still) station = 0;
       // 视口里的正文框
       let n = 0;
       if (still) {
-        // 减少动效：画布贴在页面顶上，文档坐标就是画布坐标
         for (let i = 0; i < docRects.length && n < screenRects.length - 4; i += 4) {
           if (docRects[i + 1]! > vh) continue;
           screenRects.set(docRects.subarray(i, i + 4), n);
@@ -385,6 +398,10 @@ export function World() {
           screenRects[n++] = bottom;
         }
       }
+      // 雕塑占着的框：背景的方块给它让位
+      const form = scene.sculpture?.form ?? 'rest';
+      const held = form !== 'rest' ? slots[form] : null;
+      if (held) keepOut.set([held.left - 24, held.top - 24, held.left + held.width + 24, held.top + held.height + 24]);
       // 轨迹：当前指针（距今 0 秒）在最前，后面是最近一秒的点
       trail.fill(0);
       let k = 0;
@@ -404,31 +421,42 @@ export function World() {
       }
       shockBuf.fill(0);
       shocks.slice(0, 2).forEach((sh, i) => shockBuf.set([sh.x, sh.y, (now - sh.t) / 1000, sh.k], i * 4));
-      // 拖动：松手后弹回
-      if (!drag.on) {
+      // 转雕塑：松手后弹回
+      if (!turn.on) {
         const e = Math.exp(-3 * s.dt);
         const step = (v: number, vel: number): [number, number] => [(v + (vel + 3 * v) * s.dt) * e, (vel - 3 * (vel + 3 * v) * s.dt) * e];
-        [drag.yaw, drag.vy] = step(drag.yaw, drag.vy);
-        [drag.pitch, drag.vp] = step(drag.pitch, drag.vp);
+        [turn.yaw, turn.vy] = step(turn.yaw, turn.vy);
+        [turn.pitch, turn.vp] = step(turn.pitch, turn.vp);
       }
+      const pointer = s.pointer && !still ? { x: (s.pointer.x / s.vw) * 2 - 1, y: (s.pointer.y / s.vh) * 2 - 1 } : null;
       scene.frame({
         now: s.now,
         dt: s.dt,
+        station,
+        pointer,
+        wordmark: wordRect,
+        allay: allay3d.ready && !still ? allay3d.state : null,
         vw,
         vh,
-        scroll: s.y,
-        target,
-        slots,
-        word,
-        pointer: still ? null : s.pointer,
-        trail: trail.subarray(0, k * 4),
-        shocks: shockBuf,
-        drag,
-        allay: allay3d.ready && !still ? allay3d.state : null,
         still,
         textRects: screenRects.subarray(0, n),
+        keepOut: held ? keepOut : null,
+        sculpt: {
+          now: s.now,
+          dt: s.dt,
+          vw,
+          vh,
+          scroll: s.y,
+          target,
+          slots,
+          pointer: still ? null : s.pointer,
+          trail: trail.subarray(0, k * 4),
+          shocks: shockBuf,
+          drag: turn,
+          still,
+          textRects: screenRects.subarray(0, n),
+        },
       });
-      const form = scene.form;
       if (form !== lastForm) {
         lastForm = form;
         canvas.dataset.form = form;
@@ -443,28 +471,37 @@ export function World() {
       const present = form === 'allay' && !!box && (still || (vis.allay ?? 0) >= 0.3);
       allay3d.sculpture = present && box && !still ? { x: box.left + box.width / 2, y: box.top + box.height * 0.4 } : null;
       canvas.dataset.sculpture = String(present);
-      // 字标拼着、拼好时 DOM 里的字只变透明（仍可选中、可被读屏读到）
-      const wordReady = form === 'word' && !!word;
+      // 拼出一大块：带路的悦灵飞过来看一眼（1.8 秒）
+      const att = scene.attention;
+      if (att && s.now - att.at < 1800) {
+        const p = scene.toScreen(att.pos, s.vw, s.vh);
+        allay3d.attention = p ? { x: p.x, y: p.y, until: performance.now() + (1800 - (s.now - att.at)) } : null;
+      } else allay3d.attention = null;
+      // 字标拼好以后，DOM 里的字只变透明（仍可选中、可被读屏读到）
+      const wordReady = !!wordRect && !still;
       if (wordEl && wordReady !== lastWordReady) {
         lastWordReady = wordReady;
         wordEl.dataset.voxelReady = String(wordReady);
       }
-      // 指针在当前雕塑的框里：光标提示可以抓着转
-      const cur = form !== 'rest' && form !== 'word' ? slots[form] : null;
-      const hot = !!(cur && s.pointer && !still && s.pointer.x > cur.left && s.pointer.x < cur.left + cur.width && s.pointer.y > cur.top && s.pointer.y < cur.top + cur.height);
-      if (hot !== lastHot) {
-        lastHot = hot;
-        root.dataset.worldHover = String(hot);
-      }
     });
 
-    // 指针轨迹（鼠标、笔；触摸不拨，免得和滚动抢）
+    const ndc = (x: number, y: number): [number, number] => [(x / window.innerWidth) * 2 - 1, (y / window.innerHeight) * 2 - 1];
     const isBackground = (e: PointerEvent) => {
       const el = e.target;
       if (!(el instanceof Element) || el.closest(INTERACTIVE) || root.dataset.dragging === 'true') return false;
       const texty = el.closest(TEXTY);
       return !texty || !onText(texty, e.clientX, e.clientY);
     };
+    const shock = (x: number, y: number) => {
+      shocks.unshift({ x, y, t: performance.now(), k: 1 });
+      if (shocks.length > 2) shocks.pop();
+      canvas.dataset.shocks = String(Number(canvas.dataset.shocks ?? 0) + 1);
+    };
+    const setCursor = (state: 'none' | 'hover' | 'drag') => {
+      root.dataset.worldHover = String(state === 'hover');
+      root.dataset.worldDrag = String(state === 'drag');
+    };
+    let hoverTimer = 0;
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
       const now = performance.now();
@@ -475,43 +512,97 @@ export function World() {
         trailPts.unshift({ x: e.clientX, y: e.clientY, t: now, speed: Number.isFinite(speed) ? speed : 0 });
         if (trailPts.length > 15) trailPts.pop();
       }
-      if (drag.on) {
-        drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
-        drag.yaw += (e.clientX - drag.x) * 0.008;
-        drag.pitch = Math.max(-0.6, Math.min(0.6, drag.pitch + (e.clientY - drag.y) * 0.004));
-        drag.x = e.clientX;
-        drag.y = e.clientY;
+      // 指针速度（拖的时候用力甩会甩脱最外面那块）
+      const mdt = Math.max(1, now - lastMove.t);
+      const inst = (Math.hypot(e.clientX - lastMove.x, e.clientY - lastMove.y) / mdt) * 1000;
+      lastMove = { x: e.clientX, y: e.clientY, t: now, speed: lastMove.speed * 0.5 + inst * 0.5 };
+      if (press) {
+        if (!press.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 5) {
+          press.moved = true;
+          scene.grab(press.id, ...ndc(press.x, press.y));
+          setCursor('drag');
+        }
+        if (press.moved) scene.dragTo(...ndc(e.clientX, e.clientY), lastMove.speed);
+        return;
       }
-    };
-    const shock = (x: number, y: number) => {
-      shocks.unshift({ x, y, t: performance.now(), k: 1 });
-      if (shocks.length > 2) shocks.pop();
-      canvas.dataset.shocks = String(Number(canvas.dataset.shocks ?? 0) + 1);
+      if (turn.on) {
+        turn.yaw += (e.clientX - turn.x) * 0.008;
+        turn.pitch = Math.max(-0.6, Math.min(0.6, turn.pitch + (e.clientY - turn.y) * 0.004));
+        turn.x = e.clientX;
+        turn.y = e.clientY;
+        return;
+      }
+      // 光标：指针下有能抓的方块（空白处）时是“可抓”；在雕塑的框里也是
+      if (hoverTimer) return;
+      hoverTimer = window.setTimeout(() => {
+        hoverTimer = 0;
+        if (press || turn.on) return;
+        const bg = isBackground(e);
+        const onBlock = bg && scene.pickBlock(...ndc(e.clientX, e.clientY)) !== null;
+        const form = scene.sculpture?.form ?? 'rest';
+        const box = form !== 'rest' ? slots[form] : null;
+        const inSlot = bg && !!box && e.clientX > box.left && e.clientX < box.left + box.width && e.clientY > box.top && e.clientY < box.top + box.height;
+        setCursor(onBlock || inSlot ? 'hover' : 'none');
+      }, 40);
     };
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0 || !isBackground(e)) return;
       if (e.pointerType === 'touch') {
-        drag.x = e.clientX;
-        drag.y = e.clientY;
-        drag.moved = 0;
+        turn.x = e.clientX;
+        turn.y = e.clientY;
+        return;
+      }
+      const id = scene.pickBlock(...ndc(e.clientX, e.clientY));
+      if (id !== null) {
+        // 按在背景方块上：先不动作，看是点还是拖
+        e.preventDefault();
+        press = { id, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
         return;
       }
       e.preventDefault();
       shock(e.clientX, e.clientY);
-      drag.on = true;
-      drag.x = e.clientX;
-      drag.y = e.clientY;
-      drag.moved = 0;
-      drag.vy = 0;
-      drag.vp = 0;
-      root.dataset.worldDrag = 'true';
+      const form = scene.sculpture?.form ?? 'rest';
+      const box = form !== 'rest' ? slots[form] : null;
+      if (box && e.clientX > box.left && e.clientX < box.left + box.width && e.clientY > box.top && e.clientY < box.top + box.height) {
+        turn.on = true;
+        turn.x = e.clientX;
+        turn.y = e.clientY;
+        turn.vy = 0;
+        turn.vp = 0;
+        setCursor('drag');
+      }
     };
     const onUp = (e: PointerEvent) => {
-      // 触摸：点一下（没怎么动）才放冲击波
-      if (e.pointerType === 'touch' && isBackground(e) && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 8) shock(e.clientX, e.clientY);
-      if (!drag.on) return;
-      drag.on = false;
-      root.dataset.worldDrag = 'false';
+      if (e.pointerType === 'touch' && isBackground(e) && Math.hypot(e.clientX - turn.x, e.clientY - turn.y) < 8) shock(e.clientX, e.clientY);
+      if (press) {
+        const p = press;
+        press = null;
+        setCursor('none');
+        if (p.moved) {
+          scene.release();
+          return;
+        }
+        // 单击：等一下看是不是双击；双击把这一块从组里弹出去，单击敲碎它
+        const now = performance.now();
+        if (lastClick && lastClick.id === p.id && now - lastClick.t < 320) {
+          window.clearTimeout(pendingBreak);
+          pendingBreak = 0;
+          lastClick = null;
+          if (scene.popOut(p.id)) canvas.dataset.pops = String(Number(canvas.dataset.pops ?? 0) + 1);
+          return;
+        }
+        lastClick = { id: p.id, t: now };
+        window.clearTimeout(pendingBreak);
+        pendingBreak = window.setTimeout(() => {
+          pendingBreak = 0;
+          if (scene.breakBlock(p.id)) canvas.dataset.breaks = String(Number(canvas.dataset.breaks ?? 0) + 1);
+        }, 320);
+        return;
+      }
+      if (turn.on) {
+        turn.on = false;
+        setCursor('none');
+      }
     };
     if (!still) {
       window.addEventListener('pointermove', onMove, { passive: true });
@@ -519,13 +610,23 @@ export function World() {
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     }
-    // 测试和调试：世界此刻的状态（指针有没有真的拨动方块、拖动转了多少）
+    // 测试和调试：世界此刻的状态（指针有没有真的拨动、拖动、吸附）
     (window as unknown as { __siteWorld?: unknown }).__siteWorld = {
-      form: () => scene.form,
+      form: () => scene.sculpture?.form ?? 'rest',
       settled: () => scene.settled,
-      stir: () => scene.stir,
-      yaw: () => scene.yaw,
+      stir: () => scene.sculpture?.stir ?? 0,
+      yaw: () => scene.sculpture?.yaw ?? 0,
       bench: (n: number) => scene.bench(n),
+      // 能抓的方块：中心没有被正文、卡片、面板盖住的（按在那里的事件属于 DOM）
+      blocks: () =>
+        scene.blocksOnScreen(window.innerWidth, window.innerHeight).filter((b) => {
+          const el = document.elementFromPoint(b.x, b.y);
+          if (!el || el.closest(INTERACTIVE)) return false;
+          const texty = el.closest(TEXTY);
+          return !texty || !onText(texty, b.x, b.y);
+        }),
+      groupOf: (id: number) => scene.groupOf(id),
+      pos: (id: number) => scene.screenPos(id, window.innerWidth, window.innerHeight),
       // 体素悦灵的对比检查：换一张贴图（PNG 的 base64；测试用合成贴图），按应用全身图集的取景画出 hover 第 frame 帧
       setAllayTexture: async (pngBase64: string) => {
         const img = await decodeImage(Uint8Array.from(atob(pngBase64), (c) => c.charCodeAt(0)));
@@ -533,13 +634,13 @@ export function World() {
         return !!img;
       },
       reference: (size: number, frame: number) => {
-        const px = scene.renderAllayReference(size, frame);
+        const px = scene.sculpture?.renderAllayReference(size, frame);
         if (!px) return null;
         let bin = '';
         for (let i = 0; i < px.length; i += 0x8000) bin += String.fromCharCode(...px.subarray(i, i + 0x8000));
         return btoa(bin);
       },
-      instances: scene.instances,
+      instances: scene.sculpture?.instances ?? 0,
       tier: tierRef.current,
     };
     return () => {
@@ -547,14 +648,17 @@ export function World() {
       offWrite();
       offGeo();
       window.clearInterval(recollectTimer);
+      window.clearTimeout(pendingBreak);
+      window.clearTimeout(hoverTimer);
+      tracked.forEach((t) => t?.untrack());
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       allay3d.sculpture = null;
+      allay3d.attention = null;
       if (wordEl) wordEl.dataset.voxelReady = 'false';
-      root.dataset.worldHover = 'false';
-      root.dataset.worldDrag = 'false';
+      setCursor('none');
     };
   }, [ready, reducedMotion]);
 

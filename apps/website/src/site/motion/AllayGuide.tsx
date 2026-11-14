@@ -8,6 +8,7 @@
 // - 首屏由 3D 世界用方块拼出一只体素悦灵（motion/world）：拼着、拼好时它不出场（贴在那只的位置上），
 //   那只散开时它从那里飞出来带路；首屏给它的锚点带 data-allay-yield，世界会拼体素悦灵时这个锚点不用；
 // - 锚点上带 data-allay-clip="dance" 的（页尾）到了就跳一段舞：活干完了，把结果送到，跳舞（07 7.1）；
+// - 背景的方块拼出一大块（四块以上）时，飞过去在旁边看一眼（不到两秒）再回自己的锚点；
 // - 减少动效：不飞，静止在首屏的锚点旁（hover 的第一帧）。
 // 每帧先在读阶段量锚点的位置（只量这几个点），再在写阶段写 transform；pointer-events: none，不挡任何点击。
 import { Allay, MascotSlotHeld, mascotAssets, useMascotSlot } from '@allay/mascot';
@@ -107,6 +108,12 @@ function FlyingGuide() {
     let clipAt = 0;
     const offRead = onFrameRead((s) => {
       target = pickTarget(s.vh);
+      // 背景方块拼出一大块时：飞到那一块的左上方，朝它看一眼（不出场的时候不管）
+      const att = allay3d.attention;
+      if (target && att && performance.now() < att.until) {
+        const left = att.x > s.vw / 2;
+        target = { x: att.x + (left ? -90 : 90), y: Math.max(80, att.y - 70), facing: left ? 'right' : 'left', clip: null };
+      }
     });
     const offWrite = onFrame((s) => {
       // 世界装好图集后改由世界来画（先同步这个，体素悦灵在场时也要切过去，免得 DOM 里还挂着一只）

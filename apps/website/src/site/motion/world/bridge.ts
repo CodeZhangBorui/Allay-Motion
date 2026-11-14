@@ -13,7 +13,9 @@ export const allay3d: {
   sculpture: { x: number; y: number } | null;
   /** 世界会拼出体素悦灵（有 WebGL）：首屏给带路悦灵留的锚点（data-allay-yield）让给它 */
   expected: boolean;
-} = { ready: false, state: null, sculpture: null, expected: false };
+  /** 背景方块拼出一大块时，带路的悦灵飞过去看一眼：那一块在视口里的位置、看到什么时候（performance.now） */
+  attention: { x: number; y: number; until: number } | null;
+} = { ready: false, state: null, sculpture: null, expected: false, attention: null };
 
 const subs = new Set<() => void>();
 

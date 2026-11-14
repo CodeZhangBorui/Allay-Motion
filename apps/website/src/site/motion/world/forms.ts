@@ -3,14 +3,13 @@
 // - allay：首屏的体素悦灵，从应用那只 3D 悦灵的同一份模型和原版贴图精确体素化（allayVoxels）；
 // - cut：剪辑点的标记 ◆ 做成一颗体素八面体，一根播放头竖着穿过它；
 // - timeline：三条轨道上的片段和一根来回走的播放头（开源一节的空白处）；
-// - word：页尾的字标，由页面按 DOM 里那段字的字体栅格化出的点阵，两层厚。
 // 每个形是一组方块：局部坐标（单位是“一格体素”）、大小、颜色、贴图格、部件编号。全部是确定性的（同样的输入得到同样的数组）。
 import { ALLAY_PARTS, ALLAY_TEXTURE_SIZE } from '@allay/mascot/model';
 import { boxFaces, clipPose, partMatrices, transformPoint } from '@allay/mascot/rig';
 
-export const FORM_NAMES = ['rest', 'allay', 'cut', 'timeline', 'word'] as const;
+export const FORM_NAMES = ['rest', 'allay', 'cut', 'timeline'] as const;
 export type FormName = (typeof FORM_NAMES)[number];
-export const FORM_INDEX: Record<FormName, number> = { rest: 0, allay: 1, cut: 2, timeline: 3, word: 4 };
+export const FORM_INDEX: Record<FormName, number> = { rest: 0, allay: 1, cut: 2, timeline: 3 };
 
 /** 贴图集里的格子（8×4，每格 16×16）。0 是生成的细噪点（纯色方块用它带一点颗粒），其余是原版方块贴图 */
 export const TILES: { id: string | null; fallback: string }[] = [
@@ -377,27 +376,6 @@ export function timelineForm(k: number, max: number): Form {
     for (let dx = -(2 - Math.abs(dy)); dx <= 2 - Math.abs(dy); dx++) b.add(dx, yTop + 3 + dy, 1, 0.9, WHITE, T['minecraft:gold_block']!, PART.playhead);
   }
   return b.finish(max, 29, { playWidth: W });
-}
-
-// —— 字标 ——
-
-export interface WordmarkGrid {
-  cols: number;
-  rows: number;
-  /** 有方块的格子（列、行） */
-  cells: [number, number][];
-}
-
-export function wordForm(grid: WordmarkGrid, theme: 'dark' | 'light', max: number): Form {
-  const b = new Builder();
-  const [main, accent] = theme === 'dark' ? [T['minecraft:quartz_block']!, T['minecraft:diamond_block']!] : [T['minecraft:black_concrete']!, T['minecraft:lapis_block']!];
-  grid.cells.forEach(([gx, gy], i) => {
-    const a = h01(i, 77) < 0.05;
-    for (let z = 0; z < 2; z++) b.add(gx + 0.5, -(gy + 0.5), -z, 0.97, WHITE, a ? accent : main);
-  });
-  // 打乱后从散尘飞进来时是交叉着的。finish 按方块中心的范围居中：点阵从 (0, 0) 起，中心正好是点阵的正中，
-  // 页面把 DOM 里那段字的墨迹框中心对到局部 (0, 0) 就对齐了
-  return b.finish(max, 31);
 }
 
 // —— 散尘（rest）——
