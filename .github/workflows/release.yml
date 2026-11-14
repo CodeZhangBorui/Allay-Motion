@@ -64,6 +64,8 @@ jobs:
           $version = (Get-Content apps/desktop/package.json -Raw | ConvertFrom-Json).version
           $exe = Get-ChildItem apps/desktop/release -Filter '*-x64-setup.exe' | Select-Object -First 1
           if (-not $exe) { throw '没有找到安装包' }
+          # 发布资产的文件名里不能有空格：GitHub 上传时会把空格换成点，SHA256SUMS.txt 里的名字就对不上了
+          $exe = Rename-Item $exe.FullName ($exe.Name -replace ' ', '-') -PassThru
           $hash = (Get-FileHash $exe.FullName -Algorithm SHA256).Hash.ToLower()
           "$hash  $($exe.Name)" | Out-File -Encoding ascii "apps/desktop/release/SHA256SUMS.txt"
           "version=$version" >> $env:GITHUB_OUTPUT
