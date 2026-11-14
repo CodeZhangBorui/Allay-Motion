@@ -413,6 +413,17 @@
   white-space: nowrap;
 }
 
+/* 页尾字标由 3D 世界里的方块拼好以后，DOM 里的字只变透明 */
+.wordmark-xl[data-voxel-ready='true'] {
+  color: transparent;
+  transition: color 400ms var(--ease-out);
+}
+/* 指针下有能敲的方块（空白处）时 */
+:root[data-world-hover='true'],
+:root[data-world-hover='true'] body {
+  cursor: pointer;
+}
+
 /* 剪辑点的整幅转场：不在这一段时不显示 */
 .cut-overlay[data-active='false'] {
   visibility: hidden;

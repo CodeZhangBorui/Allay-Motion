@@ -8,11 +8,12 @@
 // - 锚点上带 data-allay-clip="dance" 的（页尾）到了就跳一段舞：活干完了，把结果送到，跳舞（07 7.1）；
 // - 减少动效：不飞，静止在首屏的锚点旁（hover 的第一帧）。
 // 每帧先在读阶段量锚点的位置（只量这几个点），再在写阶段写 transform；pointer-events: none，不挡任何点击。
-import { Allay, MascotSlotHeld, useMascotSlot } from '@allay/mascot';
+import { Allay, MascotSlotHeld, mascotAssets, useMascotSlot } from '@allay/mascot';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ClipName } from '@allay/mascot';
 import { usePrefs } from '../prefs';
 import { onFrame, onFrameRead, spring } from './frame';
+import { allay3d } from './world/bridge';
 
 const TRAIL = 6;
 const TRAIL_EVERY = 80;
@@ -67,6 +68,9 @@ function FlyingGuide() {
   const [shown, setShown] = useState(false);
   const poseRef = useRef(pose);
   const shownRef = useRef(shown);
+  // 3D 世界装好了悦灵的图集时，悦灵改由世界来画（它在那个空间里飞、会被近处的方块挡住），这里只算路径
+  const [use3d, setUse3d] = useState(allay3d.ready);
+  const use3dRef = useRef(use3d);
 
   useEffect(() => {
     const onResize = () => setSize(window.innerWidth < 640 ? 60 : 84);
@@ -76,6 +80,7 @@ function FlyingGuide() {
 
   useEffect(() => {
     if (!granted) {
+      allay3d.state = null;
       if (shownRef.current) {
         shownRef.current = false;
         setShown(false);
@@ -96,6 +101,7 @@ function FlyingGuide() {
     const trailBorn = new Array<number>(TRAIL).fill(-1e9);
     let danceUntil = 0;
     let lastDanceAnchor = false;
+    let clipAt = 0;
     const offRead = onFrameRead((s) => {
       target = pickTarget(s.vh);
     });
@@ -143,9 +149,24 @@ function FlyingGuide() {
       if (Math.abs(vx) > 60) facing = vx > 0 ? 'right' : 'left';
       else if (s.pointer) facing = s.pointer.x < x ? 'left' : 'right';
       else if (t?.facing) facing = t.facing;
+      if (clip !== poseRef.current.clip) clipAt = s.now;
       if (clip !== poseRef.current.clip || facing !== poseRef.current.facing) {
         poseRef.current = { clip, facing };
         setPose(poseRef.current);
+      }
+      // 交给 3D 世界画：图集里的第几帧（动作按图集的 30 fps 步进，和 <Allay> 一样）
+      if (allay3d.ready !== use3dRef.current) {
+        use3dRef.current = allay3d.ready;
+        setUse3d(allay3d.ready);
+      }
+      if (allay3d.ready) {
+        const assets = mascotAssets();
+        if (assets.status === 'ready' && onScreen) {
+          const { start, count } = assets.atlas.clips[clip];
+          const frame = start + (Math.floor(((s.now - clipAt) / 1000) * assets.atlas.fps) % count);
+          allay3d.state = { x, y, size, frame, facing: facing === 'right' ? 1 : -1, tilt };
+        } else allay3d.state = null;
+        return;
       }
       // 拖尾方点
       if (flying && onScreen && s.now - lastTrail > TRAIL_EVERY) {
@@ -171,11 +192,12 @@ function FlyingGuide() {
     return () => {
       offRead();
       offWrite();
+      allay3d.state = null;
     };
   }, [granted, size]);
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[45] overflow-hidden" aria-hidden="true" data-testid="allay-guide" data-granted={granted}>
+    <div className="pointer-events-none fixed inset-0 z-[45] overflow-hidden" aria-hidden="true" data-testid="allay-guide" data-granted={granted} data-render={use3d ? '3d' : 'dom'} data-shown={granted && shown}>
       {Array.from({ length: TRAIL }, (_, i) => (
         <span
           key={i}
@@ -186,7 +208,7 @@ function FlyingGuide() {
         />
       ))}
       <div ref={rootRef} className="absolute top-0 left-0 transition-opacity duration-300" style={{ width: size, height: size, opacity: granted && shown ? 1 : 0} as CSSProperties}>
-        {granted && (
+        {granted && !use3d && (
           <MascotSlotHeld.Provider value={true}>
             <Allay clip={pose.clip} size={size} facing={pose.facing} priority="default" />
           </MascotSlotHeld.Provider>

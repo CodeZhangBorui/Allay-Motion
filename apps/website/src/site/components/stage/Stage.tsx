@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next';
 import { defaultCutTime, defaultDuration, showcaseEntries } from '../../../host/templates';
 import { REPO_URL, SECTION } from '../../links';
 import { clamp01, easeInOutCubic, lerp, onFrame, spring, track } from '../../motion/frame';
-import { HeroCanvas } from '../../motion/HeroCanvas';
 import { usePrefs } from '../../prefs';
 import { LiveViewer, type LiveViewerControl } from '../LiveViewer';
 import { ExportPanel, TunePanel, type TuneValues } from './panels';
@@ -209,10 +208,7 @@ function ScrollStage() {
   const rootRef = useRef<HTMLDivElement>(null);
   const storyRef = useRef<HTMLElement>(null);
   const monitorRef = useRef<HTMLDivElement>(null);
-  const sceneWrapRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLSpanElement>(null);
-  const progress = useRef(0);
-  const visible = useRef(true);
   const entries = useMemo(() => showcaseEntries(), []);
   const tuned = entries.find((e) => e.id === TUNED) ?? entries[0]!;
   const total = Math.round((defaultDuration(tuned.manifest) ?? 1.1) * 60);
@@ -247,9 +243,9 @@ function ScrollStage() {
     let settled = '';
     const off = onFrame((s) => {
       const g = rootT.geometry;
-      visible.current = s.y < g.top + g.height && s.y + s.vh > g.top;
+      const visible = s.y < g.top + g.height && s.y + s.vh > g.top;
       const target = storyT.geometry.top - s.y < s.vh * 0.6 ? 1 : 0;
-      if (!visible.current) {
+      if (!visible) {
         k = target;
         vk = 0;
       } else [k, vk] = spring(k, vk, target, 5.5, s.dt);
@@ -257,14 +253,13 @@ function ScrollStage() {
         k = target;
         vk = 0;
       }
-      progress.current = k;
       const now = k === target ? 'true' : 'false';
       if (now !== settled) {
         settled = now;
         root.dataset.settled = now;
         root.dataset.pose = target === 1 ? 'story' : 'hero';
       }
-      if (!visible.current) return;
+      if (!visible) return;
       // 指针让面板微微转动（同样是弹簧）
       const pointer = s.pointer;
       const tx = pointer && wide ? ((pointer.y / s.vh) * 2 - 1) * (3 - k * 1.8) : 0;
@@ -275,8 +270,6 @@ function ScrollStage() {
       if (wide && monitor) {
         monitor.style.transform = `translate3d(${(inv * s.vw * 0.04).toFixed(1)}px, ${(inv * s.vh * 0.36).toFixed(1)}px, 0) rotateX(${(inv * 22 + rx).toFixed(2)}deg) rotateY(${(inv * -18 + ry).toFixed(2)}deg) rotateZ(${(inv * 3).toFixed(2)}deg) scale(${(0.86 + k * 0.14).toFixed(4)})`;
       }
-      const sw = sceneWrapRef.current;
-      if (sw) sw.style.opacity = (1 - k * 0.55).toFixed(3);
     });
     return () => {
       off();
@@ -301,14 +294,11 @@ function ScrollStage() {
 
   return (
     <div ref={rootRef} className="relative" data-motion="stage" data-settled="true" data-pose="hero">
-      {/* sticky 的背景：3D 场景 + 预览面板（宽屏）。只是背景，文字照常滚过去 */}
-      <div className="sticky top-0 z-0 h-[100svh] overflow-hidden" style={{ perspective: '1600px' }}>
-        <div className="pointer-events-none absolute inset-0 bg-dots fade-mask opacity-70" aria-hidden="true" />
-        <div ref={sceneWrapRef} className="absolute inset-0">
-          <HeroCanvas progress={progress} visible={visible} className="absolute inset-0 size-full" />
-        </div>
+      {/* sticky 的背景：预览面板（宽屏）。只是背景，文字照常滚过去；后面的方块是全页共用的 3D 世界（motion/world） */}
+      <div className="pointer-events-none sticky top-0 z-0 h-[100svh] overflow-hidden" style={{ perspective: '1600px' }}>
+        <div className="absolute inset-0 bg-dots fade-mask opacity-60" aria-hidden="true" />
         {wide && (
-          <div className="absolute top-[calc(50%+var(--nav-h)/2)] right-[var(--gutter)] w-[min(56vw,960px)] -translate-y-1/2" style={{ transformStyle: 'preserve-3d' }}>
+          <div className="pointer-events-auto absolute top-[calc(50%+var(--nav-h)/2)] right-[var(--gutter)] w-[min(56vw,960px)] -translate-y-1/2" style={{ transformStyle: 'preserve-3d' }}>
             <div ref={monitorRef} className="relative will-change-transform" style={{ transformStyle: 'preserve-3d', transformOrigin: '60% 50%' }}>
               <span data-allay-anchor="hero" data-allay-until={SECTION.workflow} className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
               {viewer}
@@ -398,14 +388,11 @@ function StaticStage() {
   const cutFrame = Math.round((defaultCutTime(tuned.manifest) ?? 0.55) * 60);
   // 三步都是终态（导出完成）
   const story = storyAt(2, Number.MAX_SAFE_INTEGER, total);
-  const progress = useRef(0) as RefObject<number>;
-  const visible = useRef(true) as RefObject<boolean>;
   return (
     <>
       <section id={SECTION.top} data-tl-clip="intro" data-tl-color="var(--allay)" className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div className="absolute inset-0 bg-dots fade-mask opacity-70" />
-          <HeroCanvas progress={progress} visible={visible} className="absolute inset-0 size-full" />
         </div>
         <div className="wrap relative pt-[calc(var(--nav-h)+8vh)] pb-16">
           <HeroCopy compact />

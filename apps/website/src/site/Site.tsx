@@ -11,6 +11,7 @@ import { SimulatorSection } from './components/SimulatorSection';
 import { Stage } from './components/stage/Stage';
 import { TemplatesSection } from './components/TemplatesSection';
 import { AllayGuide } from './motion/AllayGuide';
+import { World } from './motion/world/World';
 import { usePrefs } from './prefs';
 
 /** 标题和描述跟着语言走 */
@@ -36,6 +37,8 @@ export function Site() {
   useDocumentMeta();
   return (
     <IconContext.Provider value={ICON_DEFAULTS}>
+      {/* 全页共用的 3D 方块世界（固定在所有内容后面） */}
+      <World />
       <Nav />
       <main className="relative z-[1] overflow-x-clip">
         <Stage />

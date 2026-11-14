@@ -17,7 +17,7 @@ export function Footer() {
   }, []);
   const link = 'link-focus rounded text-fg-muted underline decoration-[var(--site-line-hi)] underline-offset-4 transition-colors hover:text-foreground hover:decoration-current';
   return (
-    <footer className="relative overflow-hidden border-t border-site-line bg-site-deep pt-24" data-testid="site-footer">
+    <footer id="end" className="relative overflow-hidden border-t border-site-line pt-24" data-testid="site-footer">
       <div className="wrap relative">
         <div className="card p-6 sm:p-9" data-testid="disclaimer-box">
           <p className="t-mono text-[10.5px] text-fg-subtle">{t('site.footer.disclaimerLabel')}</p>
@@ -30,7 +30,10 @@ export function Footer() {
       <div className="relative mt-16 select-none" aria-hidden="true">
         <div className="wrap relative">
           <span data-allay-anchor="end" data-allay-clip="dance" data-allay-facing="left" className="absolute top-[8%] right-[6%] size-1" />
-          <p className="wordmark-xl -ml-[0.04em]">{t('brand.wordmark')}</p>
+          {/* 有 3D 世界时这段字由方块拼出来（这里的字变透明，仍可选中、可被读屏读到） */}
+          <p className="wordmark-xl -ml-[0.04em]" data-voxel-wordmark>
+            {t('brand.wordmark')}
+          </p>
         </div>
       </div>
 
