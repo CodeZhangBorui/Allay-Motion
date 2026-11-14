@@ -920,8 +920,9 @@
       }
     },
     "language": {
-      "sample": "Pick, tweak, export",
-      "systemDetail": "Follow system ({{language}})"
+      "systemDetail": "Follow system ({{language}})",
+      "desc": "Interface, menus and messages in English",
+      "systemNow": "Uses your Windows display language — {{language}} right now"
     },
     "assets": {
       "active": "Using vanilla assets {{version}}",
@@ -950,6 +951,7 @@
     "folderDefault": {
       "project": "System default",
       "export": "Ask on export"
-    }
+    },
+    "previewLabel": "How it will look"
   }
 }

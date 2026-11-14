@@ -142,9 +142,18 @@ test.describe('T-UX-6 引导里下载原版资源（本机假服务器）', () =
       // 点“开始下载”之前一个请求都没有
       expect(server.requests).toEqual([]);
 
+      // 限速下载：下载进行中显示速度和剩余时间；然后取消
+      server.jarMode = 'slow';
+      await ob.getByTestId('vanilla-download').click();
+      await expect(ob.getByTestId('download-progress')).toHaveAttribute('data-stage', 'jar', { timeout: 15_000 });
+      await expect(ob.getByTestId('download-numbers')).toContainText('/s', { timeout: 10_000 });
+      await expect(ob.getByTestId('download-numbers')).toContainText(/秒|s left/);
+      await ob.getByTestId('download-cancel').click();
+      await expect(ob.getByTestId('download-progress')).toHaveAttribute('data-status', 'canceled');
+
       // 取消：jar 发了一半停住
       server.jarMode = 'hold';
-      await ob.getByTestId('vanilla-download').click();
+      await ob.getByTestId('download-retry').click();
       const progress = ob.getByTestId('download-progress');
       await expect(progress).toHaveAttribute('data-status', 'running');
       await expect.poll(() => server.holding(), { timeout: 15_000 }).toBe(true);
