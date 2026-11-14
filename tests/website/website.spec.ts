@@ -13,8 +13,11 @@ const SITE = 'http://localhost:4180/?e2e';
 const DISCLAIMER_EN = 'NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.';
 const DISCLAIMER_ZH = '本软件不是 Minecraft 官方产品，未经 Mojang 或 Microsoft 批准，也与它们无关。';
 
-/** packages/templates 下的内置模板个数（官网应该一个不少地列出来） */
+/** packages/templates 下的内置模板个数（仿真器的模板库、预览的模板按钮要一个不少） */
 const TEMPLATE_COUNT = readdirSync(join(ROOT, 'packages/templates')).filter((d) => existsSync(join(ROOT, 'packages/templates', d, 'manifest.json'))).length;
+/** 落地页的模板一节只展示精选的前几个（apps/website/src/site/components/TemplatesSection.tsx 的 SHOWCASE_MAX） */
+const SHOWCASE_MAX = 5;
+const SHOWN = Math.min(TEMPLATE_COUNT, SHOWCASE_MAX);
 
 interface Session {
   app: ElectronApplication;
@@ -90,14 +93,17 @@ test.afterAll(async () => {
   await s?.app.close();
 });
 
-test('T-WEB-1 页面能加载：首屏实时预览就绪，模板一个不少，滚完全页无报错、无外部请求', async () => {
+test('T-WEB-1 页面能加载：首屏实时预览就绪，模板按钮一个不少、模板一节只放精选，滚完全页无报错、无外部请求', async () => {
   const { page } = s;
   await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
-  await expect(page.getByTestId('template-card')).toHaveCount(TEMPLATE_COUNT);
+  await expect(page.getByTestId('template-card')).toHaveCount(SHOWN);
+  await expect(page.getByTestId('templates-more')).toHaveCount(1);
   await expect(page.getByTestId('live-chip')).toHaveCount(TEMPLATE_COUNT);
   await scrollThrough(page);
-  // 模板卡片里的帧都由封面服务渲染出来了（不是截图）
-  await expect(page.getByTestId('template-sheet')).toHaveCount(TEMPLATE_COUNT, { timeout: 90_000 });
+  // 小格里的帧由封面服务渲染（不是截图）；精选的大格由引擎实时渲染（离开视口远了就销毁、退回封面的帧，所以这里至少 SHOWN − 1 个）
+  await expect.poll(() => page.getByTestId('template-sheet').count(), { timeout: 90_000 }).toBeGreaterThanOrEqual(SHOWN - 1);
+  await page.evaluate(() => document.getElementById('templates')?.scrollIntoView({ behavior: 'instant' }));
+  await expect(page.getByTestId('template-live')).toHaveAttribute('data-live', 'true', { timeout: 30_000 });
   // 用了官网专用的原版贴图时，页面上写明来源和版权（docs/decisions.md 官网 · 原版素材）
   const mcIndex = join(ROOT, 'apps/website/public/mc/index.json');
   if (existsSync(mcIndex)) {
@@ -186,10 +192,10 @@ test('T-WEB-3 切换模板、拖动参数后画面变化（仿真器与首屏预
   }
   expect(changed).toBe(true);
 
-  // 首屏的实时预览：点模板按钮，换成那个模板
+  // 首屏的实时预览：点模板按钮，换成那个模板（面板在首屏斜躺着、按钮可能在折线以下：直接派发点击，不让测试替它滚动）
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  const chip = page.locator(`[data-testid="live-chip"][data-template="allay.builtin.block-fall"]`).first();
-  await chip.click();
+  const chip = page.locator(`[data-testid="hero-viewer"] [data-testid="live-chip"][data-template="allay.builtin.block-fall"]`).first();
+  await chip.evaluate((el) => (el as HTMLButtonElement).click());
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('live-template-name').first()).toHaveText(/方块坠落|Block fall/);
 });
@@ -275,43 +281,92 @@ test('T-WEB-7 窄屏降级：不加载完整编辑器，留实时预览和模板
   }
 });
 
-test('T-WEB-8 减少动效：没有出场盖层和整幅过场，内容一开始就完整可读', async () => {
+test('T-WEB-8 减少动效：没有出场动画和剪辑点的转场，悦灵不飞，内容一开始就完整可读', async () => {
   const { page } = s;
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.reload();
   await expect(page.getByTestId('site-nav')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.dataset.reducedMotion)).toBe('true');
   await scrollThrough(page);
-  // 任何时刻都没有盖在内容上的像素层，也没有整幅的分节过场
-  await expect(page.locator('canvas[data-reveal]')).toHaveCount(0);
-  await expect(page.getByTestId('scene-wall')).toHaveCount(0);
+  // 没有剪辑点的整幅转场，没有武装着的出场动画；剪辑点的开场白一直可见
+  await expect(page.getByTestId('cut-overlay')).toHaveCount(0);
+  await expect(page.locator('[data-armed="true"][data-shown="false"]')).toHaveCount(0);
   for (const h of await page.locator('h1, h2').all()) await expect(h).toBeVisible();
+  // 悦灵静止（跟着页面走，不在固定层里飞）
+  const guide = page.getByTestId('allay-guide');
+  if ((await guide.count()) > 0) expect(await guide.evaluate((el) => getComputedStyle(el).position)).toBe('absolute');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 });
 
-test('T-WEB-12 整幅分节过场：分界线在视口正中时方块墙铺满，走过之后完全散开；往回滚又铺满（跟着滚动、可逆）', async () => {
+test('T-WEB-12 剪辑点：全页唯一的整幅转场由引擎实时渲染，滚到剪辑点时铺满，之前之后都散开；跟着滚动、可逆', async () => {
+  const { page } = s;
+  // 从一次干净的载入开始（前一条测试切换过减少动效）
+  await page.reload();
+  await expect(page.getByTestId('site-nav')).toBeVisible();
+  const cut = await page.evaluate(() => document.getElementById('cut')!.getBoundingClientRect().top + window.scrollY);
+  const vh = await page.evaluate(() => window.innerHeight);
+  const overlay = page.getByTestId('cut-overlay');
+  const title = page.locator('#cut-title');
+  // 提前三屏启动引擎
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut - vh * 3);
+  await expect.poll(() => page.evaluate(() => 'coverage' in ((window as unknown as { __siteCut?: object }).__siteCut ?? {})), { timeout: 60_000 }).toBe(true);
+  // 走到剪辑点（停留段的后半，开场白刚换上来）：铺满，画面不透明
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 0.15);
+  await expect(overlay).toHaveAttribute('data-active', 'true');
+  const coverage = await page.evaluate(async () => {
+    const c = (window as unknown as { __siteCut: { cutTime: number; coverage: (t: number) => Promise<number> } }).__siteCut;
+    return c.coverage(c.cutTime);
+  });
+  expect(coverage).toBeGreaterThan(0.97);
+  await expect(title).toBeVisible();
+  // 剪辑点之前：下一节的开场白还没换上来（被方块挡着的那一刻才换）
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut - vh * 0.5);
+  await expect.poll(() => title.evaluate((el) => getComputedStyle(el.closest('.wrap')!).visibility)).toBe('hidden');
+  // 走过之后：转场结束，不再渲染
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 1.4);
+  await expect(overlay).toHaveAttribute('data-active', 'false');
+  await expect(title).toBeVisible();
+  // 往回滚：又进入转场
+  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), cut + vh * 0.1);
+  await expect(overlay).toHaveAttribute('data-active', 'true');
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(overlay).toHaveAttribute('data-active', 'false');
+});
+
+test('T-WEB-13 悦灵：用的是应用的烘焙图集，首屏飞到主视觉旁；滚完全页任何时刻页面上最多一只全身悦灵', async () => {
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  const boundary = await page.evaluate(() => document.getElementById('templates')!.getBoundingClientRect().top + window.scrollY);
-  const vh = await page.evaluate(() => window.innerHeight);
-  /** 墙上 3×3 个取样点里不透明的个数 */
-  const opaque = () =>
-    page.evaluate(() => {
-      const c = document.querySelector<HTMLCanvasElement>('[data-testid="scene-wall"]');
-      const g = c?.getContext('2d');
-      if (!c || !g) return -1;
-      let n = 0;
-      for (const fx of [0.2, 0.5, 0.8]) for (const fy of [0.2, 0.5, 0.8]) if (g.getImageData(Math.floor(c.width * fx), Math.floor(c.height * fy), 1, 1).data[3]! > 0) n++;
-      return n;
-    });
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), boundary - vh * 0.5);
-  await expect.poll(opaque, { timeout: 5000 }).toBe(9);
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), boundary);
-  await expect.poll(opaque, { timeout: 5000 }).toBe(0);
-  await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), boundary - vh * 0.5);
-  await expect.poll(opaque, { timeout: 5000 }).toBe(9);
+  await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
+  const guide = page.getByTestId('allay-guide');
+  await expect(guide).toHaveAttribute('data-granted', 'true', { timeout: 15_000 });
+  await expect(guide.locator('[data-allay="body"]')).toHaveAttribute('data-source', 'atlas', { timeout: 15_000 });
+  let max = 0;
+  const total = await page.evaluate(() => document.documentElement.scrollHeight);
+  for (let y = 0; y < total; y += 450) {
+    await page.evaluate((v) => window.scrollTo({ top: v, behavior: 'instant' }), y);
+    await page.waitForTimeout(120);
+    max = Math.max(max, await page.locator('[data-allay="body"]').count());
+  }
+  expect(max).toBeLessThanOrEqual(1);
+  // 悦灵不挡点击
+  expect(await guide.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe('none');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await expect.poll(opaque, { timeout: 5000 }).toBe(0);
+});
+
+test('T-WEB-14 文案不强调模板数量；开发者三张真实头像都是自托管的图片', async () => {
+  const { page } = s;
+  for (let round = 0; round < 2; round++) {
+    const text = await page.locator('main').innerText();
+    expect(text).not.toMatch(/\d+\s*个(内置)?模板|\d+\s+(built-in\s+)?templates/i);
+    await page.getByTestId('toggle-language').click();
+  }
+  const avatars = page.getByTestId('avatar');
+  await expect(avatars).toHaveCount(3);
+  await page.getByTestId('team').scrollIntoViewIfNeeded();
+  for (const img of await avatars.all()) {
+    await expect.poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThanOrEqual(128);
+    expect(await img.evaluate((el) => new URL((el as HTMLImageElement).src).origin === location.origin)).toBe(true);
+  }
 });
 
 test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被拦、requestAnimationFrame 不跑（像后台标签页）', async () => {
@@ -324,16 +379,17 @@ test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被�
       window.requestAnimationFrame = () => 0;
     });
     await page.reload();
-    /** 有没有出场盖层压在这个元素上 */
+    /** 这个元素（及其里面的字）是不是还处在出场动画的隐藏态：透明、被遮罩移走、或者被武装着等出场 */
     const covered = (selector: string) =>
       page.evaluate((sel) => {
         const el = document.querySelector(sel);
         if (!el) return true;
-        const r = el.getBoundingClientRect();
-        return [...document.querySelectorAll('canvas[data-reveal]')].some((c) => {
-          const b = c.getBoundingClientRect();
-          return b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top;
+        const nodes = [el, ...el.querySelectorAll('*')];
+        const hidden = nodes.some((n) => {
+          const cs = getComputedStyle(n);
+          return cs.opacity === '0' || cs.visibility === 'hidden' || (cs.transform !== 'none' && /matrix\(1, 0, 0, 1, 0, [1-9]/.test(cs.transform));
         });
+        return hidden || el.closest('[data-armed="true"][data-shown="false"]') !== null;
       }, selector);
     const t0 = Date.now();
     await expect(page.locator('h1')).toBeVisible();

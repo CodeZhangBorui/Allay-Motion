@@ -14,9 +14,9 @@
 | 原版贴图 | `public/mc/`、`src/host/mc-pack.ts` | 官网专用：`pnpm website:mc` 从本机正版游戏的 jar 里提取的方块、物品、界面贴图（见下文） |
 | 演示素材 | `src/host/demo-pack.ts` | 没有提取原版贴图时，页面里现场生成的纯色色块 |
 | 内置模板 | `build/plugins.ts` | 构建时用 `scripts/build-templates.ts` 的同一组函数把 `packages/templates/*` 打包 |
-| 过场与动效 | `src/site/motion/` | 方块擦除、像素溶解、方块坠落的分节过场，像素溶解的出场 |
+| 动效 | `src/site/motion/` | 全页共享的帧循环、首屏的 3D 方块场景（three）、带路的悦灵、磁吸与指针光；全页唯一的转场在 `src/site/components/CutScene.tsx`（应用的方块擦除模板，引擎实时渲染） |
 
-哪些是真实代码、哪些是仿写、为什么，见 `docs/decisions.md` 的“官网”一节。
+哪些是真实代码、哪些是仿写、为什么，见 `docs/decisions.md` 的“官网”一节；第三版的概念（这一页就是一段正在剪辑的片子）和取舍见其中“第三版”。
 
 ## 原版贴图（只在官网）
 
@@ -79,7 +79,7 @@ pnpm website:preview
 pnpm test:website
 ```
 
-先构建，再用 `vite preview` 起 4180 端口，在 Electron 自带的 Chromium 里跑冒烟测试 `tests/website/website.spec.ts`（T-WEB-1 至 T-WEB-9）。已包含在 `pnpm check` 里。
+先构建，再用 `vite preview` 起 4180 端口，在 Electron 自带的 Chromium 里跑冒烟测试 `tests/website/website.spec.ts`（T-WEB-1 至 T-WEB-14）。已包含在 `pnpm check` 里。
 
 仿真器的地址带 `?e2e` 时会装上桌面版同一套测试钩子（`window.__allayTest`），测试用它读预览画布的像素。
 
@@ -88,7 +88,7 @@ pnpm test:website
 官网不复制应用的任何东西，而是在构建时直接引用当前提交里的源码：
 
 - **界面**：仿真器启动的就是 `apps/desktop/src/renderer/main.tsx`。应用的界面、命令、导出对话框改了，下次构建的仿真器就是改过的样子。
-- **模板**：卡片、首屏的模板按钮、仿真器的模板库都从 `packages/templates/*/manifest.json` 推出来。加第七个模板，官网不改代码就多一张卡片。
+- **模板**：首屏面板的模板按钮、仿真器的模板库都从 `packages/templates/*/manifest.json` 推出来；模板一节按 `showcaseEntries()` 的顺序精选展示前几个。加新模板，官网不改代码。
 - **设计变量与组件**：`src/site/site.css` 导入 `@allay/ui/styles.css`；按钮、悦灵都是 `packages/ui`、`packages/mascot` 的组件。
 - **文案**：产品名、字标、非官方声明只从 `packages/ui/src/brand` 取；导出格式的名字和说明用应用自己的 `export.*` 文案，格式清单来自 `EXPORT_PRESETS`。
 - **引擎**：首屏预览和模板卡片用的是应用的 `EngineHost` 和封面服务。
