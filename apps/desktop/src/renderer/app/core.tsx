@@ -27,11 +27,13 @@ import { installHostCommands } from './mainCommands';
 import { discoveredModules, OptionalModuleManager } from './optionalModules';
 import { AboutPage, AppearancePage, AssetsPage, ExportPage, FoldersPage, GeneralPage } from '../features/settings/pages';
 import { ShortcutsPage } from '../features/settings/ShortcutsPage';
+import { UpdatesPage } from '../features/updates/UpdatesPage';
 import {
   ArrowSquareIn,
   Checkerboard,
   CircleHalf,
   ClockCounterClockwise,
+  CloudArrowDown,
   Export,
   File,
   FolderSimple,
@@ -181,6 +183,7 @@ const SETTINGS_PAGES: SettingsPageDef[] = [
   { id: 'folders', titleKey: 'settings.pages.folders', icon: FolderSimple, order: 30, component: FoldersPage },
   { id: 'export', titleKey: 'settings.pages.export', icon: Export, order: 40, component: ExportPage },
   { id: 'shortcuts', titleKey: 'settings.pages.shortcuts', icon: Keyboard, order: 50, component: ShortcutsPage },
+  { id: 'updates', titleKey: 'settings.pages.updates', icon: CloudArrowDown, order: 55, component: UpdatesPage },
   { id: 'about', titleKey: 'settings.pages.about', icon: Info, order: 60, component: AboutPage },
 ];
 

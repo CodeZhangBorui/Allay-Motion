@@ -5,6 +5,7 @@ import type { ResourceState } from '../shared/resources';
 import type { UiSettings } from '../shared/settings';
 import type { TemplateDevChange } from '../shared/templates';
 import type { HostCommandRequest } from '../shared/host-commands';
+import type { UpdateState } from '../shared/updates';
 
 // preload 只做转发，不做判断：所有参数原样交给主进程，由主进程的 zod schema 校验。
 // 不暴露 ipcRenderer 本身，也不暴露任何通用的“发消息”函数。
@@ -127,6 +128,14 @@ const api = {
     get: invoke(IPC.folders.get),
     choose: invoke(IPC.folders.choose),
     reset: invoke(IPC.folders.reset),
+  },
+  updates: {
+    state: invoke(IPC.updates.state),
+    check: invoke(IPC.updates.check),
+    download: invoke(IPC.updates.download),
+    cancel: invoke(IPC.updates.cancel),
+    install: invoke(IPC.updates.install),
+    onChanged: subscribe<UpdateState>(IPC.updates.changed),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

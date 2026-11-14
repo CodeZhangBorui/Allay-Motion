@@ -447,7 +447,8 @@
       "shortcuts": "快捷键",
       "about": "关于",
       "appearance": "外观",
-      "folders": "文件夹"
+      "folders": "文件夹",
+      "updates": "更新"
     },
     "language": "语言",
     "languages": {
@@ -537,7 +538,8 @@
       "folders": "新工程保存在哪里、导出的文件放在哪里。文件夹只能在系统的文件夹对话框里选。",
       "general": "界面语言和首次启动引导。",
       "shortcuts": "点一条命令右边的按键就能录制新的快捷键。录制时按 Esc 取消。",
-      "appearance": "主题和动效。选了立即生效。"
+      "appearance": "主题和动效。选了立即生效。",
+      "updates": "当前版本、检查新版本，以及自动更新的方式和更新源。"
     },
     "onboarding": {
       "hint": "再走一遍语言、主题、素材和文件夹的设置。已经做过的选择会保留。",
@@ -1042,6 +1044,65 @@
         "title": "随时回来看看",
         "body": "就这些！之后想再看一遍，在“帮助”菜单里点“新手引导”；首次启动的设置也能在那里重新运行。\n祝创作愉快！"
       }
+    }
+  },
+  "updates": {
+    "current": "当前版本 {{version}}",
+    "check": "检查更新",
+    "download": "下载更新",
+    "install": "重启并安装",
+    "installMac": "打开安装镜像",
+    "later": "稍后",
+    "skip": "跳过这个版本",
+    "unskip": "取消跳过",
+    "skipped": "已跳过 {{version}}",
+    "skippedHint": "自动检查不再提示这个版本；手动检查照常显示。",
+    "settingsTitle": "自动更新",
+    "mode": "更新方式",
+    "modes": {
+      "auto": "自动下载，提示安装",
+      "notify": "有新版本时通知我",
+      "off": "关闭自动检查"
+    },
+    "modeHints": {
+      "auto": "启动后和每隔几小时检查一次，新版本在后台下载并校验，完成后提示重启安装。",
+      "notify": "启动后和每隔几小时检查一次，有新版本时提示，由你决定是否下载。",
+      "off": "不自动联网检查，需要时在这里手动检查。"
+    },
+    "source": "更新源",
+    "sourceHint": "从哪里获取新版本。选中的源不可用时自动改用另一个。",
+    "sourceAutoHint": "按系统时区选择，当前使用 {{source}}。选中的源不可用时自动改用另一个。",
+    "sources": {
+      "auto": "自动（按时区）",
+      "github": "GitHub",
+      "gitcode": "GitCode（国内镜像）"
+    },
+    "status": {
+      "idle": "还没有检查过更新。",
+      "checking": "正在检查…",
+      "upToDate": "已是最新版本。",
+      "upToDateAt": "已是最新版本（{{time}} 检查）。",
+      "available": "发现新版本 {{version}}（{{size}}，来自 {{source}}）。",
+      "downloading": "正在下载 {{version}}…",
+      "downloadingProgress": "正在下载 {{version}}：{{received}} / {{total}}",
+      "downloaded": "{{version}} 已下载并校验，重启后安装。",
+      "downloadedMac": "{{version}} 已下载并校验。打开安装镜像后，把应用拖进“应用程序”替换旧版本。",
+      "unsupported": "这个平台没有可自动安装的安装包。"
+    },
+    "errors": {
+      "network": "连不上更新源，请检查网络后重试。",
+      "no-release": "更新源上没有找到可用的正式版本。",
+      "no-asset": "最新版本还没有这个平台的安装包，稍后再试。",
+      "checksum": "安装包校验失败，已丢弃。请重试。",
+      "install": "没能启动安装程序。",
+      "disk": "没能写入下载的安装包，请检查磁盘空间。"
+    },
+    "toast": {
+      "available": "发现新版本 {{version}}",
+      "availableHint": "可以现在下载，也可以稍后在设置的“更新”里下载。",
+      "downloaded": "新版本 {{version}} 已准备好",
+      "downloadedHint": "重启后自动安装，未保存的改动请先保存。",
+      "downloadedHintMac": "会打开安装镜像并退出应用，把应用拖进“应用程序”替换旧版本即可。"
     }
   }
 }

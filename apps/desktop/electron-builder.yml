@@ -108,7 +108,7 @@ mac:
       to: LICENSE.electron.txt
 dmg:
   artifactName: ${productName}-${version}-${arch}.${ext}
-  # 不做自动更新，不需要 blockmap
+  # 应用内的自动更新整包下载并按 SHA256SUMS.txt 校验（docs/decisions.md“自动更新”），不做差分更新，不需要 blockmap
   writeUpdateInfo: false
 # 文件关联（M8）：双击工程文件和模板包用本应用打开。Windows 上按用户安装时写在 HKCU\Software\Classes 下，卸载时删掉；
 # macOS 上写进 Info.plist 的 CFBundleDocumentTypes，路径经 open-file 事件交给主进程。

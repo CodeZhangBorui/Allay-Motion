@@ -447,7 +447,8 @@
       "shortcuts": "Shortcuts",
       "about": "About",
       "appearance": "Appearance",
-      "folders": "Folders"
+      "folders": "Folders",
+      "updates": "Updates"
     },
     "language": "Language",
     "languages": {
@@ -537,7 +538,8 @@
       "folders": "Where new projects are saved and where exports go. Folders can only be picked in the system folder dialog.",
       "general": "Interface language and the first-run setup.",
       "shortcuts": "Click the key next to a command to record a new shortcut. Press Esc to cancel recording.",
-      "appearance": "Theme and motion. Changes apply right away."
+      "appearance": "Theme and motion. Changes apply right away.",
+      "updates": "Your version, checking for new ones, and how and where updates come from."
     },
     "onboarding": {
       "hint": "Go through language, theme, assets and folders again. Your current choices are kept.",
@@ -1042,6 +1044,65 @@
         "title": "Come back any time",
         "body": "That’s it! To see this again, choose “Editor tour” in the Help menu; you can rerun the first-run setup from there too.\nHave fun creating!"
       }
+    }
+  },
+  "updates": {
+    "current": "Version {{version}}",
+    "check": "Check for updates",
+    "download": "Download update",
+    "install": "Restart and install",
+    "installMac": "Open installer image",
+    "later": "Later",
+    "skip": "Skip this version",
+    "unskip": "Stop skipping",
+    "skipped": "Skipping {{version}}",
+    "skippedHint": "Automatic checks won't mention this version. Manual checks still show it.",
+    "settingsTitle": "Automatic updates",
+    "mode": "Update mode",
+    "modes": {
+      "auto": "Download, then ask to install",
+      "notify": "Notify me about new versions",
+      "off": "Don't check automatically"
+    },
+    "modeHints": {
+      "auto": "Checks at startup and every few hours. New versions download and get verified in the background, then you're asked to restart.",
+      "notify": "Checks at startup and every few hours, and tells you when a new version is out. You decide whether to download it.",
+      "off": "Never goes online to check by itself. Check manually here when you want."
+    },
+    "source": "Update source",
+    "sourceHint": "Where new versions come from. If it can't be reached, the other source is tried.",
+    "sourceAutoHint": "Picked from the system time zone; currently {{source}}. If it can't be reached, the other source is tried.",
+    "sources": {
+      "auto": "Automatic (by time zone)",
+      "github": "GitHub",
+      "gitcode": "GitCode (China mirror)"
+    },
+    "status": {
+      "idle": "Not checked yet.",
+      "checking": "Checking…",
+      "upToDate": "You're up to date.",
+      "upToDateAt": "You're up to date (checked {{time}}).",
+      "available": "Version {{version}} is available ({{size}}, from {{source}}).",
+      "downloading": "Downloading {{version}}…",
+      "downloadingProgress": "Downloading {{version}}: {{received}} / {{total}}",
+      "downloaded": "{{version}} is downloaded and verified. It installs when you restart.",
+      "downloadedMac": "{{version}} is downloaded and verified. Open the installer image and drag the app into Applications to replace the old one.",
+      "unsupported": "There's no installer for this platform that can be installed automatically."
+    },
+    "errors": {
+      "network": "Couldn't reach the update source. Check your connection and try again.",
+      "no-release": "No usable release was found on the update source.",
+      "no-asset": "The latest version has no installer for this platform yet. Try again later.",
+      "checksum": "The installer failed verification and was discarded. Try again.",
+      "install": "Couldn't start the installer.",
+      "disk": "Couldn't save the downloaded installer. Check your free disk space."
+    },
+    "toast": {
+      "available": "Version {{version}} is available",
+      "availableHint": "Download it now, or later from Settings → Updates.",
+      "downloaded": "Version {{version}} is ready",
+      "downloadedHint": "It installs when you restart. Save your work first.",
+      "downloadedHintMac": "The installer image opens and the app quits. Drag the app into Applications to replace the old one."
     }
   }
 }

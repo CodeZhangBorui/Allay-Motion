@@ -27,6 +27,7 @@ import { filesFromArgv, filesFromOpenEvent, OpenFileQueue } from './open-files';
 import { Splash } from './splash';
 import { createMainWindow } from './window';
 import { startup } from './startup-timing';
+import { UpdateService } from './updates/service';
 
 startup.mark('main-loaded');
 
@@ -106,6 +107,22 @@ if (!app.requestSingleInstanceLock()) {
     },
   });
   const thumbs = new ThumbCache(userData);
+  // 自动更新（docs/decisions.md“自动更新”）：只有打包后的应用会自动检查；安装时运行安装包或打开 dmg，然后退出
+  const updates = new UpdateService({
+    currentVersion: app.getVersion(),
+    packaged: app.isPackaged,
+    downloadDir: join(userData, 'updates'),
+    platform: process.platform,
+    arch: process.arch,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    prefs: () => settings.ui.updates,
+    log,
+    onChanged: (state) => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.updates.changed, state);
+    },
+    quit: () => app.quit(),
+    openPath: (path) => shell.openPath(path),
+  });
   // 模板：内置的来自 resources/templates/（pnpm templates:build 的产物），用户的在 userData/templates/（4.8、4.9）
   const templates = new TemplateService({ builtinDir: join(bundledResources, 'templates'), userDataDir: userData, appVersion: app.getVersion(), log });
   const presets = new PresetStore(userData, log);
@@ -160,6 +177,7 @@ if (!app.requestSingleInstanceLock()) {
     if (flushed) return;
     event.preventDefault();
     resources.cancelDownload();
+    updates.stop();
     void Promise.allSettled([settings.flush(), exports.cancelAll()]).finally(() => {
       resources.close();
       templateDev.close();
@@ -204,6 +222,7 @@ if (!app.requestSingleInstanceLock()) {
       hostCommands,
       openFiles,
       folders,
+      updates,
       onRendererReady: () => {
         startup.mark('renderer-ready');
         openFiles.markReady();
@@ -218,9 +237,16 @@ if (!app.requestSingleInstanceLock()) {
     void resources.init();
     // 启动时跑一次 ffmpeg -version 并记进日志（5.6），不阻塞窗口
     void exports.ffmpegInfo();
+    let updatePrefs = settings.ui.updates;
     settings.onUiChanged((ui) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.settings.changed, ui);
+      if (ui.updates !== updatePrefs) {
+        updates.prefsChanged(updatePrefs, ui.updates);
+        updatePrefs = ui.updates;
+      }
     });
+    // 自动检查更新（设置为 off 时每次都跳过；未打包的构建不自动检查）
+    updates.start();
 
     mainWindow = createMainWindow({
       settings,

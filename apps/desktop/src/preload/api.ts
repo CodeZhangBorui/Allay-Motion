@@ -14,6 +14,7 @@ import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, Fo
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
+import type { UpdateState } from '../shared/updates';
 import type {
   CommitResult,
   CopyBuiltinRequest,
@@ -178,6 +179,18 @@ export interface AllayApi {
     get(): Promise<FoldersInfo>;
     choose(kind: FolderKind): Promise<FolderChooseResult>;
     reset(kind: FolderKind): Promise<FolderInfo>;
+  };
+  /** 自动更新：联网、下载和安装都在主进程，界面只看状态、发指令 */
+  updates: {
+    state(): Promise<UpdateState>;
+    /** 手动检查（设置页的“检查更新”） */
+    check(): Promise<UpdateState>;
+    /** 下载并校验这台机器的安装包 */
+    download(): Promise<UpdateState>;
+    cancel(): Promise<void>;
+    /** 运行下好的安装包并退出应用 */
+    install(): Promise<UpdateState>;
+    onChanged(callback: (state: UpdateState) => void): () => void;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

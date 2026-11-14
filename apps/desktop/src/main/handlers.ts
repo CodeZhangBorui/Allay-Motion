@@ -20,6 +20,7 @@ import type { TemplateDevService } from './templates/dev-service';
 import type { HostCommandChannel } from './host-commands';
 import type { OpenFileQueue } from './open-files';
 import type { FolderService } from './folders';
+import type { UpdateService } from './updates/service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -37,6 +38,8 @@ export interface HandlerDeps {
   openFiles: OpenFileQueue;
   /** 默认文件夹（界面增强） */
   folders: FolderService;
+  /** 自动更新（docs/decisions.md“自动更新”） */
+  updates: UpdateService;
   /** 界面就绪（host.ready） */
   onRendererReady(): void;
   presets: PresetStore;
@@ -64,7 +67,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -272,6 +275,13 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.folders.get, () => folders.all());
   handle(IPC.folders.choose, (_event, kind) => folders.choose(kind));
   handle(IPC.folders.reset, (_event, kind) => folders.reset(kind));
+
+  // ---- updates：联网只在主进程（docs/decisions.md“自动更新”）----
+  handle(IPC.updates.state, () => updates.current);
+  handle(IPC.updates.check, () => updates.check(true));
+  handle(IPC.updates.download, () => updates.download());
+  handle(IPC.updates.cancel, () => updates.cancel());
+  handle(IPC.updates.install, () => updates.install());
 
   handle(IPC.export.ffmpegInfo, () => exports.ffmpegInfo());
   handle(IPC.export.start, (_event, req) => exports.start(req));

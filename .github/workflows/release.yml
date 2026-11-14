@@ -5,7 +5,8 @@
 # - 只有推送 v* 标签会正式发布；手动触发只构建和上传工作流产物。
 # - 先建草稿并挂上全部附件，随后立即自动发布；三份构建里任何一份失败、或缺文件的版本不会公开。
 # - 没有代码签名证书（H-SIGN），工作流里没有任何证书或密钥：Windows 安装包不签名；macOS 只做 ad-hoc 签名、不公证。
-#   不配置自动更新（electron-builder 的 publish 为 null）。
+#   electron-builder 的 publish 为 null；应用内的自动更新（docs/decisions.md“自动更新”）直接读 Release 里的安装包和
+#   SHA256SUMS.txt，按文件名挑安装包，所以附件的文件名格式不要随意改。
 # - macOS 的 FFmpeg 没有可用的 LGPL 预编译包，由 pnpm ffmpeg:fetch 从官方源码编译（scripts/ffmpeg-macos.ts），
 #   编译结果按配方的哈希缓存；用缓存时 ffmpeg:fetch 仍重跑许可和依赖的核对。
 # - 悦灵的图集和图标用仓库里提交的烘焙产物（packages/mascot/generated），不从 Mojang 下载、不现场烘焙。

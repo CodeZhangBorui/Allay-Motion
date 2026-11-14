@@ -14,6 +14,7 @@ import { ConfirmHost } from '../features/project/confirm';
 import { DiscoveryDialog, useShowDiscovery } from '../features/resources/DiscoveryDialog';
 import { useDropPacks } from '../features/resources/useDropPacks';
 import { SettingsDialog } from '../features/settings/SettingsDialog';
+import { useUpdateNotifications } from '../features/updates/UpdateToast';
 import { Onboarding } from '../features/onboarding/Onboarding';
 import { Tour } from '../features/onboarding/Tour';
 import { resolveLanguage, systemLocale } from '../i18n';
@@ -102,6 +103,7 @@ export function App() {
   useThemeSync(settings);
   useShortcuts();
   useWindowTitle();
+  useUpdateNotifications();
   const showDiscovery = useShowDiscovery();
   const dragging = useDropPacks();
   const [delivery, endDelivery] = useDropDelivery();

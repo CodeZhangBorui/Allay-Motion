@@ -46,7 +46,7 @@
 | 提交作者邮箱 | 公开后历史里的作者邮箱 | **已确认**（用户，2026-11-13：保留，不改写历史） | decisions.md“人工确认记录” |
 | H-PACK | 是否并入开放许可的资源包 | 不适用 | 范围变更后不内置任何贴图（decisions.md M2a），没有并入任何资源包 |
 | H-ART | 自制贴图的质量 | 不适用 | 同上，没有自制贴图 |
-| H-UPDATE | 自动更新与发布渠道 | 不适用（v1 不做） | 1.2“v1 不做”；应用里没有任何自动更新或联网检查 |
+| H-UPDATE | 自动更新与发布渠道 | **已确认**（仓库所有者，2026-11-14） | 原话“请你为这个程序加上自动更新……通过github和gitcode的release做为更新源”。0.1.2 起应用内检查、下载并校验 Release 里的安装包；未签名的问题仍在 H-SIGN（decisions.md“自动更新”） |
 | H-MCP | 纯代码编辑与 MCP 可选模块 | 不适用（未做，仅记录） | 用户决定目前不做（`docs/code-editing-and-mcp-plan.md`）；`packages/optional/` 为空，`pnpm check:removable` 证明删掉它不影响主程序。以后要做时再评估它带来的安全和许可问题 |
 | `default_app.asar` | 安装包里带着 Electron 自带的示例应用（M0 起的遗留项） | 已处理 | M8 的 afterPack 钩子删掉它；`tests/dist/M8.package.test.ts` 核对解包目录和安装包里都没有 |
 
@@ -57,7 +57,8 @@
 - 推 `v*` 标签：同时构建 Windows 的 NSIS 安装包（x64）和 macOS 的 dmg、zip（arm64、x64 各一份），上传工作流产物；三份都成功后创建临时草稿，挂上全部安装包和一份合并的 `SHA256SUMS.txt`，随后自动正式发布。任何一份构建、检查或上传失败时不会公开。
 - 手动触发只构建并上传工作流产物，不发布 Release。正式发布后，另一个工作流把发行版和全部附件同步到 GitCode，详见 `docs/gitcode-mirror.md`。
 - v0.1.0 的公开发布和此后的自动发布由仓库所有者决定；★ 项是否确认仍以本表为准，自动发布不代表它们已确认。
-- 安装包没有代码签名（macOS 只有 ad-hoc 签名、没有公证），工作流里也没有任何证书或密钥；没有自动更新。
+- 安装包没有代码签名（macOS 只有 ad-hoc 签名、没有公证），工作流里也没有任何证书或密钥。
+- 0.1.2 起应用内有自动更新：读最新正式版的安装包和 `SHA256SUMS.txt`，所以**附件的文件名格式和 `SHA256SUMS.txt` 不能随意改**（`apps/desktop/src/shared/updates.ts` 按文件名挑安装包）。GitCode 的附件同步完之前，国内用户会退回从 GitHub 下载。
 - 分支推送和 PR 上的 CI（`.github/workflows/ci.yml`）默认跑一遍 `pnpm check`；`pnpm check:removable` 在手动运行 CI 时按需勾选。macOS 不在日常 CI 里：发版工作流的两个 macOS 构建编译 FFmpeg、跑 `pnpm test:export` 和 `pnpm dist`。发版工作流里的 `pnpm dist` 跑打包后的检查；T-ARC-7 在 CI 的共享机器上只记数字、不按预算判定（不是参考机器）。
 
 发版操作：

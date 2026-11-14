@@ -1443,3 +1443,37 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - 程序坞、访达里的图标样子没人看过。
 - Intel（x64）版只在 `macos-15-intel` 上构建和冒烟，没有在真实的 Intel Mac 上跑过。
 - 没有签名证书、没有公证，这些都待 H-SIGN 决定。
+
+## 自动更新（2026-11-14，0.1.2）
+
+### 范围变更与授权
+
+- 仓库所有者原话：“请你为这个程序加上自动更新。更新源有两个，如果时区为大陆地区自动选择国内镜像源 gitcode，通过 github 和 gitcode 的 release 做为更新源，先获取最新版本，然后下载。更新要可设置，自动更新关闭更新等常用选项。”这是对硬性规则第 10 条（应用不联网）的第二个明确授权，也改了 `01-product-architecture.md` 1.2（“自动更新”原在 v1 不做里）和 9.11 的 H-UPDATE。`AGENTS.md` 第 10 条、1.2、9.10、9.11、发布清单都已同步。
+- 1.6 的安全基线一条都没有放宽：联网只在主进程，渲染进程的会话级网络拦截和 CSP 不变。
+
+### 边界（全部写死在 `apps/desktop/src/main/updates/service.ts`）
+
+- **访问哪里**：`api.github.com/repos/Mystic-Stars/Allay-Motion/releases/latest`、`api.gitcode.com/api/v5/repos/Mystic-Stars/Allay-Motion/releases/latest`（两边都不需要令牌），以及 Release 附件的下载地址。主机白名单：`api.github.com`、`github.com`、`*.githubusercontent.com`、`api.gitcode.com`、`gitcode.com`、`*.gitcode.com`；只用 https、默认端口；重定向逐跳过白名单，最多 5 跳（两边的附件都会重定向到各自的文件 CDN，所以不能像 Mojang 下载那样一律拒绝重定向）。
+- **发什么**：固定的 `User-Agent: AllayMotion-Updater`（GitHub API 不带 User-Agent 会拒绝）和 `Accept`，不带用户信息、设备标识或令牌。用 Node 的 `fetch`：Electron 的 `net` 走默认会话，会被 1.6 第 3 条的拦截挡住。
+- **何时联网**：只有打包后的应用自动检查——启动 15 秒后一次，之后每 30 分钟看一眼、距上次检查满 6 小时才再查；更新方式为“关闭自动检查”时完全不自动联网。未打包的构建（开发、e2e）只在设置页手动检查时联网，也不会安装。
+- **选源**：设置为“自动”时按 `Intl.DateTimeFormat().resolvedOptions().timeZone` 判断，中国大陆的 IANA 时区（`Asia/Shanghai`、`Asia/Urumqi` 等及旧别名，不含港澳台）用 GitCode，其他用 GitHub。首选源连不上、不是正式版、或者还缺这台机器的安装包或 `SHA256SUMS.txt`（GitCode 的附件是发布后逐个同步过去的）时，改查另一个源。
+- **挑安装包**：按发版工作流定的文件名：Windows x64 是 `*-x64-setup.exe`，macOS 是 `*-<arm64|x64>.dmg`。其他平台显示“没有可自动安装的安装包”。
+- **校验**：同一个 Release 里的 `SHA256SUMS.txt` 必须有这个安装包的一行；下载先写 `userData/updates/<名字>.<uuid>.part`，SHA-256 和大小都对才改名，否则删掉并报“校验失败”。下载有 1 GiB 上限和 60 秒空闲超时，可以取消；开始新下载前清掉 `userData/updates/` 里的旧文件。
+- **安装**：Windows 用 `--updated /S --force-run` 静默运行 NSIS 安装包（装到原来的位置，装完重新启动），随即退出应用。macOS 没有签名证书，Squirrel.Mac 用不了（它要求正式签名），所以只用系统默认程序打开 dmg 并退出，由用户把应用拖进“应用程序”替换。没有用 electron-updater：它要 `latest.yml`、macOS 上要正式签名，也是新依赖。
+
+### 设置与界面
+
+- 设置存在 `settings.json` 的 `ui.updates`：`mode`（`auto` 默认：后台下载、下完提示重启安装；`notify`：只提示；`off`：不自动检查）、`source`（`auto` / `github` / `gitcode`）、`skipVersion`（“跳过这个版本”，只影响自动检查）。旧设置文件没有这个字段时用默认值。
+- 设置对话框新增“更新”一类（关于之前）：当前版本、检查结果、下载进度和对应的按钮，以及上面三项设置。自动检查发现新版本（notify）或后台下载完成（auto）时弹一条带按钮的通知；手动检查的结果只在设置页里显示。
+
+### 验证
+
+- 单元测试（`tests/unit/updates.test.ts`）：按时区选源、版本比较、挑安装包、解析 `SHA256SUMS.txt`、主机白名单、旧设置文件的迁移。
+- 本机用真实接口跑过检查（以 0.0.1 当当前版本）：GitCode 的 v0.1.1 当时只同步了 `SHA256SUMS.txt`、缺安装包，自动改用 GitHub，拿到 v0.1.1 的安装包和校验和；下载约 40 MB 后取消，状态回到“有新版本”，临时文件已删。
+
+### 没验证的
+
+- 没有走完一次完整的下载、校验、静默安装、重新启动（要一个比当前版本新的正式版；0.1.2 是第一个带更新功能的版本，要等下一个版本发布后才能在真实安装上看到）。
+- macOS 上打开 dmg、退出、拖进“应用程序”替换没有在真实的 Mac 上试过。
+- 设置页和通知没有截图审看；没有跑 e2e 和打包后的检查（按所有者要求，这次发版不跑冗长的 CI）。
+- 安装包仍未签名（H-SIGN）：安装包由应用自己下载（没有“来自网络”的标记），Windows 上静默安装时不会弹 SmartScreen，但这也意味着唯一的完整性保证是 Release 里的 `SHA256SUMS.txt`——它和安装包来自同一个 Release，防不了 Release 本身被篡改。

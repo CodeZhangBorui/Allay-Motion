@@ -2,6 +2,7 @@ import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type Reso
 import { z } from 'zod';
 import { H264ProbeSchema } from './export';
 import { ShortcutOverridesPatchSchema, sanitizeShortcutOverrides, type ShortcutOverrides } from './shortcuts';
+import { UpdatePrefsPatchSchema, UpdatePrefsSchema, defaultUpdatePrefs } from './updates';
 
 // 设置文件 settings.json 的 schema（docs/01-product-architecture.md 1.9）。
 // 读取时每个字段单独兜底：坏掉的字段回到默认值，不连累其他字段。
@@ -122,6 +123,8 @@ export const UiSettingsSchema = z.strictObject({
    */
   tourCompleted: z.boolean().catch(true).default(true),
   shortcuts: ShortcutOverridesFileSchema.default({}),
+  /** 自动更新（docs/decisions.md“自动更新”）：没有这个字段的旧设置文件用默认值 */
+  updates: UpdatePrefsSchema.catch(defaultUpdatePrefs).default(defaultUpdatePrefs),
 });
 export type UiSettings = z.infer<typeof UiSettingsSchema>;
 
@@ -136,6 +139,7 @@ export function defaultUiSettings(): UiSettings {
     onboardingCompleted: false,
     tourCompleted: false,
     shortcuts: {},
+    updates: defaultUpdatePrefs(),
   };
 }
 
@@ -169,6 +173,8 @@ export const UiSettingsPatchSchema = z.strictObject({
   tourCompleted: z.boolean().optional(),
   /** 自定义快捷键：整张表替换 */
   shortcuts: ShortcutOverridesPatchSchema.optional(),
+  /** 自动更新的设置：整体替换 */
+  updates: UpdatePrefsPatchSchema.optional(),
 });
 export type UiSettingsPatch = z.infer<typeof UiSettingsPatchSchema>;
 
@@ -274,5 +280,6 @@ export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSet
     onboardingCompleted: patch.onboardingCompleted ?? current.onboardingCompleted,
     tourCompleted: patch.tourCompleted ?? current.tourCompleted,
     shortcuts: patch.shortcuts ?? current.shortcuts,
+    updates: patch.updates ?? current.updates,
   };
 }
