@@ -55,6 +55,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: 检查 Release 同步逻辑
+        id: test
+        run: node --test tests/sync-gitcode-release.test.mjs
+
       - name: 同步分支
         shell: bash
         run: |
@@ -104,7 +108,7 @@ jobs:
 
       - name: 同步标签
         id: tags
-        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.test.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
