@@ -43,6 +43,15 @@ const next = async (p: Page, n = 1) => {
   }
 };
 
+const tourNext = async (p: Page, n: number) => {
+  for (let i = 0; i < n; i++) {
+    await p.getByTestId('tour-next').click();
+    await p.waitForTimeout(150);
+  }
+  // 等聚光口和气泡的过渡走完
+  await p.waitForTimeout(500);
+};
+
 async function startDownload(p: Page, server: FakeMojang, mode: 'slow' | 'fail'): Promise<void> {
   server.jarMode = mode;
   await next(p, 2);
@@ -107,6 +116,16 @@ const SCENES: Scene[] = [
       await next(p, 2);
     },
   },
+  // ---- 新手引导（6.14）：首次启动引导之后、还没看过 ----
+  { name: 'tour-welcome-dark-zh', theme: 'dark', language: 'zh-CN', fakeGame: true, seed: { tourCompleted: false } },
+  { name: 'tour-templates-light-en', theme: 'light', language: 'en', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 1) },
+  { name: 'tour-template-vs-preset-dark-zh', theme: 'dark', language: 'zh-CN', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 2) },
+  { name: 'tour-template-vs-preset-light-en', theme: 'light', language: 'en', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 2) },
+  { name: 'tour-preview-dark-en', theme: 'dark', language: 'en', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 3) },
+  { name: 'tour-params-light-zh', theme: 'light', language: 'zh-CN', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 4) },
+  { name: 'tour-timeline-dark-zh', theme: 'dark', language: 'zh-CN', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 5) },
+  { name: 'tour-export-dark-zh', theme: 'dark', language: 'zh-CN', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 7) },
+  { name: 'tour-help-light-zh', theme: 'light', language: 'zh-CN', fakeGame: true, seed: { tourCompleted: false }, act: (p) => tourNext(p, 8) },
   // ---- 设置（6.11）----
   { name: 'settings-general-dark-zh', theme: 'dark', language: 'zh-CN', fakeGame: true, act: (p) => openSettings(p, 'general') },
   { name: 'settings-appearance-light-en', theme: 'light', language: 'en', fakeGame: true, act: (p) => openSettings(p, 'appearance') },

@@ -170,6 +170,7 @@ const MENU_ITEMS: MenuItemDef[] = [
   { id: 'help.shortcuts', menu: 'help', group: 0, order: 1, command: 'settings', titleKey: 'settings.pages.shortcuts', input: { page: 'shortcuts' }, icon: Keyboard },
   { id: 'help.about', menu: 'help', group: 0, order: 2, command: 'settings', titleKey: 'settings.pages.about', input: { page: 'about' }, icon: Info },
   { id: 'help.onboarding', menu: 'help', group: 1, order: 0, command: 'onboarding', titleKey: 'settings.onboarding.button', testId: 'menu-onboarding' },
+  { id: 'help.tour', menu: 'help', group: 1, order: 1, command: 'tour', titleKey: 'settings.tour.button', testId: 'menu-tour' },
 ];
 
 /** 设置对话框的分类（6.11）：顺序即侧栏顺序。可选模块可以经 registerSettingsPage 加自己的一类 */

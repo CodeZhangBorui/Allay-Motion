@@ -15,9 +15,10 @@ import { DiscoveryDialog, useShowDiscovery } from '../features/resources/Discove
 import { useDropPacks } from '../features/resources/useDropPacks';
 import { SettingsDialog } from '../features/settings/SettingsDialog';
 import { Onboarding } from '../features/onboarding/Onboarding';
+import { Tour } from '../features/onboarding/Tour';
 import { resolveLanguage, systemLocale } from '../i18n';
 import { isDirty, useProjectStore } from '../stores/projectStore';
-import { useUiStore } from '../stores/uiStore';
+import { onboardingVisible, tourVisible, useUiStore } from '../stores/uiStore';
 import { ErrorBoundary } from './ErrorBoundary';
 import { StatusBar } from './StatusBar';
 import { TopBar } from './TopBar';
@@ -94,7 +95,9 @@ export function App() {
   const settings = useUiStore((s) => s.settings);
   const dialog = useUiStore((s) => s.dialog);
   // 首次启动引导（6.10）：新装时自动出现，设置里可以重新运行；开着时主界面不可交互（inert）
-  const onboarding = useUiStore((s) => s.onboardingOpen || !s.settings.onboardingCompleted);
+  const onboarding = useUiStore(onboardingVisible);
+  // 新手引导（6.14）：首次启动引导之后自动出现一次，帮助菜单里可以再看；开着时主界面同样 inert，只靠聚光圈出要讲的区域
+  const tour = useUiStore(tourVisible);
   const { i18n } = useTranslation();
   useThemeSync(settings);
   useShortcuts();
@@ -117,7 +120,7 @@ export function App() {
     <IconContext.Provider value={ICON_DEFAULTS}>
     <TooltipProvider delay={400}>
       <EditorServicesProvider>
-        <div className="flex h-full flex-col bg-background" inert={onboarding || undefined}>
+        <div className="flex h-full flex-col bg-background" inert={onboarding || tour || undefined}>
           <ErrorBoundary scope="topbar">
             <TopBar />
           </ErrorBoundary>
@@ -136,7 +139,7 @@ export function App() {
               {dialog === 'saveTemplate' && <SaveTemplateDialog />}
             </ErrorBoundary>
           )}
-          {showDiscovery && dialog !== 'export' && !onboarding && (
+          {showDiscovery && dialog !== 'export' && !onboarding && !tour && (
             <ErrorBoundary scope="dialog.discovery" variant="overlay">
               <DiscoveryDialog />
             </ErrorBoundary>
@@ -151,6 +154,12 @@ export function App() {
           // 引导出错时显示错误层；关掉它就当跳过了引导（之后可以在设置里重新运行），不会把人困在一个坏掉的整页上
           <ErrorBoundary scope="onboarding" variant="overlay" onClose={() => useUiStore.getState().finishOnboarding()}>
             <Onboarding />
+          </ErrorBoundary>
+        )}
+        {tour && (
+          // 新手引导出错时同样当作跳过，不把人困住
+          <ErrorBoundary scope="tour" variant="overlay" onClose={() => useUiStore.getState().finishTour()}>
+            <Tour />
           </ErrorBoundary>
         )}
         <Toaster />

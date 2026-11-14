@@ -3,7 +3,7 @@ import { shortcutFromEvent } from '../../../shared/shortcuts';
 import { commandEnabled, getCommand, trigger } from '../../app/registry';
 import { stepFrames } from './commands';
 import { commandForShortcut } from './shortcutState';
-import { useUiStore } from '../../stores/uiStore';
+import { onboardingVisible, tourVisible, useUiStore } from '../../stores/uiStore';
 
 // 全局快捷键（6.7）：按各命令生效的快捷键匹配（默认值加设置里的自定义，6.11；核心命令和可选模块的命令一样），
 // 执行一律经 dispatcher（trigger）。
@@ -32,9 +32,9 @@ export function useShortcuts(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing) return;
-      // 首次启动引导开着时主界面的快捷键都不生效（6.10）
+      // 首次启动引导、新手引导开着时主界面的快捷键都不生效（6.10、6.14）：它们自己处理按键
       const ui = useUiStore.getState();
-      if (ui.onboardingOpen || !ui.settings.onboardingCompleted) return;
+      if (onboardingVisible(ui) || tourVisible(ui)) return;
       const target = document.activeElement;
       const ctrl = e.ctrlKey || e.metaKey;
       if (!ctrl && !e.altKey) {

@@ -102,3 +102,30 @@
 [data-testid='onboarding'] {
   --tile-gap: var(--surface-1);
 }
+
+/*
+ * 新手引导（docs/06-ui-design.md 6.14）：聚光口在换步时移到下一块区域（宽高和位置过渡，口外面是同一圈阴影），
+ * 气泡跟着挪。压暗比对话框的 scrim 深一些，圈出来的区域才显眼。减少动效时直接跳过去。
+ */
+[data-testid='tour'] {
+  --tour-scrim: rgb(0 0 0 / 0.62);
+}
+[data-theme='light'] [data-testid='tour'] {
+  --tour-scrim: rgb(0 0 0 / 0.42);
+}
+.tour-hole {
+  transition:
+    x 320ms var(--ease-in-out),
+    y 320ms var(--ease-in-out),
+    width 320ms var(--ease-in-out),
+    height 320ms var(--ease-in-out);
+}
+.tour-bubble {
+  transition:
+    left 320ms var(--ease-in-out),
+    top 320ms var(--ease-in-out);
+}
+[data-reduced-motion='true'] .tour-hole,
+[data-reduced-motion='true'] .tour-bubble {
+  transition: none;
+}

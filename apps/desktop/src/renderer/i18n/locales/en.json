@@ -542,7 +542,7 @@
       "hint": "Go through language, theme, assets and folders again. Your current choices are kept.",
       "rerun": "Run setup again",
       "button": "Run setup",
-      "title": "First-run setup"
+      "title": "Guides"
     },
     "assetsStack": "Resource stack",
     "folders": {
@@ -578,7 +578,12 @@
     "projectOutputHint": "Resolution and frame rate are saved in the project file and are the same as the Output tab in the properties panel. New projects start at 1920 × 1080, 60 fps.",
     "encoderTitle": "Encoders",
     "reducedMotionHint": "Turns off interface transitions; the mascot is shown still.",
-    "motionTitle": "Motion"
+    "motionTitle": "Motion",
+    "tour": {
+      "rerun": "Take the editor tour again",
+      "hint": "A walk through each area of the main window, including what sets templates and presets apart.",
+      "button": "Editor tour"
+    }
   },
   "shortcuts": {
     "keys": {
@@ -625,7 +630,8 @@
       "exportTaskCancel": "Cancel export task",
       "projectOpenAssociated": "Open project from file",
       "templatesInstallAssociated": "Install template from file",
-      "onboarding": "First-run setup"
+      "onboarding": "First-run setup",
+      "tour": "Editor tour"
     }
   },
   "editor": {
@@ -991,6 +997,50 @@
       "folders": "Where should your work go? It’s fine to leave this for now.",
       "done": "You’re all set!",
       "doneTour": "You’re all set! Once you’re in, I’ll show you around the editor."
+    }
+  },
+  "tour": {
+    "skip": "Skip tour",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Start creating",
+    "steps": {
+      "welcome": {
+        "title": "Meet the editor",
+        "body": "I’m {{mascot}}. Give me a minute and I’ll show you around the editor.\nYou can skip the tour at any time and take it again from the Help menu."
+      },
+      "templates": {
+        "title": "Template library",
+        "body": "All your templates live here. A template is a ready-made transition or overlay animation, such as “Block wipe”.\nClick a card to switch to that template; hover over it to see it move. “Mine” holds the templates you saved yourself."
+      },
+      "templateVsPreset": {
+        "title": "Templates vs. presets",
+        "body": "A template decides what animation you get: how things move and which parameters you can adjust. Switching templates means switching to a different animation.\nA preset decides how those parameters are set: it’s a saved set of values for one template, like a save file. When you like a look, open “Presets” at the top right of the Properties panel and choose “Save as preset…”. Later, one click in the Presets tab on the left or in that menu brings all the values back.\nA preset only stores the parameters you changed and only works with the template it was made for. If you want a template of your own (new defaults, unused parameters hidden), use “Save as template” at the bottom of the Properties panel; it shows up under “Mine” in the library."
+      },
+      "preview": {
+        "title": "Preview",
+        "body": "The current template plays here live. Change any parameter and you see it on the next frame. Exports match this preview frame by frame.\nThe floating toolbar below the picture handles zoom, background and safe-area guides."
+      },
+      "params": {
+        "title": "Properties",
+        "body": "Every parameter of the current template is here: blocks, colors, timing, animation order…\nA changed parameter gets a small amber dot on its left; hover over the row to reset just that one. The Output tab next to it has resolution and frame rate."
+      },
+      "timeline": {
+        "title": "Timeline",
+        "body": "Play, pause and loop live here; by default the Space key also plays and pauses.\nThe Stages track shows the enter, hold and exit parts. Drag a boundary to change how long each part lasts. The Cut point marks the frame where you cut to the next shot in your video editor."
+      },
+      "resources": {
+        "title": "Assets",
+        "body": "Blocks, items and sounds in templates come from here: vanilla resources and the resource packs you add, with the top ones taking priority.\nWithout vanilla assets, missing textures show up as magenta and black squares. You can also drop a resource pack zip onto the window."
+      },
+      "export": {
+        "title": "Export",
+        "body": "Click here when you’re done. The small arrow on the right lets you pick a format directly, such as video with a transparent background.\nDrop the exported file into your video editor and use it as a transition or overlay."
+      },
+      "help": {
+        "title": "Come back any time",
+        "body": "That’s it! To see this again, choose “Editor tour” in the Help menu; you can rerun the first-run setup from there too.\nHave fun creating!"
+      }
     }
   }
 }

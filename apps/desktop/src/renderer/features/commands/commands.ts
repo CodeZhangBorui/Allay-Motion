@@ -17,6 +17,7 @@ import {
   FrameCorners,
   GearSix,
   MagnifyingGlass,
+  MapTrifold,
   Play,
   Repeat,
   SidebarSimple,
@@ -135,6 +136,8 @@ export const CORE_COMMANDS: AnyCommand[] = [
   // 首次启动引导（6.10）：设置里的“重新运行引导”也是它
   // 一次性的整页流程，不能有快捷键（noShortcut），也就不出现在快捷键设置页
   { id: 'onboarding', titleKey: key('onboarding'), category: 'help', icon: Compass, effect: 'read', noShortcut: true, run: () => useUiStore.getState().openOnboarding() },
+  // 新手引导（6.14）：帮助菜单、设置“通用”页、命令面板里都能再看一遍；同样不能有快捷键
+  { id: 'tour', titleKey: key('tour'), category: 'help', icon: MapTrifold, effect: 'read', noShortcut: true, run: () => useUiStore.getState().openTour() },
 ];
 
 /** 快捷键的显示文字（Space → 空格等），定义在 shortcutState.ts */

@@ -2,7 +2,7 @@ import { Allay } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@allay/ui/components/select';
 import { ICON } from '@allay/ui/lib/icons';
-import { ArrowClockwise, Compass, FolderSimple, Trash, Warning, X } from '@phosphor-icons/react';
+import { ArrowClockwise, Compass, FolderSimple, MapTrifold, Trash, Warning, X } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FolderInfo, FolderKind, FoldersInfo } from '../../../shared/folders';
@@ -48,6 +48,12 @@ export function GeneralPage() {
           <Button variant="secondary" data-testid="settings-rerun-onboarding" onClick={() => trigger('onboarding')}>
             <Compass size={ICON.sm} />
             {t('settings.onboarding.button')}
+          </Button>
+        </SettingsRow>
+        <SettingsRow label={t('settings.tour.rerun')} hint={t('settings.tour.hint')}>
+          <Button variant="secondary" data-testid="settings-rerun-tour" onClick={() => trigger('tour')}>
+            <MapTrifold size={ICON.sm} />
+            {t('settings.tour.button')}
           </Button>
         </SettingsRow>
       </SettingsSection>
