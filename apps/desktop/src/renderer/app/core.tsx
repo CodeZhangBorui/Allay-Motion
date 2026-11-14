@@ -1,6 +1,6 @@
 import {
+  DropdownMenuEmpty,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSub,
@@ -37,7 +37,7 @@ function RecentsMenu() {
       <DropdownMenuSubTrigger data-testid="project-recents">{t('project.recents')}</DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="w-72">
         {recents.length === 0 ? (
-          <DropdownMenuLabel>{t('project.noRecents')}</DropdownMenuLabel>
+          <DropdownMenuEmpty data-testid="project-no-recents">{t('project.noRecents')}</DropdownMenuEmpty>
         ) : (
           recents.map((r) => (
             <DropdownMenuItem key={r.id} onClick={() => void openRecent(r.id)} title={r.folder}>
