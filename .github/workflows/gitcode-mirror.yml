@@ -1,0 +1,88 @@
+# GitHub 是唯一的源；GitCode 使用普通仓库，由本工作流同步代码和已发布的发行版。
+name: 同步到 GitCode
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  release:
+    types: [published, edited]
+  # 使用 GITHUB_TOKEN 发布的 Release 不会触发 release 事件，完成构建后再补一次。
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 只补同步此已发布标签；留空同步全部已发布版本
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# 每次都读取当前全部分支、标签和已发布版本；待处理运行被合并也不会漏同步。
+concurrency:
+  group: gitcode-mirror
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: 同步仓库和发行版
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      GITCODE_REPO: Mystic-Stars/Allay-Motion
+      SELECTED_TAG: ${{ inputs.tag }}
+    steps:
+      - name: 检查令牌
+        run: |
+          if [ -z "$GITCODE_TOKEN" ]; then
+            echo "::error::请在仓库 Actions Secrets 中配置 GITCODE_TOKEN"
+            exit 1
+          fi
+
+      # 始终运行默认分支中的同步脚本，避免把其他分支或标签的代码当成同步脚本执行。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 同步分支和标签
+        shell: bash
+        run: |
+          set -euo pipefail
+          # askpass 只在本次运行中使用，令牌不写入 URL 或 Git 配置。
+          askpass="$RUNNER_TEMP/gitcode-askpass"
+          cat > "$askpass" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' oauth2 ;;
+            *Password*) printf '%s\n' "$GITCODE_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 700 "$askpass"
+          export GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0
+
+          target="https://gitcode.com/$GITCODE_REPO.git"
+          default_branch="${{ github.event.repository.default_branch }}"
+          # 空仓库首次推送时先创建默认分支。
+          git push "$target" "refs/remotes/origin/$default_branch:refs/heads/$default_branch"
+          mapfile -t refs < <(git for-each-ref --format='%(refname)' refs/remotes/origin/ |
+            grep -v -F -x -e "refs/remotes/origin/$default_branch" -e 'refs/remotes/origin/HEAD' || true)
+          refspecs=()
+          for ref in "${refs[@]}"; do
+            refspecs+=("$ref:refs/heads/${ref#refs/remotes/origin/}")
+          done
+          if ((${#refspecs[@]})); then git push "$target" "${refspecs[@]}"; fi
+          git push "$target" --tags
+
+      - name: 同步已发布的 Release 和附件
+        run: node scripts/sync-gitcode-release.mjs
