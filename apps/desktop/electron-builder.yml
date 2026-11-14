@@ -41,6 +41,10 @@ extraResources:
     filter:
       - "allay.atlas.json"
       - "allay-*.png"
+# 第三方许可的纯文本版（09-compliance.md 9.7），由 scripts/dist-extras.ts 生成，放在安装目录的根上（和 exe、LICENSES.chromium.html 在一起）
+extraFiles:
+  - from: build/THIRD_PARTY_NOTICES.txt
+    to: THIRD_PARTY_NOTICES.txt
 # 直接用工作区里已安装的 Electron（相对本目录；node_modules/electron 是 pnpm 的链接，不写哈希目录），
 # 打包时不再联网下载或校验 Electron。根目录的 pnpm dist 会先跑 scripts/ensure-electron-dist.ts 确认它在。
 electronDist: node_modules/electron/dist
@@ -64,9 +68,29 @@ win:
       arch: [x64]
   # 没有证书，不签名
   signAndEditExecutable: true
+# 文件关联（M8）：双击工程文件和模板包用本应用打开。按用户安装时写在 HKCU\Software\Classes 下，卸载时删掉。
+# 打开的路径经主进程的命令通道交给界面（apps/desktop/src/main/open-files.ts）。图标用应用图标（没有单独的文档图标）。
+# name 是注册表里的类型名（内部标识）；description 是资源管理器“类型”一栏的文字，属于构建配置，换品牌时和 productName 一起改。
+fileAssociations:
+  - ext: allay
+    name: AllayMotion.Project
+    description: Allay Motion Project
+    role: Editor
+  - ext: allaytpl
+    name: AllayMotion.Template
+    description: Allay Motion Template Package
+    role: Editor
+# 打成安装包之前，去掉 Electron 自带的 resources/default_app.asar（M0 起的遗留项，docs/decisions.md M8）
+afterPack: ./scripts/after-pack.mjs
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  # 开始菜单和桌面快捷方式（默认值，写明）；卸载时一并删除。用户数据（%APPDATA%\AllayMotion）卸载时保留
+  createStartMenuShortcut: true
+  createDesktopShortcut: true
+  deleteAppDataOnUninstall: false
+  # 欢迎页带非官方声明（09-compliance.md 9.5），由 scripts/dist-extras.ts 从 packages/ui/src/brand 生成，不提交
+  include: build/installer.nsh
   artifactName: ${productName}-${version}-x64-setup.${ext}
 publish: null

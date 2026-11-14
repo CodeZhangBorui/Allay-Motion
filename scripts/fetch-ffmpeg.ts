@@ -14,16 +14,9 @@ import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import yauzl from 'yauzl';
 
-export const FFMPEG_BUILD = {
-  repo: 'FFmpeg-Builds/FFmpeg-Builds',
-  tag: 'autobuild-2026-11-12-15-40',
-  asset: 'ffmpeg-n9.0.2-57-gd838f9f9ae-win64-lgpl-9.0.zip',
-  /** 与发布页 checksums.sha256 里的值一致 */
-  sha256: '7a7d4b2adafe4b2de2a0fe0077a37e3d1dae43de28df38538ca79bc5d861e33e',
-  /** zip 里的顶层目录 */
-  root: 'ffmpeg-n9.0.2-57-gd838f9f9ae-win64-lgpl-9.0',
-  platform: 'win32-x64',
-} as const;
+import { FFMPEG_BUILD } from './ffmpeg-build';
+
+export { FFMPEG_BUILD };
 
 /** 从 zip 里取出的文件 → 放到目标目录下的名字 */
 const FILES: Record<string, string> = {

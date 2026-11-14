@@ -131,21 +131,44 @@ export function findViolations(packages: readonly PackageLicense[]): LicenseViol
 
 const PnpmLicensesSchema = z.record(
   z.string(),
-  z.array(z.object({ name: z.string(), versions: z.array(z.string()), license: z.string() })),
+  z.array(
+    z.object({
+      name: z.string(),
+      versions: z.array(z.string()),
+      paths: z.array(z.string()).optional(),
+      license: z.string(),
+      author: z.string().optional(),
+      homepage: z.string().optional(),
+    }),
+  ),
 );
 
+/** 生产依赖，带上安装位置和作者、主页（第三方许可清单用，M8） */
+export interface PackageInfo extends PackageLicense {
+  /** 本机的安装目录（只在生成时用，不写进清单） */
+  path: string | null;
+  author: string | null;
+  homepage: string | null;
+}
+
 /** 读 pnpm 列出的全部生产依赖（所有 workspace 包，含传递依赖） */
-export function listProductionLicenses(cwd: string): PackageLicense[] {
+export function listProductionPackages(cwd: string): PackageInfo[] {
   // 固定的命令行，没有外部输入
   const raw = execSync('pnpm -r licenses list --prod --json', { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const parsed = PnpmLicensesSchema.parse(JSON.parse(raw));
-  const out: PackageLicense[] = [];
+  const out: PackageInfo[] = [];
   for (const [group, pkgs] of Object.entries(parsed)) {
     for (const p of pkgs) {
-      for (const version of p.versions) out.push({ name: p.name, version, license: p.license || group });
+      p.versions.forEach((version, i) =>
+        out.push({ name: p.name, version, license: p.license || group, path: p.paths?.[i] ?? null, author: p.author ?? null, homepage: p.homepage ?? null }),
+      );
     }
   }
-  return out.sort((a, b) => a.name.localeCompare(b.name));
+  return out.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
+}
+
+export function listProductionLicenses(cwd: string): PackageLicense[] {
+  return listProductionPackages(cwd).map(({ name, version, license }) => ({ name, version, license }));
 }
 
 function main(): void {
