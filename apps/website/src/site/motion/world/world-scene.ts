@@ -3,10 +3,11 @@
 //   中途的方块从身边掠过；停手也会飞到终态，不绑滚动位置逐帧；
 // - 光：环境光 + 白色主光 + 品牌蓝的轮廓光 + 一盏跟着指针走的点光（场景光照是内容，不做泛光和光柱）；
 // - 景深：方块分远、中、近三层，远近两层画进半分辨率的离屏缓冲、两遍高斯模糊后合成；
-// - 能玩：指针推开附近的方块；点一下方块把它敲碎（碎块带重力掉下去），几秒后长回来；
-// - 磁吸：按住方块拖动，它跟手走（有惯性、按速度倾斜），松手后留在那里轻轻浮着；拖到别的方块附近，对方先往这边倾、
-//   越近吸力越强，最后“咔”地贴上：转正到对方的网格、面对面、边对齐，带一下回弹；贴上的就成了一组，拖任何一块整组一起走，
-//   还能继续吸更多方块。用力甩动时甩脱最外面那块，双击一块把它从组里弹出去；
+// - 能玩：指针经过时方块不动（只在能抓的那块上稍微放大一点）；点一下方块把它敲碎（碎块带重力掉下去），几秒后长回来；
+// - 磁吸：按住方块拖动，手里这块是磁铁，紧跟指针、转正到一套固定的网格上，松手后留在那里轻轻浮着。屏幕上和它
+//   （或它那一组里的任何一块）差不多平齐、在它左右几块以内的方块被吸过来：越近越快地朝它飞，途中转正、深度和大小
+//   过渡到和它一致，最后“啪”地贴在它的左面或右面（从哪边来贴哪边，被占了就顺着往外排），棱对棱、角对角；
+//   贴上就和它成了一组，跟手一起走，还能继续吸。用力甩动时甩脱最外面那块，双击一块把它从组里弹出去；
 // - 首屏方块拼成的体素悦灵、剪辑点的 ◆、开源一节的时间线由体素雕塑来画（sculpture.ts），和这里共用渲染器和相机；
 // - 页尾的字标由方块拼成：对齐 DOM 里那段字的位置，走到页尾时方块从四面飞进来拼好，也能推、能敲；
 // - 悦灵在这个空间里飞（应用同一份烘焙图集画在一块面片上），会被近处的方块挡住。
@@ -178,8 +179,11 @@ interface Block {
   shown: THREE.Vector3;
   shownQ: THREE.Quaternion;
   shownS: number;
-  /** 刚吸上的时刻（贴合时的一下回弹） */
+  /** 刚吸上的时刻和贴上去的方向（贴合时的一下回弹） */
   pulseAt: number;
+  bounceDir: THREE.Vector3;
+  /** 正在被手里那组吸过去；null 是没有 */
+  pull: Pull | null;
   /** 世界里的基准位置 */
   base: THREE.Vector3;
   size: number;
@@ -213,18 +217,22 @@ interface Grp {
   /** 显示用：按速度倾斜 */
   tilt: THREE.Quaternion;
   phase: number;
-  /** 吸附中：往目标格子过渡的程度（0–1）和目标的位置、朝向、格子边长 */
-  snapK: number;
-  snapPos: THREE.Vector3;
-  snapQ: THREE.Quaternion;
-  snapU: number;
-  /** 被吸的一方：往拖过来的方块那边倾一点（预兆） */
-  lean: THREE.Vector3;
-  /** 最近一次吸上的时刻和方向（回弹） */
-  snapAt: number;
-  snapDir: THREE.Vector3;
+  /** 这一帧画出来的样子（原点、朝向、格子边长）：被吸的方块朝它飞 */
+  disp: { base: THREE.Vector3; q: THREE.Quaternion; u: number };
   /** 压在正文上又找不到空地时缩小（1 是原样） */
   shrink: number;
+}
+
+/** 一块正在被手里那组吸过去：目标格子、往外顺延的方向、此刻的位置和速度、出发时的朝向和大小、出发时离目标多远 */
+interface Pull {
+  g: Grp;
+  cell: [number, number, number];
+  step: number;
+  pos: THREE.Vector3;
+  speed: number;
+  q0: THREE.Quaternion;
+  s0: number;
+  d0: number;
 }
 
 interface Particle {
@@ -270,7 +278,6 @@ const tmpS = new THREE.Vector3();
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
 const tmpE = new THREE.Euler();
-const tmpQ2 = new THREE.Quaternion();
 const tmpV3 = new THREE.Vector3();
 const tmpV4 = new THREE.Vector3();
 const AXES: [number, number, number][] = [
@@ -282,8 +289,13 @@ const AXES: [number, number, number][] = [
   [0, 0, -1],
 ];
 const cellKey = (c: readonly number[]) => `${c[0]},${c[1]},${c[2]}`;
-/** 吸附：从多远（以格子边长计，块中心之间）开始被拉住、多近“咔”地贴上 */
-export const MAGNET = { reach: 3.2, snap: 1.3 } as const;
+/**
+ * 磁吸（都按屏幕上看到的，以手里那块在屏幕上的边长为单位）：竖直方向偏差不超过 band、左右不超过 reach 的方块被吸；
+ * 吸力（世界里，以格子边长 u 计）刚开始是 accel·u/s²，按出发距离与当前距离之比的平方增大；离目标 snap·u 以内“啪”地贴上
+ */
+export const MAGNET = { band: 0.8, reach: 4.5, accel: 3, snap: 0.08 } as const;
+/** 手里的方块转正到的那套网格：侧着一点、俯一点，看得到正面、侧面和顶面（左右排开时一眼看得出是一排） */
+const UPRIGHT = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.35, -0.6, 0, 'XYZ'));
 
 export class World {
   private readonly renderer: THREE.WebGLRenderer;
@@ -343,6 +355,8 @@ export class World {
   /** 拼出一大块时让悦灵飞过来看一眼：组的中心（世界坐标）和时刻 */
   attention: { pos: THREE.Vector3; at: number } | null = null;
   private now = 0;
+  /** 指针下能抓的那块（稍微放大一点作提示，位置不动） */
+  private hovered: number | null = null;
 
   private constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' });
@@ -494,6 +508,8 @@ export class World {
         shownQ: new THREE.Quaternion(),
         shownS: 0,
         pulseAt: 0,
+        bounceDir: new THREE.Vector3(),
+        pull: null,
         base,
         size: p.spec.s * (this.narrow ? 0.72 : 1),
         rot: new THREE.Euler(h01(p.i, 1) * Math.PI * 2, h01(p.i, 2) * Math.PI * 2, h01(p.i, 3) * 0.6),
@@ -594,6 +610,8 @@ export class World {
         shownQ: new THREE.Quaternion(),
         shownS: 0,
         pulseAt: 0,
+        bounceDir: new THREE.Vector3(),
+        pull: null,
         base: new THREE.Vector3(),
         size: 1,
         rot: new THREE.Euler(),
@@ -672,7 +690,7 @@ export class World {
     ray.setFromCamera(new THREE.Vector2(ndcX, -ndcY), this.camera);
     let best: { id: number; d: number } | null = null;
     for (const b of this.blocks) {
-      if (b.layer !== 1 || b.brokenAt) continue;
+      if (b.layer !== 1 || b.brokenAt || b.pull) continue;
       if (Math.abs(b.shown.y - this.camPos.y) > STATION_GAP) continue;
       if (b.shownS < (b.grp ? b.grp.u : b.size) * 0.35) continue;
       const toC = tmpV.copy(b.shown).sub(ray.ray.origin);
@@ -690,6 +708,11 @@ export class World {
     return this.pickBlock(ndcX, ndcY) !== null;
   }
 
+  /** 指针下能抓的那块（null 是没有）：只稍微放大一点作提示，位置不动 */
+  setHover(id: number | null): void {
+    this.hovered = id;
+  }
+
   /** 把几块（按它们这一帧的样子）收成一组：第一块定网格（原点、朝向、格子边长） */
   private makeGroup(b: Block, u: number): Grp {
     const g: Grp = {
@@ -701,13 +724,7 @@ export class World {
       vel: new THREE.Vector3(),
       tilt: new THREE.Quaternion(),
       phase: h01(b.id, 51) * Math.PI * 2,
-      snapK: 0,
-      snapPos: new THREE.Vector3(),
-      snapQ: new THREE.Quaternion(),
-      snapU: u,
-      lean: new THREE.Vector3(),
-      snapAt: 0,
-      snapDir: new THREE.Vector3(),
+      disp: { base: b.shown.clone(), q: b.shownQ.clone(), u },
       shrink: 1,
     };
     b.grp = g;
@@ -732,6 +749,7 @@ export class World {
   grab(id: number, ndcX: number, ndcY: number): void {
     const b = this.blocks[id];
     if (!b || b.brokenAt) return;
+    b.pull = null;
     const g = b.grp ?? this.makeGroup(b, b.size);
     g.vel.set(0, 0, 0);
     // 拖动平面：抓住那块的深度（限在清晰那一层的深度范围里）
@@ -771,11 +789,6 @@ export class World {
     const d = this.drag;
     if (!d) return;
     const g = d.g;
-    // 吸附到一半松手：落在半路上（不硬贴），清掉过渡
-    if (g.snapK > 0) {
-      g.pos.lerp(g.snapPos, 0.85 * g.snapK * g.snapK);
-      g.snapK = 0;
-    }
     const max = g.u * 8;
     if (g.vel.length() > max) g.vel.setLength(max);
     this.drag = null;
@@ -860,7 +873,7 @@ export class World {
     }
     g.members = parts[0]!;
     for (const comp of parts.slice(1)) {
-      const ng: Grp = { ...g, id: this.nextGroup++, members: comp, pos: g.pos.clone(), q: g.q.clone(), vel: g.vel.clone(), tilt: new THREE.Quaternion(), snapK: 0, snapPos: new THREE.Vector3(), snapQ: new THREE.Quaternion(), lean: new THREE.Vector3(), snapDir: new THREE.Vector3() };
+      const ng: Grp = { ...g, id: this.nextGroup++, members: comp, pos: g.pos.clone(), q: g.q.clone(), vel: g.vel.clone(), tilt: new THREE.Quaternion(), disp: { base: g.disp.base.clone(), q: g.disp.q.clone(), u: g.disp.u } };
       for (const m of comp) m.b.grp = ng;
       this.grps.push(ng);
       if (this.drag && comp.some((m) => m.b === this.drag!.grab)) this.drag.g = ng;
@@ -868,83 +881,109 @@ export class World {
   }
 
   /**
-   * 吸附（只算被拖的那一组）：找它的成员和别的方块里最近的一对。进了 reach 格以内，对方先往这边倾、被拖的这组往
-   * 对方网格上那一格过渡（越近越多），进了 snap 格以内就并进对方那一组：转正到对方的网格、面对面、边对齐。
+   * 磁吸，第一步：找要被吸的方块（只在拖着时算）。按屏幕上看到的：和手里那组任何一块差不多平齐（竖直偏差不超过
+   * band 个块高）、在它左右 reach 个块宽以内的单块方块。目标是那一块左面或右面的格子（从哪边来贴哪边），被占了就顺着往外排。
    * 只看当前机位附近、清晰那一层的十几块
    */
-  private magnet(g: Grp, now: number): void {
-    g.snapK = 0;
-    let best: { m: Grp['members'][number]; b: Block; d: number } | null = null;
-    for (const m of g.members) {
-      const mp = this.memberPos(g, m.cell, tmpV3);
-      for (const b of this.blocks) {
-        if (b.layer !== 1 || b.brokenAt || b.grp === g) continue;
-        if (Math.abs(b.shown.y - mp.y) > STATION_GAP * 0.5) continue;
-        const unit = b.grp ? b.grp.u : b.size;
-        // 只看屏幕上的远近（垂直于视线的那部分）：拖的方块在自己的深度上走，深度差由吸附补上
-        const view = tmpV4.copy(b.shown).sub(this.camera.position).normalize();
-        const diff = tmpV.copy(mp).sub(b.shown);
-        diff.addScaledVector(view, -diff.dot(view));
-        const d = diff.length() / unit;
-        if (d < MAGNET.reach && (!best || d < best.d)) best = { m, b, d };
+  private attract(g: Grp, f: WorldFrame): void {
+    const { base, q, u } = g.disp;
+    const occupied = new Set(g.members.map((m) => cellKey(m.cell)));
+    for (const b of this.blocks) if (b.pull?.g === g) occupied.add(cellKey(b.pull.cell));
+    // 网格的 x 轴在屏幕上朝哪边（转正以后大致朝右）
+    const xSign = new THREE.Vector3(1, 0, 0).applyQuaternion(q).x >= 0 ? 1 : -1;
+    const tanHalf = Math.tan((this.camera.fov * Math.PI) / 360);
+    const ms = g.members.map((m) => {
+      const w = new THREE.Vector3(m.cell[0] * u, m.cell[1] * u, m.cell[2] * u).applyQuaternion(q).add(base);
+      return { m, p: this.toScreen(w, f.vw, f.vh), size: (u * f.vh) / (2 * tanHalf * Math.max(0.5, this.camera.position.distanceTo(w))) };
+    });
+    for (const b of this.blocks) {
+      if (b.layer !== 1 || b.brokenAt || b.pull) continue;
+      if (b.grp && (b.grp === g || b.grp.members.length > 1)) continue;
+      if (Math.abs(b.shown.y - this.camPos.y) > STATION_GAP) continue;
+      if (b.shownS < b.size * 0.35) continue;
+      const pb = this.toScreen(b.shown, f.vw, f.vh);
+      if (!pb) continue;
+      let best: { m: Grp['members'][number]; dx: number } | null = null;
+      for (const x of ms) {
+        if (!x.p) continue;
+        const dy = Math.abs(pb.y - x.p.y);
+        const dx = pb.x - x.p.x;
+        if (dy > MAGNET.band * x.size || Math.abs(dx) > MAGNET.reach * x.size || Math.abs(dx) < 0.25 * x.size) continue;
+        if (!best || Math.abs(dx) < Math.abs(best.dx)) best = { m: x.m, dx };
       }
-    }
-    if (!best) return;
-    // 对方：在组里就用那一组的网格；原来漂着的那块先收成一组（停转，好让两边对得上）
-    const h = best.b.grp ?? this.makeGroup(best.b, best.b.size);
-    const occupied = new Set(h.members.map((m) => cellKey(m.cell)));
-    const bCell = h.members.find((m) => m.b === best!.b)!.cell;
-    // 被拖那块在对方网格里的连续坐标
-    const r = this.memberPos(g, best.m.cell, new THREE.Vector3()).sub(h.pos).applyQuaternion(tmpQ2.copy(h.q).invert()).divideScalar(h.u);
-    let cell: [number, number, number] | null = null;
-    let cd = Infinity;
-    for (const a of AXES) {
-      const c: [number, number, number] = [bCell[0] + a[0], bCell[1] + a[1], bCell[2] + a[2]];
-      // 整组搬过去以后的每一格都得是空的
-      const fits = g.members.every((gm) => !occupied.has(cellKey([c[0] + gm.cell[0] - best!.m.cell[0], c[1] + gm.cell[1] - best!.m.cell[1], c[2] + gm.cell[2] - best!.m.cell[2]])));
-      if (!fits) continue;
-      const dd = (r.x - c[0]) ** 2 + (r.y - c[1]) ** 2 + (r.z - c[2]) ** 2;
-      if (dd < cd) {
-        cd = dd;
-        cell = c;
+      if (!best) continue;
+      const step = Math.sign(best.dx) * xSign;
+      const c: [number, number, number] = [best.m.cell[0] + step, best.m.cell[1], best.m.cell[2]];
+      for (let n = 0; n < 12 && occupied.has(cellKey(c)); n++) c[0] += step;
+      if (occupied.has(cellKey(c))) continue;
+      occupied.add(cellKey(c));
+      // 开始被吸：原来漂着的（或单独一块的组）从它此刻的样子出发
+      if (b.grp) {
+        this.grps.splice(this.grps.indexOf(b.grp), 1);
+        b.grp = null;
       }
+      const target = new THREE.Vector3(c[0] * u, c[1] * u, c[2] * u).applyQuaternion(q).add(base);
+      b.pull = { g, cell: c, step, pos: b.shown.clone(), speed: 0, q0: b.shownQ.clone(), s0: Math.max(b.shownS, 1e-3), d0: Math.max(target.distanceTo(b.shown), u * 0.5) };
     }
-    if (!cell) return;
-    const k = THREE.MathUtils.smoothstep(MAGNET.reach - best.d, 0, MAGNET.reach - MAGNET.snap);
-    // 这一组的原点贴过去以后在哪：被拖那块落在对方的 cell 上
-    const o: [number, number, number] = [cell[0] - best.m.cell[0], cell[1] - best.m.cell[1], cell[2] - best.m.cell[2]];
-    g.snapPos.set(o[0] * h.u, o[1] * h.u, o[2] * h.u).applyQuaternion(h.q).add(h.pos);
-    g.snapQ.copy(h.q);
-    g.snapU = h.u;
-    g.snapK = 1 - (1 - k) * (1 - k);
-    // 对方往这边倾一点
-    h.lean.copy(g.pos).sub(h.pos).setLength(h.u * 0.1 * k);
-    if (best.d > MAGNET.snap) return;
-    // “咔”：并进对方那一组
-    for (const gm of g.members) {
-      const c: [number, number, number] = [o[0] + gm.cell[0], o[1] + gm.cell[1], o[2] + gm.cell[2]];
-      h.members.push({ b: gm.b, cell: c });
-      gm.b.grp = h;
-      gm.b.pulseAt = now;
+  }
+
+  /**
+   * 磁吸，第二步：被吸的方块朝手里那组飞。加速度约与距离平方成反比（刚进范围时缓缓被拉动、越近越急），速度只增不减；
+   * 途中朝向、大小、深度按走过的比例过渡到手里那组的网格，越近对得越准；到了就“啪”地贴上（一下极小的回弹），之后刚性地跟手
+   */
+  private updatePulls(f: WorldFrame, dt: number): void {
+    for (const b of this.blocks) {
+      const p = b.pull;
+      if (!p) continue;
+      const g = p.g;
+      if (!this.grps.includes(g)) {
+        this.dropPull(b);
+        continue;
+      }
+      const { base, q, u } = g.disp;
+      const target = new THREE.Vector3(p.cell[0] * u, p.cell[1] * u, p.cell[2] * u).applyQuaternion(q).add(base);
+      const to = target.clone().sub(p.pos);
+      const d = to.length();
+      // 手里那组被拖开了（比出发时还远出一截）：松开，留在半路上轻轻浮着
+      if (d > p.d0 * 1.25 + u * 0.5) {
+        this.dropPull(b);
+        continue;
+      }
+      const a = MAGNET.accel * u * Math.min(400, (p.d0 / Math.max(d, u * 0.05)) ** 2);
+      p.speed += a * dt;
+      const stepLen = p.speed * dt;
+      if (stepLen >= d || d < MAGNET.snap * u) {
+        // 啪：贴上（这一格要是刚被占了就顺着往外排）
+        const occupied = new Set(g.members.map((m) => cellKey(m.cell)));
+        for (let n = 0; n < 12 && occupied.has(cellKey(p.cell)); n++) p.cell[0] += p.step;
+        g.members.push({ b, cell: p.cell });
+        b.grp = g;
+        b.pull = null;
+        b.pulseAt = f.now;
+        b.bounceDir.copy(to).normalize();
+        if (g.members.length >= 4) {
+          const c = new THREE.Vector3();
+          for (const m of g.members) c.add(this.memberPos(g, m.cell, tmpV3));
+          this.attention = { pos: c.divideScalar(g.members.length), at: f.now };
+        }
+        continue;
+      }
+      p.pos.addScaledVector(to, stepLen / d);
+      const w = THREE.MathUtils.clamp(1 - d / p.d0, 0, 1);
+      const qq = p.q0.clone().slerp(q, w);
+      const s = p.s0 + (u - p.s0) * w;
+      tmpM.compose(p.pos, qq, new THREE.Vector3(s, s, s));
+      b.group.setMatrixAt(b.index, tmpM);
+      b.shown.copy(p.pos);
+      b.shownQ.copy(qq);
+      b.shownS = s;
     }
-    this.grps.splice(this.grps.indexOf(g), 1);
-    h.snapAt = now;
-    h.snapDir.copy(h.pos).sub(g.pos).normalize();
-    h.lean.set(0, 0, 0);
-    h.vel.set(0, 0, 0);
-    if (this.drag?.g === g) {
-      // 之后拖的是合起来的这一组：拖动平面换到抓住的那块现在的深度，指针和组原点的偏移重算（不跳）
-      const grabCell = h.members.find((m) => m.b === this.drag!.grab)!.cell;
-      this.drag.z = this.memberPos(h, grabCell, new THREE.Vector3()).z;
-      const p = this.rayPlane(this.drag.ndcX, this.drag.ndcY, this.drag.z, new THREE.Vector3());
-      this.drag.g = h;
-      this.drag.offset.copy(h.pos).sub(p);
-    }
-    if (h.members.length >= 4) {
-      const c = new THREE.Vector3();
-      for (const m of h.members) c.add(this.memberPos(h, m.cell, tmpV3));
-      this.attention = { pos: c.divideScalar(h.members.length), at: now };
-    }
+  }
+
+  /** 被吸到一半松开：自己成一组，留在此刻的位置轻轻浮着 */
+  private dropPull(b: Block): void {
+    b.pull = null;
+    this.makeGroup(b, b.shownS);
   }
 
   /** 世界坐标 → 视口坐标（CSS 像素）；在相机后面时为 null */
@@ -1040,9 +1079,7 @@ export class World {
     this.rim.target.position.set(this.lookPos.x, this.lookPos.y, 0);
 
     // 指针：点光跟着走，附近的方块被推开
-    // 拖着方块的时候不推别的方块（指针就在被吸的那块旁边，推开会和磁吸打架）
-    const ray = f.pointer && !f.still && !this.drag ? new THREE.Raycaster() : null;
-    if (ray) ray.setFromCamera(new THREE.Vector2(f.pointer!.x, -f.pointer!.y), this.camera);
+    // 指针不推开方块（鼠标经过时方块不动，才按得住想抓的那块）
     const vFov = (this.camera.fov * Math.PI) / 180;
     const hh = Math.tan(vFov / 2) * 13;
     const lx = f.pointer ? f.pointer.x * hh * this.aspect : Math.cos(t * 0.3) * 4;
@@ -1053,24 +1090,10 @@ export class World {
     const squeeze = Math.min(1, this.aspect / 1.55);
     const halfW = Math.tan((this.camera.fov * Math.PI) / 360) * 16 * this.aspect;
     const narrow = this.aspect < 1;
-    const updatePush = (b: Block, pos: THREE.Vector3) => {
-      let tx = 0;
-      let ty = 0;
-      if (ray && !b.brokenAt) {
-        const toC = tmpV2.copy(pos).sub(ray.ray.origin);
-        const along = toC.dot(ray.ray.direction);
-        const closest = ray.ray.origin.clone().addScaledVector(ray.ray.direction, along);
-        const off = pos.clone().sub(closest);
-        const d = off.length();
-        const R = 2.4 * Math.max(0.6, b.size);
-        if (along > 0 && d < R && d > 1e-4) {
-          off.multiplyScalar(((R - d) / d) * 0.9);
-          tx = off.x;
-          ty = off.y;
-        }
-      }
-      b.pushV.x += ((tx - b.push.x) * 60 - b.pushV.x * 12) * dt;
-      b.pushV.y += ((ty - b.push.y) * 60 - b.pushV.y * 12) * dt;
+    // 以前推开的余量弹回 0（现在指针不推了）
+    const updatePush = (b: Block) => {
+      b.pushV.x += (-b.push.x * 60 - b.pushV.x * 12) * dt;
+      b.pushV.y += (-b.push.y * 60 - b.pushV.y * 12) * dt;
       b.push.x += b.pushV.x * dt;
       b.push.y += b.pushV.y * dt;
     };
@@ -1098,15 +1121,15 @@ export class World {
 
     // 漂浮的方块
     for (const b of this.blocks) {
-      // 拼进组里的方块由组来摆（见下）
-      if (b.grp) continue;
+      // 拼进组里的、正在被吸的方块由组来摆（见下）
+      if (b.grp || b.pull) continue;
       // 离相机太远的不更新（看不见）
       if (Math.abs(b.base.y - this.camPos.y) > STATION_GAP * 1.6 && !travelling) continue;
       const pop = popScale(ms, 120 + (b.index % 24) * 45, f.still);
       const bob = f.still ? 0 : Math.sin(t * (0.5 + (b.phase % 0.4)) + b.phase) * 0.16 * b.size;
       const x = narrow && !(b.group.layers.mask & 1) ? Math.sign(b.base.x || 1) * (halfW * 0.92 + Math.abs(b.base.x) * 0.12) : b.base.x * squeeze;
       const pos = tmpS.set(x, b.base.y + bob, b.base.z);
-      updatePush(b, pos);
+      updatePush(b);
       pos.add(b.push);
       let scale = b.size * pop;
       if (b.brokenAt) {
@@ -1122,6 +1145,7 @@ export class World {
         b.hide += (want - b.hide) * (f.still ? 1 : hideStep);
         scale *= 1 - easeInOut(b.hide);
       }
+      if (b.id === this.hovered && !this.drag) scale *= 1.05;
       tmpE.set(b.rot.x + t * b.spin.x, b.rot.y + t * b.spin.y, b.rot.z + Math.sin(t * 0.4 + b.phase) * 0.08 + t * b.spin.z);
       tmpQ.setFromEuler(tmpE);
       tmpM.compose(pos, tmpQ, new THREE.Vector3(scale, scale, scale));
@@ -1173,7 +1197,7 @@ export class World {
           const pos = new THREE.Vector3().lerpVectors(this.letterStart[i] ?? target, target, e);
           // 半路往镜头这边抬一点，像被抛进来
           pos.z += Math.sin(Math.PI * e) * 4;
-          updatePush(b, pos);
+          updatePush(b);
           pos.add(b.push);
           let scale = size * Math.min(1, e * 1.4);
           if (b.brokenAt) {
@@ -1238,26 +1262,25 @@ export class World {
     if (this.sculpture && f.sculpt) {
       this.sculpture.update(f.sculpt, { camera: this.camera, toWorld: (x, y, out) => this.unproject(x, y, f.vw, f.vh, 0, out), upp: this.unitsPerPx(f.vh, 0) });
     }
-    const groupsResting = !this.drag && this.grps.every((g) => g.vel.lengthSq() < 1e-4 && f.now - g.snapAt > 700);
+    const groupsResting = !this.drag && this.grps.every((g) => g.vel.lengthSq() < 1e-4) && !this.blocks.some((b) => b.pull);
     this.settled = !travelling && !lettersBusy && groupsResting && (this.sculpture?.settled ?? true);
     this.render(anyPart);
   }
 
-  /** 方块组：被拖的那组跟手（带惯性）并算吸附；其余带着速度滑一段停下、轻轻浮着、给正文让路 */
+  /** 方块组：手里那组紧跟指针、转正（它是磁铁，不被拉走）；其余带着速度滑一段停下、轻轻浮着、给正文让路；然后算吸附 */
   private updateGroups(f: WorldFrame, t: number, dt0: number, travelling: boolean): void {
     const dt = Math.min(0.05, dt0);
     const d = this.drag;
     if (d) {
       const target = this.rayPlane(d.ndcX, d.ndcY, d.z, new THREE.Vector3()).add(d.offset);
       const prev = d.g.pos.clone();
-      d.g.pos.lerp(target, 1 - Math.exp(-dt * 22));
+      d.g.pos.lerp(target, 1 - Math.exp(-dt * 35));
       d.g.vel.copy(d.g.pos).sub(prev).divideScalar(Math.max(dt, 1e-3));
-      this.magnet(d.g, f.now);
+      d.g.q.slerp(UPRIGHT, 1 - Math.exp(-dt * 8));
     }
     for (const g of this.grps) {
       const dragged = this.drag?.g === g;
       if (!dragged) {
-        g.snapK = 0;
         g.pos.addScaledVector(g.vel, dt);
         g.vel.multiplyScalar(Math.exp(-2.4 * dt));
         if (g.vel.lengthSq() < 1e-6) g.vel.set(0, 0, 0);
@@ -1269,29 +1292,29 @@ export class World {
         this.avoidText(g, f, dt);
         if (Math.abs(g.pos.y - this.camPos.y) > STATION_GAP * 1.6 && !travelling) continue;
       }
-      // 按速度倾斜（只在拖着时），被吸的一方往这边倾的量慢慢回零
-      const ang = dragged ? Math.min(0.35, (g.vel.length() * 0.045) / g.u) : 0;
+      // 拖着时按速度微微倾斜
+      const ang = dragged ? Math.min(0.2, (g.vel.length() * 0.03) / g.u) : 0;
       const axis = new THREE.Vector3(-g.vel.y, g.vel.x, 0);
       const want = axis.lengthSq() > 1e-8 && ang > 0 ? new THREE.Quaternion().setFromAxisAngle(axis.normalize(), ang) : new THREE.Quaternion();
       g.tilt.slerp(want, 1 - Math.exp(-dt * 10));
-      const k = dragged ? g.snapK : 0;
-      const q = new THREE.Quaternion().copy(g.q);
-      if (k > 0) q.slerp(g.snapQ, k);
-      q.premultiply(g.tilt);
-      const u = (k > 0 ? g.u + (g.snapU - g.u) * k : g.u) * (dragged ? 1 : g.shrink);
-      const base = g.pos.clone();
-      if (k > 0) base.lerp(g.snapPos, 0.85 * k * k);
-      if (!dragged && !f.still) base.y += Math.sin(t * 0.8 + g.phase) * 0.05 * g.u;
+      const q = new THREE.Quaternion().copy(g.q).premultiply(g.tilt);
       if (dragged) g.shrink = 1;
-      base.add(g.lean);
-      g.lean.multiplyScalar(Math.exp(-dt * 5));
-      const sAge = (f.now - g.snapAt) / 1000;
-      if (g.snapAt && sAge < 0.7) base.addScaledVector(g.snapDir, 0.07 * g.u * Math.exp(-sAge * 8) * Math.sin(sAge * 26));
+      const u = g.u * g.shrink;
+      const base = g.pos.clone();
+      if (!dragged && !f.still) base.y += Math.sin(t * 0.8 + g.phase) * 0.05 * g.u;
+      g.disp.base.copy(base);
+      g.disp.q.copy(q);
+      g.disp.u = u;
       for (const m of g.members) {
         const pos = new THREE.Vector3(m.cell[0] * u, m.cell[1] * u, m.cell[2] * u).applyQuaternion(q).add(base);
-        const pAge = (f.now - m.b.pulseAt) / 1000;
-        const pulse = m.b.pulseAt && pAge < 0.5 ? 1 + 0.06 * Math.exp(-pAge * 9) * Math.sin(pAge * 32) : 1;
-        const s = u * pulse;
+        // 刚贴上的一下：沿贴过来的方向极小地碰一下就停（约 0.15 秒）
+        const bAge = (f.now - m.b.pulseAt) / 1000;
+        let s = u;
+        if (m.b.pulseAt && bAge < 0.15) {
+          const k = Math.sin((bAge / 0.15) * Math.PI) * (1 - bAge / 0.15);
+          pos.addScaledVector(m.b.bounceDir, 0.04 * u * k);
+          s = u * (1 + 0.03 * k);
+        }
         tmpM.compose(pos, q, new THREE.Vector3(s, s, s));
         m.b.group.setMatrixAt(m.b.index, tmpM);
         m.b.shown.copy(pos);
@@ -1299,9 +1322,11 @@ export class World {
         m.b.shownS = s;
       }
     }
+    if (this.drag) this.attract(this.drag.g, f);
+    this.updatePulls(f, dt);
   }
 
-  /** 松手后压在正文（或雕塑的框）上的组：往离得近的那一侧缓缓让开 */
+  /** 松手后压在正文上的组：找最近的空地缓缓挪过去，没有空地就整组缩小 */
   private avoidText(g: Grp, f: WorldFrame, dt: number): void {
     const sets = [f.textRects, f.keepOut];
     if (!sets.some((r) => r && r.length > 0)) return;

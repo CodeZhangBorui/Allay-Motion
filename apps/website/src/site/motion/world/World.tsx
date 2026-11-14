@@ -2,7 +2,8 @@
 // - 走到哪一节（视口中线落在哪一节里）由滚动决定，相机用弹簧飞到那一节的机位；方块给正文让位；
 // - 页尾字标：按 DOM 里那段字的字体栅格化成点阵交给世界，方块对齐它拼出来；拼好以后 DOM 里的字只是变透明；
 // - 背景的方块能玩（只在方块本身上按下才算，正文、按钮、链接、仿真器上的操作完全照旧，文字照样能选中）：
-//   按下不动再松开 = 单击，敲碎它；按下后移动超过 5 px = 拖，方块跟手走，靠近别的方块像磁铁一样贴成一组；
+//   指针经过时方块不动（能抓的那块稍微放大一点）；按下不动再松开 = 单击，敲碎它；按下后移动超过 5 px = 拖，
+//   手里的方块是磁铁，紧跟指针；屏幕上和它平齐、在它左右几块以内的方块被吸过来，“啪”地贴在左面或右面；
 //   拖的时候滚轮照常滚页面（相机去下一节，方块跟着指针一起过去）；用力甩甩脱最外面那块；双击把一块从组里弹出去；
 //   触摸屏上不抓不敲（不和滑动页面抢）；
 // - 体素雕塑（sculpture.ts）：首屏的体素悦灵（从应用那只 3D 悦灵的同一份模型和原版贴图精确生成，原版贴图不在时不拼）、
@@ -538,7 +539,9 @@ export function World() {
         hoverTimer = 0;
         if (press || turn.on) return;
         const bg = isBackground(e);
-        const onBlock = bg && scene.pickBlock(...ndc(e.clientX, e.clientY)) !== null;
+        const hit = bg ? scene.pickBlock(...ndc(e.clientX, e.clientY)) : null;
+        const onBlock = hit !== null;
+        scene.setHover(hit);
         const form = scene.sculpture?.form ?? 'rest';
         const box = form !== 'rest' ? slots[form] : null;
         const inSlot = bg && !!box && e.clientX > box.left && e.clientX < box.left + box.width && e.clientY > box.top && e.clientY < box.top + box.height;
@@ -556,6 +559,7 @@ export function World() {
       if (id !== null) {
         // 按在背景方块上：先不动作，看是点还是拖
         e.preventDefault();
+        scene.setHover(null);
         press = { id, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
         return;
       }
