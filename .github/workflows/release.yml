@@ -124,7 +124,8 @@ jobs:
             [ "$f" = "$n" ] || mv "$f" "$n"
             h=$(shasum -a 256 "$n" | cut -d' ' -f1)
             echo "$h  $n" >> "$out"
-            echo "$n：$(( $(stat -f%z "$n") / 1048576 )) MiB，SHA-256 $h" >> "$GITHUB_STEP_SUMMARY"
+            # 变量后紧跟全角字符时要写成 ${n}：macOS 自带的 bash 3.2 会把多字节字符当成变量名的一部分
+            echo "${n}：$(( $(stat -f%z "$n") / 1048576 )) MiB，SHA-256 ${h}" >> "$GITHUB_STEP_SUMMARY"
           done
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
