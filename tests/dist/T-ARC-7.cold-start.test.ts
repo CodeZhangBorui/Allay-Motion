@@ -1,7 +1,9 @@
-import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { macExecutable } from './platform';
 
 // T-ARC-7（打包后）：启动画面 0.5 秒内出现；3 秒内主界面可交互（docs/01-product-architecture.md 1.11）。
 //
@@ -53,8 +55,11 @@ function launchOnce(): Run {
   });
   if (r.status !== 0) throw new Error(`hidden-desktop.ps1 失败：${r.stderr || r.stdout}`);
   const started = JSON.parse(r.stdout.trim().split(/\r?\n/).at(-1)!) as { startedAt: string };
-  const spawnedAt = Date.parse(started.startedAt);
-  const log = readFileSync(join(USER_DATA, 'logs', 'main.log'), 'utf8');
+  return parseRun(readFileSync(join(USER_DATA, 'logs', 'main.log'), 'utf8'), Date.parse(started.startedAt));
+}
+
+/** 从应用日志的 [startup] 记录算出一次启动的时间线（spawnedAt：测试启动进程的那一刻） */
+function parseRun(log: string, spawnedAt: number): Run {
   const processStart = /\[startup\] process started \{"at":"([^"]+)"\}/.exec(log);
   if (!processStart) throw new Error(`日志里没有启动记录：\n${log.slice(0, 2000)}`);
   const origin = Date.parse(processStart[1]!);
@@ -101,4 +106,83 @@ describe.runIf(process.platform === 'win32')('T-ARC-7 打包后的冷启动', ()
     for (const r of runs) expect(r.interactiveMs, table).toBeLessThan(INTERACTIVE_BUDGET_MS);
     expect(median(runs.map((r) => r.splashFromStartMs)), table).toBeLessThan(SPLASH_BUDGET_MS);
   }, 180_000);
+});
+
+// ---------------------------------------------------------------- macOS（docs/decisions.md“macOS 构建”）
+//
+// 打包后的 .app 直接起它的可执行文件（不经 Finder、Gatekeeper），窗口照常显示：macOS 上没有 Windows 那种“另建一个桌面”的办法，
+// 所以在本机跑会弹出窗口几秒钟。数据目录是真正的 ~/Library/Application Support/AllayMotion，备份和恢复的做法与 Windows 相同。
+// 量到完整的时间线（启动画面、界面就绪、主窗口显示）就结束进程；量不出来照样失败。这也是 macOS 上“打包后能启动”的冒烟检查。
+// 设了 ALLAY_DIST_SCREENSHOT_DIR 时，第一次启动在主窗口显示后截一张全屏图放进去（CI 上传成工作流产物，给人看窗口按钮和顶栏）。
+
+const MAC_USER_DATA = join(homedir(), 'Library', 'Application Support', 'AllayMotion');
+const MAC_BACKUP = `${MAC_USER_DATA}.t-arc-7-backup`;
+
+async function launchMacOnce(exe: string, screenshot: string | null): Promise<Run> {
+  const logFile = join(MAC_USER_DATA, 'logs', 'main.log');
+  const spawnedAt = Date.now();
+  const child = spawn(exe, [], { stdio: 'ignore' });
+  let exited = false;
+  child.on('exit', () => (exited = true));
+  try {
+    const deadline = Date.now() + 60_000;
+    for (;;) {
+      const log = existsSync(logFile) ? readFileSync(logFile, 'utf8') : '';
+      if (/\[startup\] window-shown /.test(log) && /\[startup\] renderer-ready /.test(log)) {
+        if (screenshot) {
+          // 等淡出和首帧画完再截
+          await new Promise((r) => setTimeout(r, 1500));
+          spawnSync('screencapture', ['-x', screenshot]);
+        }
+        return parseRun(readFileSync(logFile, 'utf8'), spawnedAt);
+      }
+      if (exited) throw new Error(`应用提前退出了：\n${log.slice(0, 2000)}`);
+      if (Date.now() > deadline) throw new Error(`60 秒内没有量到完整的启动时间线：\n${log.slice(0, 2000)}`);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  } finally {
+    if (!exited) {
+      child.kill('SIGTERM');
+      const gone = await Promise.race([new Promise<boolean>((r) => child.once('exit', () => r(true))), new Promise<boolean>((r) => setTimeout(() => r(false), 10_000))]);
+      if (!gone && !exited) child.kill('SIGKILL');
+    }
+  }
+}
+
+/** 正在运行的本应用（按可执行文件的路径找）：测量会成为它的第二实例，这时不量 */
+function macRunningInstances(exe: string): number {
+  const r = spawnSync('pgrep', ['-f', exe], { encoding: 'utf8' });
+  return r.stdout.split('\n').filter(Boolean).length;
+}
+
+describe.runIf(process.platform === 'darwin')('T-ARC-7 打包后的冷启动（macOS）', () => {
+  it(`启动画面 ${SPLASH_BUDGET_MS} ms 内出现，${INTERACTIVE_BUDGET_MS} ms 内主界面可交互`, async () => {
+    const exe = macExecutable();
+    expect(existsSync(exe), exe).toBe(true);
+    if (macRunningInstances(exe) > 0) throw new Error(`${exe} 正在运行。关掉它再运行 T-ARC-7。`);
+    if (existsSync(MAC_BACKUP)) throw new Error(`上次测量留下了 ${MAC_BACKUP}（原来的用户数据）。请先确认并手动改回 ${MAC_USER_DATA}，再运行。`);
+    const shots = process.env.ALLAY_DIST_SCREENSHOT_DIR;
+    if (shots) mkdirSync(shots, { recursive: true });
+    const hadUserData = existsSync(MAC_USER_DATA);
+    if (hadUserData) renameSync(MAC_USER_DATA, MAC_BACKUP);
+    const runs: Run[] = [];
+    try {
+      for (let i = 0; i < RUNS; i++) {
+        runs.push(await launchMacOnce(exe, shots && i === 0 ? join(shots, `macos-${process.arch}-first-launch.png`) : null));
+        rmSync(join(MAC_USER_DATA, 'logs'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      }
+    } finally {
+      rmSync(MAC_USER_DATA, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+      if (hadUserData) renameSync(MAC_BACKUP, MAC_USER_DATA);
+    }
+    const table = runs.map((r, i) => `  #${i + 1}${i === 0 ? '（第一次启动）' : ''}：系统装载 ${r.loaderMs} ms，启动画面 ${r.splashMs} ms（进程启动后 ${r.splashFromStartMs} ms），可交互 ${r.interactiveMs} ms`).join('\n');
+    console.log(`T-ARC-7 冷启动（macOS，从 spawn 算起）：\n${table}\n  中位数：启动画面 ${median(runs.map((r) => r.splashMs))} ms（进程启动后 ${median(runs.map((r) => r.splashFromStartMs))} ms），可交互 ${median(runs.map((r) => r.interactiveMs))} ms`);
+    expect(runs).toHaveLength(RUNS);
+    if (REPORT_ONLY) {
+      console.log('T-ARC-7：ALLAY_T_ARC_7_REPORT_ONLY=1（CI 的共享机器不是参考机器），只记数字，不按预算判定');
+      return;
+    }
+    for (const r of runs) expect(r.interactiveMs, table).toBeLessThan(INTERACTIVE_BUDGET_MS);
+    expect(median(runs.map((r) => r.splashFromStartMs)), table).toBeLessThan(SPLASH_BUDGET_MS);
+  }, 600_000);
 });

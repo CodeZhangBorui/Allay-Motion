@@ -1,26 +1,33 @@
 import { existsSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { listPackage } from '@electron/asar';
 import { FuseState, FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
 import { describe, expect, it } from 'vitest';
+import { DMG_PATTERN, IS_MAC, MAC_ZIP_PATTERN, RELEASE, macApp } from './platform';
 
 // T-ARC-2（打包后）：fuses 与 1.6 第 8 条一致；安装包内容只有构建产物。
-// 由 pnpm dist 在 electron-builder 之后运行。
+// 由 pnpm dist 在 electron-builder 之后运行。Windows 看 win-unpacked 和 NSIS 安装包，macOS 看 .app、dmg 和 zip。
 
-const RELEASE = resolve(import.meta.dirname, '../../apps/desktop/release');
 const UNPACKED = join(RELEASE, 'win-unpacked');
-const EXE = join(UNPACKED, 'AllayMotion.exe');
-const ASAR = join(UNPACKED, 'resources', 'app.asar');
+/** fuses 所在的文件：Windows 是 exe；macOS 传 .app，@electron/fuses 自己找到 Electron Framework */
+const fuseTarget = () => (IS_MAC ? macApp() : join(UNPACKED, 'AllayMotion.exe'));
+const asarPath = () => (IS_MAC ? join(macApp(), 'Contents', 'Resources', 'app.asar') : join(UNPACKED, 'resources', 'app.asar'));
 
 describe('T-ARC-2 打包后的应用', () => {
   it('打包产物存在（否则说明 pnpm dist 没跑完，而不是“跳过”）', () => {
-    expect(existsSync(EXE), EXE).toBe(true);
-    expect(existsSync(ASAR), ASAR).toBe(true);
-    expect(readdirSync(RELEASE).some((f) => /-x64-setup\.exe$/.test(f))).toBe(true);
+    expect(existsSync(fuseTarget()), fuseTarget()).toBe(true);
+    expect(existsSync(asarPath()), asarPath()).toBe(true);
+    const files = readdirSync(RELEASE);
+    if (IS_MAC) {
+      expect(files.some((f) => DMG_PATTERN.test(f)), files.join(', ')).toBe(true);
+      expect(files.some((f) => MAC_ZIP_PATTERN.test(f)), files.join(', ')).toBe(true);
+    } else {
+      expect(files.some((f) => /-x64-setup\.exe$/.test(f))).toBe(true);
+    }
   });
 
   it('fuses 与 1.6 第 8 条一致', async () => {
-    const wire = await getCurrentFuseWire(EXE);
+    const wire = await getCurrentFuseWire(fuseTarget());
     const state = (o: FuseV1Options) => wire[o];
     expect(state(FuseV1Options.RunAsNode)).toBe(FuseState.DISABLE);
     expect(state(FuseV1Options.EnableNodeOptionsEnvironmentVariable)).toBe(FuseState.DISABLE);
@@ -33,7 +40,7 @@ describe('T-ARC-2 打包后的应用', () => {
   });
 
   it('asar 里只有构建产物和 package.json，没有 node_modules 和源码', () => {
-    const files = listPackage(ASAR, { isPack: false }).map((f) => f.replace(/\\/g, '/'));
+    const files = listPackage(asarPath(), { isPack: false }).map((f) => f.replace(/\\/g, '/'));
     expect(files).toContain('/package.json');
     expect(files).toContain('/out/main/index.js');
     expect(files).toContain('/out/preload/index.js');
