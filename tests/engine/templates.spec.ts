@@ -61,6 +61,12 @@ async function rendererRules(): Promise<{ software: boolean; gpu: string; cutMin
   return { software, gpu, cutMin: software ? SOFTWARE_LIMITS.cutMinAlpha : 255 };
 }
 
+/** 剪辑点没盖满时把位置打进日志（CI 上看是边缘还是内部，docs/decisions.md M8） */
+function reportCut(where: string, width: number, height: number, cut: { min: number; below: number; samples: [number, number, number][] } | null | undefined): void {
+  if (!cut || cut.min >= 255) return;
+  console.log(`[cut<255] ${where} ${width}x${height} below=${cut.below} min=${cut.min} samples(x,y,a)=${JSON.stringify(cut.samples)}`);
+}
+
 test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通过 T-ENG-1，首末帧全透明，剪辑点完全不透明', async () => {
   const rules = await rendererRules();
   // SwiftShader 上同样的工作量慢二三十倍
@@ -82,6 +88,7 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
       expect(r.distinct, `${where} distinct frames`).toBeGreaterThan((r.total - still) / 2);
       expect(r.first.max, `${where} first frame`).toBe(0);
       expect(r.last.max, `${where} last frame`).toBe(0);
+      reportCut(where, a.width, a.height, r.cut);
       if (manifest.category === 'transition') {
         expect(r.cut, `${where} has a cut`).not.toBeNull();
         expect(r.cut!.min, `${where} cut frame`).toBeGreaterThanOrEqual(rules.cutMin);
@@ -113,6 +120,7 @@ test('T-TPL-4 每个内置模板 50 组随机合法参数：不抛错，三条�
       expect(res.deterministic, `${where} T-ENG-1`).toBe(true);
       expect(res.first.max, `${where} first frame`).toBe(0);
       expect(res.last.max, `${where} last frame`).toBe(0);
+      reportCut(where, output.width, output.height, res.cut);
       if (manifest.category === 'transition') expect(res.cut?.min, `${where} cut frame`).toBeGreaterThanOrEqual(rules.cutMin);
     }
   }

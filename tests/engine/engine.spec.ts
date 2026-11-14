@@ -103,6 +103,8 @@ test('T-ENG-4 预览与导出一致：同一 t、同一分辨率、N = 1', async
   test.info().annotations.push({ type: 'renderer', description: `${gpu}（alpha ≥ 128 判定 ≤ ${highLimit}）` });
   const results = await call('previewVsExport', BLOCK, { width: 960, height: 540, fps: 60 }, [6, 12, 20, 33, 50, 60]);
   for (const r of results) {
+    // 诊断（docs/decisions.md M8）：alpha ≥ 128 里差得最多的像素，打进日志
+    if (r.colorHigh > 1) console.log(`[T-ENG-4] ${gpu} frame ${r.index} colorHigh=${r.colorHigh} worst=${JSON.stringify(r.worstHigh)}`);
     expect(r.length).toBe(true);
     expect(r.nonEmpty, `frame ${r.index} draws something`).toBeGreaterThan(0);
     expect(r.alpha, `frame ${r.index} alpha`).toBeLessThanOrEqual(1);
