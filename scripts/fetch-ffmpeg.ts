@@ -1,7 +1,8 @@
 // pnpm ffmpeg:fetch：下载固定版本的 FFmpeg 构建并校验 SHA-256，放到 resources/ffmpeg/<平台>/（docs/05-export.md 5.6、09-compliance.md 9.9）。
 // 二进制不进仓库（.gitignore 已排除 resources/ffmpeg/）。
 //
-// - 渠道：FFmpeg-Builds，变体 win64-lgpl（LGPLv3），发布分支 9.0 的构建，固定到具体的发布标签。
+// - Windows 渠道：FFmpeg-Builds，变体 win64-lgpl（LGPLv3），发布分支 9.0 的构建，固定到具体的发布标签。
+// - macOS：从官方源码按 LGPL 配置编译（scripts/ffmpeg-macos.ts），见 scripts/ffmpeg-build.ts 的 FFMPEG_MACOS。
 // - 已经取回且校验过（stamp 文件一致、文件都在）时直接退出，不联网。
 // - 发布页上的 autobuild 会被定期清理；资源不在了的话可以用 --from <zip> 指定本机的同一个 zip（仍然校验 SHA-256）。
 import { createHash } from 'node:crypto';
@@ -89,8 +90,14 @@ function extract(zipPath: string, outDir: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // macOS：没有可用的 LGPL 预编译包，从官方源码编译（scripts/ffmpeg-macos.ts，docs/decisions.md“macOS 构建”）
+  if (process.platform === 'darwin' && (process.arch === 'arm64' || process.arch === 'x64')) {
+    const { buildFfmpegMacos } = await import('./ffmpeg-macos');
+    await buildFfmpegMacos(join(ROOT, 'resources', 'ffmpeg', `darwin-${process.arch}`), process.arch);
+    return;
+  }
   if (`${process.platform}-${process.arch}` !== FFMPEG_BUILD.platform) {
-    throw new Error(`只固定了 ${FFMPEG_BUILD.platform} 的构建（v1 只做 Windows x64），当前是 ${process.platform}-${process.arch}`);
+    throw new Error(`只固定了 ${FFMPEG_BUILD.platform} 和 macOS（arm64、x64）的构建，当前是 ${process.platform}-${process.arch}`);
   }
   if (alreadyFetched()) {
     console.log(`[ffmpeg:fetch] 已就位：${FFMPEG_DIR}（${FFMPEG_BUILD.asset}，SHA-256 已校验），不联网。`);
