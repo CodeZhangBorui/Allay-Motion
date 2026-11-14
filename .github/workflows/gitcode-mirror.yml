@@ -124,7 +124,9 @@ jobs:
     timeout-minutes: 360
     concurrency:
       group: gitcode-mirror
-      cancel-in-progress: false
+      # 新版本发布（发版工作流结束、Release 发布或编辑）时打断正在进行的补传，重新从最新版本开始；
+      # 已经传完的附件下次跳过。普通推送和每日检查不打断，免得长上传永远传不完
+      cancel-in-progress: ${{ github.event_name == 'workflow_run' || github.event_name == 'release' }}
     env:
       GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
       GITHUB_TOKEN: ${{ github.token }}
