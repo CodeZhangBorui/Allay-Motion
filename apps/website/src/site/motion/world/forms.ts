@@ -1,11 +1,12 @@
 // 体素雕塑的各个“形”（docs/decisions.md 官网 · 体素雕塑）。同一批实例方块在这些形之间重组：
 // - rest：散在视口里的细尘（少数看得见）和藏在画面外一圈的方块（大多数，缩成 0）；正文多的几节用它；
-// - allay：首屏的体素悦灵，按 packages/mascot 里悦灵模型的长方体逐个体素化（只取外壳），配色按 docs/07 的调色板；
+// - allay：首屏的体素悦灵，从应用那只 3D 悦灵的同一份模型和原版贴图精确体素化（allayVoxels）；
 // - cut：剪辑点的标记 ◆ 做成一颗体素八面体，一根播放头竖着穿过它；
 // - timeline：三条轨道上的片段和一根来回走的播放头（开源一节的空白处）；
 // - word：页尾的字标，由页面按 DOM 里那段字的字体栅格化出的点阵，两层厚。
 // 每个形是一组方块：局部坐标（单位是“一格体素”）、大小、颜色、贴图格、部件编号。全部是确定性的（同样的输入得到同样的数组）。
-import { ALLAY_PALETTE, ALLAY_PARTS, type ModelPart } from '@allay/mascot/model';
+import { ALLAY_PARTS, ALLAY_TEXTURE_SIZE } from '@allay/mascot/model';
+import { boxFaces, clipPose, partMatrices, transformPoint } from '@allay/mascot/rig';
 
 export const FORM_NAMES = ['rest', 'allay', 'cut', 'timeline', 'word'] as const;
 export type FormName = (typeof FORM_NAMES)[number];
@@ -36,8 +37,8 @@ export const TILES: { id: string | null; fallback: string }[] = [
 ];
 const T = Object.fromEntries(TILES.map((t, i) => [t.id ?? 'noise', i])) as Record<string, number>;
 
-/** 部件编号：着色器按它做局部动作（翅膀扇、宝石转、播放头走） */
-export const PART = { none: 0, rightWing: 5, leftWing: 6, gem: 8, playhead: 9 } as const;
+/** 部件编号：着色器按它做局部动作（宝石转、播放头走） */
+export const PART = { none: 0, gem: 8, playhead: 9 } as const;
 
 /** 一个形：每块方块 4 + 4 个数（x、y、z、大小；r、g、b 线性色，贴图格 + 32 × 部件） */
 export interface Form {
@@ -46,9 +47,6 @@ export interface Form {
   col: Float32Array;
   /** 局部坐标的范围（最小 x、最大 x、最小 y、最大 y），放进页面上的框时按它缩放；也用来排入场的先后 */
   bounds: [number, number, number, number];
-  /** 两只翅膀的转轴（局部坐标） */
-  pivot?: [number, number, number];
-  pivotL?: [number, number, number];
   /** 播放头走的宽度（局部坐标） */
   playWidth?: number;
 }
@@ -60,15 +58,6 @@ export function h01(n: number, seed: number): number {
   return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
 }
 
-/** sRGB 十六进制 → 线性 */
-function lin(hex: string): [number, number, number] {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (c: number) => {
-    const v = c / 255;
-    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  };
-  return [f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)];
-}
 const WHITE: [number, number, number] = [1, 1, 1];
 
 class Builder {
@@ -113,132 +102,202 @@ class Builder {
       col.set(this.c.slice(i * 4, i * 4 + 4), k * 4);
     }
     const out: Form = { count, pos, col, bounds: [minX - cx - 0.5, maxX - cx + 0.5, minY - cy - 0.5, maxY - cy + 0.5], ...extra };
-    if (out.pivot) out.pivot = [out.pivot[0] - cx, out.pivot[1] - cy, out.pivot[2]];
-    if (out.pivotL) out.pivotL = [out.pivotL[0] - cx, out.pivotL[1] - cy, out.pivotL[2]];
     return out;
   }
 }
 
 // —— 悦灵 ——
 
-// 调色板来自 packages/mascot（docs/07 7.2），这里只换成线性色
-const PAL = {
-  hl: lin(ALLAY_PALETTE.highlight),
-  light: lin(ALLAY_PALETTE.light),
-  main: lin(ALLAY_PALETTE.main),
-  dark: lin(ALLAY_PALETTE.dark),
-  eye: lin(ALLAY_PALETTE.eye),
-  eyeHl: lin(ALLAY_PALETTE.eyeHighlight),
-};
-
-/** 绕 Y 轴、X 轴转（模型坐标，单位模型像素） */
-function rotY(p: [number, number, number], a: number): [number, number, number] {
-  const c = Math.cos(a);
-  const s = Math.sin(a);
-  return [p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c];
-}
-function rotX(p: [number, number, number], a: number): [number, number, number] {
-  const c = Math.cos(a);
-  const s = Math.sin(a);
-  return [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];
-}
-
-/** 各部件枢轴的绝对位置（模型坐标） */
-function pivots(): Map<string, [number, number, number]> {
-  const out = new Map<string, [number, number, number]>();
-  for (const part of ALLAY_PARTS) {
-    const parent: [number, number, number] = (part.parent ? out.get(part.parent) : undefined) ?? [0, 0, 0];
-    out.set(part.name, [parent[0] + part.pivot[0], parent[1] + part.pivot[1], parent[2] + part.pivot[2]]);
-  }
-  return out;
-}
-
 /**
- * 体素悦灵：每个模型像素切成 k 格，只留长方体的外壳。姿势：翅膀向两侧张开 35°，两只手略往前抬。
- * 模型坐标是 Y 朝下、正面朝 −Z，换成 three 的（Y 朝上、正面朝 +Z）：y、z 取反。
+ * 体素悦灵：与应用里那只 3D 悦灵同一份来源——`packages/mascot` 的模型（ALLAY_PARTS 的长方体、枢轴）、
+ * 同一套盒子展开（allay.rig.ts 的 boxFaces）、同一张原版贴图。
+ * - 每个模型像素切成 k×k×k 格，只留长方体的外壳；宽度为 0 的翅膀是一层“薄”体素；下摆在身体里面的部分不要；
+ * - 位置存的是部件自己的坐标（模型像素），姿态由着色器每帧用应用的骨架矩阵（partMatrices，hover 动作）摆；
+ * - 颜色逐片元取：片元在部件坐标里的位置按应用那一面的仿射映射（boxFaces 的四个顶点和贴图坐标）算出贴图坐标，
+ *   取最近的像素——和应用光栅化那一面时插值出来的一样。应用的东面展开是转过 90° 并拉伸的（翅膀东面 5 个模型像素
+ *   里排了 8 个贴图像素），像素边界不落在格子上，所以不能按格取色，只能逐片元算；
+ * - 翅膀：应用里是同一平面上的西、东两个面，双面材质、深度相等时后画的赢，两边看到的都是东面的像素，
+ *   东面透明（alpha < 0.5 被丢掉）的地方才露出西面；
+ * - 每块记：哪几面在盒子表面上、属于哪个盒子和部件、半透明（下摆）、薄（翅膀）、主像素（散开时露出的内侧用）。
+ *   一块体素所在的那几面上涉及的像素全透明的，整块不要。
  */
-export function allayForm(k: number, max: number): Form {
-  const b = new Builder();
-  const piv = pivots();
-  const body = ALLAY_PARTS.find((p) => p.name === 'body')!;
-  const bodyBox = body.boxes[0]!;
-  const bodyPiv = piv.get('body')!;
-  const inBody = (x: number, y: number, z: number) =>
-    x > bodyPiv[0] + bodyBox.origin[0] && x < bodyPiv[0] + bodyBox.origin[0] + bodyBox.size[0] && y > bodyPiv[1] + bodyBox.origin[1] && y < bodyPiv[1] + bodyBox.origin[1] + bodyBox.size[1] && z > bodyPiv[2] + bodyBox.origin[2] && z < bodyPiv[2] + bodyBox.origin[2] + bodyBox.size[2];
-  let wingPivot: [number, number, number] = [0, 0, 0];
-  let wingPivotL: [number, number, number] = [0, 0, 0];
-  let partIdx = 0;
-  for (const part of ALLAY_PARTS as readonly ModelPart[]) {
-    partIdx++;
-    const pv = piv.get(part.name)!;
-    const wing = part.name === 'rightWing' || part.name === 'leftWing';
-    const arm = part.name === 'rightArm' || part.name === 'leftArm';
-    const pose = (p: [number, number, number]): [number, number, number] => {
-      // 部件内的点（相对枢轴）先摆姿势再加上枢轴
-      let q = p;
-      if (wing) q = rotY(q, part.name === 'rightWing' ? -0.5 : 0.5);
-      if (arm) q = rotX(q, -0.32);
-      return [q[0] + pv[0], q[1] + pv[1], q[2] + pv[2]];
-    };
-    if (part.name === 'rightWing') wingPivot = [pv[0] * k, -pv[1] * k, -pv[2] * k];
-    if (part.name === 'leftWing') wingPivotL = [pv[0] * k, -pv[1] * k, -pv[2] * k];
-    part.boxes.forEach((box, bi) => {
+export interface AllayVoxels extends Form {
+  /** 每块 4 个数：标记（表面掩码、盒子、部件、半透明、薄）、主像素编号 + 1、0、0 */
+  faces: Float32Array;
+  /** 每个盒子 6 个方向各 16 个数（4 个 RGBA）：P1、e0/|e0|²、e1/|e1|²（各带一个 dU1 分量和有效位）、U1 与 dU0 */
+  faceParams: Float32Array;
+  boxes: number;
+  /** hover 第 0 帧摆好姿态后的包围盒中心（应用的全身取景坐标，模型像素）：形的局部原点 */
+  center: [number, number];
+}
+
+export const ALLAY_BITS = { box: 64, part: 512, translucent: 4096, thin: 8192 } as const;
+
+interface FaceMap {
+  p1: number[];
+  e0n: number[];
+  e1n: number[];
+  u1: [number, number];
+  du0: [number, number];
+  du1: [number, number];
+}
+
+function faceMap(f: ReturnType<typeof boxFaces>[number]): FaceMap {
+  const [p0, p1, p2] = f.positions;
+  const e0 = [p0[0] - p1[0], p0[1] - p1[1], p0[2] - p1[2]];
+  const e1 = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
+  const l0 = e0[0]! ** 2 + e0[1]! ** 2 + e0[2]! ** 2 || 1;
+  const l1 = e1[0]! ** 2 + e1[1]! ** 2 + e1[2]! ** 2 || 1;
+  const [u0, u1, u2] = f.uvs;
+  return { p1: [...p1], e0n: e0.map((v) => v / l0), e1n: e1.map((v) => v / l1), u1: [u1[0], u1[1]], du0: [u0[0] - u1[0], u0[1] - u1[1]], du1: [u2[0] - u1[0], u2[1] - u1[1]] };
+}
+
+/** 面上一点（部件坐标）→ 贴图像素（列、行）；超出这一面的部分钳到面内 */
+function texelAt(m: FaceMap, x: number[], S: number): [number, number] {
+  const d = [x[0]! - m.p1[0]!, x[1]! - m.p1[1]!, x[2]! - m.p1[2]!];
+  const s = Math.min(1, Math.max(0, d[0]! * m.e0n[0]! + d[1]! * m.e0n[1]! + d[2]! * m.e0n[2]!));
+  const t = Math.min(1, Math.max(0, d[0]! * m.e1n[0]! + d[1]! * m.e1n[1]! + d[2]! * m.e1n[2]!));
+  const u = m.u1[0] + s * m.du0[0] + t * m.du1[0];
+  const v = m.u1[1] + s * m.du0[1] + t * m.du1[1];
+  return [Math.min(S - 1, Math.max(0, Math.floor(u))), Math.min(S - 1, Math.max(0, Math.floor(v)))];
+}
+
+export function allayVoxels(k: number, max: number, alphaAt: (u: number, v: number) => number): AllayVoxels {
+  const pos: number[] = [];
+  const faces: number[] = [];
+  const posed: [number, number][] = [];
+  const rest = partMatrices(clipPose('hover', 0), { kind: 'body' });
+  const body = ALLAY_PARTS.find((p) => p.name === 'body')!.boxes[0]!;
+  const S = ALLAY_TEXTURE_SIZE;
+  const params: number[] = [];
+  let boxIndex = 0;
+  ALLAY_PARTS.forEach((part, pi) => {
+    for (const box of part.boxes) {
+      const bi = boxIndex++;
+      const fs = boxFaces(box);
       const g = box.grow;
-      const o: [number, number, number] = [box.origin[0] - g, box.origin[1] - g, box.origin[2] - g];
-      const sz: [number, number, number] = [box.size[0] + 2 * g, box.size[1] + 2 * g, box.size[2] + 2 * g];
-      const n: [number, number, number] = [Math.max(1, Math.round(sz[0] * k)), Math.max(1, Math.round(sz[1] * k)), Math.max(1, Math.round(sz[2] * k))];
-      const skirt = part.name === 'body' && bi === 1;
-      for (let ix = 0; ix < n[0]; ix++) {
-        for (let iy = 0; iy < n[1]; iy++) {
-          for (let iz = 0; iz < n[2]; iz++) {
-            const edge = ix === 0 || iy === 0 || iz === 0 || ix === n[0] - 1 || iy === n[1] - 1 || iz === n[2] - 1;
-            if (!edge) continue;
-            // 翅膀在游戏里是半透明的、带形状的（贴图里有透明的部分）：下沿往翅尖收、翅尖收圆，
-            // 里面做成隔一格放一块的网格（边上一圈实的），看上去是透的
-            if (wing) {
-              const v = iy / (n[1] - 1);
-              const w = iz / (n[2] - 1);
-              const bottom = 1 - 0.62 * w ** 1.3;
-              const top = 0.18 * Math.max(0, (w - 0.75) / 0.25) ** 2;
-              if (v > bottom + 0.02 || v < top - 0.02) continue;
-              const rim = v > bottom - 1.2 / n[1] || v < top + 1.2 / n[1] || iz === 0 || iz === n[2] - 1;
-              if (!rim && (iy + iz) % 2 === 1) continue;
+      const lo = [box.origin[0] - g, box.origin[1] - g, box.origin[2] - g];
+      const size = [box.size[0] + 2 * g, box.size[1] + 2 * g, box.size[2] + 2 * g];
+      const n = size.map((v) => (v <= 0 ? 1 : Math.max(1, Math.round(v * k))));
+      const step = size.map((v, a) => (v <= 0 ? 0 : v / n[a]!));
+      const thin = size[0]! <= 0;
+      const cutoff = box.translucent ? 0.01 : 0.5;
+      // 6 个方向（+x −x +y −y +z −z，部件坐标，Y 朝下）各一个面；薄的盒子：+x 放后画的面（东），−x 放先画的面（西）
+      const byDir: (FaceMap | null)[] = [null, null, null, null, null, null];
+      if (thin) {
+        byDir[0] = faceMap(fs[fs.length - 1]!);
+        byDir[1] = faceMap(fs[0]!);
+      } else {
+        for (const f of fs) {
+          const axis = Math.abs(f.normal[0]) > 0.5 ? 0 : Math.abs(f.normal[1]) > 0.5 ? 1 : 2;
+          byDir[axis * 2 + (f.normal[axis]! > 0 ? 0 : 1)] = faceMap(f);
+        }
+      }
+      for (const m of byDir) {
+        if (!m) {
+          params.push(...new Array<number>(16).fill(0));
+          continue;
+        }
+        params.push(m.p1[0]!, m.p1[1]!, m.p1[2]!, m.du1[0], m.e0n[0]!, m.e0n[1]!, m.e0n[2]!, m.du1[1], m.e1n[0]!, m.e1n[1]!, m.e1n[2]!, 1, m.u1[0], m.u1[1], m.du0[0], m.du0[1]);
+      }
+      /** 这一面在 [a0, a1]×[b0, b1] 那一块（部件坐标里的一个面片）涉及的像素里有没有看得见的；有的话给出中心那个像素 */
+      const visible = (m: FaceMap, corners: number[][]): number => {
+        let us = Infinity;
+        let ue = -Infinity;
+        let vs = Infinity;
+        let ve = -Infinity;
+        for (const x of corners) {
+          const [u, v] = texelAt(m, x, S);
+          us = Math.min(us, u);
+          ue = Math.max(ue, u);
+          vs = Math.min(vs, v);
+          ve = Math.max(ve, v);
+        }
+        for (let v = vs; v <= ve; v++) for (let u = us; u <= ue; u++) if (alphaAt(u, v) >= cutoff) {
+          const c = corners[corners.length - 1]!;
+          const [cu, cv] = texelAt(m, c, S);
+          return alphaAt(cu, cv) >= cutoff ? cv * S + cu + 1 : v * S + u + 1;
+        }
+        return 0;
+      };
+      for (let ix = 0; ix < n[0]!; ix++) {
+        for (let iy = 0; iy < n[1]!; iy++) {
+          for (let iz = 0; iz < n[2]!; iz++) {
+            const idx = [ix, iy, iz];
+            const c = idx.map((i, a) => (size[a]! <= 0 ? lo[a]! : lo[a]! + (i + 0.5) * step[a]!));
+            let mask = 0;
+            let primary = 0;
+            for (let d = 0; d < 6; d++) {
+              const a = d >> 1;
+              const sign = d % 2 === 0 ? 1 : -1;
+              const m = byDir[d];
+              if (!m) continue;
+              const onEdge = size[a]! <= 0 || (sign > 0 ? idx[a] === n[a]! - 1 : idx[a] === 0);
+              if (!onEdge) continue;
+              // 这一面的四个角和中心（部件坐标）
+              const b1 = (a + 1) % 3;
+              const b2 = (a + 2) % 3;
+              const corners: number[][] = [];
+              for (const s1 of [-0.5, 0.5]) for (const s2 of [-0.5, 0.5]) {
+                const x = [...c];
+                x[a] = x[a]! + (sign * step[a]!) / 2;
+                x[b1] = x[b1]! + s1 * step[b1]! * 0.98;
+                x[b2] = x[b2]! + s2 * step[b2]! * 0.98;
+                corners.push(x);
+              }
+              const center = [...c];
+              center[a] = center[a]! + (sign * step[a]!) / 2;
+              corners.push(center);
+              let t = visible(m, corners);
+              if (thin && !t) t = visible(byDir[d === 0 ? 1 : 0]!, corners);
+              mask |= 1 << d;
+              if (t) primary ||= t;
             }
-            const local: [number, number, number] = [o[0] + ((ix + 0.5) / n[0]) * sz[0], o[1] + ((iy + 0.5) / n[1]) * sz[1], o[2] + ((iz + 0.5) / n[2]) * sz[2]];
-            const m = pose(local);
-            if (skirt && inBody(m[0], m[1], m[2])) continue;
-            // 配色：头的正面画眼睛；顶面亮、底面暗；其余按部件给底色，零星掺一点相邻的色，像原版贴图的颗粒。
-            // 颗粒按“模型像素”取（同一个模型像素里的 k×k 格同色），看上去就是原版那种像素贴图
-            const texel = Math.floor(local[0] + 8) * 4096 + Math.floor(local[1] + 8) * 64 + Math.floor(local[2] + 8) + partIdx * 262144;
-            const r = h01(texel, 91);
-            let rgb = PAL.main;
-            if (part.name === 'head') {
-              const front = iz === 0;
-              const u = (local[0] + 2.5) / 5; // 从观者左边起
-              const v = (local[1] + 5) / 5; // 从头顶起
-              if (iy === 0) rgb = r < 0.3 ? PAL.hl : PAL.light;
-              else if (iy === n[1] - 1) rgb = PAL.dark;
-              else if (front && v > 0.4 && v < 0.8 && ((u > 0.2 && u < 0.4) || (u > 0.6 && u < 0.8))) {
-                const eu = ((u > 0.5 ? u - 0.6 : u - 0.2) / 0.2) % 1;
-                rgb = eu < 0.5 && v < 0.55 ? PAL.eyeHl : PAL.eye;
-              } else rgb = r < 0.12 ? PAL.light : r < 0.2 ? PAL.dark : PAL.main;
-              if (front && v > 0.82 && rgb === PAL.main) rgb = PAL.dark;
-            } else if (part.name === 'body') {
-              rgb = skirt ? (r < 0.4 ? PAL.light : PAL.hl) : r < 0.18 ? PAL.hl : r < 0.26 ? PAL.main : PAL.light;
-            } else if (arm) {
-              rgb = iy >= n[1] - 2 ? PAL.light : r < 0.15 ? PAL.dark : PAL.main;
-            } else if (wing) {
-              const tip = local[2] / sz[2];
-              rgb = tip > 0.85 || local[1] - o[1] > sz[1] * 0.85 ? PAL.light : r < 0.1 ? PAL.light : PAL.hl;
+            if (!primary) continue;
+            if (box.translucent) {
+              const inside = (v: number, h: number, o: number, s: number) => v - h >= o && v + h <= o + s;
+              if (inside(c[0]!, step[0]! / 2, body.origin[0], body.size[0]) && inside(c[1]!, step[1]! / 2, body.origin[1], body.size[1]) && inside(c[2]!, step[2]! / 2, body.origin[2], body.size[2])) continue;
             }
-            const scale = wing ? 0.9 : skirt ? 0.84 : 0.9;
-            b.add(m[0] * k, -m[1] * k, -m[2] * k, scale, rgb, T.noise!, part.name === 'rightWing' ? PART.rightWing : part.name === 'leftWing' ? PART.leftWing : PART.none);
+            const vox = Math.max(step[0]!, step[1]!, step[2]!);
+            pos.push(c[0]!, c[1]!, c[2]!, vox * 1.0005);
+            faces.push(mask + bi * ALLAY_BITS.box + pi * ALLAY_BITS.part + (box.translucent ? ALLAY_BITS.translucent : 0) + (thin ? ALLAY_BITS.thin : 0), primary, 0, 0);
+            const w = transformPoint(rest[part.name], c);
+            posed.push([w[0], w[1]]);
           }
         }
       }
-    });
+    }
+  });
+  const count = Math.min(pos.length / 4, max);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of posed) {
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
   }
-  return b.finish(max, 17, { pivot: wingPivot, pivotL: wingPivotL });
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const col = new Float32Array(count * 4).fill(1);
+  for (let i = 0; i < count; i++) col[i * 4 + 3] = 0;
+  return {
+    count,
+    pos: Float32Array.from(pos.slice(0, count * 4)),
+    col,
+    faces: Float32Array.from(faces.slice(0, count * 4)),
+    faceParams: Float32Array.from(params),
+    boxes: boxIndex,
+    bounds: [minX - cx, maxX - cx, minY - cy, maxY - cy],
+    center: [cx, cy],
+  };
+}
+
+/** 不看贴图时最多有多少块（实例数按它留，贴图装好以后透明的像素只会让块数变少） */
+export function allayVoxelCount(k: number): number {
+  return allayVoxels(k, Infinity, () => 1).count;
 }
 
 // —— 剪辑点 ◆ ——

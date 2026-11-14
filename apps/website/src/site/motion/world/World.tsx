@@ -5,12 +5,16 @@
 //   拼成字标时 DOM 里的字只是变透明（仍然可选中、可被读屏读到），世界没起来就照常显示；
 // - 指针：最近一秒的轨迹交给世界拨开方块；在空白处（不是文字、按钮、链接、卡片）按下放出一圈冲击波，
 //   按住拖动转当前的雕塑，松手后弹回；指针在雕塑的框里时光标是“可抓”；
+// - 首屏的体素悦灵从应用那只 3D 悦灵的同一份模型和原版贴图精确生成（forms.ts 的 allayVoxels）。原版贴图在官网的
+//   public/mc/ 里没有时不拼它（不拿近似的颜色凑），首屏散成细尘，带路的悦灵照常用首屏的锚点；
 // - 首屏的体素悦灵在场时，带路的悦灵让位（bridge.ts）；
 // - 减少动效：只在首屏后面画一帧静止的体素悦灵（随页面滚走）；没有 WebGL 时什么也不画（文字照常、带路悦灵照常）。
 import { whenMascotAssetsSettled } from '@allay/mascot';
 import { useEffect, useRef, useState } from 'react';
 import { usePrefs } from '../../prefs';
 import { onFrame, onFrameRead, onGeometryChange } from '../frame';
+import { ALLAY_TEXTURE_ID } from '@allay/mascot/model';
+import { mcTexture, mcTextureUrl } from '../../../host/mc-pack';
 import { allay3d, setSculptureExpected } from './bridge';
 import type { Box, FormName, Tier, World as WorldScene, WordmarkGrid } from './world-scene';
 
@@ -140,6 +144,22 @@ function canWebgl2(): boolean {
   }
 }
 
+/** PNG 字节 → 像素 */
+async function decodeImage(png: Uint8Array): Promise<ImageData | null> {
+  try {
+    const bmp = await createImageBitmap(new Blob([new Uint8Array(png)], { type: 'image/png' }));
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const g = c.getContext('2d', { willReadFrequently: true })!;
+    g.drawImage(bmp, 0, 0);
+    bmp.close();
+    return g.getImageData(0, 0, c.width, c.height);
+  } catch {
+    return null;
+  }
+}
+
 /** 一个框在视口里露出来的比例（nav 下面那一段） */
 function visible(r: { top: number; height: number }, top: number, vh: number): number {
   if (r.height <= 1) return 0;
@@ -161,7 +181,9 @@ export function World() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!canWebgl2()) return;
-    setSculptureExpected(true);
+    // 原版悦灵贴图在不在（构建时就知道）：在才会拼体素悦灵
+    const hasAllayTexture = mcTextureUrl(ALLAY_TEXTURE_ID) !== null;
+    setSculptureExpected(hasAllayTexture);
     let alive = true;
     let ro: ResizeObserver | null = null;
     // 先让文字出来（首屏的入场动画），再起场景
@@ -188,6 +210,17 @@ export function World() {
           ro.observe(canvas);
           canvas.dataset.tier = tier;
           canvas.dataset.instances = String(scene.instances);
+          canvas.dataset.allayVoxels = 'missing';
+          // 原版悦灵贴图（与应用同一张）：装好后按它生成体素悦灵
+          if (hasAllayTexture) {
+            const r = await mcTexture(ALLAY_TEXTURE_ID);
+            if (!alive) return;
+            const img = r ? await decodeImage(r.png) : null;
+            if (img) {
+              scene.setAllayTexture(img);
+              canvas.dataset.allayVoxels = 'ready';
+            } else setSculptureExpected(false);
+          }
           setReady(true);
           // 悦灵的图集（应用同一份烘焙产物）：装进世界以后，带路的悦灵改由世界来画
           const assets = await whenMascotAssetsSettled();
@@ -297,7 +330,7 @@ export function World() {
         vis[name] = visible(box, navH, vh);
       }
       // 首屏的占位框不显示（窄屏的减少动效版）时不拼体素悦灵，带路的悦灵照常用首屏的锚点
-      setSculptureExpected(!!slots.allay);
+      setSculptureExpected(!!slots.allay && scene.hasAllay);
       const raster = rasterRef.current;
       word = null;
       vis.word = 0;
@@ -307,7 +340,7 @@ export function World() {
         vis.word = visible({ top: r.top, height: r.height }, navH, s.vh);
       }
       if (still) {
-        target = 'allay';
+        target = scene.hasAllay ? 'allay' : 'rest';
         return;
       }
       // 换成露出最多的那个（至少露出六成）；当前的形还露出三成以上、又没有明显更合适的，就留着（回差，免得在边界上来回跳）；
@@ -316,6 +349,7 @@ export function World() {
       let best: FormName = 'rest';
       let bestVis = 0.6;
       for (const name of [...SLOT_FORMS, 'word'] as const) {
+        if (name === 'allay' && !scene.hasAllay) continue;
         const v = vis[name] ?? 0;
         if (v >= bestVis) {
           best = name;
@@ -492,6 +526,19 @@ export function World() {
       stir: () => scene.stir,
       yaw: () => scene.yaw,
       bench: (n: number) => scene.bench(n),
+      // 体素悦灵的对比检查：换一张贴图（PNG 的 base64；测试用合成贴图），按应用全身图集的取景画出 hover 第 frame 帧
+      setAllayTexture: async (pngBase64: string) => {
+        const img = await decodeImage(Uint8Array.from(atob(pngBase64), (c) => c.charCodeAt(0)));
+        if (img) scene.setAllayTexture(img);
+        return !!img;
+      },
+      reference: (size: number, frame: number) => {
+        const px = scene.renderAllayReference(size, frame);
+        if (!px) return null;
+        let bin = '';
+        for (let i = 0; i < px.length; i += 0x8000) bin += String.fromCharCode(...px.subarray(i, i + 0x8000));
+        return btoa(bin);
+      },
       instances: scene.instances,
       tier: tierRef.current,
     };

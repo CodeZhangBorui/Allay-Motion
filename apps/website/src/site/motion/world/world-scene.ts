@@ -11,10 +11,11 @@
 // - 光：环境光 + 天光/地光 + 一盏主光，方块边缘略暗（看得出一块一块），远处融进页面底色；不做泛光、景深和辉光。
 // 贴图来自官网专用的原版贴图（public/mc/），拼成一张 8×4 的贴图集；没有提取时用纯色。three 与引擎同一版本。这个模块懒加载。
 import { BLOCKS, resolveBlockFaces } from '@allay/assets';
-import { ALLAY_PALETTE } from '@allay/mascot/model';
+import { ALLAY_PALETTE, ALLAY_PARTS, ALLAY_TEXTURE_SIZE } from '@allay/mascot/model';
+import { BODY_VIEW, LIGHT_DIR, clipPose, partMatrices } from '@allay/mascot/rig';
 import * as THREE from 'three';
 import { mcGameVersion, mcTexture } from '../../../host/mc-pack';
-import { FORM_INDEX, FORM_NAMES, TILES, allayForm, cutForm, restForm, timelineForm, wordForm, type Form, type FormName, type WordmarkGrid } from './forms';
+import { ALLAY_BITS, FORM_INDEX, FORM_NAMES, TILES, allayVoxelCount, allayVoxels, cutForm, restForm, timelineForm, wordForm, type AllayVoxels, type Form, type FormName, type WordmarkGrid } from './forms';
 
 export type { FormName, WordmarkGrid };
 
@@ -24,15 +25,21 @@ export type { FormName, WordmarkGrid };
  */
 export type Tier = 'high' | 'mid' | 'narrow';
 export const TIERS: Record<Tier, { kMax: number; dust: number }> = {
-  high: { kMax: 9, dust: 240 },
-  mid: { kMax: 5, dust: 180 },
-  narrow: { kMax: 3, dust: 100 },
+  high: { kMax: 10, dust: 240 },
+  mid: { kMax: 6, dust: 180 },
+  narrow: { kMax: 4, dust: 100 },
 };
 
-/** 每模型像素几格：悦灵约 11 个模型像素高，一格约 5.5 CSS px */
+/**
+ * 每模型像素（= 原版贴图的一个像素）切几格：悦灵约 11 个模型像素高，一格约 5.5 CSS px。
+ * 取偶数：手臂侧面那种被拉伸的面上，贴图像素的边界也落在格子边界上（逐像素对得上）
+ */
 export function voxelsPerPixel(tier: Tier, slotHeight: number): number {
-  return Math.max(3, Math.min(TIERS[tier].kMax, Math.round(slotHeight / 60)));
+  return Math.max(2, Math.min(TIERS[tier].kMax, 2 * Math.round(slotHeight / 120)));
 }
+
+const PARTS = ALLAY_PARTS.length;
+const ALLAY = FORM_INDEX.allay;
 
 const F = FORM_NAMES.length;
 const TEX_W = 256;
@@ -74,13 +81,15 @@ uniform vec4 uTrail[${TRAIL}];
 uniform vec4 uShock[2];
 uniform float uStirR;
 uniform float uMaskOn;
-uniform vec3 uWingR;
-uniform vec3 uWingL;
-uniform float uFlap;
 uniform float uGemSpin;
 uniform float uPlayX;
 uniform float uFogNear;
 uniform float uFogFar;
+// 体素悦灵：每块 6 个面的贴图像素和标记、应用的骨架矩阵（全身取景，模型像素）、包围盒中心
+uniform sampler2D uFaces;
+uniform mat4 uParts[${PARTS}];
+uniform vec2 uAllayCenter;
+uniform float uOnlyAllay;
 
 attribute float aIndex;
 
@@ -90,6 +99,11 @@ varying vec3 vColor;
 flat varying float vTile;
 varying float vFog;
 varying float vGlow;
+flat varying vec4 vFaces;
+flat varying float vAllay;
+flat varying float vAssembled;
+varying vec3 vLocalN;
+varying vec3 vPartPos;
 
 const float PI = 3.14159265;
 const float CAM_Z = ${CAM_Z.toFixed(1)};
@@ -122,7 +136,7 @@ void fetchForm(int f, int i, out vec4 p, out vec4 c, out bool obj) {
 }
 
 // 一块在世界里的位置、朝向和大小
-vec3 place(int f, bool obj, vec4 p, float code, float seed, vec3 axis, out mat3 R, out float s) {
+vec3 place(int f, int i, bool obj, vec4 p, float code, float seed, vec3 axis, out mat3 R, out float s) {
   R = mat3(1.0);
   s = 0.0;
   vec3 w = vec3(0.0);
@@ -136,13 +150,21 @@ vec3 place(int f, bool obj, vec4 p, float code, float seed, vec3 axis, out mat3 
     w.xy += vec2(sin(uTime * 0.13 + seed * 40.0), cos(uTime * 0.11 + seed * 31.0)) * 0.22;
     R = axisAngle(axis, seed * 6.2832 + uTime * (0.15 + seed * 0.35));
     s = p.w;
+  } else if (f == ${ALLAY}) {
+    // 体素悦灵：用应用的骨架矩阵摆姿态（部件坐标 → 全身取景坐标），再按指针、拖动转，放进首屏的框里
+    vec4 fd = texelFetch(uFaces, ivec2(i % ${TEX_W}, i / ${TEX_W}), 0);
+    int part = int(mod(floor(fd.x / 512.0), 8.0));
+    mat4 M = uParts[part];
+    vec3 posed = (M * vec4(p.xyz, 1.0)).xyz - vec3(uAllayCenter, 0.0);
+    mat3 Rf = rotY(uRot[f].x) * rotX(uRot[f].y);
+    R = Rf * mat3(M);
+    s = p.w * uScale[f];
+    w = uOrigin[f] + Rf * posed * uScale[f];
   } else {
     float part = floor(code / 32.0);
     vec3 l = p.xyz;
     mat3 Rp = mat3(1.0);
-    if (part == 5.0) { Rp = rotY(uFlap); l = uWingR + Rp * (l - uWingR); }
-    else if (part == 6.0) { Rp = rotY(-uFlap); l = uWingL + Rp * (l - uWingL); }
-    else if (part == 8.0) { Rp = rotY(uGemSpin); l = Rp * l; }
+    if (part == 8.0) { Rp = rotY(uGemSpin); l = Rp * l; }
     else if (part == 9.0) { l.x += uPlayX; }
     mat3 Rf = rotY(uRot[f].x) * rotX(uRot[f].y);
     R = Rf * Rp;
@@ -163,21 +185,25 @@ void main() {
   fetchForm(uTo, i, pb, cb, ob);
   mat3 Rb = mat3(1.0);
   float sb = 0.0;
-  vec3 b = place(uTo, ob, pb, cb.w, seed, axis, Rb, sb);
+  vec3 b = place(uTo, i, ob, pb, cb.w, seed, axis, Rb, sb);
 
+  bool allayA = false;
   vec3 a = vec3(0.0);
   mat3 Ra = mat3(1.0);
   float sa = 0.0;
   vec4 ca = vec4(0.0);
+  vec4 pa = vec4(0.0);
   if (uFrom < 0) {
     // 种子：所有方块从目标形的中心、大小为 0 开始
     a = uOrigin[uTo]; Ra = Rb; sa = 0.0; ca = cb;
   } else {
-    vec4 pa = vec4(0.0);
     bool oa = false;
     fetchForm(uFrom, i, pa, ca, oa);
-    a = place(uFrom, oa, pa, ca.w, seed, axis, Ra, sa);
+    a = place(uFrom, i, oa, pa, ca.w, seed, axis, Ra, sa);
+    allayA = uFrom == ${ALLAY} && oa;
   }
+  bool allayB = uTo == ${ALLAY} && ob;
+  if (uFrom < 0) allayA = allayB;
   if (max(sa, sb) <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
 
   // 各块的先后（按目标形的局部坐标和重组方式）
@@ -189,7 +215,7 @@ void main() {
     float yn = clamp((pb.y - bd.z) / max(1e-3, bd.w - bd.z), 0.0, 1.0);
     if (uStyle == 1) d = xn * 0.88 + seed * 0.12;
     else if (uStyle == 2) d = xn * 0.5 + yn * 0.38 + seed * 0.12;
-    else if (uStyle == 3) d = clamp(length(pb.xyz) / max(1e-3, 0.5 * max(bd.y - bd.x, bd.w - bd.z)), 0.0, 1.0) * 0.8 + seed * 0.2;
+    else if (uStyle == 3) d = clamp(distance(b, uOrigin[uTo]) / max(1e-3, uScale[uTo] * 0.5 * max(bd.y - bd.x, bd.w - bd.z)), 0.0, 1.0) * 0.8 + seed * 0.2;
     else d = seed;
   }
   const float S = 0.55;
@@ -219,6 +245,18 @@ void main() {
   R = axisAngle(axis, arc * 2.6 * (0.4 + seed)) * R;
   vec3 col = e < 0.5 ? ca.rgb : cb.rgb;
   vTile = mod(e < 0.5 ? ca.w : cb.w, 32.0);
+  // 此刻显示的是不是体素悦灵的一块（飞到一半以前算出发的形，以后算目标形）
+  bool showAllay = e < 0.5 ? allayA : allayB;
+  vAllay = showAllay ? 1.0 : 0.0;
+  vFaces = showAllay ? texelFetch(uFaces, ivec2(i % ${TEX_W}, i / ${TEX_W}), 0) : vec4(0.0);
+  bool translucentNow = showAllay && mod(floor(vFaces.x / 4096.0), 2.0) > 0.5;
+  bool thinNow = showAllay && mod(floor(vFaces.x / 8192.0), 2.0) > 0.5;
+#ifdef TRANSLUCENT_PASS
+  if (!translucentNow) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+#else
+  if (translucentNow) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+#endif
+  if (uOnlyAllay > 0.5 && !showAllay) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
 
   // 指针：在“视线角”空间里推开（与深度无关，屏幕上看起来一样大），往镜头这边抬一点、转一下
   vec4 vp = viewMatrix * vec4(pos, 1.0);
@@ -252,6 +290,8 @@ void main() {
   vp.z += amt * 1.4;
   R = axisAngle(axis, amt * 1.6) * R;
   s *= 1.0 - amt * 0.3;
+  // 拼到位、没被拨动：只画盒子表面上的面（和应用里那只一样，透过透明像素看到的是对面那一面）
+  vAssembled = showAllay && e > 0.9999 && amt < 1e-4 ? 1.0 : 0.0;
 
   // 正文后面不放方块
   vec4 cc = projectionMatrix * vp;
@@ -259,9 +299,15 @@ void main() {
   float m = uMaskOn * textureLod(uMask, suv, 0.0).r;
   s *= 1.0 - smoothstep(0.08, 0.7, m);
 
-  vec4 mv = vp + vec4(mat3(viewMatrix) * (R * (position * s)), 0.0);
+  vec3 lp = position;
+  if (thinNow) lp.x *= 0.002;
+  vec4 mv = vp + vec4(mat3(viewMatrix) * (R * (lp * s)), 0.0);
   gl_Position = projectionMatrix * mv;
   vNormal = R * normal;
+  vLocalN = normal;
+  // 片元在部件坐标里的位置（体素的轴就是部件的轴）：片元着色器按应用那一面的映射算贴图坐标
+  vec4 pAl = (e < 0.5 && uFrom >= 0) ? pa : pb;
+  vPartPos = pAl.xyz + lp * pAl.w;
   vUv = uv;
   vColor = col;
   vGlow = clamp(glow, 0.0, 1.0);
@@ -277,6 +323,9 @@ uniform vec3 uKeyCol;
 uniform vec3 uSky;
 uniform vec3 uGround;
 uniform vec3 uGlowCol;
+uniform sampler2D uAllayTex;
+uniform sampler2D uFaceParams;
+uniform vec3 uLightDir;
 
 varying vec3 vNormal;
 varying vec2 vUv;
@@ -284,9 +333,76 @@ varying vec3 vColor;
 flat varying float vTile;
 varying float vFog;
 varying float vGlow;
+flat varying vec4 vFaces;
+flat varying float vAllay;
+flat varying float vAssembled;
+varying vec3 vLocalN;
+varying vec3 vPartPos;
+
+bool bit(float v, float b) { return mod(floor(v / b), 2.0) > 0.5; }
+
+// 应用那一面的仿射映射（部件坐标 → 贴图坐标）取一个像素；这个方向没有面时 ok = false
+vec4 sampleFace(int box, int d, vec3 X, out bool ok) {
+  ivec2 at = ivec2(d * 4, box);
+  vec4 t0 = texelFetch(uFaceParams, at, 0);
+  vec4 t1 = texelFetch(uFaceParams, at + ivec2(1, 0), 0);
+  vec4 t2 = texelFetch(uFaceParams, at + ivec2(2, 0), 0);
+  vec4 t3 = texelFetch(uFaceParams, at + ivec2(3, 0), 0);
+  ok = t2.w > 0.5;
+  vec3 dd = X - t0.xyz;
+  float sp = clamp(dot(dd, t1.xyz), 0.0, 1.0);
+  float tp = clamp(dot(dd, t2.xyz), 0.0, 1.0);
+  vec2 uv = t3.xy + sp * t3.zw + tp * vec2(t0.w, t1.w);
+  ivec2 tx = clamp(ivec2(floor(uv)), ivec2(0), ivec2(${ALLAY_TEXTURE_SIZE - 1}));
+  return ok ? texelFetch(uAllayTex, tx, 0) : vec4(0.0);
+}
 
 void main() {
   vec3 n = normalize(vNormal);
+  if (vAllay > 0.5) {
+    // 与应用里那只 3D 悦灵同样的着色：原版贴图的颜色 × 面的明暗（0.58 的环境光 + 0.42 的方向光，薄片两面都算）
+    float flags = vFaces.x;
+    int box = int(mod(floor(flags / 64.0), 8.0));
+    bool thin = bit(flags, 8192.0);
+#ifdef TRANSLUCENT_PASS
+    float cutoff = 0.01;
+#else
+    float cutoff = 0.5;
+#endif
+    vec3 a = abs(vLocalN);
+    int d = a.x > 0.5 ? (vLocalN.x > 0.0 ? 0 : 1) : a.y > 0.5 ? (vLocalN.y > 0.0 ? 2 : 3) : (vLocalN.z > 0.0 ? 4 : 5);
+    bool surf = bit(flags, pow(2.0, float(d)));
+    vec4 c = vec4(0.0);
+    bool ok = false;
+    if (surf) {
+      // 薄片（翅膀）两边看到的都是后画的那一面（东，放在 +x），它透明的地方露出先画的那一面（西，放在 −x）
+      c = sampleFace(box, thin ? 0 : d, vPartPos, ok);
+      if (thin && (!ok || c.a < cutoff)) c = sampleFace(box, 1, vPartPos, ok);
+    }
+    if (!surf || !ok) {
+      // 不在盒子表面上的面：拼到位时（以及半透明那一遍）不画；散开、被拨动时露出来，用这块的主像素
+#ifdef TRANSLUCENT_PASS
+      discard;
+#else
+      if (vAssembled > 0.5) discard;
+#endif
+      float t = vFaces.y - 1.0;
+      c = texelFetch(uAllayTex, ivec2(int(mod(t, ${ALLAY_TEXTURE_SIZE}.0)), int(floor(t / ${ALLAY_TEXTURE_SIZE}.0))), 0);
+      c.a = 1.0;
+    }
+    if (c.a < cutoff) discard;
+    float ld = dot(n, uLightDir);
+    ld = thin ? abs(ld) : max(ld, 0.0);
+    vec3 lit = c.rgb * (0.58 + 0.42 * ld);
+    lit = mix(lit, uGlowCol, vGlow * 0.55);
+#ifdef TRANSLUCENT_PASS
+    gl_FragColor = vec4(lit, c.a);
+#else
+    gl_FragColor = vec4(lit, 1.0);
+#endif
+    #include <colorspace_fragment>
+    return;
+  }
   vec2 uv = clamp(vUv, 0.002, 0.998);
   vec2 tuv = (vec2(mod(vTile, 8.0), 3.0 - floor(vTile / 8.0)) + uv) / vec2(8.0, 4.0);
   // 手算细化级别，最多到每格 1 个像素（第 4 级正好是一格的平均色，不和相邻的格子混）
@@ -364,6 +480,15 @@ export class World {
   private readonly mat: THREE.ShaderMaterial;
   private readonly posTex: THREE.DataTexture;
   private readonly colTex: THREE.DataTexture;
+  /** 体素悦灵每块 6 个面的贴图像素和标记 */
+  private readonly faceTex: THREE.DataTexture;
+  /** 原版悦灵贴图（32×32，与应用同一张）；没有时不拼体素悦灵 */
+  private allayTex: THREE.DataTexture;
+  /** 半透明的下摆另画一遍（混合、不写深度），只画这些实例 */
+  private readonly translucent: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>;
+  private k = 6;
+  /** 体素悦灵拼得出来（原版贴图装好了） */
+  hasAllay = false;
   private readonly atlas: THREE.CanvasTexture;
   private readonly atlasCanvas: HTMLCanvasElement;
   private readonly mask: THREE.CanvasTexture;
@@ -417,6 +542,15 @@ export class World {
     };
     this.posTex = tex(data());
     this.colTex = tex(data());
+    this.faceTex = new THREE.DataTexture(new Float32Array(TEX_W * this.rows * 4), TEX_W, this.rows, THREE.RGBAFormat, THREE.FloatType);
+    this.faceTex.minFilter = THREE.NearestFilter;
+    this.faceTex.magFilter = THREE.NearestFilter;
+    this.faceTex.generateMipmaps = false;
+    this.faceTex.needsUpdate = true;
+    // 还没设置的形：所有实例都不属于它（大小记为 −1）
+    const pd = this.posTex.image.data as Float32Array;
+    for (let i = TEX_W * this.rows; i < TEX_W * this.rows * F; i++) pd[i * 4 + 3] = -1;
+    this.allayTex = new THREE.DataTexture(new Uint8Array(4), 1, 1);
 
     // 贴图集：先画纯色和噪点，原版贴图装好以后再画上去
     this.atlasCanvas = document.createElement('canvas');
@@ -476,9 +610,6 @@ export class World {
         uShock: { value: [new THREE.Vector4(), new THREE.Vector4()] },
         uStirR: { value: 0.03 },
         uMaskOn: { value: 1 },
-        uWingR: { value: new THREE.Vector3() },
-        uWingL: { value: new THREE.Vector3() },
-        uFlap: { value: 0 },
         uGemSpin: { value: 0 },
         uPlayX: { value: 0 },
         uFogNear: { value: 22 },
@@ -489,6 +620,13 @@ export class World {
         uSky: { value: new THREE.Color(0xffffff) },
         uGround: { value: new THREE.Color(0x222222) },
         uGlowCol: { value: new THREE.Color(0xffffff) },
+        uFaces: { value: this.faceTex },
+        uParts: { value: Array.from({ length: PARTS }, () => new THREE.Matrix4()) },
+        uAllayCenter: { value: new THREE.Vector2() },
+        uOnlyAllay: { value: 0 },
+        uAllayTex: { value: this.allayTex },
+        uFaceParams: { value: null },
+        uLightDir: { value: new THREE.Vector3(...LIGHT_DIR) },
       },
     });
     const box = new THREE.BoxGeometry(1, 1, 1);
@@ -499,9 +637,25 @@ export class World {
     geo.setAttribute('uv', box.getAttribute('uv'));
     geo.setAttribute('aIndex', new THREE.InstancedBufferAttribute(Float32Array.from({ length: n }, (_, i) => i), 1));
     geo.instanceCount = n;
+    // 双面：和应用里那只一样（透明像素后面能看到对面的面、薄片两面都画）
+    this.mat.side = THREE.DoubleSide;
     this.mesh = new THREE.Mesh(geo, this.mat);
     this.mesh.frustumCulled = false;
     this.scene.add(this.mesh);
+    // 半透明那一遍：同一套 uniform、同一份几何（只换实例列表），在不透明的之后画
+    const tgeo = new THREE.InstancedBufferGeometry();
+    tgeo.index = box.index;
+    tgeo.setAttribute('position', box.getAttribute('position'));
+    tgeo.setAttribute('normal', box.getAttribute('normal'));
+    tgeo.setAttribute('uv', box.getAttribute('uv'));
+    // 按全部实例的长度预先分配（three 按第一次绑定时的长度定实例数的上限，之后换属性不会改）
+    tgeo.setAttribute('aIndex', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
+    tgeo.instanceCount = 0;
+    const tmat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: this.mat.uniforms, defines: { TRANSLUCENT_PASS: 1 }, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    this.translucent = new THREE.Mesh(tgeo, tmat);
+    this.translucent.frustumCulled = false;
+    this.translucent.renderOrder = 1;
+    this.scene.add(this.translucent);
     this.camera.position.set(0, 0, CAM_Z);
     this.camera.lookAt(0, 0, 0);
   }
@@ -510,14 +664,16 @@ export class World {
   static async create(canvas: HTMLCanvasElement, opts: { theme: 'dark' | 'light'; tier: Tier; slotHeight: number }): Promise<World> {
     const { dust } = TIERS[opts.tier];
     const k = voxelsPerPixel(opts.tier, opts.slotHeight);
-    const allay = allayForm(k, 1e9);
-    const cut = cutForm(k, 1e9);
-    const timeline = timelineForm(k, 1e9);
-    const n = Math.max(allay.count, cut.count, timeline.count) + dust;
+    // 实例数按体素悦灵最多可能有多少块留（贴图装好后透明像素只会让块数变少）；剪辑点和时间线按同样的格数缩放
+    const allayMax = allayVoxelCount(k);
+    const kk = Math.max(3, Math.round(k * 0.9));
+    const cut = cutForm(kk, 1e9);
+    const timeline = timelineForm(kk, 1e9);
+    const n = Math.max(allayMax, cut.count, timeline.count) + dust;
     const w = new World(canvas, n);
+    w.k = k;
     w.theme = opts.theme;
     w.setForm(FORM_INDEX.rest, restForm(n, dust));
-    w.setForm(FORM_INDEX.allay, allay);
     w.setForm(FORM_INDEX.cut, cut);
     w.setForm(FORM_INDEX.timeline, timeline);
     w.applyTheme();
@@ -539,8 +695,6 @@ export class World {
     this.posTex.needsUpdate = true;
     this.colTex.needsUpdate = true;
     (this.mat.uniforms.uBounds!.value as THREE.Vector4[])[fi]!.set(...form.bounds);
-    if (form.pivot) (this.mat.uniforms.uWingR!.value as THREE.Vector3).set(...form.pivot);
-    if (form.pivotL) (this.mat.uniforms.uWingL!.value as THREE.Vector3).set(...form.pivotL);
     this.stillDirty = 3;
   }
 
@@ -584,6 +738,55 @@ export class World {
   setWordmark(grid: WordmarkGrid): void {
     this.wordGrid = grid;
     this.setForm(FORM_INDEX.word, wordForm(grid, this.theme, this.instances));
+  }
+
+  /**
+   * 原版悦灵贴图（与应用同一张）：装好后按它把体素悦灵精确地生成出来（透明的像素按应用的规则丢掉），
+   * 之后首屏才拼体素悦灵。也给测试用：传一张合成的贴图，和应用的烘焙渲染器并排对比
+   */
+  setAllayTexture(img: ImageData): void {
+    const S = ALLAY_TEXTURE_SIZE;
+    const scale = img.width / S;
+    const px = new Uint8Array(S * S * 4);
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const at = (Math.floor(y * scale) * img.width + Math.floor(x * scale)) * 4;
+        px.set(img.data.subarray(at, at + 4), (y * S + x) * 4);
+      }
+    }
+    const tex = new THREE.DataTexture(px, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.NearestFilter;
+    tex.magFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.needsUpdate = true;
+    this.allayTex.dispose();
+    this.allayTex = tex;
+    this.mat.uniforms.uAllayTex!.value = tex;
+    const form: AllayVoxels = allayVoxels(this.k, this.instances, (u, v) => px[(v * S + u) * 4 + 3]! / 255);
+    this.setForm(ALLAY, form);
+    const faces = this.faceTex.image.data as Float32Array;
+    faces.fill(0);
+    faces.set(form.faces.subarray(0, Math.min(form.count, this.instances) * 4));
+    this.faceTex.needsUpdate = true;
+    (this.mat.uniforms.uAllayCenter!.value as THREE.Vector2).set(...form.center);
+    // 各盒子各面的映射（片元着色器按它算贴图坐标）
+    const params = new THREE.DataTexture(form.faceParams, 24, form.boxes, THREE.RGBAFormat, THREE.FloatType);
+    params.minFilter = THREE.NearestFilter;
+    params.magFilter = THREE.NearestFilter;
+    params.generateMipmaps = false;
+    params.needsUpdate = true;
+    (this.mat.uniforms.uFaceParams!.value as THREE.Texture | null)?.dispose();
+    this.mat.uniforms.uFaceParams!.value = params;
+    // 半透明那一遍只画下摆的实例
+    const list: number[] = [];
+    for (let i = 0; i < form.count; i++) if ((form.faces[i * 4]! & ALLAY_BITS.translucent) !== 0) list.push(i);
+    const tgeo = this.translucent.geometry;
+    const attr = tgeo.getAttribute('aIndex') as THREE.InstancedBufferAttribute;
+    (attr.array as Float32Array).fill(0).set(list.slice(0, attr.count));
+    attr.needsUpdate = true;
+    tgeo.instanceCount = Math.min(list.length, attr.count);
+    this.hasAllay = true;
   }
 
   /** 悦灵的图集（应用同一份烘焙产物）：画在一块面片上，放进这个空间里 */
@@ -633,7 +836,8 @@ export class World {
     const t = f.still ? 0 : (f.now - this.t0) / 1000;
     const dt = Math.min(0.1, f.dt);
     const u = this.mat.uniforms;
-    const target = FORM_INDEX[f.target];
+    // 没有原版悦灵贴图时拼不出体素悦灵（不拿近似的颜色凑），首屏散成细尘
+    const target = f.target === 'allay' && !this.hasAllay ? FORM_INDEX.rest : FORM_INDEX[f.target];
 
     // 重组：一次触发后按时间播完；途中目标又变了就排队，并把当前这次加速播完（快速跳过时很快到终态）
     if (!this.started) {
@@ -673,7 +877,6 @@ export class World {
       const cx = box.left + box.width / 2;
       const cy = box.top + box.height / 2;
       this.toWorld(cx, cy, f.vw, f.vh, origins[fi]!);
-      if (name === 'allay' && !f.still) origins[fi]!.y += Math.sin(t * 1.3) * 0.9 * scales[fi]!;
       // 朝向：看向指针（悦灵转头最明显），加上拖动
       const look = f.pointer && !f.still ? { x: Math.max(-1, Math.min(1, (f.pointer.x - cx) / (f.vw * 0.45))), y: Math.max(-1, Math.min(1, (f.pointer.y - cy) / (f.vh * 0.6))) } : { x: 0, y: 0 };
       const mine = fi === this.to;
@@ -682,8 +885,9 @@ export class World {
       let yawT: number;
       let pitchT: number;
       if (name === 'allay') {
-        yawT = (f.still ? 0.32 : Math.sin(t * 0.3) * 0.2) + look.x * 0.5 + dragYaw;
-        pitchT = 0.08 + look.y * 0.22 + dragPitch;
+        // 默认就是应用全身图集的取景（朝右并朝镜头转 28°、俯角 8°，由骨架矩阵给出），这里只加转头看指针和拖动
+        yawT = look.x * 0.5 + dragYaw;
+        pitchT = look.y * 0.22 + dragPitch;
       } else if (name === 'cut') {
         yawT = look.x * 0.3 + dragYaw;
         pitchT = 0.14 + look.y * 0.12 + dragPitch;
@@ -764,7 +968,8 @@ export class World {
     u.uTime!.value = t;
     u.uDrift!.value = this.drift;
     u.uAspect!.value = f.vw / f.vh;
-    u.uFlap!.value = f.still ? 0.12 : Math.sin(t * 2.4) * 0.2;
+    // 体素悦灵的姿态：应用的 hover 动作（与图集同一套骨架和动作；减少动效时停在第 0 帧，就是图集的第一帧）
+    if (this.hasAllay) this.setPose(f.still ? 0 : t * 30);
     u.uGemSpin!.value = f.still ? 0.5 : t * 0.6;
     const tl = this.forms[FORM_INDEX.timeline];
     u.uPlayX!.value = tl?.playWidth ? (((t * 0.06) % 1) - 0.5) * tl.playWidth : 0;
@@ -793,6 +998,85 @@ export class World {
       this.stillDirty--;
     }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private setPose(frame: number): void {
+    const mats = partMatrices(clipPose('hover', frame), { kind: 'body' });
+    const parts = this.mat.uniforms.uParts!.value as THREE.Matrix4[];
+    ALLAY_PARTS.forEach((part, i) => parts[i]!.fromArray(mats[part.name]));
+  }
+
+  /**
+   * 只给测试用：按应用全身图集的取景（正交、半边长 BODY_VIEW.half 个模型像素、hover 第 frame 帧、不转头）
+   * 画出拼好的体素悦灵，读回 size×size 的 RGBA（从上到下一行行）。拿去和应用烘焙出的图集同一帧并排对比
+   */
+  renderAllayReference(size: number, frame: number): Uint8Array | null {
+    if (!this.hasAllay) return null;
+    const u = this.mat.uniforms;
+    const origins = u.uOrigin!.value as THREE.Vector3[];
+    const scales = u.uScale!.value as number[];
+    const rots = u.uRot!.value as THREE.Vector2[];
+    const center = u.uAllayCenter!.value as THREE.Vector2;
+    const saved = { origin: origins[ALLAY]!.clone(), scale: scales[ALLAY]!, rot: rots[ALLAY]!.clone(), center: center.clone() };
+    u.uFrom!.value = ALLAY;
+    u.uTo!.value = ALLAY;
+    u.uP!.value = 1;
+    u.uOnlyAllay!.value = 1;
+    u.uMaskOn!.value = 0;
+    origins[ALLAY]!.set(0, 0, 0);
+    scales[ALLAY] = 1;
+    rots[ALLAY]!.set(0, 0);
+    center.set(0, 0);
+    for (const v of u.uTrail!.value as THREE.Vector4[]) v.set(0, 0, 0, 0);
+    for (const v of u.uShock!.value as THREE.Vector4[]) v.set(0, 0, 0, 0);
+    this.setPose(frame);
+    const h = BODY_VIEW.half;
+    const cam = new THREE.OrthographicCamera(-h, h, h, -h, 1, 100);
+    cam.position.set(0, 0, 50);
+    const guide = this.allayMesh?.visible ?? false;
+    if (this.allayMesh) this.allayMesh.visible = false;
+    // 与应用的导出渲染同一条路：2 倍超采样画进线性、预乘的浮点缓冲，2×2 取平均，反预乘后转 sRGB
+    const ss = 2;
+    const big = size * ss;
+    const rt = new THREE.WebGLRenderTarget(big, big, { type: THREE.FloatType, depthBuffer: true, samples: 0 });
+    const r = this.renderer;
+    r.setRenderTarget(rt);
+    r.setClearColor(0x000000, 0);
+    r.clear(true, true, true);
+    r.render(this.scene, cam);
+    const f = new Float32Array(big * big * 4);
+    r.readRenderTargetPixels(rt, 0, 0, big, big, f);
+    r.setRenderTarget(null);
+    rt.dispose();
+    if (this.allayMesh) this.allayMesh.visible = guide;
+    const srgb = (c: number) => {
+      const x = Math.min(1, Math.max(0, c));
+      return x <= 0.0031308 ? x * 12.92 : 1.055 * x ** (1 / 2.4) - 0.055;
+    };
+    const out = new Uint8Array(size * size * 4);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const acc = [0, 0, 0, 0];
+        for (let dy = 0; dy < ss; dy++) {
+          for (let dx = 0; dx < ss; dx++) {
+            // 浮点缓冲从下往上
+            const at = ((big - 1 - (y * ss + dy)) * big + x * ss + dx) * 4;
+            for (let c = 0; c < 4; c++) acc[c]! += f[at + c]!;
+          }
+        }
+        const a = Math.min(1, acc[3]! / (ss * ss));
+        const o = (y * size + x) * 4;
+        for (let c = 0; c < 3; c++) out[o + c] = Math.round(srgb(acc[c]! / (ss * ss) / Math.max(a, 1e-5)) * 255);
+        out[o + 3] = Math.round(a * 255);
+      }
+    }
+    u.uOnlyAllay!.value = 0;
+    u.uMaskOn!.value = 1;
+    origins[ALLAY]!.copy(saved.origin);
+    scales[ALLAY] = saved.scale;
+    rots[ALLAY]!.copy(saved.rot);
+    center.copy(saved.center);
+    return out;
   }
 
   private begin(target: number, still: boolean): void {
@@ -844,6 +1128,10 @@ export class World {
     this.mat.dispose();
     this.posTex.dispose();
     this.colTex.dispose();
+    this.faceTex.dispose();
+    this.allayTex.dispose();
+    this.translucent.geometry.dispose();
+    this.translucent.material.dispose();
     this.atlas.dispose();
     this.mask.dispose();
     this.allayMat?.map?.dispose();
