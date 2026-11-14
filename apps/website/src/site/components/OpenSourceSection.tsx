@@ -1,55 +1,84 @@
-import { Allay } from '@allay/mascot';
-import { buttonVariants } from '@allay/ui/components/button';
-import { ArrowSquareOut, GithubLogo } from '@phosphor-icons/react';
+// 开源一节，按片尾字幕排：左边是开源与许可，右边是开发者名单（真实头像，自托管、登记在 ASSETS_PROVENANCE.json）。
+import { ArrowUpRight, GithubLogo } from '@phosphor-icons/react';
+import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DEVELOPERS, LICENSE_NAME, REPO_URL, SECTION } from '../links';
-import { Section, SectionHead } from './Section';
+import { MagneticLink, useReveal } from '../motion/interactions';
 
-/** 真实头像（GitHub 头像，下载后自托管；三张都是 256×256，显示 40 px，高分屏也清楚） */
+/** 真实头像：三张都是 256×256 的原图，显示 64 px，高分屏也清楚；统一裁成圆角方形 */
 function Avatar({ src, name }: { src: string; name: string }) {
-  return <img src={src} alt="" width={40} height={40} loading="lazy" decoding="async" className="size-10 shrink-0 rounded-full bg-control object-cover ring-1 ring-[color-mix(in_srgb,var(--foreground)_12%,transparent)]" data-testid="avatar" data-name={name} />;
+  return (
+    <img
+      src={src}
+      alt=""
+      width={64}
+      height={64}
+      loading="lazy"
+      decoding="async"
+      className="size-16 shrink-0 rounded-[18px] bg-control object-cover ring-1 ring-[color-mix(in_srgb,var(--foreground)_14%,transparent)] transition-transform duration-500 ease-(--ease-expo) group-hover:scale-105 group-hover:-rotate-3"
+      data-testid="avatar"
+      data-name={name}
+    />
+  );
 }
 
 export function OpenSourceSection() {
   const { t } = useTranslation();
+  const left = useReveal<HTMLDivElement>();
+  const right = useReveal<HTMLDivElement>(0.15);
   return (
-    <Section id={SECTION.open} label={`05  ${t('site.open.kicker')}`}>
-      <div className="grid items-start gap-12 lg:grid-cols-[1.1fr_1fr]">
-        <div>
-          <SectionHead kicker={t('site.open.kicker')} title={t('site.open.title')} lead={t('site.open.lead')} />
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ className: 'site-btn' })} data-testid="cta-repo">
-              <GithubLogo size={18} weight="fill" />
+    <section id={SECTION.open} data-clip="openSource" data-clip-color="var(--stage-hold)" aria-labelledby="open-title" className="relative pt-32 pb-16">
+      <div className="ruler wrap pointer-events-none absolute inset-x-0 top-0 opacity-60" aria-hidden="true" />
+      <div className="wrap grid gap-16 lg:grid-cols-[1.15fr_1fr] lg:gap-24">
+        <div ref={left} className="reveal">
+          <p className="t-mono text-fg-subtle">{t('site.open.kicker')}</p>
+          <h2 id="open-title" className="t-h2 mt-4 max-w-[10em]">
+            {t('site.open.title')}
+          </h2>
+          <p className="t-lead mt-6 max-w-[30em]">{t('site.open.lead')}</p>
+          <div className="mt-10 flex flex-wrap items-center gap-5">
+            <MagneticLink href={REPO_URL} external className="btn btn-primary link-focus" testId="cta-repo">
+              <GithubLogo size={19} weight="fill" />
               {t('site.open.repo')}
-            </a>
-            <span className="num text-[13px] text-fg-subtle">
+            </MagneticLink>
+            <span className="t-mono text-[11px] text-fg-subtle">
               {t('site.open.license')} · {LICENSE_NAME}
             </span>
           </div>
         </div>
 
-        <div className="site-card relative p-6 sm:p-7">
-          {/* 悦灵只在这里出现一只（全页面同一时刻最多一只全身像，docs/07-allay-mascot.md 7.2），安静地悬停 */}
-          <div className="pointer-events-none absolute -top-12 right-6" aria-hidden="true">
-            <Allay clip="hover" size={64} facing="left" priority="empty" />
-          </div>
-          <p className="site-kicker">{t('site.open.team')}</p>
-          <ul className="mt-4 divide-y divide-site-line" data-testid="team">
-            {DEVELOPERS.map((d) => (
-              <li key={d.name} className="flex items-center gap-3 py-3">
-                <Avatar src={d.avatar} name={d.name} />
-                <span className="text-[14.5px] font-medium">{d.name}</span>
-                {d.url && (
-                  <a href={d.url} target="_blank" rel="noreferrer noopener" className="ml-auto inline-flex items-center gap-1 rounded-md text-[12.5px] text-fg-muted hover:text-foreground">
-                    {d.url.replace('https://', '')}
-                    <ArrowSquareOut size={13} />
-                  </a>
-                )}
-              </li>
-            ))}
+        <div ref={right} className="reveal relative">
+          <span data-allay-anchor="credits" data-allay-facing="left" className="absolute -top-10 right-10 size-1" aria-hidden="true" />
+          <p className="t-mono text-primary-text">{t('site.open.credits')}</p>
+          <p className="t-mono mt-8 text-[10.5px] text-fg-faint">{t('site.open.developersLabel')}</p>
+          <ul className="mt-4 divide-y divide-[var(--site-line)] border-y border-[var(--site-line)]" data-testid="team">
+            {DEVELOPERS.map((d, i) => {
+              const body = (
+                <>
+                  <Avatar src={d.avatar} name={d.name} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[clamp(22px,2.2vw,32px)] font-semibold tracking-[-0.03em]">{d.name}</span>
+                    {d.url && <span className="t-mono mt-1 block truncate text-[10.5px] text-fg-subtle">{d.url.replace('https://', '')}</span>}
+                  </span>
+                  {d.url && <ArrowUpRight size={20} className="shrink-0 text-fg-faint transition-[color,transform] duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-primary-text" />}
+                </>
+              );
+              return (
+                <li key={d.name} style={{ '--i': i } as CSSProperties}>
+                  {d.url ? (
+                    <a href={d.url} target="_blank" rel="noreferrer noopener" className="group link-focus flex items-center gap-5 rounded-lg py-5">
+                      {body}
+                    </a>
+                  ) : (
+                    <div className="group flex items-center gap-5 py-5">{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
+          <p className="mt-4 text-[12px] text-fg-faint">{t('site.open.claudeNote')}</p>
         </div>
       </div>
-    </Section>
+    </section>
   );
 }

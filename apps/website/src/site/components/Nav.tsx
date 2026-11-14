@@ -138,7 +138,7 @@ export function Nav() {
                 href={`#${c.id}`}
                 data-clip-link
                 data-current={i === 0 ? 'true' : 'false'}
-                className="nav-clip link-focus rounded-md"
+                className="nav-clip link-focus min-w-[84px] rounded-md"
                 style={{ flexGrow: shares.grow[i] ?? 1, flexBasis: 0, '--clip': c.color } as CSSProperties}
               >
                 <span className="t-mono truncate text-[10px] opacity-60">{String(i + 1).padStart(2, '0')}</span>

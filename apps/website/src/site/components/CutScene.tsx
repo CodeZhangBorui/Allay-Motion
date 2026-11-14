@@ -221,6 +221,7 @@ export function CutScene() {
       <div className={enabled ? 'sticky top-0 flex h-[100svh] items-center overflow-hidden' : 'py-28'}>
         <div className="pointer-events-none absolute inset-0 bg-grid fade-mask opacity-60" aria-hidden="true" />
         <div ref={clipBRef} className="wrap relative">
+          <span data-allay-anchor="cut" data-allay-facing="left" className="absolute top-[12%] right-[12%] hidden size-1 lg:block" aria-hidden="true" />
           <p className="t-mono flex items-center gap-3 text-fg-subtle">
             <span className="inline-block size-2 rotate-45 rounded-[1.5px] bg-mark" aria-hidden="true" />
             {t('site.cut.kicker')}

@@ -10,6 +10,7 @@ import { OpenSourceSection } from './components/OpenSourceSection';
 import { SimulatorSection } from './components/SimulatorSection';
 import { Stage } from './components/stage/Stage';
 import { TemplatesSection } from './components/TemplatesSection';
+import { AllayGuide } from './motion/AllayGuide';
 import { CursorLight, installSpotlight } from './motion/interactions';
 import { usePrefs } from './prefs';
 
@@ -48,6 +49,7 @@ export function Site() {
         <OpenSourceSection />
       </main>
       <Footer />
+      <AllayGuide />
       <div className="grain" aria-hidden="true" />
     </IconContext.Provider>
   );

@@ -139,7 +139,9 @@
     "repo": "查看源代码",
     "team": "开发者",
     "license": "许可证",
-    "credits": "片尾字幕"
+    "credits": "片尾字幕",
+    "claudeNote": "Claude 的标志是 Anthropic 的商标，这里只用于署名。",
+    "developersLabel": "开发者"
   },
   "footer": {
     "disclaimerLabel": "非官方声明",

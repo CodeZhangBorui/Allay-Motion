@@ -12,9 +12,8 @@ import { FromSimulatorSchema, readMessage, type DesktopOnlyFeature, type ToSimul
 import { REPO_URL, SECTION } from '../links';
 import { setLanguage, setTheme, usePrefs } from '../prefs';
 import { AllayLoader } from '@allay/mascot';
-import { PixelReveal } from '../motion/PixelReveal';
+import { useReveal } from '../motion/interactions';
 import { LiveViewer } from './LiveViewer';
-import { Section, SectionHead } from './Section';
 
 const LOGICAL_W = 1280;
 const LOGICAL_H = 800;
@@ -205,9 +204,7 @@ function SimulatorWindow() {
   };
 
   return (
-    <div ref={outer} className="mt-12 w-full">
-      {/* 窗口进视口时由方块拼出来（方块擦除），和产品的转场同一种语言 */}
-      <PixelReveal bg="--site-bg" variant="wipe" cell={44} duration={950} className="mx-auto" >
+    <div ref={outer} className="w-full">
       <div className="site-window relative mx-auto" style={{ height, width: box.width * box.scale }} data-testid="sim-window" aria-label={t('site.sim.frameLabel')}>
         {src ? (
           <div className="relative" style={{ width: box.width, height: LOGICAL_H, transform: `scale(${box.scale})`, transformOrigin: '0 0' }}>
@@ -225,7 +222,7 @@ function SimulatorWindow() {
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-4 bg-background p-6 text-center">
             <Monitor size={28} className="text-fg-faint" />
-            <Button className="site-btn" onClick={() => setStarted(true)} data-testid="sim-start">
+            <Button className="h-11 rounded-full px-5 text-[14px]" onClick={() => setStarted(true)} data-testid="sim-start">
               {t('site.sim.start')}
             </Button>
             <p className="text-[13px] text-fg-subtle">{t('site.sim.autoStart')}</p>
@@ -251,15 +248,15 @@ function SimulatorWindow() {
         {notice?.kind === 'export' && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-scrim p-4" data-testid="sim-export-done">
             <div role="dialog" aria-modal="true" aria-labelledby="sim-export-title" className="float w-full max-w-[460px] p-6 shadow-dialog">
-              <h3 id="sim-export-title" className="site-h3">
+              <h3 id="sim-export-title" className="t-h3">
                 {t('site.sim.exportDoneTitle', { frames: notice.frames })}
               </h3>
-              <p className="site-body mt-2">{t('site.sim.exportDone', { format: presetName(notice.preset) })}</p>
+              <p className="t-body mt-2">{t('site.sim.exportDone', { format: presetName(notice.preset) })}</p>
               <div className="mt-5 flex justify-end gap-2">
-                <Button variant="ghost" className="site-btn" onClick={() => setNotice(null)}>
+                <Button variant="ghost" className="h-10 rounded-full px-4 text-[14px]" onClick={() => setNotice(null)}>
                   {t('site.sim.keepTrying')}
                 </Button>
-                <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ className: 'site-btn' })}>
+                <a href={REPO_URL} target="_blank" rel="noreferrer noopener" className={buttonVariants({ className: 'h-10 gap-2 rounded-full px-4 text-[14px]' })}>
                   {t('site.sim.getDesktop')}
                   <ArrowSquareOut size={16} />
                 </a>
@@ -268,8 +265,7 @@ function SimulatorWindow() {
           </div>
         )}
       </div>
-      </PixelReveal>
-      <p className="mt-4 text-center text-[12.5px] text-fg-subtle">{t('site.sim.exportNote')}</p>
+      <p className="t-mono mt-5 text-center text-[10.5px] text-fg-subtle">{t('site.sim.exportNote')}</p>
     </div>
   );
 }
@@ -277,20 +273,32 @@ function SimulatorWindow() {
 export function SimulatorSection() {
   const { t } = useTranslation();
   const wide = useWide();
+  const head = useReveal<HTMLDivElement>();
   return (
-    <Section id={SECTION.try} label={`01  ${t('site.sim.kicker')}`}>
-      <SectionHead kicker={t('site.sim.kicker')} title={t('site.sim.title')} lead={t('site.sim.lead')} />
-      {wide ? (
-        <SimulatorWindow />
-      ) : (
-        <div className="mt-10" data-testid="sim-compact">
-          <div className="site-card mb-4 p-4">
-            <p className="text-[14px] font-semibold">{t('site.sim.compactTitle')}</p>
-            <p className="site-body mt-1">{t('site.sim.compact')}</p>
-          </div>
-          <LiveViewer scrubbable testId="compact-viewer" />
+    <section id={SECTION.try} data-clip="try" data-clip-color="var(--stage-hold)" data-allay-nofly aria-labelledby="sim-title" className="relative pt-[8vh] pb-32">
+      <div className="halo top-[10%] left-1/2 h-[80vh] w-[120vh] -translate-x-1/2" aria-hidden="true" />
+      <div ref={head} className="wrap reveal relative grid items-end gap-6 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+        <div>
+          <p className="t-mono text-fg-subtle">{t('site.sim.kicker')}</p>
+          <h2 id="sim-title" className="t-h2 mt-4 !text-[clamp(30px,3.4vw,56px)]">
+            {t('site.sim.title')}
+          </h2>
         </div>
-      )}
-    </Section>
+        <p className="t-lead max-w-[36em]">{t('site.sim.lead')}</p>
+      </div>
+      <div className="relative mx-auto mt-12 w-full max-w-[1520px] px-[var(--gutter)] lg:px-6">
+        {wide ? (
+          <SimulatorWindow />
+        ) : (
+          <div data-testid="sim-compact">
+            <div className="card mb-4 p-5">
+              <p className="text-[15px] font-semibold">{t('site.sim.compactTitle')}</p>
+              <p className="t-body mt-1">{t('site.sim.compact')}</p>
+            </div>
+            <LiveViewer scrubbable testId="compact-viewer" />
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

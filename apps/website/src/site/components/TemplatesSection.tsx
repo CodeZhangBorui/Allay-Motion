@@ -1,20 +1,25 @@
-// 模板一节：卡片列表由内置模板的 manifest 推导（名称、说明、分类、默认时长、参数个数），
+// 模板一节：精选展示，不讲数量。一大几小的不等大网格 + “更多模板，持续加入”。
+// 卡片由内置模板的 manifest 推导（名称、说明、分类、默认时长），顺序按 showcaseEntries（偏好在前，新加的排在后面，不用改代码）；
+// 只展示前 SHOWCASE_MAX 个，其余在仿真器的模板库里。
 // 封面和循环播放的帧来自桌面版模板库同一个封面服务（features/gallery/covers.ts：杂务引擎 Worker，320×180、30 fps）。
-// packages/templates 下多一个模板，这里就多一张卡片。
+import { AllayLoader } from '@allay/mascot';
 import { localize } from '@allay/template-sdk';
-import { ArrowRight } from '@phosphor-icons/react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, ArrowUpRight, Plus } from '@phosphor-icons/react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Cover } from '../../../../desktop/src/renderer/features/gallery/covers';
 import type { TemplateEntry } from '../../../../desktop/src/shared/templates';
-import { builtinEntries, defaultDuration } from '../../host/templates';
-import { SECTION } from '../links';
-import { usePrefs } from '../prefs';
-import { AllayLoader } from '@allay/mascot';
+import { defaultDuration, showcaseEntries } from '../../host/templates';
+import { REPO_URL, SECTION } from '../links';
 import { BlockSkeleton } from '../motion/BlockSkeleton';
-import { PixelReveal } from '../motion/PixelReveal';
-import { Section, SectionHead } from './Section';
+import { useReveal } from '../motion/interactions';
+import { usePrefs } from '../prefs';
+import { LiveCanvas } from './LiveCanvas';
 import { requestOpenTemplate } from './SimulatorSection';
+
+/** 这一节最多展示几个（一大四小） */
+export const SHOWCASE_MAX = 5;
+export const AUTHORING_URL = `${REPO_URL}/blob/main/docs/template-authoring.md`;
 
 type CoverMap = Record<string, Cover | null>;
 
@@ -47,8 +52,7 @@ function useCovers(entries: TemplateEntry[], anchor: React.RefObject<HTMLElement
         if (rt.hasWebgl2()) rt.covers.ensure(entries);
       })();
     };
-    // 不等滚到这里：页面空闲下来就开始渲染（杂务 Worker 一个模板一个模板地排队，不和首屏抢），
-    // 访客滚到这里时多半已经好了；滚得快的话，离视口 1200 px 时也会开始
+    // 不等滚到这里：页面空闲下来就开始渲染（杂务 Worker 一个模板一个模板地排队，不和首屏抢）
     const io = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && start(), { rootMargin: '1200px 0px' });
     io.observe(el);
     const onLoad = () => {
@@ -71,7 +75,7 @@ function useCovers(entries: TemplateEntry[], anchor: React.RefObject<HTMLElement
   return { covers, keyOf };
 }
 
-/** 一张卡片里的循环播放：把帧网格图一格一格画到小画布上（和模板库悬停预览同一个做法） */
+/** 一格里的循环播放：把帧网格图一格一格画到小画布上（和模板库悬停预览同一个做法） */
 function SheetPlayer({ cover, label }: { cover: Cover; label: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const { reducedMotion } = usePrefs();
@@ -89,7 +93,6 @@ function SheetPlayer({ cover, label }: { cover: Cover; label: string }) {
       raf = requestAnimationFrame(draw);
       if (!visible) return;
       start ||= now;
-      // 片尾停 0.4 秒再循环
       const span = cover.frames + Math.round(COVER_FPS * 0.4);
       const f = Math.floor(((now - start) / 1000) * COVER_FPS) % span;
       const i = Math.min(cover.frames - 1, f);
@@ -114,87 +117,137 @@ function SheetPlayer({ cover, label }: { cover: Cover; label: string }) {
   );
 }
 
-function TemplateCardBig({ entry, cover, pending }: { entry: TemplateEntry; cover: Cover | null | undefined; pending: boolean }) {
+function CoverBox({ entry, cover, name, live, className }: { entry: TemplateEntry; cover: Cover | null | undefined; name: string; live?: boolean; className?: string }) {
+  const { t } = useTranslation();
+  return (
+    <div className={`preview-checker relative overflow-hidden rounded-[14px] ${className ?? ''}`} data-template={entry.id}>
+      <div className="absolute inset-0 transition-transform duration-700 ease-(--ease-expo) group-hover:scale-[1.03]">
+        {live ? (
+          // 精选的大格：引擎实时渲染（放大也清楚）；没起来之前先放封面的循环帧
+          <LiveCanvas templateId={entry.id} className="absolute inset-0" testId="template-live" fallback={cover ? <SheetPlayer cover={cover} label={name} /> : <BlockSkeleton className="absolute inset-0 size-full" />} />
+        ) : cover ? (
+          <div className="absolute inset-0 animate-[fade-in_700ms_var(--ease-out)_both]">
+            <SheetPlayer cover={cover} label={name} />
+          </div>
+        ) : cover === null ? (
+          <div className="absolute inset-0 flex items-center justify-center text-[12px] text-fg-subtle">{t('site.templates.failed')}</div>
+        ) : (
+          <div className="absolute inset-0" aria-busy="true" aria-label={t('site.templates.rendering')} role="img">
+            <BlockSkeleton className="absolute inset-0 size-full" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Tile({ entry, cover, featured }: { entry: TemplateEntry; cover: Cover | null | undefined; featured: boolean }) {
   const { t } = useTranslation();
   const { language } = usePrefs();
   const m = entry.manifest;
   const name = localize(m.name, language);
   const duration = defaultDuration(m);
   const category = t(`gallery.categories.${m.category}`);
-  const visibleParams = m.params?.length ?? 0;
   return (
-    <article
-      className="site-card site-lift group flex h-full flex-col overflow-hidden"
-      data-testid="template-card"
-      data-template={entry.id}
-    >
-      <div className="p-2">
-        <div className="preview-checker relative aspect-video overflow-hidden rounded-[9px]">
-          <div className="absolute inset-0 transition-transform duration-[600ms] ease-(--ease-out) group-hover:scale-[1.04]">
-            {cover ? (
-              // 封面到了：从骨架像素溶解到真实的帧
-              <PixelReveal bg="--skeleton" variant="dissolve" immediate cell={12} duration={520} className="absolute inset-0">
-                <SheetPlayer cover={cover} label={name} />
-              </PixelReveal>
-            ) : cover === null ? (
-              <div className="absolute inset-0 flex items-center justify-center text-[12px] text-fg-subtle">{t('site.templates.failed')}</div>
-            ) : (
-              <div className="absolute inset-0" aria-busy={pending} aria-label={t('site.templates.rendering')} role="img">
-                <BlockSkeleton className="absolute inset-0 size-full" />
-              </div>
-            )}
+    <article className="card spot lift group flex h-full flex-col p-2.5" data-testid="template-card" data-template={entry.id}>
+      <CoverBox entry={entry} cover={cover} name={name} live={featured} className="aspect-video" />
+      <div className={`flex flex-1 flex-col justify-end ${featured ? 'px-4 pt-6 pb-4 sm:px-5' : 'px-3 pt-4 pb-3'}`}>
+        <div className="flex items-center gap-3">
+          {featured && <span className="t-mono rounded-full bg-primary-soft px-2.5 py-1 text-[10px] text-primary-text">{t('site.templates.featured')}</span>}
+          <span className="t-mono text-[10.5px] text-fg-subtle">{duration !== null ? t('site.templates.meta', { category, duration: duration.toFixed(2) }) : t('site.templates.metaNoDuration', { category })}</span>
+        </div>
+        <div className="mt-3 flex items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className={featured ? 't-h2 !text-[clamp(30px,3vw,48px)]' : 't-h3'}>{name}</h3>
+            {m.description && <p className={`t-body mt-2 ${featured ? 'max-w-[34em]' : 'line-clamp-2 !text-[14px]'}`}>{localize(m.description, language)}</p>}
           </div>
+          <button
+            type="button"
+            onClick={() => requestOpenTemplate(entry.id, entry.version)}
+            className="link-focus flex size-11 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)] text-foreground transition-[background-color,transform] duration-300 ease-(--ease-expo) group-hover:bg-primary group-hover:text-primary-foreground"
+            data-testid="template-open"
+            aria-label={`${t('site.templates.openInSim')}：${name}`}
+            title={t('site.templates.openInSim')}
+          >
+            <ArrowRight size={17} className="transition-transform duration-300 ease-(--ease-expo) group-hover:-rotate-45" />
+          </button>
         </div>
-      </div>
-      <div className="flex flex-1 flex-col px-5 pt-3 pb-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="site-h3">{name}</h3>
-          <span className="num shrink-0 text-[12px] text-fg-subtle">
-            {duration !== null ? t('site.templates.meta', { category, duration: duration.toFixed(2), count: visibleParams }) : t('site.templates.metaNoDuration', { category, count: visibleParams })}
-          </span>
-        </div>
-        {m.description && <p className="site-body mt-2 flex-1">{localize(m.description, language)}</p>}
-        <button
-          type="button"
-          onClick={() => requestOpenTemplate(entry.id, entry.version)}
-          className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-md text-[13px] font-medium text-primary-text"
-          data-testid="template-open"
-        >
-          {t('site.templates.openInSim')}
-          <ArrowRight size={14} className="transition-transform duration-(--dur-2) ease-(--ease-out) group-hover:translate-x-1" />
-        </button>
       </div>
     </article>
   );
 }
 
+function MoreTile() {
+  const { t } = useTranslation();
+  return (
+    <a href={AUTHORING_URL} target="_blank" rel="noreferrer noopener" className="card spot lift group link-focus relative flex h-full min-h-[260px] flex-col justify-between overflow-hidden p-6" data-testid="templates-more">
+      <div className="pointer-events-none absolute inset-0 bg-grid fade-mask opacity-70" aria-hidden="true" />
+      <span className="relative flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-primary-text transition-transform duration-500 ease-(--ease-expo) group-hover:rotate-90">
+        <Plus size={22} weight="bold" />
+      </span>
+      <div className="relative">
+        <h3 className="t-h3">{t('site.templates.moreTitle')}</h3>
+        <p className="t-body mt-2 !text-[14px]">{t('site.templates.moreBody')}</p>
+        <span className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-medium text-primary-text">
+          {t('site.templates.moreLink')}
+          <ArrowUpRight size={15} className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </span>
+      </div>
+    </a>
+  );
+}
+
 export function TemplatesSection() {
   const { t } = useTranslation();
-  const entries = useMemo(() => builtinEntries(), []);
+  const shown = useMemo(() => showcaseEntries().slice(0, SHOWCASE_MAX), []);
   const grid = useRef<HTMLDivElement>(null);
-  const { covers, keyOf } = useCovers(entries, grid);
-  const pendingCount = entries.filter((e) => {
+  const head = useReveal<HTMLDivElement>();
+  const gridReveal = useReveal<HTMLDivElement>(0.08);
+  const { covers, keyOf } = useCovers(shown, grid);
+  const pending = shown.filter((e) => {
     const k = keyOf(e);
     return !k || !(k in covers);
   }).length;
+  // 格子在网格里的位置：大格占左边两行，两个小格叠在它右边，其余排在下一行，最后是“更多”
+  const spans = ['sm:col-span-2 lg:col-span-8 lg:row-span-2', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-4'];
   return (
-    <Section id={SECTION.templates} tone="alt" label={`02  ${t('site.templates.kicker')}`}>
-      <SectionHead tone="alt" kicker={t('site.templates.kicker')} title={t('site.templates.title', { count: entries.length })} lead={t('site.templates.lead')} />
-      <div ref={grid} className="relative mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="pointer-events-none absolute inset-0 z-10" aria-hidden={pendingCount === 0}>
-          <AllayLoader loading={pendingCount > 0} label={t('site.templates.rendering')} priority="gallery" className="size-full">
-            <div />
-          </AllayLoader>
+    <section id={SECTION.templates} data-clip="templates" data-clip-color="var(--stage-exit)" aria-labelledby="templates-title" className="relative py-32">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[60vh] bg-dots fade-mask-b opacity-60" aria-hidden="true" />
+      <div className="wrap relative">
+        <div ref={head} className="reveal grid items-end gap-6 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+          <div>
+            <p className="t-mono text-fg-subtle">{t('site.templates.kicker')}</p>
+            <h2 id="templates-title" className="t-h2 mt-4">
+              {t('site.templates.title')}
+            </h2>
+          </div>
+          <div className="relative">
+            <span data-allay-anchor="templates" data-allay-facing="left" className="absolute -top-16 right-6 size-1" aria-hidden="true" />
+            <p className="t-lead max-w-[34em]">{t('site.templates.lead')}</p>
+          </div>
         </div>
-        {entries.map((e, i) => {
-          const key = keyOf(e);
-          return (
-            <PixelReveal key={e.id} bg="--site-alt" variant="wipe" cell={28} delay={(i % 3) * 90} duration={800}>
-              <TemplateCardBig entry={e} cover={key ? covers[key] : undefined} pending={!key || !(key in covers)} />
-            </PixelReveal>
-          );
-        })}
+
+        <div ref={grid} className="relative mt-14">
+          <div className="pointer-events-none absolute inset-0 z-10" aria-hidden={pending === 0}>
+            <AllayLoader loading={pending > 0} label={t('site.templates.rendering')} priority="gallery" className="size-full">
+              <div />
+            </AllayLoader>
+          </div>
+          <div ref={gridReveal} className="reveal grid gap-4 sm:grid-cols-2 lg:grid-cols-12 lg:gap-5">
+            {shown.map((e, i) => {
+              const key = keyOf(e);
+              return (
+                <div key={e.id} className={spans[i] ?? 'lg:col-span-4'} style={{ '--i': i } as CSSProperties}>
+                  <Tile entry={e} cover={key ? covers[key] : undefined} featured={i === 0} />
+                </div>
+              );
+            })}
+            <div className="lg:col-span-4" style={{ '--i': shown.length } as CSSProperties}>
+              <MoreTile />
+            </div>
+          </div>
+        </div>
       </div>
-    </Section>
+    </section>
   );
 }

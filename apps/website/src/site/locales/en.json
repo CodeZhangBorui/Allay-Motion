@@ -139,7 +139,9 @@
     "repo": "View the source",
     "team": "Developers",
     "license": "License",
-    "credits": "Credits"
+    "credits": "Credits",
+    "claudeNote": "The Claude logo is a trademark of Anthropic, shown here for attribution only.",
+    "developersLabel": "Developers"
   },
   "footer": {
     "disclaimerLabel": "Disclaimer",

@@ -32,6 +32,8 @@ interface Props {
   control?: LiveViewerControl;
   /** 用户自己点了模板 */
   onPick?: (id: string) => void;
+  /** 窄屏上不显示面板下方的素材说明（分镜里钉在顶上的面板要尽量矮；说明在仿真器一节的面板里照样有） */
+  noteHiddenOnNarrow?: boolean;
   className?: string;
 }
 
@@ -39,7 +41,7 @@ type Status = 'starting' | 'ready' | 'unsupported' | 'failed';
 
 const STAGE_COLORS = ['var(--stage-enter)', 'var(--stage-hold)', 'var(--stage-exit)'];
 
-export function LiveViewer({ autoCycle = false, scrubbable = false, testId, initialId, control, onPick, className }: Props) {
+export function LiveViewer({ autoCycle = false, scrubbable = false, testId, initialId, control, onPick, noteHiddenOnNarrow = false, className }: Props) {
   const { t } = useTranslation();
   const { language } = usePrefs();
   const entries = useMemo(() => builtinEntries(), []);
@@ -305,7 +307,7 @@ export function LiveViewer({ autoCycle = false, scrubbable = false, testId, init
             </div>
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between gap-4 text-[11px] text-fg-subtle">
+        <div className={`mt-2 items-center justify-between gap-4 text-[11px] text-fg-subtle ${noteHiddenOnNarrow ? 'hidden lg:flex' : 'flex'}`}>
           <span data-testid="assets-note" className="line-clamp-2">
             {mcGameVersion ? t('site.hero.mcAssets', { version: mcGameVersion }) : t('site.hero.demoAssets')}
           </span>

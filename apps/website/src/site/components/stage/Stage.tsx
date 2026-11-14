@@ -157,6 +157,8 @@ function ScrollStage() {
   const heroRef = useRef<HTMLElement>(null);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
   const monitorRef = useRef<HTMLDivElement>(null);
+  /** 窄屏：钉在导航下面的面板（高度给“当前一步”的判断用） */
+  const pinRef = useRef<HTMLDivElement>(null);
   const sceneWrapRef = useRef<HTMLDivElement>(null);
   const progress = useRef(0);
   const visible = useRef(true);
@@ -171,7 +173,10 @@ function ScrollStage() {
     const root = rootRef.current;
     const hero = heroRef.current;
     const monitor = monitorRef.current;
-    if (!root || !hero || !monitor) return;
+    if (!root || !hero) return;
+    let pinH = pinRef.current?.offsetHeight ?? 0;
+    const pinRo = new ResizeObserver(() => (pinH = pinRef.current?.offsetHeight ?? 0));
+    if (pinRef.current) pinRo.observe(pinRef.current);
     const rootT = track(root);
     const heroT = track(hero);
     const stepT = stepRefs.current.map((el) => (el ? track(el) : null));
@@ -186,8 +191,9 @@ function ScrollStage() {
       const heroH = heroT.geometry.height;
       const k = easeInOutCubic(range(s.y, heroT.geometry.top, heroT.geometry.top + heroH * 0.8));
       progress.current = k;
-      // 当前一步：视口中线落在哪一步的块里
-      const mid = s.y + s.vh * 0.5;
+      // 当前一步：视口里能看到文字的那一段的中线落在哪一步的块里（窄屏的上面钉着面板）
+      const top = wide ? 0 : pinH;
+      const mid = s.y + top + (s.vh - top) * (wide ? 0.5 : 0.4);
       let step = -1;
       let sub = 0;
       stepT.forEach((st, i) => {
@@ -212,16 +218,15 @@ function ScrollStage() {
       [rx, vrx] = spring(rx, vrx, -tx, 9, s.dt);
       [ry, vry] = spring(ry, vry, ty, 9, s.dt);
       const inv = 1 - k;
-      if (wide) {
+      if (wide && monitor) {
         monitor.style.transform = `translate3d(${(inv * s.vw * 0.04).toFixed(1)}px, ${(inv * s.vh * 0.36).toFixed(1)}px, 0) rotateX(${(inv * 22 + rx).toFixed(2)}deg) rotateY(${(inv * -18 + ry).toFixed(2)}deg) rotateZ(${(inv * 3).toFixed(2)}deg) scale(${(0.86 + k * 0.14).toFixed(4)})`;
-      } else {
-        monitor.style.transform = `translate3d(0, ${(inv * s.vh * 0.62).toFixed(1)}px, 0) scale(${(0.94 + k * 0.06).toFixed(4)})`;
       }
       const sw = sceneWrapRef.current;
       if (sw) sw.style.opacity = (1 - k * 0.55).toFixed(3);
     });
     return () => {
       off();
+      pinRo.disconnect();
       rootT.untrack();
       heroT.untrack();
       stepT.forEach((st) => st?.untrack());
@@ -249,21 +254,20 @@ function ScrollStage() {
         <div ref={sceneWrapRef} className="absolute inset-0">
           <HeroCanvas progress={progress} visible={visible} className="absolute inset-0 size-full" />
         </div>
-        <div
-          className={`absolute ${wide ? 'top-1/2 right-[var(--gutter)] w-[min(56vw,960px)] -translate-y-1/2' : 'inset-x-[var(--gutter)] top-[calc(var(--nav-h)+12px)]'}`}
-          style={{ transformStyle: 'preserve-3d' }}
-        >
-          <div ref={monitorRef} className="relative will-change-transform" style={{ transformStyle: 'preserve-3d', transformOrigin: '60% 50%' }}>
-            <span data-allay-anchor="hero" className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
-            <LiveViewer autoCycle testId="hero-viewer" control={control} />
+        {wide && (
+          <div className="absolute top-1/2 right-[var(--gutter)] w-[min(56vw,960px)] -translate-y-1/2" style={{ transformStyle: 'preserve-3d' }}>
+            <div ref={monitorRef} className="relative will-change-transform" style={{ transformStyle: 'preserve-3d', transformOrigin: '60% 50%' }}>
+              <span data-allay-anchor="hero" className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
+              <LiveViewer autoCycle testId="hero-viewer" control={control} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 正常滚动的文字（盖在舞台上；只有文字和按钮接收指针，面板照常可点） */}
       <div className="pointer-events-none relative z-10 -mt-[100svh]">
         <section ref={heroRef} id={SECTION.top} data-clip="intro" data-clip-color="var(--allay)" className="flex min-h-[100svh] flex-col">
-          <div className={`wrap pointer-events-auto flex-1 pt-[calc(var(--nav-h)+7vh)] ${wide ? 'pb-[14vh]' : 'pb-[46vh]'}`}>
+          <div className={`wrap pointer-events-auto flex-1 pt-[calc(var(--nav-h)+7vh)] ${wide ? 'pb-[14vh]' : 'pb-12'}`}>
             <div className={wide ? 'max-w-[60vw]' : ''}>
               <HeroCopy />
             </div>
@@ -279,7 +283,14 @@ function ScrollStage() {
         </section>
 
         <section id={SECTION.workflow} data-clip="workflow" data-clip-color="var(--stage-enter)" aria-labelledby="story-title" className="relative">
-          <div className="wrap pointer-events-auto pt-[12vh]">
+          {/* 窄屏：面板在这里，钉在导航下面一直到这一节结束（不透明的底，下面滚过的文字被它挡住） */}
+          {!wide && (
+            <div ref={pinRef} className="pointer-events-auto sticky top-[var(--nav-h)] z-20 bg-[var(--site-bg)] px-[var(--gutter)] pt-3 pb-3 shadow-[0_18px_24px_-12px_var(--site-bg)]">
+              <span data-allay-anchor="hero" data-allay-facing="right" className="absolute top-2 right-[18%] size-1" aria-hidden="true" />
+              <LiveViewer autoCycle testId="hero-viewer" control={control} noteHiddenOnNarrow className="!bg-[var(--surface-1)]" />
+            </div>
+          )}
+          <div className={`wrap pointer-events-auto ${wide ? 'pt-[12vh]' : 'pt-12'}`}>
             <p className="t-mono text-fg-subtle">{t('site.story.kicker')}</p>
             <h2 id="story-title" className="t-h2 mt-4 max-w-[12em]">
               {t('site.story.title')}
@@ -292,9 +303,9 @@ function ScrollStage() {
               ref={(el) => {
                 stepRefs.current[i] = el;
               }}
-              className={wide ? 'h-[125vh]' : 'min-h-[110vh]'}
+              className={wide ? 'h-[125vh]' : 'min-h-[72vh] py-12'}
             >
-              <div className={`wrap pointer-events-auto sticky ${wide ? 'top-[calc(var(--nav-h)+5vh)]' : 'top-[calc(var(--nav-h)+56.25vw+150px)]'}`}>
+              <div className={`wrap pointer-events-auto ${wide ? 'sticky top-[calc(var(--nav-h)+5vh)]' : ''}`}>
                 <div className={wide ? 'max-w-[min(34vw,520px)]' : ''}>
                   <StepCopy
                     step={s}

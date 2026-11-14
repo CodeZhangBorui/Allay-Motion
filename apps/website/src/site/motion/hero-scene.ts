@@ -316,8 +316,10 @@ export class HeroScene {
     const ms = f.still ? 1e6 : f.now - this.t0;
     const t = ms / 1000;
     const k = f.progress;
-    // 窄屏把横向位置收进来
+    // 窄屏：焦平面和近处的方块推到屏幕两边（文字在中间），整体小一点；远处的照旧收进来
+    const narrow = this.aspect < 1;
     const squeeze = Math.min(1, this.aspect / 1.55);
+    const halfW = Math.tan((this.camera.fov * Math.PI) / 360) * 16 * this.aspect;
 
     for (const b of this.blocks) {
       const { spec } = b;
@@ -327,8 +329,9 @@ export class HeroScene {
       const pop = p >= 1 ? 1 : 1 + (c1 + 1) * (p - 1) ** 3 + c1 * (p - 1) ** 2;
       const spread = 1 + k * (b.layer === 2 ? 0.9 : 0.35);
       const bob = f.still ? 0 : Math.sin(t * (0.5 + (b.phase % 0.4)) + b.phase) * 0.16 * spec.s;
-      b.mesh.position.set(spec.x * squeeze * spread, spec.y * spread + bob, spec.z + k * (b.layer === 2 ? 3 : 0));
-      b.mesh.scale.setScalar(spec.s * Math.max(0.0001, pop));
+      const x = narrow && b.layer > 0 ? Math.sign(spec.x || 1) * (halfW * 0.92 + Math.abs(spec.x) * 0.12) : spec.x * squeeze;
+      b.mesh.position.set(x * spread, spec.y * spread + bob, spec.z + k * (b.layer === 2 ? 3 : 0));
+      b.mesh.scale.setScalar(spec.s * (narrow ? 0.72 : 1) * Math.max(0.0001, pop));
       if (!f.still) {
         b.mesh.rotation.set(b.base.x + t * b.spin.x, b.base.y + t * b.spin.y, b.base.z + Math.sin(t * 0.4 + b.phase) * 0.08 + t * b.spin.z);
       }
