@@ -46,6 +46,8 @@ export function OpenSourceSection() {
               {t('site.open.license')} · {LICENSE_NAME}
             </span>
           </div>
+          {/* 给时间线雕塑留的空白（motion/world 把方块拼在这个框里） */}
+          <div data-voxel-slot="timeline" aria-hidden="true" className="pointer-events-none mt-16 hidden h-[clamp(160px,18vw,240px)] w-full max-w-[600px] lg:block" />
         </div>
 
         <div ref={right} className="reveal relative">

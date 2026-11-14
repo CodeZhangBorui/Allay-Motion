@@ -5,15 +5,17 @@
 // - 对鼠标：停着时朝指针那边看；指针靠得太近时让开一点；
 // - 让位：它申请的是最低优先级的位置（MascotStage），应用自己的编排（预览加载、导出进度）一出现，它就让出去；
 //   剪辑点的转场进行时、仿真器在视口里时（iframe 里是应用自己的悦灵）它不出场，免得同屏两只；
+// - 首屏由 3D 世界用方块拼出一只体素悦灵（motion/world）：拼着、拼好时它不出场（贴在那只的位置上），
+//   那只散开时它从那里飞出来带路；首屏给它的锚点带 data-allay-yield，世界会拼体素悦灵时这个锚点不用；
 // - 锚点上带 data-allay-clip="dance" 的（页尾）到了就跳一段舞：活干完了，把结果送到，跳舞（07 7.1）；
 // - 减少动效：不飞，静止在首屏的锚点旁（hover 的第一帧）。
 // 每帧先在读阶段量锚点的位置（只量这几个点），再在写阶段写 transform；pointer-events: none，不挡任何点击。
 import { Allay, MascotSlotHeld, mascotAssets, useMascotSlot } from '@allay/mascot';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import type { ClipName } from '@allay/mascot';
 import { usePrefs } from '../prefs';
 import { onFrame, onFrameRead, spring } from './frame';
-import { allay3d } from './world/bridge';
+import { allay3d, onSculptureExpected } from './world/bridge';
 
 const TRAIL = 6;
 const TRAIL_EVERY = 80;
@@ -38,6 +40,7 @@ function pickTarget(vh: number): Target | null {
   }
   let best: { el: HTMLElement; r: DOMRect; d: number } | null = null;
   for (const el of document.querySelectorAll<HTMLElement>('[data-allay-anchor]')) {
+    if (allay3d.expected && el.dataset.allayYield !== undefined) continue;
     const step = el.closest<HTMLElement>('[data-step]');
     if (step && step.dataset.active !== 'true') continue;
     // data-allay-until：只在那一节还没走到视口中间之前有效（首屏的锚点在分镜开始后就不用了，免得飞进正在播放的预览）
@@ -106,6 +109,25 @@ function FlyingGuide() {
       target = pickTarget(s.vh);
     });
     const offWrite = onFrame((s) => {
+      // 世界装好图集后改由世界来画（先同步这个，体素悦灵在场时也要切过去，免得 DOM 里还挂着一只）
+      if (allay3d.ready !== use3dRef.current) {
+        use3dRef.current = allay3d.ready;
+        setUse3d(allay3d.ready);
+      }
+      // 体素悦灵在场：贴在它的位置上不出场；它散开时从这里飞出去
+      const sc = allay3d.sculpture;
+      if (sc) {
+        x = sc.x;
+        y = sc.y;
+        vx = 0;
+        vy = 0;
+        allay3d.state = null;
+        if (shownRef.current) {
+          shownRef.current = false;
+          setShown(false);
+        }
+        return;
+      }
       const t = target;
       let tx: number;
       let ty: number;
@@ -155,10 +177,6 @@ function FlyingGuide() {
         setPose(poseRef.current);
       }
       // 交给 3D 世界画：图集里的第几帧（动作按图集的 30 fps 步进，和 <Allay> 一样）
-      if (allay3d.ready !== use3dRef.current) {
-        use3dRef.current = allay3d.ready;
-        setUse3d(allay3d.ready);
-      }
       if (allay3d.ready) {
         const assets = mascotAssets();
         if (assets.status === 'ready' && onScreen) {
@@ -221,6 +239,8 @@ function FlyingGuide() {
 /** 减少动效：静止在首屏锚点旁（随页面滚动，不飞） */
 function StillGuide() {
   const granted = useMascotSlot('default');
+  // 世界画着静止的体素悦灵时，这只让给它
+  const yielded = useSyncExternalStore(onSculptureExpected, () => allay3d.expected);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const place = () => {
@@ -234,7 +254,7 @@ function StillGuide() {
     ro.observe(document.documentElement);
     return () => ro.disconnect();
   }, []);
-  if (!pos || !granted) return null;
+  if (!pos || !granted || yielded) return null;
   const size = 72;
   return (
     <div className="pointer-events-none absolute top-0 left-0 z-[45]" style={{ transform: `translate(${pos.x - size / 2}px, ${pos.y - size / 2}px)`, width: size, height: size }} aria-hidden="true" data-testid="allay-guide">

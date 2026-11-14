@@ -1,520 +1,590 @@
-// 全页共用的一块 3D 方块世界（docs/decisions.md 官网 · 画布）：一个 WebGL 上下文、一个渲染循环，固定在所有内容后面。
-// - 每一节是这个世界里的一个“机位”（一串竖着排开的方块群）。走到哪一节由滚动位置决定，相机用弹簧自己飞过去，
-//   中途的方块从身边掠过；停手也会飞到终态，不绑滚动位置逐帧；
-// - 光：环境光 + 白色主光 + 品牌蓝的轮廓光 + 一盏跟着指针走的点光（场景光照是内容，不做泛光和光柱）；
-// - 景深：方块分远、中、近三层，远近两层画进半分辨率的离屏缓冲、两遍高斯模糊后合成；
-// - 能玩：指针推开附近的方块；点空白处的方块把它敲碎（碎块带重力掉下去），几秒后长回来；
-// - 页尾的字标由方块拼成：对齐 DOM 里那段字的位置，走到页尾时方块从四面飞进来拼好，也能推、能敲；
-// - 悦灵在这个空间里飞（应用同一份烘焙图集画在一块面片上），会被近处的方块挡住。
-// 贴图来自官网专用的原版贴图（public/mc/），没有提取时用纯色。three 与引擎同一版本。这个模块懒加载。
-import { BLOCKS, resolveBlockFaces, type Face } from '@allay/assets';
+// 全页共用的一块体素雕塑（docs/decisions.md 官网 · 体素雕塑）：一个 WebGL 上下文、一次实例化绘制画上万块方块。
+// - 每块方块在每个“形”（forms.ts）里各有一个位置；着色器从数据纹理里取出“从哪个形”“到哪个形”的位置，
+//   按重组的进度（一次触发、按时间自己播完，不绑滚动位置）在两者之间飞。重组的方式用产品自己的转场：
+//   体素悦灵从一粒种子长出来（由中心往外），散成细尘用像素溶解（随机先后），剪辑点 ◆ 用方块掉落（一列一列、带重力），
+//   时间线和字标用方块擦除（从左到右）；
+// - 形放在页面上的哪里由 DOM 决定：各节里有一个空的占位框（data-voxel-slot），每帧把它在视口里的位置换算到世界里，
+//   所以雕塑跟着页面一起滚、永远在给它留的空白里；字标对齐 DOM 里那段字的墨迹；
+// - 指针划过像手拨开沙子：最近一秒的指针轨迹把附近的方块推开、往镜头这边抬一点、转一下，轨迹越快越亮，慢慢流回原位；
+//   按下（不在文字、按钮、卡片上）放出一圈冲击波；按住拖动转雕塑（松手后弹回）；
+// - 正文后面不放方块：页面把正文框画成一张低分辨率的遮罩，落在框里的方块缩起来；
+// - 光：环境光 + 天光/地光 + 一盏主光，方块边缘略暗（看得出一块一块），远处融进页面底色；不做泛光、景深和辉光。
+// 贴图来自官网专用的原版贴图（public/mc/），拼成一张 8×4 的贴图集；没有提取时用纯色。three 与引擎同一版本。这个模块懒加载。
+import { BLOCKS, resolveBlockFaces } from '@allay/assets';
+import { ALLAY_PALETTE } from '@allay/mascot/model';
 import * as THREE from 'three';
 import { mcGameVersion, mcTexture } from '../../../host/mc-pack';
+import { FORM_INDEX, FORM_NAMES, TILES, allayForm, cutForm, restForm, timelineForm, wordForm, type Form, type FormName, type WordmarkGrid } from './forms';
 
-type Layer = 0 | 1 | 2; // 远、中（焦平面）、近
+export type { FormName, WordmarkGrid };
 
-interface Spec {
-  x: number;
-  y: number;
-  z: number;
-  s: number;
-  id: string;
-}
-
-/** 一个机位的方块群（宽屏的构图；首屏原样，其余机位镜像、抽稀） */
-const SPECS: Spec[] = [
-  { x: 4.7, y: 2.5, z: -0.6, s: 1.1, id: 'minecraft:diamond_block' },
-  { x: 6.6, y: 0.6, z: 0.6, s: 0.62, id: 'minecraft:sea_lantern' },
-  { x: 2.7, y: 3.5, z: -2.2, s: 0.56, id: 'minecraft:amethyst_block' },
-  { x: -7.9, y: -3.9, z: 0.4, s: 0.86, id: 'minecraft:crafting_table' },
-  { x: -1.6, y: -4.6, z: -1.4, s: 0.52, id: 'minecraft:tnt' },
-  { x: 0.6, y: -0.6, z: -3.4, s: 0.42, id: 'minecraft:gold_block' },
-  { x: 5.9, y: 4.0, z: -3.4, s: 0.48, id: 'minecraft:packed_ice' },
-  { x: -1.2, y: 4.1, z: -3.8, s: 0.42, id: 'minecraft:glowstone' },
-  { x: 7.6, y: -1.8, z: -2.4, s: 0.78, id: 'minecraft:deepslate_bricks' },
-  { x: -8.4, y: 3.7, z: -2.6, s: 0.58, id: 'minecraft:lapis_block' },
-  { x: 1.4, y: -4.4, z: -0.8, s: 0.46, id: 'minecraft:copper_block' },
-  { x: -2.6, y: 1.4, z: -9, s: 1.4, id: 'minecraft:obsidian' },
-  { x: 3.2, y: -1.0, z: -10, s: 1.6, id: 'minecraft:deepslate_bricks' },
-  { x: -8.4, y: -0.8, z: -11, s: 1.5, id: 'minecraft:diamond_block' },
-  { x: 9.0, y: 3.6, z: -12, s: 1.8, id: 'minecraft:amethyst_block' },
-  { x: 0.4, y: 4.8, z: -13, s: 1.6, id: 'minecraft:packed_ice' },
-  { x: -5.2, y: 4.9, z: -10, s: 1.2, id: 'minecraft:crying_obsidian' },
-  { x: 1.6, y: -4.8, z: -9, s: 1.3, id: 'minecraft:emerald_block' },
-  { x: 10.4, y: -4.2, z: -11, s: 1.4, id: 'minecraft:sea_lantern' },
-  { x: -11, y: 3.2, z: -13, s: 1.6, id: 'minecraft:lapis_block' },
-  { x: -7.4, y: -5.3, z: 4.4, s: 1.5, id: 'minecraft:diamond_block' },
-  { x: 7.2, y: 4.6, z: 3.8, s: 1.2, id: 'minecraft:amethyst_block' },
-];
-
-const EMISSIVE = new Set(['minecraft:sea_lantern', 'minecraft:glowstone', 'minecraft:crying_obsidian']);
-const FALLBACK: Record<string, string> = {
-  'minecraft:diamond_block': '#52D6DC',
-  'minecraft:sea_lantern': '#A9DCD3',
-  'minecraft:amethyst_block': '#9B85E8',
-  'minecraft:crafting_table': '#9C6B3C',
-  'minecraft:tnt': '#C2362F',
-  'minecraft:gold_block': '#F2C94C',
-  'minecraft:packed_ice': '#9CC3F5',
-  'minecraft:glowstone': '#F3C969',
-  'minecraft:deepslate_bricks': '#4A4A50',
-  'minecraft:lapis_block': '#2F5DB8',
-  'minecraft:copper_block': '#C8734A',
-  'minecraft:obsidian': '#22183A',
-  'minecraft:crying_obsidian': '#3A1F66',
-  'minecraft:emerald_block': '#3FBF6F',
-  'minecraft:quartz_block': '#ECE6DE',
-  'minecraft:black_concrete': '#141518',
+/**
+ * 设备档位：决定体素悦灵最多切多细（每模型像素几格）和细尘有多少。实际的格数按首屏给它留的框有多高来定，
+ * 让一格在屏幕上约 5.5 px（看得出是一块一块的方块），再按档位封顶：1440×900 上高档约 1.3 万块，2560×1440 约 2.8 万块
+ */
+export type Tier = 'high' | 'mid' | 'narrow';
+export const TIERS: Record<Tier, { kMax: number; dust: number }> = {
+  high: { kMax: 9, dust: 240 },
+  mid: { kMax: 5, dust: 180 },
+  narrow: { kMax: 3, dust: 100 },
 };
-/** 字标的方块：深色主题石英块（偶尔一块钻石块），浅色主题黑色混凝土（偶尔一块青金石） */
-const LETTER_IDS = { dark: ['minecraft:quartz_block', 'minecraft:diamond_block'], light: ['minecraft:black_concrete', 'minecraft:lapis_block'] } as const;
 
-/** 机位之间在世界里竖着隔多远 */
-export const STATION_GAP = 64;
-/** 每个机位的相机（相对机位中心）和方块密度：首屏最满，正文多的几节稀一些 */
-const CAMS: { p: [number, number, number]; l: [number, number, number]; density: number; mirror: boolean }[] = [
-  { p: [0, 0, 16], l: [0, 0, 0], density: 1, mirror: false }, // 首屏
-  { p: [-1.5, 0.5, 17], l: [1.5, 0, 0], density: 0.75, mirror: true }, // 工作流
-  { p: [0, 0, 22], l: [0, 0, 0], density: 0.45, mirror: false }, // 剪辑点
-  { p: [2, 1, 26], l: [0, 0, 0], density: 0.35, mirror: true }, // 试用
-  { p: [-2, 1.5, 20], l: [0, 0, 0], density: 0.5, mirror: false }, // 模板
-  { p: [2, -1, 20], l: [0, 0, 0], density: 0.5, mirror: true }, // 特性
-  { p: [0, 0, 18], l: [0, 0, 0], density: 0.6, mirror: false }, // 开源
-  { p: [0, 0.5, 16], l: [0, 0, 0], density: 0.7, mirror: true }, // 页尾
-];
-export const STATION_COUNT = CAMS.length;
-
-const layerOf = (z: number): Layer => (z < -5 ? 0 : z > 2.5 ? 2 : 1);
-
-function h01(n: number, seed: number): number {
-  let x = Math.imul(n + 1, 2654435761) ^ Math.imul(seed + 7, 1597334677);
-  x = Math.imul(x ^ (x >>> 15), 2246822519);
-  x = Math.imul(x ^ (x >>> 13), 3266489917);
-  return ((x ^ (x >>> 16)) >>> 0) / 4294967296;
+/** 每模型像素几格：悦灵约 11 个模型像素高，一格约 5.5 CSS px */
+export function voxelsPerPixel(tier: Tier, slotHeight: number): number {
+  return Math.max(3, Math.min(TIERS[tier].kMax, Math.round(slotHeight / 60)));
 }
 
-const BOX_FACES: Face[] = ['east', 'west', 'up', 'down', 'south', 'north'];
+const F = FORM_NAMES.length;
+const TEX_W = 256;
+const CAM_Z = 16;
+const FOV = 30;
+const TAN_HALF = Math.tan((FOV * Math.PI) / 360);
+const TRAIL = 16;
 
-/** 一张贴图（动画贴图只取第一帧）和它的平均色（碎块用） */
-async function faceTexture(id: string): Promise<{ tex: THREE.Texture; avg: THREE.Color } | null> {
-  const r = await mcTexture(id);
-  if (!r) return null;
-  const bitmap = await createImageBitmap(new Blob([new Uint8Array(r.png)], { type: 'image/png' }));
-  const w = bitmap.width;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = w;
-  const g = canvas.getContext('2d', { willReadFrequently: true })!;
-  g.drawImage(bitmap, 0, 0, w, w, 0, 0, w, w);
-  bitmap.close();
-  const px = g.getImageData(0, 0, w, w).data;
-  let rr = 0;
-  let gg = 0;
-  let bb = 0;
-  let n = 0;
-  for (let i = 0; i < px.length; i += 4) {
-    if (px[i + 3]! < 128) continue;
-    rr += px[i]!;
-    gg += px[i + 1]!;
-    bb += px[i + 2]!;
-    n++;
+/** 各形的重组方式（0 像素溶解、1 方块擦除、2 方块掉落、3 由中心长出）和时长 */
+const STYLE: Record<FormName, { style: number; ms: number }> = {
+  rest: { style: 0, ms: 1300 },
+  allay: { style: 3, ms: 1800 },
+  cut: { style: 2, ms: 1700 },
+  timeline: { style: 1, ms: 1500 },
+  word: { style: 1, ms: 1600 },
+};
+
+const VERT = /* glsl */ `
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+
+uniform sampler2D uPos;
+uniform sampler2D uCol;
+uniform sampler2D uMask;
+uniform int uRows;
+uniform int uFrom;
+uniform int uTo;
+uniform float uP;
+uniform int uStyle;
+uniform vec3 uOrigin[${F}];
+uniform float uScale[${F}];
+uniform vec2 uRot[${F}];
+uniform vec4 uBounds[${F}];
+uniform float uTime;
+uniform float uDrift;
+uniform float uAspect;
+uniform vec4 uTrail[${TRAIL}];
+uniform vec4 uShock[2];
+uniform float uStirR;
+uniform float uMaskOn;
+uniform vec3 uWingR;
+uniform vec3 uWingL;
+uniform float uFlap;
+uniform float uGemSpin;
+uniform float uPlayX;
+uniform float uFogNear;
+uniform float uFogFar;
+
+attribute float aIndex;
+
+varying vec3 vNormal;
+varying vec2 vUv;
+varying vec3 vColor;
+flat varying float vTile;
+varying float vFog;
+varying float vGlow;
+
+const float PI = 3.14159265;
+const float CAM_Z = ${CAM_Z.toFixed(1)};
+const float TAN_HALF = ${TAN_HALF.toFixed(6)};
+
+float hash(float n) { return fract(sin(n * 12.9898 + 4.1414) * 43758.5453); }
+
+mat3 rotY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
+mat3 rotX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
+mat3 axisAngle(vec3 n, float a) {
+  float c = cos(a), s = sin(a), t = 1.0 - c;
+  return mat3(t * n.x * n.x + c, t * n.x * n.y + s * n.z, t * n.x * n.z - s * n.y,
+              t * n.x * n.y - s * n.z, t * n.y * n.y + c, t * n.y * n.z + s * n.x,
+              t * n.x * n.z + s * n.y, t * n.y * n.z - s * n.x, t * n.z * n.z + c);
+}
+
+// 取实例 i 在形 f 里的那一块；不属于这个形（大小记为 −1）时取它在 rest 里的位置
+void fetchForm(int f, int i, out vec4 p, out vec4 c, out bool obj) {
+  p = vec4(0.0);
+  c = vec4(0.0);
+  ivec2 at = ivec2(i % ${TEX_W}, f * uRows + i / ${TEX_W});
+  p = texelFetch(uPos, at, 0);
+  c = texelFetch(uCol, at, 0);
+  obj = f > 0 && p.w >= 0.0;
+  if (!obj) {
+    at.y = i / ${TEX_W};
+    p = texelFetch(uPos, at, 0);
+    c = texelFetch(uCol, at, 0);
   }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestMipmapLinearFilter;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  const avg = new THREE.Color().setRGB(rr / n / 255, gg / n / 255, bb / n / 255, THREE.SRGBColorSpace);
-  return { tex, avg };
 }
 
-const BLUR_VERT = /* glsl */ `
-varying vec2 vUv;
-void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-const BLUR_FRAG = /* glsl */ `
-uniform sampler2D tMap;
-uniform vec2 uDir;
-varying vec2 vUv;
+// 一块在世界里的位置、朝向和大小
+vec3 place(int f, bool obj, vec4 p, float code, float seed, vec3 axis, out mat3 R, out float s) {
+  R = mat3(1.0);
+  s = 0.0;
+  vec3 w = vec3(0.0);
+  if (!obj) {
+    // rest：x、y 是视口的归一化坐标，按深度换算；看得见的细尘随（阻尼过的）滚动缓缓上漂，出了画面从另一头回来
+    float dist = CAM_Z - p.z;
+    float hh = dist * TAN_HALF;
+    float v = p.y;
+    if (p.w > 0.0) v = mod(v + uDrift * (9.0 / dist) + 1.25, 2.5) - 1.25;
+    w = vec3(p.x * hh * uAspect, v * hh, p.z);
+    w.xy += vec2(sin(uTime * 0.13 + seed * 40.0), cos(uTime * 0.11 + seed * 31.0)) * 0.22;
+    R = axisAngle(axis, seed * 6.2832 + uTime * (0.15 + seed * 0.35));
+    s = p.w;
+  } else {
+    float part = floor(code / 32.0);
+    vec3 l = p.xyz;
+    mat3 Rp = mat3(1.0);
+    if (part == 5.0) { Rp = rotY(uFlap); l = uWingR + Rp * (l - uWingR); }
+    else if (part == 6.0) { Rp = rotY(-uFlap); l = uWingL + Rp * (l - uWingL); }
+    else if (part == 8.0) { Rp = rotY(uGemSpin); l = Rp * l; }
+    else if (part == 9.0) { l.x += uPlayX; }
+    mat3 Rf = rotY(uRot[f].x) * rotX(uRot[f].y);
+    R = Rf * Rp;
+    s = p.w * uScale[f];
+    w = uOrigin[f] + Rf * l * uScale[f];
+  }
+  return w;
+}
+
 void main() {
-  vec4 c = texture2D(tMap, vUv) * 0.2270270270;
-  c += texture2D(tMap, vUv + uDir * 1.3846153846) * 0.3162162162;
-  c += texture2D(tMap, vUv - uDir * 1.3846153846) * 0.3162162162;
-  c += texture2D(tMap, vUv + uDir * 3.2307692308) * 0.0702702703;
-  c += texture2D(tMap, vUv - uDir * 3.2307692308) * 0.0702702703;
-  gl_FragColor = c;
+  int i = int(aIndex + 0.5);
+  float seed = hash(aIndex * 0.6180339 + 1.0);
+  float seed2 = hash(aIndex * 1.3247 + 7.0);
+  vec3 axis = normalize(vec3(hash(aIndex + 3.1), hash(aIndex + 5.7), hash(aIndex + 9.2)) - 0.5 + 1e-3);
+
+  vec4 pb = vec4(0.0), cb = vec4(0.0);
+  bool ob = false;
+  fetchForm(uTo, i, pb, cb, ob);
+  mat3 Rb = mat3(1.0);
+  float sb = 0.0;
+  vec3 b = place(uTo, ob, pb, cb.w, seed, axis, Rb, sb);
+
+  vec3 a = vec3(0.0);
+  mat3 Ra = mat3(1.0);
+  float sa = 0.0;
+  vec4 ca = vec4(0.0);
+  if (uFrom < 0) {
+    // 种子：所有方块从目标形的中心、大小为 0 开始
+    a = uOrigin[uTo]; Ra = Rb; sa = 0.0; ca = cb;
+  } else {
+    vec4 pa = vec4(0.0);
+    bool oa = false;
+    fetchForm(uFrom, i, pa, ca, oa);
+    a = place(uFrom, oa, pa, ca.w, seed, axis, Ra, sa);
+  }
+  if (max(sa, sb) <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+
+  // 各块的先后（按目标形的局部坐标和重组方式）
+  float d;
+  if (!ob) d = seed * 0.85;
+  else {
+    vec4 bd = uBounds[uTo];
+    float xn = clamp((pb.x - bd.x) / max(1e-3, bd.y - bd.x), 0.0, 1.0);
+    float yn = clamp((pb.y - bd.z) / max(1e-3, bd.w - bd.z), 0.0, 1.0);
+    if (uStyle == 1) d = xn * 0.88 + seed * 0.12;
+    else if (uStyle == 2) d = xn * 0.5 + yn * 0.38 + seed * 0.12;
+    else if (uStyle == 3) d = clamp(length(pb.xyz) / max(1e-3, 0.5 * max(bd.y - bd.x, bd.w - bd.z)), 0.0, 1.0) * 0.8 + seed * 0.2;
+    else d = seed;
+  }
+  const float S = 0.55;
+  float p = clamp((uP - d * S) / (1.0 - S), 0.0, 1.0);
+  float e = p < 0.5 ? 4.0 * p * p * p : 1.0 - pow(-2.0 * p + 2.0, 3.0) / 2.0;
+  float arc = sin(PI * e) * step(1e-3, distance(a, b));
+  vec3 pos;
+  if (uStyle == 2 && ob) {
+    // 方块掉落：先飞到目标正上方，再带重力落下（最后一点有个小回弹）
+    vec3 above = b + vec3(0.0, 5.0 + seed * 3.0, 1.0);
+    if (p < 0.5) {
+      float q = smoothstep(0.0, 1.0, p / 0.5);
+      pos = mix(a, above, q);
+      pos.z += sin(PI * q) * 2.0;
+    } else {
+      float q = (p - 0.5) / 0.5;
+      pos = mix(above, b, q * q);
+      pos.y += sin(clamp((q - 0.82) / 0.18, 0.0, 1.0) * PI) * 0.25 * (1.0 - q);
+    }
+    arc = p < 0.5 ? sin(PI * p) : 0.0;
+  } else {
+    vec3 side = normalize(cross(b - a, vec3(0.0, 0.0, 1.0)) + 1e-4);
+    pos = mix(a, b, e) + (side * (seed2 - 0.5) * 3.2 + vec3(0.0, 0.0, 2.4 * seed)) * arc;
+  }
+  float s = mix(sa, sb, e) * (1.0 + 0.3 * arc);
+  mat3 R = Ra * (1.0 - e) + Rb * e;
+  R = axisAngle(axis, arc * 2.6 * (0.4 + seed)) * R;
+  vec3 col = e < 0.5 ? ca.rgb : cb.rgb;
+  vTile = mod(e < 0.5 ? ca.w : cb.w, 32.0);
+
+  // 指针：在“视线角”空间里推开（与深度无关，屏幕上看起来一样大），往镜头这边抬一点、转一下
+  vec4 vp = viewMatrix * vec4(pos, 1.0);
+  float depth = -vp.z;
+  vec2 q = vp.xy / depth;
+  vec2 push = vec2(0.0);
+  float glow = 0.0;
+  for (int k = 0; k < ${TRAIL}; k++) {
+    vec4 tr = uTrail[k];
+    if (tr.z <= 0.0) continue;
+    vec2 dd = q - tr.xy;
+    float r2 = dot(dd, dd);
+    float f = exp(-r2 / (uStirR * uStirR)) * tr.z;
+    push += dd * inversesqrt(r2 + 1e-7) * f;
+    glow += f * tr.w;
+  }
+  for (int k = 0; k < 2; k++) {
+    vec4 sh = uShock[k];
+    if (sh.w <= 0.0) continue;
+    vec2 dd = q - sh.xy;
+    float r = length(dd);
+    float ring = (r - sh.z) / (uStirR * 0.8);
+    float f = exp(-ring * ring) * sh.w;
+    push += dd / max(r, 1e-4) * f * 1.6;
+    glow += f * 0.7;
+  }
+  float amt = length(push);
+  if (amt > 1.0) { push *= 1.0 / amt; amt = 1.0; }
+  q += push * uStirR * 0.6;
+  vp.xy = q * depth;
+  vp.z += amt * 1.4;
+  R = axisAngle(axis, amt * 1.6) * R;
+  s *= 1.0 - amt * 0.3;
+
+  // 正文后面不放方块
+  vec4 cc = projectionMatrix * vp;
+  vec2 suv = cc.xy / cc.w * 0.5 + 0.5;
+  float m = uMaskOn * textureLod(uMask, suv, 0.0).r;
+  s *= 1.0 - smoothstep(0.08, 0.7, m);
+
+  vec4 mv = vp + vec4(mat3(viewMatrix) * (R * (position * s)), 0.0);
+  gl_Position = projectionMatrix * mv;
+  vNormal = R * normal;
+  vUv = uv;
+  vColor = col;
+  vGlow = clamp(glow, 0.0, 1.0);
+  vFog = smoothstep(uFogNear, uFogFar, -mv.z) * 0.88;
 }`;
-const COMPOSITE_FRAG = /* glsl */ `
-uniform sampler2D tMap;
-uniform float uOpacity;
+
+const FRAG = /* glsl */ `
+precision highp float;
+uniform sampler2D uAtlas;
+uniform vec3 uFogColor;
+uniform vec3 uKeyDir;
+uniform vec3 uKeyCol;
+uniform vec3 uSky;
+uniform vec3 uGround;
+uniform vec3 uGlowCol;
+
+varying vec3 vNormal;
 varying vec2 vUv;
+varying vec3 vColor;
+flat varying float vTile;
+varying float vFog;
+varying float vGlow;
+
 void main() {
-  vec4 c = texture2D(tMap, vUv);
-  vec3 rgb = c.a > 0.0001 ? c.rgb / c.a : vec3(0.0);
-  gl_FragColor = vec4(rgb, c.a * uOpacity);
+  vec3 n = normalize(vNormal);
+  vec2 uv = clamp(vUv, 0.002, 0.998);
+  vec2 tuv = (vec2(mod(vTile, 8.0), 3.0 - floor(vTile / 8.0)) + uv) / vec2(8.0, 4.0);
+  // 手算细化级别，最多到每格 1 个像素（第 4 级正好是一格的平均色，不和相邻的格子混）
+  vec2 g = vUv * 16.0;
+  vec2 dx = dFdx(g), dy = dFdy(g);
+  float lod = clamp(0.5 * log2(max(dot(dx, dx), dot(dy, dy))), 0.0, 4.0);
+  vec3 base = textureLod(uAtlas, tuv, lod).rgb * vColor;
+  float key = max(dot(n, uKeyDir), 0.0);
+  vec3 hemi = mix(uGround, uSky, n.y * 0.5 + 0.5);
+  vec3 lit = base * (hemi + uKeyCol * key);
+  vec2 ed = min(uv, 1.0 - uv);
+  lit *= mix(0.8, 1.0, smoothstep(0.0, 0.16, min(ed.x, ed.y)));
+  lit = mix(lit, uGlowCol, vGlow * 0.55);
+  lit = mix(lit, uFogColor, vFog);
+  gl_FragColor = vec4(lit, 1.0);
   #include <colorspace_fragment>
-  gl_FragColor.rgb *= gl_FragColor.a;
 }`;
 
-/** 一块会动的方块（漂浮的、字标里的都用它） */
-interface Block {
-  group: THREE.InstancedMesh;
-  index: number;
-  /** 世界里的基准位置 */
-  base: THREE.Vector3;
-  size: number;
-  rot: THREE.Euler;
-  spin: THREE.Vector3;
-  phase: number;
-  /** 被指针推开的偏移和速度 */
-  push: THREE.Vector3;
-  pushV: THREE.Vector3;
-  /** 敲碎的时刻（毫秒，0 表示完好） */
-  brokenAt: number;
-  /** 敲碎后多久长回来 */
-  regrowMs: number;
-  avg: THREE.Color;
-  station: number;
-  /** 给正文让位的程度（0 完整、1 缩没了），平滑地变 */
-  hide: number;
-}
-
-interface Particle {
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  born: number;
-  size: number;
+export interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 export interface WorldFrame {
   now: number;
   dt: number;
-  /** 当前该在哪个机位（由滚动位置决定） */
-  station: number;
-  /** 指针的归一化坐标（−1–1，y 向下），没有指针时为 null */
-  pointer: { x: number; y: number } | null;
-  /** 页尾字标在视口里的位置（CSS 像素）；不在视口里时为 null */
-  wordmark: { left: number; top: number; height: number } | null;
-  /** 悦灵：视口坐标（CSS 像素）、显示尺寸、当前帧在图集里的序号、朝向；不出场时为 null */
-  allay: { x: number; y: number; size: number; frame: number; facing: 1 | -1; tilt: number } | null;
   vw: number;
   vh: number;
-  /** 减少动效：不漂浮、不入场、不跟鼠标，相机直接到位 */
+  /** 页面滚动位置（CSS 像素） */
+  scroll: number;
+  /** 该拼成哪个形（由页面按各节的占位框是否在视口里决定） */
+  target: FormName;
+  /** 各形的占位框（视口坐标）；不显示的为 null */
+  slots: Partial<Record<FormName, Box | null>>;
+  /** 页尾字标的墨迹框（视口坐标）；不在视口附近时为 null */
+  word: { left: number; top: number; height: number } | null;
+  pointer: { x: number; y: number } | null;
+  /** 指针轨迹：每 4 个数一个点（x、y 视口坐标，距今多少秒，速度 px/s），最近的在前 */
+  trail: Float32Array;
+  /** 冲击波：每 4 个数一个（x、y，距今多少秒，强度），最多两个 */
+  shocks: Float32Array;
+  /** 按住拖动转的角度（弧度） */
+  drag: { yaw: number; pitch: number };
+  /** 悦灵：视口坐标（CSS 像素）、显示尺寸、当前帧在图集里的序号、朝向；不出场时为 null */
+  allay: { x: number; y: number; size: number; frame: number; facing: 1 | -1; tilt: number } | null;
+  /** 减少动效：直接到终态，不漂、不扇翅膀、不跟指针 */
   still: boolean;
-  /** 正文在视口里的位置（CSS 像素，每 4 个数一个框：左、上、右、下）：落在这些框后面的方块缩起来让位 */
+  /** 正文在视口里的位置（每 4 个数一个框：左、上、右、下） */
   textRects: Float32Array | null;
 }
 
-export interface WordmarkGrid {
-  cols: number;
-  rows: number;
-  /** 有方块的格子（列、行） */
-  cells: [number, number][];
+/** 一张贴图（动画贴图只取第一帧） */
+async function tileBitmap(id: string): Promise<ImageBitmap | null> {
+  const def = BLOCKS[id];
+  if (!def || !mcGameVersion) return null;
+  const tex = resolveBlockFaces(def).faces.south.texture;
+  const r = await mcTexture(tex);
+  if (!r) return null;
+  return createImageBitmap(new Blob([new Uint8Array(r.png)], { type: 'image/png' }));
 }
 
-const tmpM = new THREE.Matrix4();
-const tmpQ = new THREE.Quaternion();
-const tmpS = new THREE.Vector3();
-const tmpV = new THREE.Vector3();
-const tmpV2 = new THREE.Vector3();
-const tmpE = new THREE.Euler();
+function springTo(v: number, vel: number, target: number, omega: number, dt: number): [number, number] {
+  const x = v - target;
+  const e = Math.exp(-omega * dt);
+  return [target + (x + (vel + omega * x) * dt) * e, (vel - omega * (vel + omega * x) * dt) * e];
+}
 
 export class World {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(30, 1, 0.1, 400);
-  private readonly rtA: THREE.WebGLRenderTarget;
-  private readonly rtB: THREE.WebGLRenderTarget;
-  private readonly quad: THREE.Mesh;
-  private readonly blurMat: THREE.ShaderMaterial;
-  private readonly compMat: THREE.ShaderMaterial;
-  private readonly quadScene = new THREE.Scene();
-  private readonly quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  private readonly cursorLight: THREE.PointLight;
-  private readonly rim: THREE.DirectionalLight;
-  private readonly key: THREE.DirectionalLight;
-  private readonly ambient: THREE.AmbientLight;
-  private readonly geo = new THREE.BoxGeometry(1, 1, 1);
-  private readonly blocks: Block[] = [];
-  private readonly letters: Block[] = [];
-  private readonly groups: THREE.InstancedMesh[] = [];
-  private readonly matsByType = new Map<string, THREE.MeshLambertMaterial[]>();
-  private readonly avgByType = new Map<string, THREE.Color>();
-  private readonly dimMaterials: THREE.MeshLambertMaterial[] = [];
-  private readonly allMaterials: THREE.MeshLambertMaterial[] = [];
-  private particles!: THREE.InstancedMesh;
-  private readonly parts: Particle[] = [];
-  private partNext = 0;
-  private letterMesh: THREE.InstancedMesh | null = null;
-  private letterGrid: WordmarkGrid | null = null;
-  private letterState: 'gone' | 'assembling' | 'ready' = 'gone';
-  private letterT0 = 0;
-  private letterStart: THREE.Vector3[] = [];
+  private readonly camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 400);
+  private readonly mesh: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>;
+  private readonly mat: THREE.ShaderMaterial;
+  private readonly posTex: THREE.DataTexture;
+  private readonly colTex: THREE.DataTexture;
+  private readonly atlas: THREE.CanvasTexture;
+  private readonly atlasCanvas: HTMLCanvasElement;
+  private readonly mask: THREE.CanvasTexture;
+  private readonly maskCanvas: HTMLCanvasElement;
+  private maskSig = NaN;
+  private readonly rows: number;
+  readonly instances: number;
+  private readonly forms: (Form | null)[] = new Array<Form | null>(F).fill(null);
+  private wordGrid: WordmarkGrid | null = null;
   private allayMesh: THREE.Mesh | null = null;
   private allayMat: THREE.MeshBasicMaterial | null = null;
   private allayAtlas: { columns: number; rx: number; ry: number } | null = null;
   private width = 1;
   private height = 1;
-  private aspect = 1;
-  private narrow = false;
   private theme: 'dark' | 'light' = 'dark';
-  private camPos = new THREE.Vector3(0, 0, 16);
-  private camVel = new THREE.Vector3();
-  private lookPos = new THREE.Vector3();
-  private lookVel = new THREE.Vector3();
-  private lightPos = new THREE.Vector3(2, 1, 4);
-  private firstFrame = true;
   private t0 = 0;
   private disposed = false;
-  /** 相机落到机位、字标拼好（或不在）时为真 */
-  settled = true;
+  // 重组：从哪个形（−1 是种子）到哪个形、进度、排着队的下一个
+  private from = 0;
+  private to = 0;
+  private p = 1;
+  private pending: number | null = null;
+  private started = false;
+  /** 各形的朝向（弹簧追目标） */
+  private readonly rot = Array.from({ length: F }, () => ({ yaw: 0, pitch: 0, vy: 0, vp: 0 }));
+  private drift = 0;
+  private driftV = 0;
+  private stillDirty = 3;
+  /** 停下来了：没有在重组 */
+  settled = false;
+  /** 这一帧指针轨迹的总强度（测试和调试看指针有没有真的拨动方块） */
+  stir = 0;
+  /** 雕塑当前被拖着转了多少（弧度） */
+  yaw = 0;
+  private readonly tmp = new THREE.Vector3();
 
-  private constructor(canvas: HTMLCanvasElement) {
+  private constructor(canvas: HTMLCanvasElement, n: number) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.autoClear = false;
-    const rt = () => new THREE.WebGLRenderTarget(4, 4, { depthBuffer: true, type: THREE.HalfFloatType });
-    this.rtA = rt();
-    this.rtB = rt();
-    this.blurMat = new THREE.ShaderMaterial({ uniforms: { tMap: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: BLUR_VERT, fragmentShader: BLUR_FRAG, depthTest: false, depthWrite: false });
-    this.compMat = new THREE.ShaderMaterial({
-      uniforms: { tMap: { value: null }, uOpacity: { value: 1 } },
-      vertexShader: BLUR_VERT,
-      fragmentShader: COMPOSITE_FRAG,
-      depthTest: false,
-      depthWrite: false,
-      transparent: true,
-      blending: THREE.CustomBlending,
-      blendSrc: THREE.OneFactor,
-      blendDst: THREE.OneMinusSrcAlphaFactor,
-      premultipliedAlpha: false,
-    });
-    this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.blurMat);
-    this.quad.frustumCulled = false;
-    this.quadScene.add(this.quad);
+    this.instances = n;
+    this.rows = Math.ceil(n / TEX_W);
+    const data = () => new Float32Array(TEX_W * this.rows * F * 4);
+    const tex = (d: Float32Array) => {
+      const t = new THREE.DataTexture(d, TEX_W, this.rows * F, THREE.RGBAFormat, THREE.FloatType);
+      t.minFilter = THREE.NearestFilter;
+      t.magFilter = THREE.NearestFilter;
+      t.generateMipmaps = false;
+      t.needsUpdate = true;
+      return t;
+    };
+    this.posTex = tex(data());
+    this.colTex = tex(data());
 
-    this.ambient = new THREE.AmbientLight(0xffffff, 0.55);
-    this.key = new THREE.DirectionalLight(0xffffff, 2.1);
-    this.key.position.set(-4, 6, 7);
-    this.rim = new THREE.DirectionalLight(0x3cb7f4, 3.2);
-    this.rim.position.set(5, -2, -6);
-    this.cursorLight = new THREE.PointLight(0x3cb7f4, 38, 0, 1.4);
-    const hemi = new THREE.HemisphereLight(0x9fdcfa, 0x0d0d0e, 0.6);
-    for (const l of [this.ambient, this.key, this.rim, this.cursorLight, hemi]) {
-      l.layers.enableAll();
-      this.scene.add(l);
-    }
-    // 方向光跟着相机走（机位在世界里竖着排开）
-    this.scene.add(this.key.target, this.rim.target);
-    this.camera.layers.enableAll();
+    // 贴图集：先画纯色和噪点，原版贴图装好以后再画上去
+    this.atlasCanvas = document.createElement('canvas');
+    this.atlasCanvas.width = 128;
+    this.atlasCanvas.height = 64;
+    const g = this.atlasCanvas.getContext('2d')!;
+    TILES.forEach((t, i) => {
+      const x = (i % 8) * 16;
+      const y = Math.floor(i / 8) * 16;
+      g.fillStyle = t.fallback;
+      g.fillRect(x, y, 16, 16);
+      for (let py = 0; py < 16; py++) {
+        for (let px = 0; px < 16; px++) {
+          const v = Math.sin((i * 256 + py * 16 + px) * 12.9898) * 43758.5453;
+          const r = v - Math.floor(v);
+          g.fillStyle = r > 0.5 ? `rgba(255,255,255,${((r - 0.5) * 0.16).toFixed(3)})` : `rgba(0,0,0,${((0.5 - r) * 0.2).toFixed(3)})`;
+          g.fillRect(x + px, y + py, 1, 1);
+        }
+      }
+    });
+    this.atlas = new THREE.CanvasTexture(this.atlasCanvas);
+    this.atlas.colorSpace = THREE.SRGBColorSpace;
+    this.atlas.magFilter = THREE.NearestFilter;
+    this.atlas.minFilter = THREE.NearestMipmapLinearFilter;
+    this.atlas.generateMipmaps = true;
+
+    this.maskCanvas = document.createElement('canvas');
+    this.maskCanvas.width = 192;
+    this.maskCanvas.height = 108;
+    this.mask = new THREE.CanvasTexture(this.maskCanvas);
+    this.mask.minFilter = THREE.LinearFilter;
+    this.mask.magFilter = THREE.LinearFilter;
+    this.mask.generateMipmaps = false;
+
+    const vec3s = () => Array.from({ length: F }, () => new THREE.Vector3());
+    this.mat = new THREE.ShaderMaterial({
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      uniforms: {
+        uPos: { value: this.posTex },
+        uCol: { value: this.colTex },
+        uMask: { value: this.mask },
+        uAtlas: { value: this.atlas },
+        uRows: { value: this.rows },
+        uFrom: { value: 0 },
+        uTo: { value: 0 },
+        uP: { value: 1 },
+        uStyle: { value: 0 },
+        uOrigin: { value: vec3s() },
+        uScale: { value: new Array<number>(F).fill(1) },
+        uRot: { value: Array.from({ length: F }, () => new THREE.Vector2()) },
+        uBounds: { value: Array.from({ length: F }, () => new THREE.Vector4(-1, 1, -1, 1)) },
+        uTime: { value: 0 },
+        uDrift: { value: 0 },
+        uAspect: { value: 1 },
+        uTrail: { value: Array.from({ length: TRAIL }, () => new THREE.Vector4()) },
+        uShock: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+        uStirR: { value: 0.03 },
+        uMaskOn: { value: 1 },
+        uWingR: { value: new THREE.Vector3() },
+        uWingL: { value: new THREE.Vector3() },
+        uFlap: { value: 0 },
+        uGemSpin: { value: 0 },
+        uPlayX: { value: 0 },
+        uFogNear: { value: 22 },
+        uFogFar: { value: 72 },
+        uFogColor: { value: new THREE.Color(0x0b0b0c) },
+        uKeyDir: { value: new THREE.Vector3(-0.45, 0.75, 0.55).normalize() },
+        uKeyCol: { value: new THREE.Color(0xffffff) },
+        uSky: { value: new THREE.Color(0xffffff) },
+        uGround: { value: new THREE.Color(0x222222) },
+        uGlowCol: { value: new THREE.Color(0xffffff) },
+      },
+    });
+    const box = new THREE.BoxGeometry(1, 1, 1);
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.index = box.index;
+    geo.setAttribute('position', box.getAttribute('position'));
+    geo.setAttribute('normal', box.getAttribute('normal'));
+    geo.setAttribute('uv', box.getAttribute('uv'));
+    geo.setAttribute('aIndex', new THREE.InstancedBufferAttribute(Float32Array.from({ length: n }, (_, i) => i), 1));
+    geo.instanceCount = n;
+    this.mesh = new THREE.Mesh(geo, this.mat);
+    this.mesh.frustumCulled = false;
+    this.scene.add(this.mesh);
+    this.camera.position.set(0, 0, CAM_Z);
+    this.camera.lookAt(0, 0, 0);
   }
 
-  static async create(canvas: HTMLCanvasElement, opts: { theme: 'dark' | 'light'; narrow: boolean }): Promise<World> {
-    const w = new World(canvas);
+  /** 按档位建好各个形；n 是实例数（最大的形 + 细尘） */
+  static async create(canvas: HTMLCanvasElement, opts: { theme: 'dark' | 'light'; tier: Tier; slotHeight: number }): Promise<World> {
+    const { dust } = TIERS[opts.tier];
+    const k = voxelsPerPixel(opts.tier, opts.slotHeight);
+    const allay = allayForm(k, 1e9);
+    const cut = cutForm(k, 1e9);
+    const timeline = timelineForm(k, 1e9);
+    const n = Math.max(allay.count, cut.count, timeline.count) + dust;
+    const w = new World(canvas, n);
     w.theme = opts.theme;
-    w.narrow = opts.narrow;
-    await w.build();
+    w.setForm(FORM_INDEX.rest, restForm(n, dust));
+    w.setForm(FORM_INDEX.allay, allay);
+    w.setForm(FORM_INDEX.cut, cut);
+    w.setForm(FORM_INDEX.timeline, timeline);
     w.applyTheme();
+    void w.loadAtlas();
     return w;
   }
 
-  private async materialsFor(id: string, cache: Map<string, Promise<{ tex: THREE.Texture; avg: THREE.Color } | null>>): Promise<THREE.MeshLambertMaterial[]> {
-    const hit = this.matsByType.get(id);
-    if (hit) return hit;
-    const def = BLOCKS[id];
-    const faces = def ? resolveBlockFaces(def).faces : null;
-    const tex = (tid: string) => {
-      let p = cache.get(tid);
-      if (!p) {
-        p = mcGameVersion ? faceTexture(tid).catch(() => null) : Promise.resolve(null);
-        cache.set(tid, p);
-      }
-      return p;
-    };
-    const emissive = EMISSIVE.has(id);
-    let avg: THREE.Color | null = null;
-    const mats = await Promise.all(
-      BOX_FACES.map(async (f) => {
-        const t = faces ? await tex(faces[f].texture) : null;
-        if (t && f === 'north') avg = t.avg;
-        const m = new THREE.MeshLambertMaterial(t ? { map: t.tex } : { color: new THREE.Color(FALLBACK[id] ?? '#888888') });
-        if (emissive) {
-          m.emissive = new THREE.Color(0xffffff);
-          if (t) m.emissiveMap = t.tex;
-          m.emissiveIntensity = t ? 0.85 : 0.35;
-        }
-        this.allMaterials.push(m);
-        return m;
+  private setForm(fi: number, form: Form): void {
+    this.forms[fi] = form;
+    const pos = this.posTex.image.data as Float32Array;
+    const col = this.colTex.image.data as Float32Array;
+    const base = fi * this.rows * TEX_W * 4;
+    const n = Math.min(form.count, this.instances);
+    pos.set(form.pos.subarray(0, n * 4), base);
+    col.set(form.col.subarray(0, n * 4), base);
+    for (let i = n; i < this.rows * TEX_W; i++) {
+      pos[base + i * 4 + 3] = -1;
+    }
+    this.posTex.needsUpdate = true;
+    this.colTex.needsUpdate = true;
+    (this.mat.uniforms.uBounds!.value as THREE.Vector4[])[fi]!.set(...form.bounds);
+    if (form.pivot) (this.mat.uniforms.uWingR!.value as THREE.Vector3).set(...form.pivot);
+    if (form.pivotL) (this.mat.uniforms.uWingL!.value as THREE.Vector3).set(...form.pivotL);
+    this.stillDirty = 3;
+  }
+
+  private async loadAtlas(): Promise<void> {
+    const g = this.atlasCanvas.getContext('2d')!;
+    await Promise.all(
+      TILES.map(async (t, i) => {
+        if (!t.id) return;
+        const bmp = await tileBitmap(t.id).catch(() => null);
+        if (!bmp || this.disposed) return;
+        g.clearRect((i % 8) * 16, Math.floor(i / 8) * 16, 16, 16);
+        g.drawImage(bmp, 0, 0, bmp.width, bmp.width, (i % 8) * 16, Math.floor(i / 8) * 16, 16, 16);
+        bmp.close();
       }),
     );
-    this.matsByType.set(id, mats);
-    this.avgByType.set(id, avg ?? new THREE.Color(FALLBACK[id] ?? '#888888'));
-    return mats;
+    if (this.disposed) return;
+    this.atlas.needsUpdate = true;
+    this.stillDirty = 3;
   }
 
-  private async build(): Promise<void> {
-    const cache = new Map<string, Promise<{ tex: THREE.Texture; avg: THREE.Color } | null>>();
-    // 先把每个机位要放哪些方块算出来（确定性的抽稀和镜像），再按“方块类型 × 层”建实例化网格
-    const plan: { spec: Spec; station: number; layer: Layer; i: number }[] = [];
-    CAMS.forEach((cam, st) => {
-      const density = cam.density * (this.narrow ? 0.6 : 1);
-      SPECS.forEach((spec, i) => {
-        if (st > 0 && h01(i, st * 31) > density) return;
-        const x = cam.mirror ? -spec.x : spec.x;
-        const y = st === 0 ? spec.y : spec.y + (h01(i, st) - 0.5) * 2.4;
-        plan.push({ spec: { ...spec, x, y, id: st === 0 ? spec.id : SPECS[(i + st * 5) % SPECS.length]!.id }, station: st, layer: layerOf(spec.z), i: plan.length });
-      });
-    });
-    const keyOf = (id: string, layer: Layer) => `${id}|${layer}`;
-    const counts = new Map<string, number>();
-    for (const p of plan) counts.set(keyOf(p.spec.id, p.layer), (counts.get(keyOf(p.spec.id, p.layer)) ?? 0) + 1);
-    const meshes = new Map<string, THREE.InstancedMesh>();
-    const used = new Map<string, number>();
-    for (const [k, n] of counts) {
-      const [id, layerStr] = k.split('|') as [string, string];
-      const layer = Number(layerStr) as Layer;
-      let mats = await this.materialsFor(id, cache);
-      if (layer === 0) {
-        // 远层：单独一套材质（深色主题压暗、浅色主题蒙一层雾）
-        mats = mats.map((m) => {
-          const c = m.clone();
-          this.dimMaterials.push(c);
-          this.allMaterials.push(c);
-          return c;
-        });
-      }
-      const mesh = new THREE.InstancedMesh(this.geo, mats, n);
-      mesh.frustumCulled = false;
-      mesh.layers.set(layer);
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      // 实例矩阵默认是单位矩阵（一块方块摆在原点）：先全部缩成 0，离相机远、这一帧不更新的也不会冒出来
-      for (let i = 0; i < n; i++) mesh.setMatrixAt(i, tmpM.makeScale(0, 0, 0));
-      this.scene.add(mesh);
-      this.groups.push(mesh);
-      meshes.set(k, mesh);
-      used.set(k, 0);
-    }
-    for (const p of plan) {
-      const k = keyOf(p.spec.id, p.layer);
-      const mesh = meshes.get(k)!;
-      const index = used.get(k)!;
-      used.set(k, index + 1);
-      const cy = -p.station * STATION_GAP;
-      this.blocks.push({
-        group: mesh,
-        index,
-        base: new THREE.Vector3(p.spec.x, cy + p.spec.y, p.spec.z),
-        size: p.spec.s * (this.narrow ? 0.72 : 1),
-        rot: new THREE.Euler(h01(p.i, 1) * Math.PI * 2, h01(p.i, 2) * Math.PI * 2, h01(p.i, 3) * 0.6),
-        spin: new THREE.Vector3((h01(p.i, 5) - 0.5) * 0.3, (h01(p.i, 6) - 0.5) * 0.5 + 0.12, (h01(p.i, 7) - 0.5) * 0.2),
-        phase: h01(p.i, 4) * Math.PI * 2,
-        push: new THREE.Vector3(),
-        pushV: new THREE.Vector3(),
-        brokenAt: 0,
-        regrowMs: 3500 + h01(p.i, 9) * 2500,
-        avg: this.avgByType.get(p.spec.id)!,
-        station: p.station,
-        hide: 0,
-      });
-    }
-    // 碎块：一个小方块的实例池
-    const pm = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    this.allMaterials.push(pm);
-    this.particles = new THREE.InstancedMesh(this.geo, pm, 160);
-    this.particles.frustumCulled = false;
-    this.particles.layers.set(1);
-    this.particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    for (let i = 0; i < 160; i++) {
-      this.particles.setMatrixAt(i, tmpM.makeScale(0, 0, 0));
-      this.particles.setColorAt(i, new THREE.Color(1, 1, 1));
-    }
-    this.scene.add(this.particles);
-    // 字标的方块材质预先装好（主题一变就换）
-    await Promise.all([...LETTER_IDS.dark, ...LETTER_IDS.light].map((id) => this.materialsFor(id, cache)));
-  }
-
-  setTheme(theme: 'dark' | 'light'): void {
+  setTheme(theme: 'dark' | 'light', bg: string): void {
     this.theme = theme;
+    (this.mat.uniforms.uFogColor!.value as THREE.Color).setStyle(bg, THREE.SRGBColorSpace);
     this.applyTheme();
-    if (this.letterGrid) this.buildLetters(this.letterGrid);
+    if (this.wordGrid) this.setForm(FORM_INDEX.word, wordForm(this.wordGrid, theme, this.instances));
   }
 
   private applyTheme(): void {
     const light = this.theme === 'light';
-    this.ambient.intensity = light ? 1.15 : 0.5;
-    this.key.intensity = light ? 1.9 : 2.1;
-    this.rim.color.set(light ? 0x0b6aa6 : 0x3cb7f4);
-    this.rim.intensity = light ? 1.6 : 3.4;
-    this.cursorLight.color.set(light ? 0x2b8fd6 : 0x3cb7f4);
-    this.cursorLight.intensity = light ? 26 : 42;
-    for (const m of this.dimMaterials) {
-      m.color.setScalar(light ? 0.92 : 0.5);
-      if (!m.emissiveMap) {
-        m.emissive.set(light ? 0xe4e8ef : 0x000000);
-        m.emissiveIntensity = light ? 0.45 : 0;
-      }
-    }
+    const u = this.mat.uniforms;
+    (u.uKeyCol!.value as THREE.Color).setRGB(...((light ? [0.62, 0.6, 0.57] : [0.78, 0.76, 0.72]) as [number, number, number]));
+    (u.uSky!.value as THREE.Color).setRGB(...((light ? [0.62, 0.66, 0.7] : [0.42, 0.47, 0.54]) as [number, number, number]));
+    (u.uGround!.value as THREE.Color).setRGB(...((light ? [0.36, 0.36, 0.38] : [0.1, 0.11, 0.13]) as [number, number, number]));
+    (u.uGlowCol!.value as THREE.Color).set(light ? ALLAY_PALETTE.light : ALLAY_PALETTE.highlight);
+    u.uFogNear!.value = light ? 18 : 22;
+    u.uFogFar!.value = light ? 64 : 72;
+    this.stillDirty = 3;
   }
 
   /** 页尾字标的点阵（由页面按 DOM 里那段字的字体栅格化出来） */
   setWordmark(grid: WordmarkGrid): void {
-    this.letterGrid = grid;
-    this.buildLetters(grid);
+    this.wordGrid = grid;
+    this.setForm(FORM_INDEX.word, wordForm(grid, this.theme, this.instances));
   }
-
-  private buildLetters(grid: WordmarkGrid): void {
-    if (this.letterMesh) {
-      this.scene.remove(this.letterMesh);
-      this.letterMesh.dispose();
-      this.letterMesh = null;
-    }
-    this.letters.length = 0;
-    const [mainId, accentId] = LETTER_IDS[this.theme];
-    const mats = this.matsByType.get(mainId);
-    const accent = this.matsByType.get(accentId);
-    if (!mats || !accent) return;
-    // 两种方块各一个实例化网格：主色和零星的强调色
-    const isAccent = grid.cells.map((_, i) => h01(i, 77) < 0.06);
-    const nA = isAccent.filter(Boolean).length;
-    const main = new THREE.InstancedMesh(this.geo, mats, grid.cells.length - nA);
-    const acc = new THREE.InstancedMesh(this.geo, accent, Math.max(1, nA));
-    for (const m of [main, acc]) {
-      m.frustumCulled = false;
-      m.layers.set(1);
-      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.scene.add(m);
-    }
-    let iMain = 0;
-    let iAcc = 0;
-    grid.cells.forEach((_, i) => {
-      const a = isAccent[i]!;
-      const group = a ? acc : main;
-      const index = a ? iAcc++ : iMain++;
-      group.setMatrixAt(index, tmpM.makeScale(0, 0, 0));
-      this.letters.push({
-        group,
-        index,
-        base: new THREE.Vector3(),
-        size: 1,
-        rot: new THREE.Euler(),
-        spin: new THREE.Vector3(),
-        phase: h01(i, 11) * Math.PI * 2,
-        push: new THREE.Vector3(),
-        pushV: new THREE.Vector3(),
-        brokenAt: 0,
-        regrowMs: 2600 + h01(i, 12) * 1800,
-        avg: this.avgByType.get(a ? accentId : mainId)!,
-        station: -1,
-        hide: 0,
-      });
-    });
-    // 两个网格都登记起来（销毁、换主题时一起处理）
-    this.letterMesh = main;
-    this.letterExtra = acc;
-    this.letterState = 'gone';
-  }
-
-  private letterExtra: THREE.InstancedMesh | null = null;
 
   /** 悦灵的图集（应用同一份烘焙产物）：画在一块面片上，放进这个空间里 */
   setAllayAtlas(image: ImageBitmap, atlas: { columns: number; size: number }): void {
@@ -532,7 +602,6 @@ export class World {
     this.allayAtlas = { columns: atlas.columns, rx, ry };
     this.allayMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, alphaTest: 0.02 });
     this.allayMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.allayMat);
-    this.allayMesh.layers.set(1);
     this.allayMesh.renderOrder = 5;
     this.allayMesh.visible = false;
     this.scene.add(this.allayMesh);
@@ -541,305 +610,177 @@ export class World {
   resize(width: number, height: number): void {
     this.width = Math.max(2, Math.round(width));
     this.height = Math.max(2, Math.round(height));
-    this.aspect = this.width / this.height;
     this.renderer.setSize(this.width, this.height, false);
-    const hw = Math.max(2, Math.round(this.width / 2));
-    const hh = Math.max(2, Math.round(this.height / 2));
-    this.rtA.setSize(hw, hh);
-    this.rtB.setSize(hw, hh);
-    this.camera.aspect = this.aspect;
-    this.camera.fov = this.aspect < 1 ? 44 : 30;
+    this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
+    this.stillDirty = 3;
   }
 
-  /** 视口坐标（CSS 像素）→ 世界里 z = zPlane 那个平面上的点（用当前相机） */
-  private unproject(x: number, y: number, vw: number, vh: number, zPlane: number, out: THREE.Vector3): THREE.Vector3 {
-    tmpV2.set((x / vw) * 2 - 1, -(y / vh) * 2 + 1, 0.5).unproject(this.camera);
-    tmpV2.sub(this.camera.position).normalize();
-    const t = (zPlane - this.camera.position.z) / tmpV2.z;
-    return out.copy(this.camera.position).addScaledVector(tmpV2, t);
+  /** 当前（或正在拼向）的形 */
+  get form(): FormName {
+    return FORM_NAMES[this.to]!;
   }
 
-  /** 在 z = zPlane 处，一个 CSS 像素对应多少世界单位 */
-  private unitsPerPx(vh: number, zPlane: number): number {
-    const dist = this.camera.position.z - zPlane;
-    return (2 * Math.tan((this.camera.fov * Math.PI) / 360) * dist) / vh;
-  }
-
-  /** 点一下：指针下面有完好的方块就敲碎它。返回是否敲到了 */
-  pick(ndcX: number, ndcY: number, now: number): boolean {
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(new THREE.Vector2(ndcX, -ndcY), this.camera);
-    let best: { b: Block; d: number; p: THREE.Vector3 } | null = null;
-    const cands = [...this.blocks, ...(this.letterState === 'ready' ? this.letters : [])];
-    for (const b of cands) {
-      if (b.brokenAt) continue;
-      if (b.group.layers.mask & 1) continue; // 远层不让敲（虚化的远景）
-      const p = tmpV.copy(b.base).add(b.push);
-      const r = b.size * 0.75;
-      const toC = p.clone().sub(ray.ray.origin);
-      const along = toC.dot(ray.ray.direction);
-      if (along < 0) continue;
-      const d2 = toC.lengthSq() - along * along;
-      if (d2 > r * r) continue;
-      if (!best || along < best.d) best = { b, d: along, p: p.clone() };
-    }
-    if (!best) return false;
-    best.b.brokenAt = now;
-    // 碎成 8 块，带着方块的平均色往外崩、受重力掉下去
-    for (let i = 0; i < 8; i++) {
-      const k = this.partNext++ % 160;
-      const part = this.parts[k] ?? { pos: new THREE.Vector3(), vel: new THREE.Vector3(), born: 0, size: 0 };
-      part.pos.copy(best.p).add(new THREE.Vector3((i & 1) - 0.5, ((i >> 1) & 1) - 0.5, ((i >> 2) & 1) - 0.5).multiplyScalar(best.b.size * 0.5));
-      part.vel.set((Math.random() - 0.5) * 6, Math.random() * 6 + 2, (Math.random() - 0.5) * 6).multiplyScalar(best.b.size);
-      part.born = now;
-      part.size = best.b.size * 0.32;
-      this.parts[k] = part;
-      this.particles.setColorAt(k, best.b.avg);
-    }
-    if (this.particles.instanceColor) this.particles.instanceColor.needsUpdate = true;
-    return true;
-  }
-
-  /** 指针下面有没有能敲的方块（给光标反馈用） */
-  hovering(ndcX: number, ndcY: number): boolean {
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(new THREE.Vector2(ndcX, -ndcY), this.camera);
-    for (const b of this.blocks) {
-      if (b.brokenAt || b.group.layers.mask & 1) continue;
-      const p = tmpV.copy(b.base).add(b.push);
-      const r = b.size * 0.75;
-      const toC = p.sub(ray.ray.origin);
-      const along = toC.dot(ray.ray.direction);
-      if (along > 0 && toC.lengthSq() - along * along < r * r) return true;
-    }
-    return false;
+  /** 视口坐标 → z = 0 平面上的世界坐标 */
+  private toWorld(x: number, y: number, vw: number, vh: number, out: THREE.Vector3): THREE.Vector3 {
+    const upp = (2 * CAM_Z * TAN_HALF) / vh;
+    return out.set((x - vw / 2) * upp, -(y - vh / 2) * upp, 0);
   }
 
   frame(f: WorldFrame): void {
     if (this.disposed) return;
     this.t0 ||= f.now;
-    const ms = f.still ? 1e6 : f.now - this.t0;
-    const t = ms / 1000;
-    const dt = f.still ? 1 : f.dt;
+    const t = f.still ? 0 : (f.now - this.t0) / 1000;
+    const dt = Math.min(0.1, f.dt);
+    const u = this.mat.uniforms;
+    const target = FORM_INDEX[f.target];
 
-    // 相机：机位由滚动决定，位置用弹簧追过去（第一帧、减少动效时直接到位）
-    const cam = CAMS[Math.max(0, Math.min(CAMS.length - 1, f.station))]!;
-    const cy = -f.station * STATION_GAP;
-    const px = f.pointer && !f.still ? f.pointer.x : 0;
-    const py = f.pointer && !f.still ? f.pointer.y : 0;
-    const target = tmpV.set(cam.p[0] + px * 0.9, cy + cam.p[1] - py * 0.55, cam.p[2]);
-    const look = tmpV2.set(cam.l[0], cy + cam.l[1], cam.l[2]);
-    if (this.firstFrame || f.still) {
-      this.camPos.copy(target);
-      this.lookPos.copy(look);
-      this.camVel.set(0, 0, 0);
-      this.lookVel.set(0, 0, 0);
-      this.firstFrame = false;
-    } else {
-      // 大跳（锚点、连按 PageDown）：先切到离目标一个半机位的地方再飞过去，飞行总在一秒多一点之内，不把中间各节都放一遍
-      const dy = target.y - this.camPos.y;
-      if (Math.abs(dy) > STATION_GAP * 1.5) {
-        const jump = dy - Math.sign(dy) * STATION_GAP * 1.5;
-        this.camPos.y += jump;
-        this.lookPos.y += jump;
-        this.camVel.set(0, 0, 0);
-        this.lookVel.set(0, 0, 0);
-      }
-      springVec(this.camPos, this.camVel, target, 4.4, dt);
-      springVec(this.lookPos, this.lookVel, look, 4.4, dt);
-      if (this.camPos.distanceTo(target) < 0.12 && this.camVel.length() < 0.2) {
-        this.camPos.copy(target);
-        this.lookPos.copy(look);
-        this.camVel.set(0, 0, 0);
-        this.lookVel.set(0, 0, 0);
-      }
+    // 重组：一次触发后按时间播完；途中目标又变了就排队，并把当前这次加速播完（快速跳过时很快到终态）
+    if (!this.started) {
+      this.started = true;
+      this.to = target;
+      this.from = target === FORM_INDEX.rest || f.still ? target : -1;
+      this.p = f.still || target === FORM_INDEX.rest ? 1 : 0;
+    } else if (target !== this.to) {
+      if (this.p >= 1 || f.still) this.begin(target, f.still);
+      else this.pending = target;
+    } else if (this.pending !== null) this.pending = null;
+    const style = STYLE[FORM_NAMES[this.to]!];
+    const rate = this.pending !== null ? 3.2 : this.from < 0 ? 0.85 : 1;
+    if (!f.still) this.p = Math.min(1, this.p + ((dt * 1000) / style.ms) * rate);
+    if (this.p >= 1 && this.pending !== null) {
+      const next = this.pending;
+      this.pending = null;
+      this.begin(next, false);
     }
-    const travelling = !this.camPos.equals(target);
-    this.camera.position.copy(this.camPos);
-    this.camera.lookAt(this.lookPos);
-    this.key.position.set(this.camPos.x - 4, this.camPos.y + 6, 7);
-    this.key.target.position.set(this.lookPos.x, this.lookPos.y, 0);
-    this.rim.position.set(this.camPos.x + 5, this.camPos.y - 2, -6);
-    this.rim.target.position.set(this.lookPos.x, this.lookPos.y, 0);
+    this.settled = this.p >= 1 && this.pending === null;
 
-    // 指针：点光跟着走，附近的方块被推开
-    const ray = f.pointer && !f.still ? new THREE.Raycaster() : null;
-    if (ray) ray.setFromCamera(new THREE.Vector2(f.pointer!.x, -f.pointer!.y), this.camera);
-    const vFov = (this.camera.fov * Math.PI) / 180;
-    const hh = Math.tan(vFov / 2) * 13;
-    const lx = f.pointer ? f.pointer.x * hh * this.aspect : Math.cos(t * 0.3) * 4;
-    const ly = f.pointer ? -f.pointer.y * hh : Math.sin(t * 0.4) * 2 + 1;
-    this.lightPos.lerp(new THREE.Vector3(this.camPos.x + lx, this.camPos.y + ly, 3), f.still ? 1 : 0.12);
-    this.cursorLight.position.copy(this.lightPos);
-
-    const squeeze = Math.min(1, this.aspect / 1.55);
-    const halfW = Math.tan((this.camera.fov * Math.PI) / 360) * 16 * this.aspect;
-    const narrow = this.aspect < 1;
-    const updatePush = (b: Block, pos: THREE.Vector3) => {
-      let tx = 0;
-      let ty = 0;
-      if (ray && !b.brokenAt) {
-        const toC = tmpV2.copy(pos).sub(ray.ray.origin);
-        const along = toC.dot(ray.ray.direction);
-        const closest = ray.ray.origin.clone().addScaledVector(ray.ray.direction, along);
-        const off = pos.clone().sub(closest);
-        const d = off.length();
-        const R = 2.4 * Math.max(0.6, b.size);
-        if (along > 0 && d < R && d > 1e-4) {
-          off.multiplyScalar(((R - d) / d) * 0.9);
-          tx = off.x;
-          ty = off.y;
-        }
-      }
-      b.pushV.x += ((tx - b.push.x) * 60 - b.pushV.x * 12) * dt;
-      b.pushV.y += ((ty - b.push.y) * 60 - b.pushV.y * 12) * dt;
-      b.push.x += b.pushV.x * dt;
-      b.push.y += b.pushV.y * dt;
-    };
-
-    // 正文让位：方块投到屏幕上落在正文框里（远层除外，它是虚化的远景），就缩起来
-    const rects = f.textRects;
-    const pxPerUnitAt = (z: number) => f.vh / (2 * Math.tan((this.camera.fov * Math.PI) / 360) * Math.max(0.5, this.camera.position.z - z));
-    const behindText = (pos: THREE.Vector3, size: number): boolean => {
-      if (!rects || rects.length === 0) return false;
-      tmpV2.copy(pos).project(this.camera);
-      if (tmpV2.z > 1) return false;
-      const sx = (tmpV2.x * 0.5 + 0.5) * f.vw;
-      const sy = (-tmpV2.y * 0.5 + 0.5) * f.vh;
-      const r = size * 0.8 * pxPerUnitAt(pos.z);
-      for (let i = 0; i < rects.length; i += 4) {
-        if (sx + r > rects[i]! && sx - r < rects[i + 2]! && sy + r > rects[i + 1]! && sy - r < rects[i + 3]!) return true;
-      }
-      return false;
-    };
-    const hideStep = Math.min(1, dt * 7);
-
-    // 漂浮的方块
-    for (const b of this.blocks) {
-      // 离相机太远的不更新（看不见）
-      if (Math.abs(b.base.y - this.camPos.y) > STATION_GAP * 1.6 && !travelling) continue;
-      const pop = popScale(ms, 120 + (b.index % 24) * 45, f.still);
-      const bob = f.still ? 0 : Math.sin(t * (0.5 + (b.phase % 0.4)) + b.phase) * 0.16 * b.size;
-      const x = narrow && !(b.group.layers.mask & 1) ? Math.sign(b.base.x || 1) * (halfW * 0.92 + Math.abs(b.base.x) * 0.12) : b.base.x * squeeze;
-      const pos = tmpS.set(x, b.base.y + bob, b.base.z);
-      updatePush(b, pos);
-      pos.add(b.push);
-      let scale = b.size * pop;
-      if (b.brokenAt) {
-        const since = f.now - b.brokenAt;
-        if (since < 140) scale *= 1 - since / 140;
-        else if (since < b.regrowMs) scale = 0;
-        else if (since < b.regrowMs + 520) scale *= popCurve((since - b.regrowMs) / 520);
-        else b.brokenAt = 0;
-      }
-      // 远景层虚化、压暗，宽屏上留着当景深；窄屏上正文占满宽度，远景也让位
-      if (!(b.group.layers.mask & 1) || narrow) {
-        const want = behindText(pos, b.size) ? 1 : 0;
-        b.hide += (want - b.hide) * (f.still ? 1 : hideStep);
-        scale *= 1 - easeInOut(b.hide);
-      }
-      tmpE.set(b.rot.x + t * b.spin.x, b.rot.y + t * b.spin.y, b.rot.z + Math.sin(t * 0.4 + b.phase) * 0.08 + t * b.spin.z);
-      tmpQ.setFromEuler(tmpE);
-      tmpM.compose(pos, tmpQ, new THREE.Vector3(scale, scale, scale));
-      b.group.setMatrixAt(b.index, tmpM);
-    }
-    for (const g of this.groups) g.instanceMatrix.needsUpdate = true;
-
-    // 页尾的字标：对齐 DOM 里那段字（视口坐标 → 世界），走到页尾时从四面飞进来拼好
-    let lettersBusy = false;
-    if (this.letterGrid && this.letterMesh) {
-      const grid = this.letterGrid;
-      const wm = f.wordmark;
-      if (!wm) {
-        if (this.letterState !== 'gone') {
-          this.letterState = 'gone';
-          for (const b of this.letters) b.group.setMatrixAt(b.index, tmpM.makeScale(0, 0, 0));
-        }
+    // 各形放到页面上给它留的框里（视口坐标 → 世界），朝向跟指针、跟拖动
+    const upp = (2 * CAM_Z * TAN_HALF) / f.vh;
+    const origins = u.uOrigin!.value as THREE.Vector3[];
+    const scales = u.uScale!.value as number[];
+    const rots = u.uRot!.value as THREE.Vector2[];
+    const active = (fi: number) => fi === this.to || fi === this.from || fi === this.pending;
+    for (const name of ['allay', 'cut', 'timeline'] as const) {
+      const fi = FORM_INDEX[name];
+      const form = this.forms[fi];
+      const box = f.slots[name];
+      if (!form || !box || !active(fi)) continue;
+      const fw = form.bounds[1] - form.bounds[0];
+      const fh = form.bounds[3] - form.bounds[2];
+      const pxPerUnit = Math.min(box.width / fw, box.height / fh) * 0.92;
+      scales[fi] = pxPerUnit * upp;
+      const cx = box.left + box.width / 2;
+      const cy = box.top + box.height / 2;
+      this.toWorld(cx, cy, f.vw, f.vh, origins[fi]!);
+      if (name === 'allay' && !f.still) origins[fi]!.y += Math.sin(t * 1.3) * 0.9 * scales[fi]!;
+      // 朝向：看向指针（悦灵转头最明显），加上拖动
+      const look = f.pointer && !f.still ? { x: Math.max(-1, Math.min(1, (f.pointer.x - cx) / (f.vw * 0.45))), y: Math.max(-1, Math.min(1, (f.pointer.y - cy) / (f.vh * 0.6))) } : { x: 0, y: 0 };
+      const mine = fi === this.to;
+      const dragYaw = mine ? f.drag.yaw : 0;
+      const dragPitch = mine ? f.drag.pitch : 0;
+      let yawT: number;
+      let pitchT: number;
+      if (name === 'allay') {
+        yawT = (f.still ? 0.32 : Math.sin(t * 0.3) * 0.2) + look.x * 0.5 + dragYaw;
+        pitchT = 0.08 + look.y * 0.22 + dragPitch;
+      } else if (name === 'cut') {
+        yawT = look.x * 0.3 + dragYaw;
+        pitchT = 0.14 + look.y * 0.12 + dragPitch;
       } else {
-        const zPlane = 0;
-        const cellPx = wm.height / grid.rows;
-        const upp = this.unitsPerPx(f.vh, zPlane);
-        const size = cellPx * upp * 0.98;
-        if (this.letterState === 'gone') {
-          this.letterState = f.still ? 'ready' : 'assembling';
-          this.letterT0 = f.now;
-          this.letterStart = this.letters.map((_, i) =>
-            this.unproject(wm.left + grid.cells[i]![0] * cellPx, wm.top + grid.cells[i]![1] * cellPx, f.vw, f.vh, zPlane, new THREE.Vector3()).add(
-              new THREE.Vector3((h01(i, 21) - 0.5) * 30, -8 - h01(i, 22) * 16, -10 - h01(i, 23) * 20),
-            ),
-          );
-        }
-        const span = 1100;
-        let allDone = true;
-        this.letters.forEach((b, i) => {
-          const [gx, gy] = grid.cells[i]!;
-          const target = this.unproject(wm.left + (gx + 0.5) * cellPx, wm.top + (gy + 0.5) * cellPx, f.vw, f.vh, zPlane, tmpS);
-          target.z += (h01(i, 31) - 0.5) * size * 0.6;
-          let p = 1;
-          if (this.letterState === 'assembling') {
-            const delay = (gx / grid.cols) * 700 + h01(i, 33) * 220;
-            p = Math.min(1, Math.max(0, (f.now - this.letterT0 - delay) / span));
-            if (p < 1) allDone = false;
-          }
-          const e = 1 - (1 - p) ** 3;
-          const pos = new THREE.Vector3().lerpVectors(this.letterStart[i] ?? target, target, e);
-          // 半路往镜头这边抬一点，像被抛进来
-          pos.z += Math.sin(Math.PI * e) * 4;
-          updatePush(b, pos);
-          pos.add(b.push);
-          let scale = size * Math.min(1, e * 1.4);
-          if (b.brokenAt) {
-            const since = f.now - b.brokenAt;
-            if (since < 120) scale *= 1 - since / 120;
-            else if (since < b.regrowMs) scale = 0;
-            else if (since < b.regrowMs + 480) scale *= popCurve((since - b.regrowMs) / 480);
-            else b.brokenAt = 0;
-          }
-          tmpE.set((1 - e) * (h01(i, 41) - 0.5) * 6, (1 - e) * (h01(i, 42) - 0.5) * 6, 0);
-          tmpQ.setFromEuler(tmpE);
-          tmpM.compose(pos, tmpQ, new THREE.Vector3(scale, scale, scale));
-          b.group.setMatrixAt(b.index, tmpM);
-          b.base.copy(pos);
-          b.size = size;
-        });
-        if (this.letterState === 'assembling' && allDone) this.letterState = 'ready';
-        lettersBusy = this.letterState === 'assembling';
+        yawT = -0.3 + look.x * 0.14 + dragYaw;
+        pitchT = 0.44 + look.y * 0.1 + dragPitch * 0.5;
       }
-      this.letterMesh.instanceMatrix.needsUpdate = true;
-      if (this.letterExtra) this.letterExtra.instanceMatrix.needsUpdate = true;
+      const r = this.rot[fi]!;
+      if (f.still) {
+        r.yaw = yawT;
+        r.pitch = pitchT;
+      } else {
+        [r.yaw, r.vy] = springTo(r.yaw, r.vy, yawT, 5, dt);
+        [r.pitch, r.vp] = springTo(r.pitch, r.vp, Math.max(-0.6, Math.min(0.9, pitchT)), 5, dt);
+      }
+      rots[fi]!.set(r.yaw, r.pitch);
+      if (mine) this.yaw = r.yaw;
+    }
+    const wordF = this.forms[FORM_INDEX.word];
+    if (wordF && this.wordGrid && f.word) {
+      const fi = FORM_INDEX.word;
+      const cell = f.word.height / this.wordGrid.rows;
+      scales[fi] = cell * upp;
+      this.toWorld(f.word.left + (this.wordGrid.cols * cell) / 2, f.word.top + (this.wordGrid.rows * cell) / 2, f.vw, f.vh, origins[fi]!);
+      rots[fi]!.set(0, 0);
     }
 
-    // 碎块
-    let anyPart = false;
-    for (let i = 0; i < this.parts.length; i++) {
-      const p = this.parts[i];
-      if (!p) continue;
-      const age = (f.now - p.born) / 1000;
-      if (age > 1.1) {
-        this.particles.setMatrixAt(i, tmpM.makeScale(0, 0, 0));
+    // 细尘随滚动缓缓上漂（阻尼过的滚动位置，以视口高为单位）
+    const scrollVh = f.scroll / f.vh;
+    if (f.still) this.drift = scrollVh;
+    else [this.drift, this.driftV] = springTo(this.drift, this.driftV, scrollVh, 3, dt);
+
+    // 指针轨迹和冲击波（视口坐标 → “视线角”空间：x、y 除以深度）
+    const toTan = (x: number, y: number, out: THREE.Vector4) => out.set(((x / f.vw) * 2 - 1) * TAN_HALF * (f.vw / f.vh), (1 - (y / f.vh) * 2) * TAN_HALF, 0, 0);
+    const trail = u.uTrail!.value as THREE.Vector4[];
+    this.stir = 0;
+    for (let k = 0; k < TRAIL; k++) {
+      const v = trail[k]!;
+      const at = k * 4;
+      if (f.still || at + 3 >= f.trail.length) {
+        v.set(0, 0, 0, 0);
         continue;
       }
-      anyPart = true;
-      p.vel.y -= 22 * dt;
-      p.pos.addScaledVector(p.vel, dt);
-      const s = p.size * (1 - Math.max(0, age - 0.7) / 0.4);
-      tmpM.compose(p.pos, tmpQ.setFromEuler(tmpE.set(age * 7, age * 5, 0)), new THREE.Vector3(s, s, s));
-      this.particles.setMatrixAt(i, tmpM);
+      const age = f.trail[at + 2]!;
+      const speed = f.trail[at + 3]!;
+      const strength = Math.exp(-age * 2.4) * (0.55 + 0.45 * Math.min(1, speed / 1400)) * 0.34;
+      if (strength < 0.01) {
+        v.set(0, 0, 0, 0);
+        continue;
+      }
+      toTan(f.trail[at]!, f.trail[at + 1]!, v);
+      v.z = strength;
+      v.w = Math.min(1, speed / 2200) ** 1.3 * 1.6;
+      this.stir += strength;
     }
-    this.particles.instanceMatrix.needsUpdate = true;
+    const shocks = u.uShock!.value as THREE.Vector4[];
+    for (let k = 0; k < 2; k++) {
+      const v = shocks[k]!;
+      const at = k * 4;
+      if (f.still || at + 3 >= f.shocks.length || f.shocks[at + 3]! <= 0) {
+        v.set(0, 0, 0, 0);
+        continue;
+      }
+      const age = f.shocks[at + 2]!;
+      toTan(f.shocks[at]!, f.shocks[at + 1]!, v);
+      v.z = ((age * 1100) / f.vh) * 2 * TAN_HALF; // 环的半径：每秒扩 1100 px
+      v.w = age > 1.4 ? 0 : Math.exp(-age * 1.8) * f.shocks[at + 3]!;
+    }
+    u.uStirR!.value = ((78 / f.vh) * 2 * TAN_HALF);
 
-    // 悦灵：视口坐标 → 世界（放在焦平面略靠前），按图集的帧取格子
+    // 正文遮罩（框变了才重画、重新上传）
+    this.updateMask(f);
+
+    u.uFrom!.value = this.from;
+    u.uTo!.value = this.to;
+    u.uP!.value = this.p;
+    u.uStyle!.value = style.style;
+    u.uTime!.value = t;
+    u.uDrift!.value = this.drift;
+    u.uAspect!.value = f.vw / f.vh;
+    u.uFlap!.value = f.still ? 0.12 : Math.sin(t * 2.4) * 0.2;
+    u.uGemSpin!.value = f.still ? 0.5 : t * 0.6;
+    const tl = this.forms[FORM_INDEX.timeline];
+    u.uPlayX!.value = tl?.playWidth ? (((t * 0.06) % 1) - 0.5) * tl.playWidth : 0;
+
+    // 带路的悦灵：视口坐标 → 世界（放在雕塑前面一点），按图集的帧取格子
     if (this.allayMesh && this.allayAtlas && this.allayMat) {
       const a = f.allay;
       this.allayMesh.visible = !!a;
       if (a) {
-        const zPlane = 1.2;
-        this.unproject(a.x, a.y, f.vw, f.vh, zPlane, this.allayMesh.position);
-        const s = a.size * this.unitsPerPx(f.vh, zPlane);
+        const zPlane = 1.5;
+        const dist = CAM_Z - zPlane;
+        const uppZ = (2 * dist * TAN_HALF) / f.vh;
+        this.allayMesh.position.set((a.x - f.vw / 2) * uppZ, -(a.y - f.vh / 2) * uppZ, zPlane);
+        const s = a.size * uppZ;
         this.allayMesh.scale.set(s * a.facing, s, 1);
-        this.allayMesh.quaternion.copy(this.camera.quaternion);
-        this.allayMesh.rotateZ((-a.tilt * Math.PI) / 180);
+        this.allayMesh.rotation.set(0, 0, (-a.tilt * Math.PI) / 180);
         const map = this.allayMat.map!;
         const col = a.frame % this.allayAtlas.columns;
         const row = Math.floor(a.frame / this.allayAtlas.columns);
@@ -847,93 +788,75 @@ export class World {
       }
     }
 
-    this.settled = !travelling && !lettersBusy;
-    this.render(anyPart);
-  }
-
-  private renderBlurred(layer: Layer, radius: number, opacity: number): void {
-    const r = this.renderer;
-    this.camera.layers.set(layer);
-    r.setRenderTarget(this.rtA);
-    r.setClearColor(0x000000, 0);
-    r.clear(true, true, true);
-    r.render(this.scene, this.camera);
-    this.quad.material = this.blurMat;
-    for (let pass = 0; pass < 2; pass++) {
-      const s = radius * (pass + 1) * 0.5;
-      this.blurMat.uniforms.tMap!.value = this.rtA.texture;
-      (this.blurMat.uniforms.uDir!.value as THREE.Vector2).set(s / this.rtA.width, 0);
-      r.setRenderTarget(this.rtB);
-      r.clear(true, false, false);
-      r.render(this.quadScene, this.quadCam);
-      this.blurMat.uniforms.tMap!.value = this.rtB.texture;
-      (this.blurMat.uniforms.uDir!.value as THREE.Vector2).set(0, s / this.rtA.height);
-      r.setRenderTarget(this.rtA);
-      r.clear(true, false, false);
-      r.render(this.quadScene, this.quadCam);
+    if (f.still) {
+      if (this.stillDirty <= 0) return;
+      this.stillDirty--;
     }
-    this.quad.material = this.compMat;
-    this.compMat.uniforms.tMap!.value = this.rtA.texture;
-    this.compMat.uniforms.uOpacity!.value = opacity;
-    r.setRenderTarget(null);
-    r.render(this.quadScene, this.quadCam);
+    this.renderer.render(this.scene, this.camera);
   }
 
-  private render(_parts: boolean): void {
-    const r = this.renderer;
-    r.setRenderTarget(null);
-    r.setClearColor(0x000000, 0);
-    r.clear(true, true, true);
-    this.renderBlurred(0, 2.2, 1);
-    this.camera.layers.set(1);
-    r.setRenderTarget(null);
-    r.clearDepth();
-    r.render(this.scene, this.camera);
-    this.renderBlurred(2, 4.5, 0.95);
-    this.camera.layers.enableAll();
+  private begin(target: number, still: boolean): void {
+    this.from = this.to;
+    this.to = target;
+    this.p = still ? 1 : 0;
+    this.stillDirty = 3;
+  }
+
+  private updateMask(f: WorldFrame): void {
+    const rects = f.textRects;
+    let sig = rects ? rects.length : 0;
+    if (rects) for (let i = 0; i < rects.length; i++) sig = (sig * 31 + Math.round(rects[i]! / 4)) % 1e9;
+    if (sig === this.maskSig) return;
+    this.maskSig = sig;
+    const g = this.maskCanvas.getContext('2d')!;
+    const W = this.maskCanvas.width;
+    const H = this.maskCanvas.height;
+    g.clearRect(0, 0, W, H);
+    if (rects && rects.length) {
+      g.filter = 'blur(2px)';
+      g.fillStyle = '#fff';
+      for (let i = 0; i < rects.length; i += 4) {
+        const x0 = (rects[i]! / f.vw) * W;
+        const y0 = (rects[i + 1]! / f.vh) * H;
+        g.fillRect(x0, y0, ((rects[i + 2]! - rects[i]!) / f.vw) * W, ((rects[i + 3]! - rects[i + 1]!) / f.vh) * H);
+      }
+      g.filter = 'none';
+    }
+    this.mask.needsUpdate = true;
+    this.stillDirty = 3;
+  }
+
+  /** 量一帧的渲染要多久（毫秒，含等 GPU 画完）：连画 n 帧，每帧读回一个像素逼它画完。只给测试和调试用 */
+  bench(n: number): number {
+    const gl = this.renderer.getContext();
+    const px = new Uint8Array(4);
+    const t0 = performance.now();
+    for (let i = 0; i < n; i++) {
+      this.renderer.render(this.scene, this.camera);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    }
+    return (performance.now() - t0) / n;
   }
 
   dispose(): void {
     this.disposed = true;
-    for (const m of this.allMaterials) {
-      m.map?.dispose();
-      m.dispose();
-    }
+    this.mesh.geometry.dispose();
+    this.mat.dispose();
+    this.posTex.dispose();
+    this.colTex.dispose();
+    this.atlas.dispose();
+    this.mask.dispose();
     this.allayMat?.map?.dispose();
     this.allayMat?.dispose();
-    this.blurMat.dispose();
-    this.compMat.dispose();
-    this.rtA.dispose();
-    this.rtB.dispose();
-    this.geo.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }
 }
 
-function easeInOut(x: number): number {
-  return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2;
-}
-
-/** 入场：按顺序带一点过冲地弹出 */
-function popScale(ms: number, delay: number, still: boolean): number {
-  if (still) return 1;
-  return Math.max(0.0001, popCurve(Math.min(1, Math.max(0, (ms - delay) / 900))));
-}
-
-function popCurve(p: number): number {
-  const c1 = 1.5;
-  return p >= 1 ? 1 : 1 + (c1 + 1) * (p - 1) ** 3 + c1 * (p - 1) ** 2;
-}
-
-/** 三维的临界阻尼弹簧 */
-function springVec(pos: THREE.Vector3, vel: THREE.Vector3, target: THREE.Vector3, omega: number, dt: number): void {
-  for (const k of ['x', 'y', 'z'] as const) {
-    const x = pos[k] - target[k];
-    const e = Math.exp(-omega * dt);
-    const nx = (x + (vel[k] + omega * x) * dt) * e;
-    const nv = (vel[k] - omega * (vel[k] + omega * x) * dt) * e;
-    pos[k] = target[k] + nx;
-    vel[k] = nv;
-  }
+/** 档位：窄屏、核少内存小的设备、其余（都可以被页面覆盖，测试用） */
+export function pickTier(): Tier {
+  if (window.innerWidth < 1024 || matchMedia('(pointer: coarse)').matches) return 'narrow';
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  if ((navigator.hardwareConcurrency || 8) <= 4 || (nav.deviceMemory ?? 8) <= 4) return 'mid';
+  return 'high';
 }

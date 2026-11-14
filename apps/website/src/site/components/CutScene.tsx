@@ -250,7 +250,9 @@ export function CutScene() {
       <div className="relative flex min-h-[100svh] items-center overflow-hidden py-28">
         <div className="pointer-events-none absolute inset-0 bg-grid fade-mask opacity-60" aria-hidden="true" />
         <div ref={clipBRef} className="wrap relative">
-          <span data-allay-anchor="cut" data-allay-facing="left" className="absolute top-[12%] right-[12%] hidden size-1 lg:block" aria-hidden="true" />
+          {/* 给剪辑点 ◆ 留的空白（motion/world 把方块拼在这个框里）：标题右边 */}
+          <div data-voxel-slot="cut" aria-hidden="true" className="pointer-events-none absolute top-1/2 right-0 hidden h-[min(60vh,560px)] w-[24vw] -translate-y-1/2 lg:block" />
+          <span data-allay-anchor="cut" data-allay-facing="right" className="absolute right-[30vw] bottom-[-12%] hidden size-1 lg:block" aria-hidden="true" />
           <p className="t-mono flex items-center gap-3 text-fg-subtle">
             <span className="inline-block size-2 rotate-45 rounded-[1.5px] bg-mark" aria-hidden="true" />
             {t('site.cut.kicker')}

@@ -300,7 +300,7 @@ function ScrollStage() {
         {wide && (
           <div className="pointer-events-auto absolute top-[calc(50%+var(--nav-h)/2)] right-[var(--gutter)] w-[min(56vw,960px)] -translate-y-1/2" style={{ transformStyle: 'preserve-3d' }}>
             <div ref={monitorRef} className="relative will-change-transform" style={{ transformStyle: 'preserve-3d', transformOrigin: '60% 50%' }}>
-              <span data-allay-anchor="hero" data-allay-until={SECTION.workflow} className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
+              <span data-allay-anchor="hero" data-allay-yield data-allay-until={SECTION.workflow} className="absolute top-[-9%] left-[-4%] size-1" aria-hidden="true" />
               {viewer}
             </div>
           </div>
@@ -309,12 +309,18 @@ function ScrollStage() {
 
       {/* 正常滚动的文字（盖在背景上；只有文字和控件接收指针，面板照常可点） */}
       <div className="pointer-events-none relative z-10 -mt-[100svh]">
-        <section id={SECTION.top} data-tl-clip="intro" data-tl-color="var(--allay)" className="flex min-h-[100svh] flex-col">
+        <section id={SECTION.top} data-tl-clip="intro" data-tl-color="var(--allay)" className="relative flex min-h-[100svh] flex-col">
           <div className={`wrap pointer-events-auto flex-1 pt-[calc(var(--nav-h)+7vh)] ${wide ? 'pb-[14vh]' : 'pb-12'}`}>
             <div className={wide ? 'max-w-[60vw]' : ''}>
               <HeroCopy />
             </div>
           </div>
+          {/* 给体素悦灵留的空白（motion/world 把它拼在这个框里）：宽屏在右上、预览面板的上方，窄屏在文字下面 */}
+          <div
+            data-voxel-slot="allay"
+            aria-hidden="true"
+            className={wide ? 'pointer-events-none absolute top-[calc(var(--nav-h)+3vh)] right-[var(--gutter)] h-[44vh] w-[32vw]' : 'pointer-events-none mx-auto -mt-6 mb-4 h-[24svh] min-h-[170px] w-[min(100%-2*var(--gutter),420px)]'}
+          />
           <div className="wrap pointer-events-none hidden pb-8 lg:block">
             <p className="t-mono flex items-center gap-3 text-[10.5px] text-fg-subtle">
               <span className="relative h-8 w-px overflow-hidden bg-[var(--site-line-hi)]" aria-hidden="true">
@@ -395,9 +401,10 @@ function StaticStage() {
           <div className="absolute inset-0 bg-dots fade-mask opacity-70" />
         </div>
         <div className="wrap relative pt-[calc(var(--nav-h)+8vh)] pb-16">
+          <div data-voxel-slot="allay" aria-hidden="true" className="pointer-events-none absolute top-[46vh] right-[var(--gutter)] hidden h-[28vh] w-[30vw] lg:block" />
           <HeroCopy compact />
           <div className="relative mt-14 max-w-[960px]">
-            <span data-allay-anchor="hero" className="absolute top-[-8%] left-[-3%] size-1" aria-hidden="true" />
+            <span data-allay-anchor="hero" data-allay-yield className="absolute top-[-8%] left-[-3%] size-1" aria-hidden="true" />
             <LiveViewer autoCycle testId="hero-viewer" />
           </div>
         </div>
