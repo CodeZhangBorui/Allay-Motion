@@ -4,10 +4,12 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
   SETTINGS_FORMAT_VERSION,
-  SettingsFileSchema,
   applyUiPatch,
   defaultSettingsFile,
+  fallbackSettingsFile,
+  migrateSettingsFile,
   type ExportAppSettings,
+  type ProjectAppSettings,
   type SettingsFile,
   type UiSettings,
   type UiSettingsPatch,
@@ -77,7 +79,7 @@ export class SettingsStore {
       } catch {
         // 留档失败就算了
       }
-      this.current = defaultSettingsFile();
+      this.current = fallbackSettingsFile();
     }
     return this.current;
   }
@@ -90,9 +92,9 @@ export class SettingsStore {
     } catch {
       return 'invalid JSON';
     }
-    const parsed = SettingsFileSchema.safeParse(json);
-    if (!parsed.success) return `schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`;
-    this.current = parsed.data;
+    const migrated = migrateSettingsFile(json);
+    if (!migrated) return `schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`;
+    this.current = migrated;
     return null;
   }
 
@@ -104,7 +106,8 @@ export class SettingsStore {
     } catch {
       // 留档失败就算了
     }
-    this.current = defaultSettingsFile();
+    // 有设置文件就不是第一次启动：引导算走过（docs/decisions.md 界面增强）
+    this.current = fallbackSettingsFile();
   }
 
   get ui(): UiSettings {
@@ -144,6 +147,16 @@ export class SettingsStore {
 
   async updateExport(patch: Partial<ExportAppSettings>): Promise<void> {
     this.current = { ...this.current, export: { ...this.current.export, ...patch } };
+    await this.persist();
+  }
+
+  /** 工程的应用级设置（默认保存文件夹） */
+  get projectSettings(): ProjectAppSettings {
+    return this.current.project;
+  }
+
+  async updateProject(patch: Partial<ProjectAppSettings>): Promise<void> {
+    this.current = { ...this.current, project: { ...this.current.project, ...patch } };
     await this.persist();
   }
 
