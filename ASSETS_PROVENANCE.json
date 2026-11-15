@@ -36,6 +36,40 @@
     "note": "界面方向的设计稿截图；画面里的方块与缩略图是 CSS 色块示意，不含任何原版贴图；不进安装包"
   },
   {
+    "path": "apps/website/public/mc/assets/minecraft/**",
+    "origin": "mojang",
+    "gameVersion": "1.21.1",
+    "extractedFrom": "本机已安装的正版 Minecraft Java 版：%APPDATA%/.minecraft/versions/1.21.1/1.21.1.jar",
+    "manifest": "apps/website/public/mc/index.json",
+    "generator": "pnpm website:mc",
+    "license": "© Mojang Studios / Microsoft，保留所有权利；不在本仓库 GPL-3.0 许可范围内，仅用于官网展示",
+    "note": "方块目录、物品目录、界面贴图引用到的原版贴图及其 .mcmeta，外加悦灵的实体贴图 assets/minecraft/textures/entity/allay/allay.png（只给官网首屏的体素悦灵取色；用户 2026-11-14 明确批准，原话「我允许」），文件在 mc/ 下的路径就是它在 jar 里的原始路径，内容未修改；每个文件的原始路径、SHA-256、字节数见 manifest。只对官网生效的放宽：用户 2026-11-14 批准、经统筹会话转达（docs/decisions.md 官网 · 原版素材）。桌面应用、packages/*、安装包、测试夹具里仍然没有任何 Mojang 文件。"
+  },
+  {
+    "path": "apps/website/public/team/mystic-stars.png",
+    "origin": "third-party",
+    "source": "https://github.com/Mystic-Stars.png",
+    "author": "Mystic-Stars（GitHub 用户本人）",
+    "license": "版权归头像所有者；经项目维护者要求，仅用于官网“开发者”一栏的署名",
+    "note": "2026-11-14 取回（GitHub 返回 https://avatars.githubusercontent.com/u/97295993?s=256&v=4，256×256 PNG），未修改；官网不向第三方发请求，所以自托管"
+  },
+  {
+    "path": "apps/website/public/team/khiqwq.jpg",
+    "origin": "third-party",
+    "source": "https://github.com/khiqwq.png",
+    "author": "风花叶（khiqwq，GitHub 用户本人）",
+    "license": "版权归头像所有者；经项目维护者要求，仅用于官网“开发者”一栏的署名",
+    "note": "2026-11-14 取回（GitHub 返回 https://avatars.githubusercontent.com/u/177992504?s=256&v=4，256×256 JPEG），未修改；官网不向第三方发请求，所以自托管"
+  },
+  {
+    "path": "apps/website/public/team/claude.png",
+    "origin": "third-party",
+    "source": "https://github.com/claude.png",
+    "author": "Anthropic（GitHub 账号 claude 的头像）",
+    "license": "Claude 的标志是 Anthropic 的商标，保留所有权利；仅用于官网“开发者”一栏的署名，不表示 Anthropic 认可本项目",
+    "note": "2026-11-14 取回（GitHub 返回 https://avatars.githubusercontent.com/u/81847?s=256&v=4，256×256 PNG），未修改；官网不向第三方发请求，所以自托管"
+  },
+  {
     "path": "packages/mascot/generated/allay-288.png",
     "origin": "vanilla-derived",
     "generator": "pnpm mascot:bake",

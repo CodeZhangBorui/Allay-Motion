@@ -75,3 +75,17 @@ export const HAND_TIPS: Readonly<Record<'rightArm' | 'leftArm', readonly [number
 
 /** 正面头像的取景：头的正面在贴图里的矩形（u, v, 宽, 高），也用来找眼睛做闭眼版 */
 export const FACE_RECT = { u: 5, v: 5, w: 5, h: 5 } as const;
+
+/**
+ * docs/07-allay-mascot.md 7.2 的调色板。原版贴图之外需要按色块画悦灵的地方（官网首屏方块拼成的体素悦灵）从这里取，
+ * 品牌资产不在别处写死。
+ */
+export const ALLAY_PALETTE = {
+  highlight: '#C2F2F8',
+  light: '#9EEDFB',
+  main: '#52CFF3',
+  dark: '#1B92C2',
+  deepest: '#085B87',
+  eye: '#0C263A',
+  eyeHighlight: '#F2F4F6',
+} as const;
