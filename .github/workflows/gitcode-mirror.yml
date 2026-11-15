@@ -1,0 +1,154 @@
+# GitHub 是唯一的源；GitCode 使用普通仓库，由本工作流同步代码和已发布的发行版。
+name: 同步到 GitCode
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  release:
+    types: [published, edited]
+  # 使用 GITHUB_TOKEN 发布的 Release 不会触发 release 事件，完成构建后再补一次。
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 只补同步此已发布标签；留空同步全部已发布版本
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# 分成两个作业，各自排队：
+# - code：分支和标签，几十秒就完；
+# - releases：在 GitCode 上建好发行版、同步说明和“最新版本”标记。附件（安装包）默认不从这里传：
+#   从 GitHub 的机器跨境上传太慢（2026-11-14：一个 150 MB 的安装包 50 分钟传不完），改由 GitCode 流水线
+#   （.gitcode/workflows/pull-release-assets.yml，随代码同步过去）从 GitHub 拉取、在国内传进 GitCode。
+#   仓库变量 GITCODE_ASSETS_FROM 设为 github 时退回旧做法，附件也从这里上传（两边别同时开）。
+#   并发组仍叫 gitcode-mirror（和旧版本的工作流同名），新旧运行不会同时上传同一个附件。
+# 两个组里都只保留一个待运行的：每次都读取当前全部分支、标签和已发布版本，待运行的被新的替换也不会漏同步。
+jobs:
+  code:
+    name: 同步分支和标签
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: gitcode-mirror-code
+      cancel-in-progress: false
+    outputs:
+      tags: ${{ steps.tags.outcome }}
+    env:
+      GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      GITCODE_REPO: Mystic-Stars/Allay-Motion
+    steps:
+      - name: 检查令牌
+        run: |
+          if [ -z "$GITCODE_TOKEN" ]; then
+            echo "::error::请在仓库 Actions Secrets 中配置 GITCODE_TOKEN"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        id: checkout
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: 同步分支
+        shell: bash
+        run: |
+          set -euo pipefail
+          # askpass 只在本次运行中使用，令牌不写入 URL 或 Git 配置。
+          askpass="$RUNNER_TEMP/gitcode-askpass"
+          cat > "$askpass" <<'EOF'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' oauth2 ;;
+            *Password*) printf '%s\n' "$GITCODE_TOKEN" ;;
+            *) exit 1 ;;
+          esac
+          EOF
+          chmod 700 "$askpass"
+          export GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0
+
+          target="https://gitcode.com/$GITCODE_REPO.git"
+          default_branch="${{ github.event.repository.default_branch }}"
+          mirror_branch() {
+            local ref="$1" branch="${1#refs/remotes/origin/}" dest old
+            dest="refs/heads/$branch"
+            # 正常快进优先；重写历史时只覆盖已确认来自 GitHub 的旧提交。
+            if git push "$target" "$ref:$dest"; then return; fi
+            old="$(git ls-remote --heads "$target" "$dest" | awk -v ref="$dest" '$2 == ref { print $1 }')"
+            if [[ ! "$old" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::无法读取 GitCode 分支 $branch；不覆盖现有引用"
+              return 1
+            fi
+            if ! gh api "repos/$GH_REPO/commits/$old" --silent; then
+              echo "::error::GitCode 分支 $branch 包含无法确认来自 GitHub 的提交；请人工检查"
+              return 1
+            fi
+            # lease 确保查询之后 GitCode 分支未被其他人修改。
+            git push --force-with-lease="$dest:$old" "$target" "$ref:$dest"
+          }
+
+          failed=0
+          # 空仓库首次推送时先创建默认分支。
+          mirror_branch "refs/remotes/origin/$default_branch" || failed=1
+          mapfile -t refs < <(git for-each-ref --format='%(refname)' refs/remotes/origin/ |
+            grep -v -F -x -e "refs/remotes/origin/$default_branch" -e 'refs/remotes/origin/HEAD' || true)
+          for ref in "${refs[@]}"; do
+            mirror_branch "$ref" || failed=1
+          done
+          exit "$failed"
+
+      # 分支同步失败时仍同步标签（缺令牌、签出失败时不同步）
+      - name: 同步标签
+        id: tags
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GIT_ASKPASS="$RUNNER_TEMP/gitcode-askpass" GIT_TERMINAL_PROMPT=0
+          git push "https://gitcode.com/$GITCODE_REPO.git" --tags
+
+  # 标签同步失败时不同步发行版，以免版本指向错误提交
+  releases:
+    name: 同步发行版信息
+    needs: code
+    if: ${{ !cancelled() && needs.code.outputs.tags == 'success' }}
+    runs-on: ubuntu-latest
+    # GitHub 托管机器的上限。没传完的附件下次运行接着补传（已有且摘要一致的跳过）
+    timeout-minutes: 360
+    concurrency:
+      group: gitcode-mirror
+      # 新版本发布（发版工作流结束、Release 发布或编辑）时打断正在进行的补传，重新从最新版本开始；
+      # 已经传完的附件下次跳过。普通推送和每日检查不打断，免得长上传永远传不完
+      cancel-in-progress: ${{ github.event_name == 'workflow_run' || github.event_name == 'release' }}
+    env:
+      GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      GITCODE_REPO: Mystic-Stars/Allay-Motion
+      SELECTED_TAG: ${{ inputs.tag }}
+      GITCODE_UPLOAD_CONCURRENCY: '3'
+      GITCODE_ASSETS_FROM: ${{ vars.GITCODE_ASSETS_FROM || 'gitcode' }}
+    steps:
+      # 始终运行默认分支中的同步脚本，避免把其他分支或标签的代码当成同步脚本执行。
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: 检查 Release 同步逻辑
+        run: node --test tests/sync-gitcode-release.test.mjs tests/pull-github-release-assets.test.mjs
+
+      # 默认只同步发行版信息；GITCODE_ASSETS_FROM=github 时附件也从这里传（最新正式版优先、校验和与安装包优先，几个同时传）
+      - name: 同步已发布的 Release
+        run: node scripts/sync-gitcode-release.mjs

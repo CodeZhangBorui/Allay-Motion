@@ -7,7 +7,11 @@
 // M6b 加上 export.writeAudio 和 resources.soundVariants、soundLibrary、soundFiles（音效，docs/decisions.md M6b）；
 // M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
-// MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）。
+// MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）；
+// M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）；
+// 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
+// 界面增强加上 folders：默认文件夹的查询、选择、清除（docs/decisions.md 界面增强）；
+// 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）。
 
 export const IPC = {
   app: {
@@ -21,6 +25,8 @@ export const IPC = {
   },
   window: {
     setTitleBarColors: 'window:setTitleBarColors',
+    /** 重新载入界面（错误页的“重新载入”）：渲染进程自己的 location.reload 被导航拦截挡住（1.6），由主进程 reload */
+    reload: 'window:reload',
   },
   files: {
     pickImage: 'files:pickImage',
@@ -69,6 +75,8 @@ export const IPC = {
     readAsset: 'templates:readAsset',
     install: 'templates:install',
     installDropped: 'templates:installDropped',
+    /** 文件关联（M8）：按主进程发来的一次性令牌暂存模板包 */
+    installRequested: 'templates:installRequested',
     commitInstall: 'templates:commitInstall',
     cancelInstall: 'templates:cancelInstall',
     remove: 'templates:remove',
@@ -89,6 +97,8 @@ export const IPC = {
   },
   project: {
     open: 'project:open',
+    /** 文件关联（M8）：按主进程发来的一次性令牌打开工程 */
+    openRequested: 'project:openRequested',
     openRecent: 'project:openRecent',
     save: 'project:save',
     saveAs: 'project:saveAs',
@@ -98,6 +108,23 @@ export const IPC = {
     /** 主进程 → 渲染进程的事件：请界面执行一个命令 */
     command: 'host:command',
     commandResult: 'host:commandResult',
+    /** 界面就绪（首屏画完、初始模板装好、命令通道接好）：主进程据此开始执行排队的文件关联请求，并记下启动时间 */
+    ready: 'host:ready',
+  },
+  folders: {
+    get: 'folders:get',
+    choose: 'folders:choose',
+    reset: 'folders:reset',
+  },
+  /** 自动更新（docs/decisions.md“自动更新”） */
+  updates: {
+    state: 'updates:state',
+    check: 'updates:check',
+    download: 'updates:download',
+    cancel: 'updates:cancel',
+    install: 'updates:install',
+    /** 主进程 → 渲染进程的事件 */
+    changed: 'updates:changed',
   },
   cache: {
     getThumb: 'cache:getThumb',
@@ -118,6 +145,7 @@ export const INVOKE_CHANNELS = [
   IPC.settings.get,
   IPC.settings.set,
   IPC.window.setTitleBarColors,
+  IPC.window.reload,
   IPC.files.pickImage,
   IPC.files.read,
   IPC.export.start,
@@ -156,6 +184,7 @@ export const INVOKE_CHANNELS = [
   IPC.templates.readAsset,
   IPC.templates.install,
   IPC.templates.installDropped,
+  IPC.templates.installRequested,
   IPC.templates.commitInstall,
   IPC.templates.cancelInstall,
   IPC.templates.remove,
@@ -170,11 +199,21 @@ export const INVOKE_CHANNELS = [
   IPC.presets.importFile,
   IPC.presets.exportFile,
   IPC.project.open,
+  IPC.project.openRequested,
   IPC.project.openRecent,
   IPC.project.save,
   IPC.project.saveAs,
   IPC.project.recents,
   IPC.host.commandResult,
+  IPC.host.ready,
+  IPC.folders.get,
+  IPC.folders.choose,
+  IPC.folders.reset,
+  IPC.updates.state,
+  IPC.updates.check,
+  IPC.updates.download,
+  IPC.updates.cancel,
+  IPC.updates.install,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

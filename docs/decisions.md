@@ -2,6 +2,17 @@
 
 规格没说清、或与现实对不上的地方，在这里记一笔：偏离了什么、为什么。按里程碑分节。
 
+## GitCode 镜像与自动发布（2026-11-14）
+
+- 用户要求 GitCode `Mystic-Stars/Allay-Motion` 作为镜像分发源，使用 GitHub Actions 单向同步代码、标签及正式 Release 附件，不依赖开发者电脑登录或推送。
+- 用户要求取消每版草稿的人工审核：推 `v*` 标签后，打包和检查通过、所有附件上传完毕即自动正式发布。手动运行发版工作流只构建产物；历史草稿不自动公开。
+- 已知清单里的待确认事项仍按原状态记录；这个发布流程变更不表示这些事项已经确认。同步方式及令牌设置见 `docs/gitcode-mirror.md`。
+
+## 精简 CI（2026-11-14）
+
+- 用户要求精简 CI：任意分支推送、PR 或手动运行时，用一个 Windows 作业执行一遍完整 `pnpm check`，不再通过单独作业查询历史运行，也不在每次提交后重复跑整套检查。
+- 保留 `pnpm check:removable`；需要验证可选模块可拆除时，在 Actions 手动运行 `ci` 并勾选 `check_removable`。发布与 GitCode 同步仍是独立工作流。
+
 ## M0 脚手架与安全基线
 
 ### 版本
@@ -552,6 +563,11 @@ T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定
 - **H-ALY（2026-11-13，用户确认）**：看过 `docs/review/M5a/out/` 的联络图和四段动作后，用户答复“还不错，要”——悦灵的样子和动作可以接受，闭眼（眯眼）版头像保留。M5 后半可以把悦灵接到全部位置。
 - **H-M1**：待确认（导出的 MOV 在真实剪辑软件里的边缘、颜色、首尾）。
 - **M2 的人工确认**（开关原版层时预览会变）：待确认。
+- **代码上 GitHub、由 Actions 构建安装包（2026-11-13，用户在主控会话里决定，经主控转达原话）**：“不要在本机上进行构建测试了，代码直接上GitHub，仓库：https://github.com/Mystic-Stars/Allay-Motion 自行配置 gitignore 然后配置actions自动化发版流程，通过actions构建出安装包”。仓库是公开的。这改变了硬性规则 11（不对外发布）的前提：代码公开，安装包由 Actions 构建、挂在**草稿** Release 上，正式发布仍由人在发布清单全部确认后自己点。
+- **悦灵的模型代码和烘焙产物公开（2026-11-13，用户决定，经主控转达原话）**：`packages/mascot/model/` 下照原版悦灵做的模型、骨架、动作代码，“这些可以上传，风险我自己承担”；烘焙出来的悦灵图片选了“也提交进仓库”。只限运行时和打包用到的那几个产物（`COMMITTED_FILES`），原版贴图本身、jar、下载缓存、`docs/review/*/out/` 仍不提交。这是硬性规则 1 的又一处例外（M5a 的例外是“进安装包”，这次是“进公开仓库”）。
+- **提交作者邮箱（2026-11-13，用户决定）**：公开后历史里的作者邮箱选了“保留这个邮箱”，不改写历史。
+- **公开发布 v0.1.0（2026-11-14，用户决定，经主控转达原话“直接公开发布”）**：取代“Release 只建草稿”。做法：推 `v0.1.0` 标签，发版工作流构建并建草稿，核对安装包和校验和后改为公开（非 prerelease）。这不代表发布清单的 ★ 项已确认，它们的状态照实保留为待确认。
+- **项目许可：GPL-3.0 + 商业授权（2026-11-14，用户决定，经主控转达原话）**：“先用GPL-3.0 + 商业授权，防止下游闭源”；许可范围：“开源协议和商业授权不包含Minecraft资源包”。远程仓库建仓时的 GPL-3.0 `LICENSE` 保留原文，用合并（不是强推）接上本地历史。H-LICENSE 因此定了；`-only` 还是 `-or-later` 用户没说，写了更保守的 `GPL-3.0-only`，待用户确认。
 
 ## 发布前待人确认的事项（汇总，M8 写入 `docs/release-checklist.md`）
 
@@ -559,7 +575,7 @@ T1 的 T-ENG-1（顺序渲染和乱序渲染逐字节相同）一开始不稳定
 
 - ★ **H-DOWNLOAD**：运行时从 Mojang 官方服务器下载客户端 jar 是否符合其条款（M2a）。
 - ★ **H-BRAND 加重**：安装包带有由原版悦灵贴图派生的图集、头像和应用图标（用户决定并担责，M5a）。
-- 打包产物里有 Electron 自带的 `resources/default_app.asar`（`electronDist` 指向已安装的 Electron 后带进来的），M8 打包时去掉。
+- 打包产物里有 Electron 自带的 `resources/default_app.asar`（`electronDist` 指向已安装的 Electron 后带进来的），M8 打包时去掉。**（M8 已处理。全部待确认事项和当前状态见 `docs/release-checklist.md`。）**
 
 ## 界面重设计（“方块工作台”）
 
@@ -1056,6 +1072,437 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 悦灵在新对话框里的位置、大小与设计稿是否一致，没有人看过；减少动效下的编排只跑了 M5b 原有的 T-ALY-4。
 - 音频编码器缺失时的报错只按代码路径写了，没有造一个缺 `aac` 的 FFmpeg 来测。
 
+## M8 打包与发布准备
+
+### 安装包
+
+- **`default_app.asar`**（M0 起的遗留项）：`electronDist` 指向工作区里的 Electron 时，electron-builder 把整个目录复制过来，其中有 Electron 自带的示例应用。`apps/desktop/scripts/after-pack.mjs`（afterPack 钩子）在打成安装包之前删掉它。`tests/dist/M8.package.test.ts` 核对解包目录和安装包里都没有。钩子是 `.mjs`：`.cjs` 过不了仓库的 eslint 配置（`require`、`exports` 未定义）。
+- **检查安装包本身**：用 electron-builder 缓存里的 7-Zip（`%LOCALAPPDATA%\electron-builder\Cache\7zip*`，打包本来就要它）列出安装包内嵌的 7z 载荷，只读、不安装。安装脚本（文件关联、欢迎页的 include）核对的是 electron-builder 写进 `release/builder-debug.yml` 的 NSIS 脚本；按用户安装、快捷方式这些开关以 `-D` 传给 makensis，不在脚本里，以 `electron-builder.yml` 为准。
+- **文件关联**：`fileAssociations` 两项（`AllayMotion.Project`、`AllayMotion.Template`），图标用应用图标，没有单独做文档图标。关联里的 `description`（资源管理器“类型”一栏）和动词“Open with Allay Motion”含产品名：它们和 `productName` 一样属于构建配置，换品牌时一起改（M0 已记 `productName` 的例外）。
+- **欢迎页的声明**（9.5）：electron-builder 的 assisted 安装程序有 `customWelcomePage` 宏。`scripts/dist-extras.ts` 从 `packages/ui/src/brand` 生成 `apps/desktop/build/installer.nsh`（带 BOM 的 UTF-8，中英文都写，安装程序不跟应用的语言设置走），`nsis.include` 引入。产品名和声明仍只写在品牌目录里。
+- **`THIRD_PARTY_NOTICES.txt`**：同一个脚本从提交的许可清单生成纯文本，`extraFiles` 放在安装目录的根上（和 `LICENSES.chromium.html` 在一起）。两份生成物都被 git 忽略。
+- **快捷方式与卸载**：开始菜单和桌面快捷方式（electron-builder 默认值，写明在配置里）；卸载时保留 `%APPDATA%\AllayMotion`（`deleteAppDataOnUninstall: false`，默认值）。规格没说卸载要不要删用户数据，选了不删（工程、预设、下载的原版资源都在那里）。
+- **`.gitignore` 的 `dist/`** 把 `tests/dist/` 也忽略了，M0 写的打包后检查（T-ARC-2）一直没有提交，各分支是从主检出手工复制的。加了 `!tests/dist/`。
+- 安装包大小：约 174 MiB（182.6 MB），解包后 343 MB；大头是 Electron 本身（exe 250 MB）。
+
+### 文件关联与第二实例参数
+
+- 规格 1.8 写的是 `app.onOpenFile` 事件；任务说明要求经 MD-b 留好的命令通道（H11）。按后者做，**没有加 `app.onOpenFile`**。
+- **路径不经过渲染进程**（1.6 第 6 条只认三种路径来源，关联文件不在其中）：主进程（`main/open-files.ts`）从启动参数或 `second-instance` 的参数里挑出 `.allay` / `.allaytpl`（跳过第 0 项和开关，相对路径按启动目录解析，一次最多 16 个），每个换成一次性的 UUID 令牌，经命令通道请界面执行 `project.openAssociated` / `templates.installAssociated`（命令面板里不列出）。界面拿令牌调新加的 `project.openRequested(token)` / `templates.installRequested(token)`，主进程按令牌找回路径，走和对话框打开同一条路（`ProjectService.openPath`、`TemplateService.stage`，之后的试运行、提交与“导入模板…”相同）。令牌种类要对上、只能用一次，命令结束就作废；不认识的令牌得到“文件不存在”或 `staging-expired`。日志里只记种类，不记路径。
+- **界面就绪信号** `host.ready`（新 IPC，无参数）：首屏画完（两次 rAF）、初始模板装好之后调用一次。之前来的请求排队；页面重新加载时重新等。没有它的话，启动参数里的工程会和初始模板的装载互相覆盖。它同时是 T-ARC-7 的“可交互”时间点。
+- **命令时限**：打开工程前可能要问“放弃未保存的改动？”，等的是用户。命令通道原来固定 15 秒，超时后令牌作废、用户再点“放弃”只会得到“文件不存在”。`HostCommandChannel.run` 加了可选的单次时限，文件关联用 30 分钟。
+- 先装模板再开工程时，装好的模板被选中（与“导入模板…”相同），工程因此算有改动，打开工程会先问一句。照现有行为保留。
+- T-ARC-6 的畸形参数表补了三个新方法。
+
+### 关于页与第三方许可
+
+- **清单的来源**：`scripts/third-party.ts` 复用 `check-licenses.ts` 的 `pnpm -r licenses list --prod`（加了安装路径、作者、主页），读每个包里的许可文件原文；另加构建时编进 CSS 的 `tailwindcss`、`shadcn`，以及 Electron（Chromium 的许可全文太大，指向安装目录的 `LICENSES.chromium.html`）、FFmpeg、方舟像素字体。生成的 `third-party-licenses.json`（约 130 KB，75 项）**提交进仓库**，关于页按需加载成单独的块；单元测试 `M8.third-party` 重新生成一遍和提交的比对，依赖变了忘了 `pnpm licenses:gen` 就失败，并核对每项都在允许列表里、LGPL 只有 FFmpeg。有一个包（`react-remove-scroll-bar`）里没有许可文件，清单照实写“包里没有许可文件；按 MIT 授权”。
+- **FFmpeg 的来源**：固定的构建从 `fetch-ffmpeg.ts` 挪到 `scripts/ffmpeg-build.ts`（`fetch-ffmpeg.ts` 一导入就会运行，没法复用），加了 FFmpeg 自己的版本和提交（`n9.0.2-57-gd838f9f9ae`）。关于页和 `THIRD_PARTY_NOTICES.txt` 写明构建来源、版本、SHA-256、源码（FFmpeg 官方仓库的这个提交）和构建脚本的去处。**是否满足 LGPLv3 的“提供对应源码”**，列进了发布清单待人确认。
+- **悦灵图像的来源**：起初是单独的文案键 `brand.mascotCredit`；许可定下来以后并进了 `brand.licenseScope`（见“项目许可”），不再单独写一处。
+- **使用准则的链接**（9.3）：关于页显示地址文本，可以选中复制，**不做成可点的链接**：1.8 的 `shell.openLink` 一直没有实现，为它新开一条打开外部浏览器的 IPC 不值得。
+- 原来那几行许可摘要保留在清单上面；FFmpeg 一行加了“可以自行替换 ffmpeg.exe”。
+
+### WebGL2 不可用时的说明页
+
+- 渲染进程启动时在主线程用 `OffscreenCanvas` 取一次 `webgl2`（引擎在 Worker 里也是这样取），取不到就不渲染主界面，换成说明页：原因、三条建议（更新驱动、换一块显卡、远程桌面和虚拟机）、诊断信息（版本、平台、UA、WebGL1/2、OffscreenCanvas）和“复制诊断信息”（复用 `export.copyDiagnostics`）。仍然发 `host.ready`。
+- **测试开关 `ALLAY_E2E_NO_WEBGL`**（只在未打包时）：`--disable-webgl` 在这个 Electron 上拦不住 WebGL2（实测仍能取到上下文），改成 `--disable-gpu` 加 `--disable-software-rasterizer`，模拟“没有可用的显卡”。e2e 里点“复制诊断信息”会写系统剪贴板，测试先记下原来的内容、测完放回。
+
+### 冷启动（T-ARC-7）
+
+- **怎么量**：打包后的应用不认任何测试开关，窗口照常显示。为了不在用户的桌面上弹窗、抢焦点，`scripts/hidden-desktop.ps1` 用 `CreateDesktop` 在同一个窗口站里另建一个桌面，`CreateProcess` 把 exe 放到那里启动（窗口、显卡照常工作，只是不在当前桌面上），到时间后结束进程树、关掉桌面。打包后的应用写真实的 `%APPDATA%\AllayMotion`：测试先把已有的改名放到一边，量完删掉测试写的、再改回来；留着备份时拒绝运行。主进程新加的启动时间线（`main/startup-timing.ts`，按 `performance.timeOrigin` 记，写进 `[startup]` 日志，打包后也记）给出各节点；测试把它们换算成从 CreateProcess 算起的时间。跑 5 次，第一次是全新的数据目录。脚本要带 BOM：Windows PowerShell 5 按 ANSI 代码页读没有 BOM 的脚本，中文注释会把语法搞坏。
+- **瓶颈**（量出来的，这台机器，热缓存）：CreateProcess 到 Node 启动 60–95 ms（系统装载 250 MB 的 exe；安装后第一次约 360–440 ms，杀毒扫描和冷缓存）；Electron 跑到我们的主脚本约 67–75 ms；我们的主进程包求值约 13 ms；到 `ready` 约 40 ms；`ready` 到建启动画面约 35 ms；**建窗口到第一帧约 250–300 ms**，其中页面加载完约 145 ms，加载完到第一帧约 135 ms（合成器出第一帧）。试过、没有可量的改善而撤回的：启动画面不透明、压缩主进程的包、去掉启动画面的悦灵图集（判断图片解码不在关键路径上）。保留的两处：设置在启动时同步读；**主进程等启动画面第一帧（最多 1 秒）再起 FFmpeg、读 jar、建主窗口**——实测这些在主线程上卡 40–260 ms，交错对比 5 组里 4 组快了约 20 ms，主窗口显示的时间不变（它本来就要等启动画面显示满 600 ms）。
+- **偏离**：启动画面的 0.5 秒按**进程启动**算（中位数），不按 CreateProcess 算；可交互的 3 秒按 CreateProcess 算，每次都要满足。CreateProcess 到进程启动是系统装载 exe，应用改不了；两种算法的数字测试都打印。规格没定义“参考机器”，这条连同实测数字列进发布清单待人确认。
+- **实测**（2026-11-14，这台机器，热缓存，T-ARC-7 跑 5 次，第 1 次是全新数据目录；这一版还没有“等启动画面第一帧”和同步读设置）：从 CreateProcess 算，启动画面 1156 / 535 / 507 / 591 / 508 ms（系统装载 444 / 76 / 84 / 95 / 90 ms；从进程启动算 712 / 459 / 423 / 496 / 418 ms，中位数 459 ms），可交互 1788 / 1139 / 1110 / 1194 / 1113 ms。这是本机上的最后一次测量；之后改由 CI 构建（见下一小节），最终提交上没有在本机再量。
+- **CI 上只记数字**：发版工作流在 GitHub 的共享 Windows 机器上跑 `pnpm dist`，那台机器不是参考机器、速度也不稳定，设 `ALLAY_T_ARC_7_REPORT_ONLY=1`：照样启动 5 次、量不出完整时间线就失败，但不按预算判定，数字留在运行日志里。本机或参考机器上跑 `pnpm dist` 时照常判定。GitHub 托管的 Windows 机器上能不能 `CreateDesktop` 没有验证过。
+- 有任何 `AllayMotion.exe` 在运行时 T-ARC-7 拒绝测量：最后一次本机 `pnpm dist` 时用户正开着 main 检出里的打包版试用，测量会变成它的第二实例，数据目录也被它占着（改名失败，没有动到它）。
+
+### 上 GitHub 与 Actions 发版（用户决定，2026-11-13）
+
+- **做法变了**：用户决定不在本机构建和测试，代码放到公开仓库 `Mystic-Stars/Allay-Motion`，由 Actions 构建安装包（原话见“人工确认记录”）。本机只跑秒级的静态检查（类型检查、lint、来源登记检查）；`pnpm check`、`pnpm check:removable`、`pnpm dist` 的最终结果以 CI 为准。M8 原任务里“三项检查在最终提交上本机各跑一遍”因此没有做：本机上 `pnpm check` 在提交 f664309 上通过过一次（单元 437、引擎 35、导出 41、端到端 83），之后的提交只在 CI 上验证。
+- **`.gitignore`** 按公开仓库补全：安装包与发版产物、jar、`.ogg`、下载缓存和游戏目录、密钥与证书、`.env`、`.claude/`、编辑器目录。
+- **悦灵的烘焙产物提交进仓库**（用户决定）：只提交 `packages/mascot/src/atlas.ts` 的 `COMMITTED_FILES`（两张图集、`allay.atlas.json`、十张头像、`icon.ico`），应用图标的各尺寸 PNG 仍忽略；`pnpm dist` 只要求这些，CI 不需要游戏、不现场烘焙、不用占位开关。来源检查新增 `origin: vanilla-derived`：只允许在 `packages/mascot/generated/` 下，必须写明游戏版本、批准的人和日期；重新生成要原版 jar，所以不比对。T-ALY-7 改为“`packages/mascot` 里提交的图片只能是约定的烘焙产物”。**这些产物是 2026-11-13 21:39 从本机 1.21.1 的 jar 烘焙的**；之后烘焙代码只改过 e5fe329（给内部模板声明它用到的参数，配合同一提交里引擎开始的参数清洗），按代码看输出不变，但没有重新烘焙逐字节核对（用户要求不在本机再跑构建）。
+- **工作流**：`ci.yml` 在 PR 和 main 上跑 `pnpm check`、`pnpm check:removable` 两个作业；`release.yml` 在推 `v*` 标签或手动触发时 `pnpm dist`，上传安装包和 `SHA256SUMS.txt`，再建**草稿** Release（手动触发时标签名是 `v<版本>-draft.<运行号>`，草稿不会真的建标签）。权限：工作流默认 `contents: read`，只有建草稿的作业 `contents: write`，用 GitHub 自带的令牌，没有任何证书或密钥；不签名、不配置自动更新。第三方 action 固定到提交哈希：checkout v7.0.1、setup-node v7.1.0、upload-artifact v7.0.2、download-artifact v8.0.2；pnpm/action-setup 的最新版 v6.1.1 发布不满两周，用 v6.1.0。草稿 Release 用 runner 自带的 `gh` 建，不引入第三方的发版 action。
+- **远程仓库不是空的**：`main` 上有一个与本地历史无关的提交 `da808f1`（“Initial commit”，只有一个 GPL-3.0 的 `LICENSE`）。用户定了许可之后选了合并：新建分支 `claude/main-merged` = 本地 `main`（f06fe18）加 `git merge --allow-unrelated-histories da808f1`，`LICENSE` 原文不改；推到远程的 `main`。本机的 `main` 分支不动（主检出正用着它），M8 分支变基到这个合并提交上。
+
+### 项目许可（用户决定，2026-11-14）
+
+- **GPL-3.0-only + 商业授权**：`LICENSE` 是 GPL-3.0 全文；各 `package.json` 的 `license` 字段统一为 `GPL-3.0-only`（`pnpm licenses list --prod` 不列 workspace 自己的包，许可检查和第三方清单都不受影响）。商业授权的联系方式只写“通过仓库的 Issues 联系”，不写邮箱。用本软件导出的视频归使用者所有，不受本许可约束。
+- **许可范围只写一段**：README“许可”一节（中英）、关于页（`brand.licenseScope`，提到悦灵，所以放在品牌目录里）、`THIRD_PARTY_NOTICES.txt` 用同一段话：两种授权只覆盖本项目自己的代码和原创素材，都不包含 Minecraft 的名称与商标、运行时下载或从本机游戏读取的原版资源、用户添加的资源包，以及由它们派生的内容（照原版悦灵做的模型数据、由原版贴图渲染的悦灵图像）。原来单独的 `brand.mascotCredit` 并进这一段。`ASSETS_PROVENANCE.json` 里 13 条 `vanilla-derived` 的许可字段写成“不在本项目的 GPL-3.0 和商业授权范围内”。
+- **依赖的理由改了，规则没改**：原来是“按可以闭源分发的标准选”，现在是“必须同时兼容 GPL-3.0 和将来的商业授权”，所以仍然不得引入 GPL、AGPL 的第三方依赖；允许列表和 `check-licenses.ts` 的行为都不变（`09-compliance.md` 9.8）。
+- **贡献者许可协议**：`CONTRIBUTING.md` 写明外部贡献要同意 CLA（允许版权人在 GPL 之外另行授权）才合并；没有协议正文，没有配 CLA 机器人。
+- 发布清单新增一条待确认：商业授权一收费，悦灵相关的模型、图像、图标和名称风险更高，建议收费版本排除或替换。
+- **规则文字**：`AGENTS.md` 硬性规则 1（悦灵烘焙产物进仓库的例外）和 11（代码公开、安装包只建草稿）要按上面的决定改，等用户在实现会话里亲自确认后再改。
+
+### 第一次在 CI 上跑：软件渲染与几处测试的假设
+
+GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染器字符串是 “ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)”（不是 SwiftShader，早先的记录写错了）。本机可以用 `ALLAY_ENGINE_ANGLE=d3d11-warp` 让引擎测试也走 WARP（`tests/engine/electron-main.mjs`，不设时用显卡）。软件渲染的判定只看渲染器自己报的名字（`WEBGL_debug_renderer_info` 的 `UNMASKED_RENDERER_WEBGL`，正则 `/swiftshader|llvmpipe|software|basic render/i`，`tests/engine/software.ts`），不看环境变量或 `CI=true`，有显卡的机器上判定一条都不变。
+
+**剪辑点整帧 254 是引擎缺陷，已修（不是容差问题）。**
+
+- 现象：T-TPL-4 的方块坠落 #27（240×135、30 fps、N = 16、快门 2°、27 列、`seed` 641917 等）在 CI 上剪辑点 32400 个像素里 29544 个 alpha 是 254，整行整行都是，在方块内部，不在接缝上。本机 WARP 原样复现；N = 8、16 出现，N ≤ 4 没有，与快门角无关；显卡上是 255。
+- 查法：在 resolve 里临时输出 (1 − a) × 4096，看累积前每层的 alpha。显卡和 WARP 上、每个 N 都一样：这 29544 个像素的 alpha 少了至少 2⁻¹²（半浮点里存成 0.99951，是 1 下面最近的那个数），只有 2856 个像素（两块重叠的地方）是精确的 1。再逐项排除：着色器里把 alpha 写死为 1 → 全是 1；只用贴图的 alpha → 全是 1；只用逐实例不透明度且用 `flat` → 全是 1；逐实例不透明度不用 `flat` → 少；`flat` 但按原来的乘法链 → 仍然少。差别落在 Three r187 的 `color_fragment`：`diffuseColor *= vColor` 连 alpha 一起乘，而 `vColor` 是按透视插值的 varying，每个顶点上 alpha 都是 1.0，三角形内部插出来略小于 1。
+- 为什么只在 WARP 上露出来：每层 0.99951 乘 1/N 累加 N 次，显卡的半浮点混合按就近取整，结果仍落在 254.5/255 以上，取整回 255；WARP 按截断写半浮点，N ≥ 8 时累计损失超过半级，掉到 254。缺陷本身（不透明方块写出的 alpha 不是 1）在所有显卡上都有。
+- 修法（从结构上保证，不用阈值吸附）：方块材质的顶点颜色只有 RGB（面明暗和染色），`color_fragment` 改成只乘 RGB，alpha 不经过任何插值；逐实例不透明度对一个实例是常数，改成 `flat`（`packages/engine/src/blocks.ts`）。物品的材质不走透明队列，Three 对它直接写 alpha = 1，不受影响。
+- 修后：本机 WARP 与显卡（NVIDIA RTX 5070）上，新测试 `tests/engine/cut-opacity.spec.ts`（这组参数，N = 16/8/4/2/1 × 快门 2°/180°）全部 min 255、没有一个像素低于 255；修前 WARP 上 N = 16、8 是 min 254、29544 个像素。显卡上全部 36 个引擎测试通过（T-ENG-1、T-ENG-3、T-ENG-4、T-TPL-3、T-TPL-4、T-TPL-5 在内），T-TPL-5 的基准图不用重新生成；WARP 上 T-TPL-3 也全部 255。`cutMinAlpha` 的放宽删掉了，T-TPL-3、T-TPL-4 都回到必须 255。
+- 副作用：透明 WebM 的末帧 alpha 从 0 变成最大 2（VP9 的 alpha 有损，末帧紧跟在有画面的帧后面，帧间预测留下残差；输入变了一点，残差跟着变）。T-EXP-7 的“首末帧 alpha 为 0”在规格里只针对预设 ①；M7 给 WebM 加的同类检查原来要求恰好 0，改为按 T-EXP-1 ③ 的 alpha 容差（≤ 16）判，首帧仍要求 0。
+
+**放宽的最终清单**（只在识别出软件渲染时生效；有显卡时一律按原判定）：
+
+| 测试 | 有显卡时 | 软件渲染（WARP）时 | 依据 |
+|---|---|---|---|
+| T-ENG-4 alpha ≥ 128 的直通颜色差 | ≤ 1 | ≤ 2 | 实测 alpha = 128、颜色 147 的像素，正确的 8 位预乘值是 147 × 128 / 255 = 73.79 → 74，WARP 写 73，换算回直通 145，差 2：WARP 写 8 位画布时截断。另外两项（alpha = 255、预乘域）不放宽 |
+| T-TPL-5 基准图平均误差 | ≤ 1.5/255 | ≤ 4/255 | 规格 4.11 原有 |
+| T-EXP-7（两处）总耗时 ≤ 20 秒 | 判定 | 只记数字（写进测试注解）不判定 | 性能预算针对参考机器；CI 上 PNG/WebM/MP4 约 55 秒。预算数字不改 |
+| T-ARC-7 冷启动 | 判定 | 发版工作流设 `ALLAY_T_ARC_7_REPORT_ONLY=1`，只记数字 | 同上（这一处是按工作流设的开关，不是按渲染器：打包后的应用里拿不到渲染器名字） |
+| 测试自身的时限 | 不变 | 引擎 T-TPL-3、T-TPL-4 放到 60 分钟；e2e 经 `launchApp` 启动的测试时限 × 5；CI 作业 180 分钟 | WARP 上同样的工作量慢二三十倍（T-TPL-3：显卡 32 秒，CI 超过 10 分钟） |
+
+**其余为过 CI 改的测试与工作流**（都不是放宽判定）：
+
+- `tests/unit/template-dev.test.ts`：runner 的 TEMP 是 8.3 短名（`C:\Users\RUNNER~1\…`），被测代码按真实路径（长名 `runneradmin`）比较。测试先用 `realpathSync.native` 取临时目录的真实路径。
+- 工作流在跑检查前先取 Electron 二进制（`scripts/ensure-electron-dist.ts`）：Electron 45 没有 postinstall，并行的测试碰上还在下载的二进制会 “Process failed to launch”。
+- 启动画面的 e2e：按设计，启动画面在“显示满 600 ms 且主窗口就绪”后关闭（日志里的 `visibleMs` 照样核对 ≥ 600）。CI 上测试逐项问它要八次往返，问到一半它就关了（整个测试 2.8 秒，不是 20 秒放弃计时触发的）。改成先从主进程取 webPreferences、再在页面里一次取齐，判定不变。是测试时序，不是产品问题。
+- T-UI-5：runner 默认的显示分辨率放不下 1440×902 的窗口，截图是 1120×720。工作流在检查前把显示分辨率设成 1920×1080（`Set-DisplayResolution`），不跳过比对；软件渲染下的像素差如果超出现有容差，报给主控定。
+
+**只在软件渲染下验证、没有在 CI 上以显卡标准验证的**：CI 上的全部引擎测试（含 T-ENG-1…5、T-TPL-3/4/5 和新加的剪辑点测试）、全部 e2e。显卡标准的最近一次全量通过是本机 main `f06fe18` 上的 `pnpm check`；M8 改动后在本机显卡上跑过的是全部引擎测试和下面列出的 e2e。
+
+### 没验证的
+
+- **没有在任何机器上实际安装、运行、卸载过安装包**（M8 的人工验收项）：不在这台用户正在用的机器上注册文件关联和快捷方式。欢迎页、快捷方式、文件关联、卸载时去掉关联，只核对了生成的安装脚本和安装包内容。
+- 应用图标在资源管理器、任务栏、文件关联里的样子没人看过。
+- 双击关联文件走的是 `"$appExe" "%1"`：端到端测试用同样形式的启动参数和真实的第二个进程验证了主进程到界面的整条路，但不是经资源管理器双击。
+- 冷启动只在这台机器上量过，文件缓存是热的（没法在测试里重启机器）；“参考机器”没有定义。
+- 安装包没有签名（H-SIGN）。
+- 两个工作流都还没有在 GitHub 上跑过（没有推送）：action 的版本、`windows-latest` 上的 `CreateDesktop`、草稿 Release 的建立都没有验证。
+- 最终提交上的 `pnpm check`、`pnpm check:removable`、`pnpm dist` 没有在本机跑（见上），只在 CI 上跑。
+
+## 试用版的三个崩溃（2026-11-14，分支 claude/fix-crashes）
+
+用户试用打包后的应用（main 的 f06fe18）时报了三个缺陷。三个都能在未打包的构建里复现，和打包无关。
+
+### 根因
+
+- **缺陷 1（属性面板的“预设”下拉一点就黑屏）**：没有预设时，下拉里那行“没有预设”用的是 `DropdownMenuLabel`（Base UI 的 `Menu.GroupLabel`），却没有放在 `DropdownMenuGroup` 里。Base UI 在组外渲染 GroupLabel 时直接抛错（生产构建里是“Base UI error #31”）；当时没有错误边界，整棵 React 树卸载，窗口只剩底色。
+- **缺陷 3（无法新建工程，一点就黑屏）**：同一个原因，在文件菜单的“最近的工程”子菜单里：全新安装没有最近的工程，子菜单里的“没有最近的工程”也是组外的 `DropdownMenuLabel`。子菜单是悬停打开的，从“文件”往下找“新建工程”时指针一经过它就崩。`newProject` 本身在有/没有未保存改动、各种模板下都正常（复现时逐一试过）。**这一条是按复现推断的**：用户说的是“点新建工程黑屏”，本机能复现的黑屏只有这一处；没有用户的操作录像，不能完全排除别的路径。
+- **缺陷 2（从 T1 另存出的用户模板 `user.08ba8e.234` 预览报 16 个 `unknown group`）**：`user.<6 位>.<名称>` 是“另存为模板”（`templates.saveDerived`）起的 id，这是一个**派生模板**。磁盘上的 manifest 是对的（派生模板本来就没有 `params` 和 `groups`）。丢的一步在装载：`template-sdk` 的 `resolveDerived` 只把基模板的参数定义和时间段带过来，`effectiveManifest` 用的是派生模板自己的其余字段，于是交给引擎的生效 manifest 里参数的 `group` 指向基模板的分组、分组本身却没有，引擎 `LoadRequestSchema.parse` 失败。`copyBuiltin`（复制内置模板）复制的是整份原始 manifest，不受影响；manifest 的序列化也没问题。M3 的 T-TPL-7 没抓到，是因为测试夹具的基模板没有分组。
+
+### 修复
+
+- `ResolvedTemplate` 多一个 `groups`（派生模板取基模板的），`effectiveManifest` 的参数定义、分组、时间段一律取 resolved 里的同一份，派生模板自己写的分组不混进来。**已经落在用户磁盘上的这类派生模板不用迁移**：文件本身合法，修复后装载时就带上分组，直接能打开。
+- `packages/ui` 的下拉菜单多一个 `DropdownMenuEmpty`（菜单里的一行说明文字，不依赖分组），两处空列表提示改用它；`DropdownMenuLabel` 的注释写明必须在分组里。单元测试扫描全部 `.tsx`，每个 `<DropdownMenuLabel>` 前面必须有未闭合的 `<DropdownMenuGroup>` / `<DropdownMenuRadioGroup>`。
+- **装载失败的提示**：Worker 传回来的 zod 错误只剩 name 和 message（issue 数组的 JSON）。预览控制器把它解析回 issue（`features/preview/loadIssues.ts`，zod 校验形状），预览状态里带上原始 issue；错误卡片按“参数‘名称’的 字段：问题”列最多 4 句，其余合成“还有 N 处问题”，两种语言。原始 issue 原样进“复制诊断信息”。只认几类常见问题（不存在的分组、不存在的参数、重名、默认值不合法、类型、上下限、多余字段），其余一律“取值不合法”。
+
+### 兜底：错误边界与日志
+
+- `app/ErrorBoundary.tsx`：最外层（`scope="app"`，整窗错误页，“重新载入”“复制诊断信息”），顶栏、整个主区、左右面板的每个标签页和它的操作、预览、时间轴、状态栏、停靠面板各一层（只换掉出错的那一块，多一个“重试”，换了模板自动重试），对话框一层（浮在界面上，多一个“关闭”）。错误页上写原因（错误的 message），文字两种语言，不含产品名（不需要放进品牌目录）。
+- 诊断信息：出错的块、错误和栈、组件栈、当前模板和参数、输出设置、预览状态、UA、时间，JSON。剪贴板仍用一次性选区复制（1.6 第 4 条拒绝一切权限请求）。
+- **日志**：渲染进程装上 `error` / `unhandledrejection` 的全局监听，错误边界在 `componentDidCatch` 里也打一行，都经 `console.error`；主进程在 `webContents` 的 `console-message` 里把 error 级消息写进 `logs/main.log`（scope `renderer`），每分钟最多 60 条，超出的换成一句提示。没有为此加 IPC 通道，没有改任何安全设置。
+- **“重新载入”多一个 IPC `window.reload`**（无参数，只认主窗口发来的调用，主进程 `event.sender.reload()`）：渲染进程自己的 `location.reload()` 是渲染进程发起的导航，被 `security.ts` 的 `will-navigate` 拦截挡住（试过，页面停在错误页），1.6 不放宽，所以改由主进程重新载入。T-ARC-6 的畸形参数表补了这一项。
+- 事件处理和异步代码里的异常不经过错误边界（React 的限制），只写日志、不换界面——这正是黑屏和“点了没反应”的区别。
+
+### 测试
+
+- `tests/unit/trial-crashes.test.ts`：缺陷 2（六个内置模板和由它们派生的模板，生效 manifest 都过得了 `LoadRequestSchema`；修复前 8 条全失败）、分组标题的源码检查（修复前报 `core.tsx`、`ParamsPanel.tsx` 两处）、装载失败提示的整理、诊断信息、日志限流。
+- `tests/e2e/trial-crashes.spec.ts`：三个缺陷各一条点出来的复现；装载失败的提示（用测试钩子 `loadUnchecked` 装一份去掉 `groups` 的 T1 manifest，即修复前的生效 manifest）；错误边界（测试钩子 `crashPanels` 让某一块下一次渲染时抛错：面板错误页、重试、复制诊断信息、写进日志、切换语言、整窗错误页和重新载入；未捕获的异常和 Promise 拒绝写进日志）。
+- `tests/e2e/smoke.spec.ts`（留在仓库里）：四种状态——内置模板（全新安装，没有任何素材层）、没选模板（测试钩子 `clearTemplate`）、用户模板（复制内置模板）、派生模板（另存为模板）——下各走一遍：主界面上每个会弹出东西的控件（下拉、菜单、弹层）打开一次、列表再选一个没选中的选项、菜单再悬停每个子菜单；每个对话框打开、点每个标签页、打开里面每个下拉；顶栏每个菜单的每一项和子菜单里的每一项；命令面板里的每条命令。每步之后断言没有 pageerror、没有控制台 error、`#root` 没空、顶栏还在、没有落到错误边界。主进程的系统对话框和 `shell` 换成立即取消的假实现，不弹窗、不开资源管理器。发现问题不立刻停，记下来、重新载入、重建状态接着走，最后一起报告。“没有素材层”没有单独做成一种状态：e2e 的默认就是全新安装（没有原版、没有资源包，内置层是空的），测试开头断言了这一点；有素材层的那一面由既有的 M2 e2e 覆盖，冒烟没有走。
+
+### 自查（冒烟测试）查出来的
+
+- 修复前：四种状态里只有“最近的工程”子菜单（缺陷 3）、预设下拉（缺陷 1）、派生模板装载（缺陷 2）三处出错；“内置模板”“用户模板”两种状态的第一轮跑到一半被测试自己的问题卡住（菜单关闭后残留的 inert 遮罩挡住下一次点击、设置对话框切换标签页时数到上一页的控件），所以修复前的清单不一定完整。测试修好后，修复后的构建在四种状态下全部通过（各 45～63 步，共约 3.5 分钟）。
+- 错误边界自己的测试查出一处：整窗错误页的“重新载入”用 `location.reload()` 被导航拦截挡住，改成经主进程（见上）。
+- 除此之外没有发现别的下拉、菜单项、对话框或命令出错。
+
+### 没验证的
+
+- **没有在打包后的应用里手工点过**：三处修复都只在未打包的构建（`apps/desktop/out`）上经 e2e 验证。用户机器上已经存着的派生模板没有拿来实测；按代码，它们的 manifest 是合法的，修复后直接能打开。
+- 缺陷 3 的根因是按复现推断的（见上）。
+- 本机只跑了静态检查、相关的单元测试和这两个 e2e 文件；完整的 `pnpm check`、`pnpm check:removable` 以 CI 为准。
+- 冒烟没有走“有素材层”的状态，也不点会真的弹系统窗口、开资源管理器的路径之后的界面（主进程里换成了立即取消）。
+
+## 界面增强：首次启动引导、下载进度、设置页、快捷键、默认文件夹（2026-11-14）
+
+用户试用安装版后提出的五项（经主控转达）：风格统一的首次启动引导；更精细直观的下载进度；设置侧栏加图标、整体样式重做；快捷键自定义；工程保存文件夹和导出默认文件夹等设置。规格补在 `docs/06-ui-design.md` 6.10–6.13，验收编号 T-UX-1 至 T-UX-8。没有新增依赖。
+
+### 设置文件
+
+- `formatVersion` 仍是 1：新字段都可缺省。`ui.onboardingCompleted`（布尔）、`ui.shortcuts`（命令 id → 键或 null）、`project.folder`（只有主进程读写，和 M7 的 `export.folder` 并列）。
+- **老用户不被拉进引导**：判断放在读文件时（`migrateSettingsFile`）——文件存在但没有合法的 `ui.onboardingCompleted`（引导上线之前写的、或 `ui` 整块坏了）就当作已完成；整个文件不能用而被留档时（`fallbackSettingsFile`）也算已完成，因为有设置文件就不是第一次启动。只有“没有设置文件”才是新装。
+- 自定义快捷键读文件时逐条校验：写法不规范、保留键、坏 id 的条目各自丢掉（回到默认），整块不是对象时整块回到空表，不连累其他设置。渲染进程发来的修改是整张表，一条不合法就拒绝整个修改。
+
+### 首次启动引导
+
+- 整页（不是对话框）盖在主界面上，主界面照常装载但 `inert`、快捷键不生效、“找到了你的 Minecraft”不弹。走完或跳过后这次启动也不再弹那个对话框（引导里已经回答过素材问题）。
+- 6.6 原来写着“不做多步的新手教程”。引导只定设置、不讲操作，和那条的本意不冲突；6.6 补了一句说明。
+- 引导的五个步骤写在引导组件里，没有做成注册表的扩展点：它们是产品的固定流程，可选模块没有往里加步骤的需求。设置的分类做成了注册表（`registerSettingsPage`），新命令 `onboarding` 也注册进命令表（帮助菜单、设置“通用”页都经它打开）。
+- 素材这一步沿用资源栈弹层里的说明和同意文字（`resources.download.note`），选了“下载原版资源”之后才显示，点“开始下载”才联网；没有改成自动下载。
+- 悦灵：引导里只有下载进行时出现全身形象（复用 `AllayProgress`，export 优先级，盖过背后主界面的加载编排）。欢迎和完成页不放悦灵：7.2 规定没活干时不出现。
+- 选项的选中样式沿用模板缩略图的“2 px 间隙 + 2 px 强调色外框”；间隙颜色用 CSS 变量 `--tile-gap`（设置对话框里是 `surface-2`，引导面板里是 `surface-1`）。
+- “继续”“开始使用”是实心强调色：引导整页替代了主界面，按“模态里的主操作用强调色”的规则（界面重设计第四版）处理。
+
+### 下载进度
+
+- 规格要的五个阶段和下载器实际做的事对应如下：取版本清单 = 清单 + 版本 JSON；下载客户端 jar；**提取资源 = 下载资源索引 + 读出 jar 的条目目录**（jar 仍整体保留、按需读取，不解包，M2a 的做法不变；读目录用 `openVanillaLayer` 打开一次再关掉，几十毫秒，顺带把打不开的 jar 在这一步报出来）；取常用音效；建立资源索引 = 打开原版层、重建资源栈和 stamp。
+- 权重：清单 2%，字节 90%（jar + 资源索引 + 音效对象，按字节比例），读 jar 目录 3%，建立资源栈 5%；完成前最多 99%。音效的总量在读到资源索引之前按 min(1 MB, jar 的 5%) 估计——测试用的假 jar 只有几十 KB，固定 1 MB 的估计会把 jar 阶段压到 4%，e2e 先暴露了这个问题。分数只增不减。
+- 下载器上报的事件加了几个可选字段（`versionId`、`plan`、`cached`、`items`），经 `DownloadProgressSchema` 校验后才交给 `DownloadTracker`；渲染进程收到的 `download` 再过 `DownloadStateSchema`，不合法时只把下载这一块当空闲并记控制台错误。
+- `DownloadState` 加了 `done`（成功后留着最后的进度，引导页显示“完成”）和 `canceled`。**与 M2b 的不同**：原来取消后回到空闲、看不出停在哪里；现在取消和失败一样留着进度、标出停下的那一步，按钮是“重试”。M2 的下载 e2e 跟着改了判定。
+- 白名单、哈希校验、空闲超时、“只由按钮触发”、测试替身的限制（未打包、只认 127.0.0.1）都没动。
+
+### 设置页
+
+- 对话框 880 × 最高 640，侧栏 208 px 加 Phosphor 图标。分类由原来的五类改成七类：新增“外观”（主题、减少动效从“通用”搬过来）和“文件夹”。T-UI-4 的设置页清单跟着改。
+- 原“导出”页的“默认输出设置”实际改的是当前工程的分辨率和帧率（和属性面板“输出”页同一份），名字会让人以为是“以后新工程的默认值”。改名为“当前工程的输出”并写明；没有新增“新工程默认输出”这个设置（规格没要求，范围外）。
+- `settings` 命令的 `page` 参数从固定的枚举改成按注册表的 id（小写字母、数字、连字符），不认识的页打开时退回第一页。
+- 设置页的行统一成“标签 + 第三级灰的说明 / 右对齐、宽 208 的控件”；长控件（路径、资源栈）放在标签下面。
+
+### 快捷键
+
+- 命令定义里的 `shortcut` 是默认值；生效的快捷键 = 默认值加 `ui.shortcuts` 的自定义，菜单、命令面板、顶栏按钮的工具提示、全局按键处理都从 `features/commands/shortcutState.ts` 取，执行仍只经 `dispatch`。顶栏三个图标按钮的工具提示原来写死了 `Ctrl+Z` 等，改成按命令取。
+- 命令定义加了可选的 `category` 和 `icon`（Phosphor 组件），只用于快捷键设置页；核心命令都标了。
+- 列出的命令：能不带参数执行的（快捷键只能这样触发），去掉“不在命令面板、也没有默认快捷键”的内部命令（例如 `project.get`）。逐帧的左右方向键不是命令，单列一行、不可改。
+- 保留键的完整表在 `shared/shortcuts.ts`：系统级（Alt+F4、Alt+Tab、Alt+Space、Alt+Esc、Ctrl+Esc、Ctrl+Shift+Esc、Ctrl+Alt+Delete、F11、F12）、文本输入必需（Ctrl+A/C/V/X、Ctrl+Shift+V、Ctrl+Insert、Shift+Insert、Shift+Delete、Backspace、Ctrl+Backspace、Delete、Ctrl+Delete、Enter、Shift+Enter、Tab、Shift+Tab、Esc、Ctrl+左右、Ctrl+Shift+左右）、逐帧和列表导航（不带修饰键或只带 Shift 的四个方向键）。F12 归为系统级是保守的选择（开发者工具的习惯键位）。
+- `Ctrl+Y` 仍是重做的别名，但用户把 `Ctrl+Y` 绑给别的命令时以用户的为准。
+- 冲突在这一行下面问“替换 / 取消”，不弹对话框（对话框里再叠对话框）。录制时按键全部被录制按钮吃掉（`preventDefault` + `stopPropagation`），全局处理看到 `defaultPrevented` 就不再执行，Esc 也不会关掉设置对话框。
+
+### 默认文件夹
+
+- 新的 IPC 命名空间 `folders`（`get`、`choose(kind)`、`reset(kind)`），`kind` 只能是 `project` / `export`；主进程回给渲染进程的路径只用于显示。导出对话框原有的 `export.chooseFolder` 改为经同一个 `FolderService`。
+- “能用”= 存在、是目录、能在里面建一个临时文件（马上删掉）。Windows 上 `access(W_OK)` 看不出目录的 ACL，所以直接试写。
+- 不能用时设置里的值不动（可能是移动硬盘没接），设置页用警告色标出原因和退路；工程保存时对话框退回系统默认位置；导出时和没选过一样先弹文件夹对话框（M7 原来只检查“存在且是目录”，现在也检查可写）。在对话框里选了不能写的文件夹：不记，提示换一个；导出流程里这种情况算取消。
+- “同类项”只做了这两个。考虑过的：用户模板文件夹、下载缓存（`vanilla-cache`）的位置——都在 `userData` 下由主进程管理，搬走要连数据一起迁移、还牵涉模板开发模式的文件监视，收益小，没有做。
+- e2e 用新的测试开关 `ALLAY_E2E_PICK_FOLDER`（只在未打包时生效）代替文件夹对话框；`readTestSwitches` 的单元测试补了这一项。
+
+### 测试
+
+- 单元：T-UX-1 设置、T-UX-2 快捷键、T-UX-3 下载进度、T-UX-4 默认文件夹；`settings.test.ts`、`resource-service.test.ts` 按新行为改了期望（坏文件读成“引导已完成”、下载失败 / 取消留着进度）。
+- e2e：`tests/e2e/ux-wave.spec.ts`（T-UX-5 至 T-UX-8）。`launchApp` 默认先写一个只记着“引导已走过”的设置文件（数据目录里已有设置文件时不动），其他 e2e 不受引导影响；需要首次启动的测试传 `firstRun: true`。m5b 的启动画面测试自己起进程，也补了这一步。
+- 评审截图：`pnpm review:ux-wave`，写进 `docs/review/ux-wave/`。
+
+### 顺手发现的
+
+- 新版 Chromium 的 `Element.scrollTo()` 返回 Promise。`useEffect(() => el.scrollTo(...))` 会把 Promise 当成清理函数，组件卸载时 React 报 `destroy_ is not a function` 并卸掉整棵树（白屏）。这次新写的代码里有一处，已改成块语句；T-UX-5、T-UX-7 加了“页面没有未捕获的错误”的判定。旧代码里没有找到同样的写法。
+
+### 评审后的修改（主控评审 PR #2，2026-11-14）
+
+- 选中外框被滚动容器裁掉：选项组外包一层 `-m-1 p-1`，给 4 px 的外框留地方（引导和设置里所有选项组都走这一处）。
+- 语言选项去掉嵌套的示例小卡片，改成一列三行：语言名 + 一行有信息量的说明，对勾固定在右侧；旁边放主界面的即时预览（当前主题、当前语言的真实文案）。外观那一步的缩略图本身就是预览，结构没有嵌套问题，保留，只是随新的版面加大。
+- 版面：内容列限宽 920 px、居中，从面板上方约 9vh 处起排，底部按钮和内容列对齐。
+- 下载的速度和剩余时间：原来的截图用的是“发一半停住”的假服务器，2 秒没有新数据就按设计隐藏了这两项。假服务器加了限速模式（约 9 秒发完），T-UX-6 断言下载进行中这两项都显示，评审截图也用限速模式。进度条右端的文件图标看起来孤零零，是因为选中的卡片底色是 `control-hi`、和进度条轨道同色，轨道看不见；选中改成只加外框不换底色后，图标就挨着轨道末端。卡片里的“取消下载”“重试”按钮相应用 `control-hi` 底。
+- 左栏步骤固定 56 px 两行，列表不再上下跳。
+
+### 和“试用版的三个崩溃”（PR #3）的对接
+
+- 变基到包含 PR #3 的 main。首次启动引导放进自己的错误边界（`scope="onboarding"`，覆盖层样式），出错时关掉错误层就当跳过了引导，不会把人困在一个坏掉的整页上；设置对话框整体在 PR #3 的 `dialog.settings` 边界里，另外每个分类页单独一层（`settings.<页 id>`），一页出错不影响侧栏和其他页。
+- 这次没有新增下拉菜单组件的用法，`DropdownMenuLabel` 的规则不涉及。
+- 界面冒烟（`tests/e2e/smoke.spec.ts`）：设置对话框的七个分类本来就会被“对话框里的每个标签页、每个下拉”走到（侧栏是 `role="tab"`）；命令面板里新增的“首次启动引导”命令执行后会盖住主界面，冒烟里点“跳过引导”继续；另加 `walkOnboarding`，在每种状态下把引导的每一步走一遍（语言、主题、减少动效都点一遍再换回；素材那一步点“开始下载”，测试的下载地址没人监听，走失败路径；文件夹对话框是冒烟里立即取消的假实现），最后“开始使用”。`launchApp` 预写“引导已走过”的设置文件，冒烟的“全新安装”状态因此不被引导挡住，引导由 `walkOnboarding` 单独走。
+
+### 没验证的
+
+- **真实的 Mojang 下载没有跑过**：下载进度只在本机假服务器（几十 KB 的假 jar）上验证过；41 MB 的真实 jar 下的速度、剩余时间读数没有看过。
+- **没在可见窗口里看过动效**：换步淡入、步骤高亮过渡、引导里悦灵的进度编排只在隐藏窗口里截过静态图；录屏没有做。悦灵在截图里是 CSS 占位（`ALLAY_E2E_MASCOT_DIR` 指向空目录）。
+- 系统的文件夹对话框没有在 e2e 里弹过（测试开关代替）；“不可写”的状态只有单元测试里的判断逻辑，没有在真实的只读目录或 ACL 上试过。
+- 快捷键录制没有在中文输入法开着时、非美式键盘布局上试过（按物理键位记录，理论上与布局无关）。
+- 本机按用户的决定没有跑完整的 `pnpm check`，只跑了类型检查、相关单元测试和相关 e2e；完整检查交给 PR 上的 GitHub Actions。
+
+## 时间轴拖动（2026-11-14）
+
+用户反馈“时间线中某一块拖动时只能一点点移动”。时间轴上能拖的只有两样：阶段轨的分界线、播放头（整个轨道区按下擦洗）；没有片段移动、入出点、缩放和横向滚动。
+
+### 根因（分界线）
+
+- `packages/ui/src/editor/TimelineTrack.tsx` 原第 68 行 `showSegments = segmentsMatch(segments, duration)`，原第 177、245 行按它决定画不画色段和分界线。拖动时 `onSegmentChange` 同步改 projectStore 的参数（色段的时长立刻变），而 transportStore 的 `duration` 要等预览 Worker 的 `setParams` 回来才更新（`previewEngine.ts` 的 `loadOnce`）。中间这段时间“各段之和 ≠ 时长”，色段和分界线被卸载再重建，按下时在分界线上设的指针捕获随之丢失；原第 124 行的 `hasPointerCapture` 检查让之后的 pointermove 全部被忽略，`pointerup` 也落不到新元素上，`onGesture('end')` 不会被调用，撤销记录一直暂停。表现就是每按一次只走一帧。
+- 同一原因也让键盘调分界线时，第一次按键后焦点所在的元素被卸载，后续按键无效。
+- 次要：拖动中布局按变化中的时长重新缩放，冻结的比例尺（秒/像素）和画面的比例尺不一致，分界线落后于指针（实测拖 80 px 时差 72 px）。
+- 播放头擦洗本身没有丢步（元素不卸载），但每个 pointermove 都同步 `getBoundingClientRect` 并写一次 transportStore。
+
+### 做法
+
+- 指针按下时 `setPointerCapture`，并在 window 上听同一 pointerId 的 move/up/cancel：元素即使重渲染也不影响拖动和松手。
+- 位置按“按下时的起点 + 总位移”计算，吸附到帧；比例尺按下时量一次。pointermove 只记最新的 clientX，每个动画帧最多计算、提交一次；松手时按松手的位置立即算最后一次再结束连续操作。对引擎的帧请求本来就是“只保留最新”（`PreviewEngine.requestRender`），没有改。
+- 拖分界线时，整条时间轴（色段、刻度、音效、剪辑点、播放头）的布局冻结在按下时的总时长，分界线始终在指针下；各段之和超出轨道的部分由阶段轨的 `overflow-hidden` 裁掉。松手后、或键盘改了分界线后，最多 1.5 s 内按各段之和布局、不卸载色段，等引擎报回新时长；超时仍不相等就按 4.3 只画总时长。
+- 拖动中整个窗口用同一个光标（分界线 `ew-resize`、播放头 `pointer`），不选中文字；时间轴整体 `select-none`，分界线加 `touch-none`。
+- 键盘操作（左右键逐帧、Shift 十帧、Home/End）、点击定位、无障碍属性不变。没有降低预览分辨率、没有跳过子帧。
+
+### 数据（`tests/e2e/timeline-drag.spec.ts`，隐藏窗口，CDP 合成的鼠标事件，40 步每步 2 px）
+
+- 修复前：分界线 40 次移动里 37 次元素已被卸载，从 0.5 s 只走到 0.5167 s（应为 0.5833 s），松手前分界线比指针落后 72 px；键盘连按 3 次只生效 1 次。
+- 修复后：0 次卸载、0 次丢捕获，终值 0.5833 s，与指针相差 6.4 px（吸附到帧，一帧 14.7 px）；每次 pointermove 的同步处理 p95 0.3 ms，没有长任务；一次拖动一步撤销，松手后撤销记录恢复。播放头擦洗修复前后都正确（终值一致、跟手误差小于半帧）。
+- 没验证的：没有用真实鼠标、触控板在可见窗口里试过手感。
+
+## 顶栏菜单项的图标（2026-11-14）
+
+- 菜单项左边一列固定 16 px 的图标列（`DropdownMenuItemIcon`，`packages/ui`），间隔 8 px 后是文字，文字一律从 32 px 处起；没有图标的条目放一个空列，勾选、单选的对勾也画在这一列（单选、勾选项从 `pl-7` 改为 `pl-8`，对勾改为正文色、粗体）。所以预览缩放、参数“更多”这类不带图标的菜单里，单选项的文字右移了 4 px。
+- 图标常态 `fg-subtle`，高亮（悬停、键盘聚焦）和子菜单展开时提到 `foreground`；快捷键提示高亮时从 `fg-subtle` 提到 `fg-muted`；子菜单箭头缩到 12 px、粗体，与快捷键右对齐；危险项（`variant="destructive"`）文字、图标、快捷键都用 `danger`。都是现有设计变量，没有新颜色。
+- 图标是数据的一部分：指向命令的菜单项用命令的 `icon`（快捷键设置页和命令面板已经在用同一个字段），`MenuItemDef.icon` 只在菜单的说法和命令不同时覆盖（帮助菜单里“快捷键”“关于”都指向 `settings` 命令，分别用设置页同款的 `Keyboard`、`Info`）；自带组件的条目（最近的工程、导入模板、主题、语言、预览背景）经 props 拿到 `MenuItemDef.icon`。可选模块注册的、没有图标的条目照样对齐。
+- 模板开发模式的两个命令（复制内置模板、打开模板文件夹）补了 `icon`；“导出”分体按钮的格式下拉每种格式一个图标。
+- 没有增删命令和快捷键，也没有新增文案。
+
+## 新手引导：首次启动引导改版、清理快捷键、悦灵带路（2026-11-14）
+
+用户反馈的三件事（经主控转达）：首次启动引导要更好看、参照 Windows 的开箱设置、让悦灵陪着；“首次启动引导”出现在快捷键里，不该有快捷键的功能要清理；首次启动引导之后要有一次可跳过的新手引导，并且讲清“模板”和“预设”的区别（用户原话：“我到现在都分不清模板和预设有啥区别”）。规格补在 `docs/06-ui-design.md` 6.10（改版）、6.11（快捷键页）、6.13（T-UX-9 至 T-UX-11）、6.14（新手引导），`docs/07-allay-mascot.md` 7.5 加了第 12、13 项。没有新增依赖，没有引入任何图片素材。
+
+### 和原规格不一样的地方（用户要求）
+
+- **6.6 原来写着“不做多步的新手教程”**，界面增强时又补了“引导只定设置、不讲操作”。这次用户明确要求在首次启动引导之后加一次新手引导，6.6 改成说明它的位置。它只是“看”：不要求用户照着点、不检查用户做没做，跳过一次就不再自动出现。没有把它算作 1.2 的范围变更：它是讲解现有功能的界面，不增加编辑能力。
+- **7.2“没活干时不出现”**、界面增强的“不在欢迎页卖萌”：首次启动引导的插画区和新手引导里悦灵一直在。按用户要求改，记作 7.5 第 12、13 项的例外；其他原则照旧（`pointer-events: none`、同一时刻全身形象只有一只、减少动效时静止）。下载进行中仍由进度条上的悦灵（export 优先级）接手，插画区只留空位，不会出现两只。
+- **6.1“只做亮度、透明度变化”**：首次启动引导换步时内容滑入 16 px、新手引导的聚光口和气泡移位，是用户要的“过渡动画”。只在这两处整页流程里用，减少动效时全部关掉。界面其他地方不变。
+
+### 首次启动引导的改版
+
+- 步骤、选项、测试锚点（`onboarding-*`）都没变，五步的功能一项没丢；只换版面：左边插画区（欢迎语、悦灵和气泡、自绘的等距小方块、漂着的像素方块），右边横排的步骤进度（原来左栏的步骤列表搬到这里，`onboarding-rail-*` 仍可点回走过的步骤，当前选的值放到悬停提示里，完成页另有摘要）、标题、说明、选项，底部按钮固定。内容列限宽从 920 改成 760（右栏变窄了）；语言那一步的即时预览从 400 px 改成 320 px，窗口窄于 1280 时排到选项下面。
+- 插画区不用渐变、不发光：小方块和像素点都是悦灵三档青色的平涂（像素点带不透明度）。等距小方块是 SVG 自绘，不是任何游戏方块的贴图。
+- 悦灵的台词放在 `onboarding.mascot.*`，自我介绍里的名字经新的品牌文案键 `brand.mascot`（“悦灵” / “Allay”）插入，产品名和吉祥物名仍只写在品牌目录里（第 9 条硬性规则）。
+
+### 快捷键清理
+
+- 命令定义加了 `noShortcut`：只在一次性整页流程里有意义的命令。这种命令不能带默认快捷键（注册时报错），不在快捷键设置页列出，设置文件里给它记的自定义按键也不生效（`shortcutMap` 先过滤掉），菜单、命令面板里也就不显示按键。仍可以从帮助菜单、命令面板执行。
+- 用户说的“OOBE 的播放”就是 `onboarding`（“首次启动引导”）这条命令：它没有默认键，但快捷键设置页列出了所有能不带参数执行的命令，于是它和“播放 / 暂停”等排在一起、可以被绑上按键。标上 `noShortcut`；新加的 `tour`（“新手引导”）同样。
+- 通查了其余命令：`playPause`、`toStart`、`toEnd`、`loop`、`reroll`、`undo`、`redo`、`newProject`、`openProject`、`saveProject`、`saveProjectAs`、`export`、`palette`、`searchTemplates`、`toggleLeft`、`settings`、`resources`、`toggleTheme`、`guides` 都是主界面随时有意义的操作，保留。拿不准、先保留的：`openTemplateFolder`、`copyBuiltinTemplate`（模板开发模式的入口，只对开发者有用，但随时可用，不是一次性界面）。对话框内部的动作（导出对话框的开始 / 取消、预设保存等）本来就不是注册表命令，`exportTask.*`、`project.*`、`templates.installAssociated` 是带参数的程序接口，快捷键页本来就不列。
+- 全局按键处理（`useShortcuts`）在首次启动引导或新手引导开着时整个不处理（原来只判断首次启动引导）。两个引导开着时主界面都是 `inert`。
+
+### 新手引导
+
+- 持久化沿用界面增强的设置机制：`ui.tourCompleted`。新装为 false；旧设置文件没有这个字段时读成 true（老用户不被拉进来，从帮助菜单打开），只有首次启动引导明确记着 false（新装后中途退出）时跟着它也是 false；设置文件整个坏了也算看过。e2e 的 `seedSettings` 不用改：它只写 `onboardingCompleted: true`，读出来新手引导就算看过，其他用例不会被挡住。
+- 跳过整个首次启动引导之后也出现新手引导：两者分开问，新手引导一键就能跳过。重新运行首次启动引导时，新手引导已经看过就不跟着出现。
+- 聚光层自己写（SVG 遮罩开口），没有用引导库。一步可以开几个口：“模板和预设”那一步同时圈出左栏的“模板 | 预设”两个标签和属性面板右上角的“预设”下拉，两个入口离得远，取并集会把整条顶边都圈进去。
+- 锚点只用界面上已有的 `data-testid`；帮助菜单的触发按钮没有 testid（顶栏菜单另一位同事在改），用“顶栏 nav 的最后一个子元素”找，找不到时这一步放在正中。没有改 `TopBar.tsx` 和时间轴组件。
+- “模板 vs 预设”的文案照 `04-templates.md` 4.1、4.7 和界面上的实际入口写：模板 = 脚本 + 参数定义（决定做什么动画）；预设 = 某一个模板的一组参数值，只记和默认值不同的，只能用在它的模板上；入口是属性面板右上角“预设”下拉里的“保存为预设…”，左栏“预设”页和那个下拉都能一键套用；想要“自己的模板”用“另存为模板”（派生模板：换默认值、藏参数），出现在“我的”里。
+- 验收编号：T-UX-9（单元，`noShortcut`）、T-UX-10（单元，新手引导标记）、T-UX-11（e2e，新手引导），T-UX-5 跟着改（首次启动引导之后先跳过新手引导，并断言它开着时 Ctrl+, 不生效）。冒烟测试在点到“新手引导”时跳过它。评审截图：`pnpm review:ux-wave` 重新生成了首次启动引导的十张，新加 `tour-*` 九张。
+
+### 没验证的
+
+- 动效（换步滑入、悦灵挪位和漂浮、气泡弹出、聚光口移位）只在隐藏窗口里截过静态图，没有在可见窗口里看过、没有录屏。截图里的悦灵是 CSS 占位，没有用烘焙图集看过姿态切换（`dance`、`sad`、捧东西）的实际效果。
+- 只在 1440×900 的窗口里截图；最小窗口 1120×700 下首次启动引导的两栏、新手引导的气泡位置只靠布局规则保证，没有截图看过。
+- 新手引导的文案没有请用户确认是否真的讲清了模板和预设的区别。
+
+## macOS 构建（2026-11-14，分支 claude/macos-build）
+
+### 范围变更
+
+- 仓库所有者要求“更改 action 的逻辑，使其构建的时候同时构建 macOS 和 Windows 版本”（经主控转达）。`01-product-architecture.md` 1.2 原来把“macOS、Linux 安装包”列在 v1 不做里；按所有者的要求加入 macOS，Linux 仍不做，1.2 那一行已改。
+- 这不只是工作流多一台 macOS 机器：FFmpeg、打包配置、图标、窗口按钮、文件关联、打包后的检查都要能在 macOS 上用。Windows 的行为不变（安装包内容、文件名、打包后的检查与原来一致；本机 `pnpm dist` 跑过 T-ARC-2、M8 的检查，见“验证”）。
+
+### 架构：arm64、x64 各一份，不做 universal
+
+- 发版工作流在 `macos-15`（Apple 芯片）和 `macos-15-intel` 上各构建一份 dmg 和 zip。universal 要把两份 Electron 和两份 FFmpeg 用 `lipo` 合成一份，包大约大一倍；`electronDist` 指向工作区里装的 Electron（M0“打包不联网”），它只有本机架构，做 universal 就得在打包时另外下载另一个架构的 Electron。分开构建时每份都在自己的架构上原生跑打包后的检查和冒烟启动。
+- 产物名：`Allay-Motion-<版本>-arm64.dmg`、`Allay-Motion-<版本>-x64.dmg`、`…-arm64-mac.zip`、`…-x64-mac.zip`（electron-builder 的名字带空格，工作流和 Windows 一样把空格换成 `-`）。
+- `scripts/dist.mjs` 按当前机器选 electron-builder 的平台和架构：Windows 上是原来写死的 `--win --x64`，macOS 上是 `--mac --arm64` 或 `--mac --x64`。
+
+### FFmpeg 的来源与许可
+
+- **调研结论：没有来源可信、许可明确为 LGPL 的 macOS 预编译包。** FFmpeg-Builds（原 BtbN）只出 Windows 和 Linux；FFmpeg 官网下载页链接的 macOS 静态构建（evermeet.cx、osxexperts.net）和 Martin Riedl 的构建、Homebrew 的 `ffmpeg`、npm 的 `ffmpeg-static` 都是 GPL 构建（带 libx264、libx265 等）。所以 **在 CI 里从官方源码编译**。
+- **源码**（`scripts/ffmpeg-build.ts` 的 `FFMPEG_MACOS`，每个都固定版本、写死 SHA-256，校验不过就停）：
+  - FFmpeg 9.0.2：`https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz`，SHA-256 `8c385028…a96e002e`。下载时用发布页的 `.asc` 核对过签名（FFmpeg release signing key，指纹 `FCF9 86EA 15E6 E293 A564 4F10 B432 2F04 D676 58D8`）。Windows 用的是 release/9.0 分支上 n9.0.2 之后 57 个提交的快照（`n9.0.2-57-gd838f9f9ae`），macOS 用的是 9.0.2 发布版本身：官方 tarball 有签名和固定地址，分支快照没有。
+  - libvpx 1.17.0（BSD-3-Clause，另附 PATENTS 授权）：GitHub 标签归档 `webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz`，SHA-256 `1020f184…6081dc0a`。上游不发 tarball，只有这个；GitHub 归档的字节理论上可能变，变了校验会失败、构建停下，不会悄悄换成别的东西。
+  - opus 1.6.1（BSD-3-Clause）：`downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz`，SHA-256 `6ffcb593…572411a1`，与官方 `SHA256SUMS.txt` 一致。
+- **配置**：`--enable-version3 --disable-autodetect --enable-pthreads --enable-zlib --enable-videotoolbox --enable-audiotoolbox --enable-libvpx --enable-libopus --disable-network --disable-ffplay --disable-doc --disable-debug`，静态链接 libvpx 和 libopus。**没有 `--enable-gpl`、`--enable-nonfree`**，许可是 LGPLv3（与 Windows 的 win64-lgpl 一致，`ffmpeg -L` 核对）。
+  - `--disable-autodetect`：Homebrew 装的 lzma、sdl2、iconv 之类不会被自动链进来；只显式打开上面几项。zlib、VideoToolbox、AudioToolbox 都是系统自带的。
+  - 外部库只开导出用到的：VP9 要 libvpx，Opus 要 libopus（FFmpeg 自带的 opus 编码器是实验性的，Windows 的构建也用 libopus）。ProRes（`prores_ks`）、PNG、AAC、PCM 是 FFmpeg 自带的。
+  - **FFmpeg 自带的编解码器、封装、滤镜全部保留**，没有用 `--disable-everything` 逐个打开：它们都是 LGPL，不影响许可；导出测试的回读、试编码用的 `lavfi`、`null` 封装和 ffprobe 都要用到，和 Windows 的构建保持一致也少一类“只在一个平台上缺组件”的问题。代价是二进制大一些（约几十 MB）。
+  - **H.264**：LGPL 构建里没有 libx264；Windows 走 `h264_mf` 等系统或硬件编码器，macOS 对应的是系统的 `h264_videotoolbox`。探测顺序（5.3 的表）在 `h264_mf` 之后加了它，参数是同样的码率加 `-allow_sw 1`（没有硬件编码器的机器，例如虚拟机，允许 VideoToolbox 自带的软件编码器）。没有编进 libopenh264（H-H264 的兜底只在 Windows 的构建里有）。H.264 的专利由 Apple 的系统编码器负责，与 Windows 上 Media Foundation 的情况相同。
+- **编译后的核对**（`verifyBuild`，用缓存时也重跑）：`lipo -archs` 是目标架构；`otool -L` 只有 `/usr/lib/` 和 `/System/Library/` 下的依赖；`-version` 里没有 gpl/nonfree；`-L` 是 LGPL v3；`prores_ks`、`png`、`libvpx-vp9`、`aac`、`libopus`、`pcm_s16le`、`h264_videotoolbox` 都在。最低系统版本 macOS 12（与 Electron 45 一致）。
+- **随包的文件**：`Contents/Resources/ffmpeg/darwin-<架构>/` 下的 `ffmpeg`、`LICENSE.txt`（FFmpeg 的 LGPLv3 和它引用的 GPLv3 全文、libvpx 的 LICENSE 和 PATENTS、opus 的 COPYING——BSD 要求随二进制附带许可原文）、`build.json`（版本、配置、每个源码包的地址和 SHA-256、构建脚本）。ffprobe 只给测试用，不进包。关于页和 `THIRD_PARTY_NOTICES.txt` 写明来源；许可清单 `third-party-licenses.json` 多了 `ffmpegMacos`。
+- **缓存**：两个工作流都用 `actions/cache`（v6.1.0，固定到提交 `55cc8345`），键是 `scripts/ffmpeg-build.ts` 和 `scripts/ffmpeg-macos.ts` 的哈希；`build.json` 里另记配方（`FFMPEG_MACOS` 的 SHA-256），对不上就重新编译。编译用的 `pkg-config` 和（x64 的）`nasm` 来自 runner 上的 Homebrew，只在编译时用，不进安装包。
+- 本地在 Mac 上 `pnpm ffmpeg:fetch` 同样会编译，要 Xcode 命令行工具和 `pkg-config`（Intel 另要 `nasm`）。
+
+### 打包配置
+
+- `mac.target` 是 dmg 和 zip；`minimumSystemVersion: "12.0"`；`category: public.app-category.video`；dmg 不写 blockmap（不做自动更新）；`publish` 仍是 null。
+- **签名**：没有 Apple 开发者证书，`mac.identity: "-"` 做 ad-hoc 签名（arm64 上没有有效签名的应用根本启动不了）。不公证。`hardenedRuntime: false`：hardened runtime 只在公证时才需要，ad-hoc 签名时开着它会因库验证失败（各框架没有共同的团队 ID）启动不了；electron-builder 的提示是加 `disable-library-validation` 豁免，那等于开了 hardened runtime 又关掉其中一项，不如不开。这不涉及 1.6 的任何一条。
+- **fuses 和 asar 完整性不变**：electron-builder 的顺序是复制文件 → 把 asar 完整性写进 Info.plist（`ElectronAsarIntegrity`）→ afterPack → 改 fuses → 签名，签名覆盖改过的 Info.plist 和 Electron Framework，两者不冲突。另开了 `electronFuses.resetAdHocDarwinSignature`：改 fuse 之后立刻重做一次 ad-hoc 签名，这样即使 electron-builder 跳过签名（它在 PR 构建里默认跳过），arm64 的应用也仍能启动；Windows 上不起作用。`tests/dist` 在 macOS 上核对 fuses、`codesign --verify --deep --strict`、`Signature=adhoc`、没有 runtime 标志。
+- **extraResources 按平台**：FFmpeg 移到 `win.extraResources`（`win32-x64`，路径和文件不变）和 `mac.extraResources`（`darwin-${arch}`）。`THIRD_PARTY_NOTICES.txt` 在 Windows 上仍是 `win.extraFiles` 放在安装目录根上；macOS 上 `Contents/` 下不能放散文件（会破坏签名的封装），放进 `Contents/Resources/`。Windows 上 Electron 的 `LICENSE`、`LICENSES.chromium.html` 随 Electron 目录整个复制过去，macOS 上 electron-builder 只复制 `Electron.app`，所以另外把这两个放进 `Contents/Resources/`（`LICENSE.electron.txt` 与 Windows 同名）。
+- **afterPack** 在 macOS 上删的是 `<产品名>.app/Contents/Resources/default_app.asar`；它在 fuses 和签名之前运行，不破坏签名。
+- **图标**：`build/icon.icns` 由 `scripts/mascot-dist.ts` 从提交的 `packages/mascot/generated/icon.ico` 生成（`scripts/icns.ts`）：ICO 里 16–256 的 PNG 原样放进 icns，512 和 1024 由 256 那张最近邻整数倍放大（像素画，不插值、不产生新的像素内容）。没有引入新素材，也没有重新烘焙；`icon.icns` 与 `icon.ico` 一样被 git 忽略，不需要另登记来源（来源就是已登记的 `icon.ico`）。放大出来的 512、1024 的圆角是 256 的阶梯放大，比重新烘焙的略粗，只在访达的大图标和“显示简介”里看得出来。
+- **文件关联**：`fileAssociations` 在 macOS 上写成 Info.plist 的 `CFBundleDocumentTypes`（类型名、Editor 角色，图标用应用图标）。macOS 双击关联文件不经启动参数，而是发 `open-file` 事件（应用没开时在 ready 之前就来，应用开着时交给已有的进程，不起第二实例）；主进程注册了 `open-file`，路径经 `filesFromOpenEvent`（只认绝对路径和关联的扩展名）进同一个队列，同样换成一次性令牌交给界面。M8 当时没加 `app.onOpenFile` 是因为 Windows 用不到；macOS 上没有别的路。
+
+### 窗口与界面
+
+- **窗口按钮**：`titleBarStyle: 'hidden'` 加 `titleBarOverlay` 在 macOS 上显示左上角的红绿灯，`titleBarOverlay.height`（44）让它们在顶栏里竖直居中，同时打开 Window Controls Overlay 的 CSS 变量。顶栏的左边距从固定的 `pl-2` 改成 `calc(env(titlebar-area-x, 0px) + 8px)`：Windows 上 `titlebar-area-x` 是 0，仍是 8px（T-UI-5 的截图基线不受影响）；macOS 上让出红绿灯的宽度。右边距的公式原样，macOS 上右边没有按钮，算出来是 6px。这是渲染层唯一的改动（`TopBar.tsx` 一处）。
+- `setTitleBarOverlay`（主题切换时改按钮区颜色）只在 Windows、Linux 上有效，macOS 上不调用；红绿灯的颜色由系统决定。
+- **菜单与快捷键**：应用没有设置自己的菜单，macOS 上用 Electron 的默认菜单（应用菜单里的关于、隐藏、退出 ⌘Q，编辑菜单的复制粘贴，窗口菜单），这和 Windows 上（同一份默认菜单，菜单栏被隐藏）一致。界面的快捷键匹配本来就把 `metaKey` 当作 Ctrl（`shared/shortcuts.ts`、`useShortcuts.ts`），⌘S、⌘Z 等能用。**快捷键的显示仍写作“Ctrl+…”**，没有换成 ⌘：快捷键的显示和录制正由别的会话在改（主控说明“不碰渲染进程的界面组件”），留给他们统一处理。
+- **其他平台假设**：FFmpeg 路径解析（`ffmpeg-locate.ts`）原来就按 `process.platform-process.arch` 和 `.exe` 后缀区分；用户数据目录是 `~/Library/Application Support/AllayMotion`；探测本机游戏目录原来就有 darwin 分支。关窗口仍退出应用（Windows 的行为；macOS 习惯是留在程序坞，规格没要求，选了更简单、两边一致的做法）。
+
+### CI 的取舍
+
+- `ci.yml` 的完整 `pnpm check` **仍只在 Windows 上跑**（`pnpm check:removable` 按仓库所有者的精简，只在手动运行时勾选）。引擎测试（T-TPL-5 的基准图、剪辑点的 alpha）和端到端的截图基线（T-UI-5）是按 Windows 的软件渲染（WARP）定的，macOS 虚拟机上走的是另一套渲染路径，逐像素比对没有意义；为它另做一套基线、放宽判定，不值得也违背“不靠降低判定凑数”。
+- **macOS 不在日常 CI 里**。本分支原先在 `ci.yml` 加了一个 macOS 作业（arm64），仓库所有者随后把 `ci.yml` 精简成一个 Windows 作业（`AGENTS.md`“CI 与发布”），合并时照所有者的版本，去掉了这个作业。macOS 的验证都在发版工作流的两个 macOS 构建（arm64、x64，手动触发也跑）里：编译 FFmpeg（有缓存时只核对）、`pnpm test:export`（导出的编码回读在这份 FFmpeg 上跑一遍，绿幕 MP4 走 VideoToolbox）、`pnpm dist`（打包 + `tests/dist`：fuses、asar、包内容、Info.plist、签名、FFmpeg 的许可和依赖、冷启动）。冷启动直接启动打包后的 `.app` 可执行文件（不经访达、Gatekeeper），量到完整的启动时间线（启动画面、界面就绪、主窗口显示）才算过，兼作冒烟；只记数字、不按预算判定（`ALLAY_T_ARC_7_REPORT_ONLY`，与 Windows 发版相同）。前两次启动各截两张全屏图作为工作流产物上传，给人看窗口按钮和顶栏。改了 macOS 相关的代码，要手动触发一次发版工作流来验证。
+- `pnpm test`（单元测试）没有放到 macOS 上：有一批测试用的是 Windows 路径的字面量（`C:\\…`），它们测的是平台无关的逻辑，在 Windows 的 CI 上跑。
+- 发版工作流：三份构建（Windows x64、macOS arm64、macOS x64）是一个矩阵，`fail-fast: false` 让一份失败时其余照常跑完、日志都看得到。每份产出自己的校验和。
+- 与仓库所有者的自动发布流程（上文“GitCode 镜像与自动发布”）合并：发布作业 `publish-release` 只在推 `v*` 标签时运行，`needs: build` 要三份都成功；它把三份校验和合成一份 `SHA256SUMS.txt`（按文件名排序），核对五个安装包（Windows 的 exe，两种架构的 dmg、zip）都在并 `sha256sum -c`，然后建草稿、挂上全部附件，再 `gh release edit --draft=false` 公开。任何一份构建失败、缺文件或校验不过，都不会建 Release，更不会公开。手动触发只构建并上传工作流产物，不建 Release，也就不跑合并校验和这一步（各平台的校验和在各自的构建里已算好）。权限、固定到提交哈希的 action、没有证书和密钥这些都不变；新增的第三方 action 只有 `actions/cache`。Release 说明加了 macOS 版未公证、首次打开怎么放行。
+- GitCode 同步脚本（`scripts/sync-gitcode-release.mjs`）不按文件名挑附件：GitHub Release 上有几个附件就逐个下载、核对 SHA-256、上传几个，所以 macOS 的 dmg、zip 不用改脚本；`tests/sync-gitcode-release.test.mjs` 加了一条三平台五个安装包加 `SHA256SUMS.txt` 全部同步的用例。这个测试文件用的是 `node:test`，不在 vitest 的 include 里，只有镜像工作流在同步前跑它；`pnpm test` 末尾加了 `node --test tests/sync-gitcode-release.test.mjs`，这样每次推送和 PR 的 `pnpm check` 也会跑，改坏了在合并前就能看到。
+
+### 验证
+
+- 本机（Windows）：`pnpm typecheck`、`pnpm lint`、`pnpm test` 通过；`pnpm dist` 的打包一步（`electron-builder --win --x64`，经 `scripts/dist.mjs`）和打包后的 T-ARC-2、M8 检查通过。T-ARC-7 没有在本机跑：它会临时挪开真实的 `%APPDATA%\AllayMotion`，这台机器的 C 盘只剩约 100 MB，另外几个会话也在这台机器上工作；Windows 的 T-ARC-7 代码只是把解析日志的部分提成了函数，判定不变，由 CI 的 Windows 发版构建跑。
+- CI 上的结果见下一小节。
+
+### 没验证的（只能在真实的 Mac 上人工确认）
+
+- **没有在任何真实的 Mac 上打开过**：只在 GitHub 的 macOS 虚拟机上打包、核对包内容和签名、直接启动可执行文件。dmg 拖进“应用程序”、首次打开时 Gatekeeper 的提示和放行步骤（Release 说明里写的右键“打开”、macOS 15 起在“隐私与安全性”里“仍要打开”）都没有亲眼看过。
+- 红绿灯在顶栏里的位置、和左边内容的间距只在 CI 截图里看过（如果截图里有）；全屏、拖动窗口、双击顶栏缩放没有试过。
+- 双击 `.allay`、`.allaytpl` 走 `open-file`，没有在访达里真的双击过；单元测试只覆盖路径筛选。
+- VideoToolbox 的硬件编码只在虚拟机上（多半是软件编码器）试过；导出的四种格式没有在 macOS 的剪辑软件（Final Cut、DaVinci Resolve、Premiere）里导入过。
+- 程序坞、访达里的图标样子没人看过。
+- Intel（x64）版只在 `macos-15-intel` 上构建和冒烟，没有在真实的 Intel Mac 上跑过。
+- 没有签名证书、没有公证，这些都待 H-SIGN 决定。
+
+## 自动更新（2026-11-14，0.1.2）
+
+### 范围变更与授权
+
+- 仓库所有者原话：“请你为这个程序加上自动更新。更新源有两个，如果时区为大陆地区自动选择国内镜像源 gitcode，通过 github 和 gitcode 的 release 做为更新源，先获取最新版本，然后下载。更新要可设置，自动更新关闭更新等常用选项。”这是对硬性规则第 10 条（应用不联网）的第二个明确授权，也改了 `01-product-architecture.md` 1.2（“自动更新”原在 v1 不做里）和 9.11 的 H-UPDATE。`AGENTS.md` 第 10 条、1.2、9.10、9.11、发布清单都已同步。
+- 1.6 的安全基线一条都没有放宽：联网只在主进程，渲染进程的会话级网络拦截和 CSP 不变。
+
+### 边界（全部写死在 `apps/desktop/src/main/updates/service.ts`）
+
+- **访问哪里**：`api.github.com/repos/Mystic-Stars/Allay-Motion/releases/latest`、`api.gitcode.com/api/v5/repos/Mystic-Stars/Allay-Motion/releases/latest`（两边都不需要令牌），以及 Release 附件的下载地址。主机白名单：`api.github.com`、`github.com`、`*.githubusercontent.com`、`api.gitcode.com`、`gitcode.com`、`*.gitcode.com`；只用 https、默认端口；重定向逐跳过白名单，最多 5 跳（两边的附件都会重定向到各自的文件 CDN，所以不能像 Mojang 下载那样一律拒绝重定向）。
+- **发什么**：固定的 `User-Agent: AllayMotion-Updater`（GitHub API 不带 User-Agent 会拒绝）和 `Accept`，不带用户信息、设备标识或令牌。用 Node 的 `fetch`：Electron 的 `net` 走默认会话，会被 1.6 第 3 条的拦截挡住。
+- **何时联网**：只有打包后的应用自动检查——启动 15 秒后一次，之后每 30 分钟看一眼、距上次检查满 6 小时才再查；更新方式为“关闭自动检查”时完全不自动联网。未打包的构建（开发、e2e）只在设置页手动检查时联网，也不会安装。
+- **选源**：设置为“自动”时按 `Intl.DateTimeFormat().resolvedOptions().timeZone` 判断，中国大陆的 IANA 时区（`Asia/Shanghai`、`Asia/Urumqi` 等及旧别名，不含港澳台）用 GitCode，其他用 GitHub。首选源连不上、不是正式版、或者还缺这台机器的安装包或 `SHA256SUMS.txt`（GitCode 的附件是发布后逐个同步过去的）时，改查另一个源。
+- **挑安装包**：按发版工作流定的文件名：Windows x64 是 `*-x64-setup.exe`，macOS 是 `*-<arm64|x64>.dmg`。其他平台显示“没有可自动安装的安装包”。
+- **校验**：同一个 Release 里的 `SHA256SUMS.txt` 必须有这个安装包的一行；下载先写 `userData/updates/<名字>.<uuid>.part`，SHA-256 和大小都对才改名，否则删掉并报“校验失败”。下载有 1 GiB 上限和 60 秒空闲超时，可以取消；开始新下载前清掉 `userData/updates/` 里的旧文件。
+- **安装**：Windows 用 `--updated /S --force-run` 静默运行 NSIS 安装包（装到原来的位置，装完重新启动），随即退出应用。macOS 没有签名证书，Squirrel.Mac 用不了（它要求正式签名），所以只用系统默认程序打开 dmg 并退出，由用户把应用拖进“应用程序”替换。没有用 electron-updater：它要 `latest.yml`、macOS 上要正式签名，也是新依赖。
+
+### 设置与界面
+
+- 设置存在 `settings.json` 的 `ui.updates`：`mode`（`auto` 默认：后台下载、下完提示重启安装；`notify`：只提示；`off`：不自动检查）、`source`（`auto` / `github` / `gitcode`）、`skipVersion`（“跳过这个版本”，只影响自动检查）。旧设置文件没有这个字段时用默认值。
+- 设置对话框新增“更新”一类（关于之前）：当前版本、检查结果、下载进度和对应的按钮，以及上面三项设置。自动检查发现新版本（notify）或后台下载完成（auto）时弹一条带按钮的通知；手动检查的结果只在设置页里显示。
+
+### 验证
+
+- 单元测试（`tests/unit/updates.test.ts`）：按时区选源、版本比较、挑安装包、解析 `SHA256SUMS.txt`、主机白名单、旧设置文件的迁移。
+- 本机用真实接口跑过检查（以 0.0.1 当当前版本）：GitCode 的 v0.1.1 当时只同步了 `SHA256SUMS.txt`、缺安装包，自动改用 GitHub，拿到 v0.1.1 的安装包和校验和；下载约 40 MB 后取消，状态回到“有新版本”，临时文件已删。
+
+### 没验证的
+
+- 没有走完一次完整的下载、校验、静默安装、重新启动（要一个比当前版本新的正式版；0.1.2 是第一个带更新功能的版本，要等下一个版本发布后才能在真实安装上看到）。
+- macOS 上打开 dmg、退出、拖进“应用程序”替换没有在真实的 Mac 上试过。
+- 设置页和通知没有截图审看；没有跑 e2e 和打包后的检查（按所有者要求，这次发版不跑冗长的 CI）。
+- 安装包仍未签名（H-SIGN）：安装包由应用自己下载（没有“来自网络”的标记），Windows 上静默安装时不会弹 SmartScreen，但这也意味着唯一的完整性保证是 Release 里的 `SHA256SUMS.txt`——它和安装包来自同一个 Release，防不了 Release 本身被篡改。
+
+### GitCode 同步卡住（2026-11-14，发 0.1.2 之后排查）
+
+- 现象：v0.1.1 发布后的同步（Actions 运行 43601955947）在“同步已发布的 Release 和附件”一步跑了 50 分钟，GitCode 上只有 `SHA256SUMS.txt`；按大小排第二的 148 MB 安装包一直没登记。所有同步共用一个并发组，`main` 和 `v0.1.2` 标签的同步排在它后面，GitCode 的 `main` 停在 `47ce182`。
+- 原因：GitHub 的机器到 GitCode 对象存储的跨境上传单连接很慢（不到约 50 KB/s，或者卡住了；日志要登录才能看实时的，没分清是哪种）；脚本一次只传一个，90 分钟无进度才放弃，作业 180 分钟超时；补传时旧版本在前、最新版本最后，最新版本的安装包可能永远轮不到；上传时日志里什么都不记。
+- 改法（见 `docs/gitcode-mirror.md`）：分支和标签、发行版和附件拆成两个作业、两个并发组（附件的组沿用旧名 `gitcode-mirror`，新旧运行不会同时传同一个附件）；附件最新版本优先、校验和与安装包优先，同时传 3 个；5 分钟无进度就换新上传地址重试，最多 3 次，重试前先确认没有登记过（防重复附件）；每分钟记上传进度；作业时限 360 分钟。
+- 没验证的：新的上传顺序和并发只有 `tests/sync-gitcode-release.test.mjs` 的模拟测试；跨境吞吐是否真的随并发增加，要看下一次同步的日志。
+
+## 安装时临时空间不足（2026-11-14，0.1.2 之后）
+
+- 现象：仓库所有者装 0.1.2（覆盖 0.1.1）后应用打不开。安装目录的 `debug.log` 里是 `FATAL:gin\v8_initializer.cc:664] Error loading V8 startup snapshot file`；安装目录只有 99 个文件里的一部分：`resources\ffmpeg\win32-x64\ffmpeg.exe` 只写了 107 MB（应为 132 MB），按安装包里的顺序排在它之后的文件（字体、悦灵、模板、`resources.pak`、`v8_context_snapshot.bin` 等）全没有。下载的安装包 SHA-256 与 Release 一致，7za 能完整解出，用同一个安装包静默重装，结果仍是同样的半截。
+- 原因：electron-builder 26 的安装程序（`templates/nsis/include/extractAppPackage.nsh` 的 `extractUsing7za`）先把整个应用解压到 `$PLUGINSDIR\7z-out`（在 `%TEMP%` 里，连同 7z 本身约 700 MB），再 `CopyFiles` 进安装目录；`Nsis7z::Extract` 的失败不检查。那台机器的 C 盘只剩约 600 MB，解压到中途写满，安装程序照样复制已解出的部分、返回 0，旧版本此前已被卸掉。把 `TEMP` 指到 E 盘后同一个安装包装出完整的 100 个文件，应用正常启动。
+- 改法：
+  - 安装程序：`scripts/dist-extras.ts` 生成的 `installer.nsh` 加 `customInit`（`.onInit` 里，早于卸载旧版本），临时文件夹所在磁盘不足 1024 MB（`INSTALL_TEMP_SPACE_MB`）时弹中英文提示并以退出码 2 退出（静默安装不弹窗）。
+  - 应用内更新：启动安装程序前查系统临时文件夹所在磁盘；不够时把安装程序的 `TEMP`/`TMP` 设为安装目录旁边的 `AllayMotion-update-temp`（在安装盘上），也不够就报“空间不足”、不启动安装程序，状态留在“已下载”可以再点安装。下载前也查下载目录的空间。启动时清掉半成品、不比当前新的安装包和那个备用临时文件夹。
+- 验证：本机打包（`pnpm --filter @allay/desktop dist`）后，C 盘剩 568 MB 时静默安装以退出码 2 退出，安装目录 100 个文件、字节数不变，运行中的应用没被关；把 `TEMP` 指到 E 盘时打开安装程序显示欢迎页（没有误拦），随即结束、未安装。单元测试覆盖宏的生成和旧下载的清理。
+- 没验证的：应用内更新的备用临时文件夹只做了类型检查，没有真的走一次（要一个比 0.1.2 新的版本）；安装程序的提示框（非静默时）没有截图看过，只读到了空间够时的欢迎页。
+
+### 附件改由 GitCode 流水线拉取（2026-11-14，所有者要求）
+
+- 仓库所有者原话：“由于 github 上传 gitcode 实在过慢，也许需要更改同步方式，尝试改为从 gitcode 拉取 github 文件……这样全程就不需要你登录 gitcode 了”。改并发、改顺序之后，v0.1.2 的三个附件同时从 GitHub 的机器上传了 30 分钟，GitCode 上仍只有 `SHA256SUMS.txt`。
+- 做法：GitHub Actions 只推送代码、标签，并在 GitCode 上建好发行版和说明；附件由 GitCode（AtomGit）流水线 `.gitcode/workflows/pull-release-assets.yml` 从 GitHub 的公开下载地址拉取、在国内传进 GitCode。两边共用 `scripts/gitcode-uploader.mjs` 里的上传逻辑（上传地址、重试、登记确认）。GitHub 上的附件上传留作备用（仓库变量 `GITCODE_ASSETS_FROM=github`）。
+- 依据（docs.gitcode.com 流水线文档，2026-11-14 读的）：工作流放在 `.gitcode/workflows/`；支持 `push`（`tags` 过滤）、`schedule`（UTC+8 的 cron）、`workflow_dispatch`；`uses: checkout`、`uses: setup-node`；`concurrency: { max: 1, exceed-action: QUEUE }`；`timeout-minutes`；每次运行自动生成 `ATOMGIT_TOKEN`，权限由 `permissions`（`repository`、`project` 等）控制，文档示例用 `Authorization: token $ATOMGIT_TOKEN` 调 v5 API；环境变量里有 `ATOMGIT_API_URL`（`https://api.atomgit.com`）、`ATOMGIT_REF_TYPE`、`ATOMGIT_REF_NAME`、`ATOMGIT_EVENT_NAME`、`ATOMGIT_REPOSITORY`。托管机器是 Ubuntu，预装 Node.js 18/20。
+- 要人做的：代码化流水线**目前要申请内测名额**（文档“前提条件”），没有开通时 `.gitcode/workflows/` 里的文件不会运行，GitCode 上的发行版只有说明、没有安装包（应用内更新会改从 GitHub 下载）。`ATOMGIT_TOKEN` 能否上传发行版附件文档没有明说；不行时在 GitCode 仓库密钥里配 `GITCODE_TOKEN`。
+- 没验证的：GitCode 流水线没有真正跑过（这边没有 GitCode 账号，也不知道仓库是否开通了流水线）；从 GitCode 的机器下载 GitHub 附件的速度未知。脚本只有模拟测试（`tests/pull-github-release-assets.test.mjs`）。
+
 ## 官网（apps/website，2026-11-14）
 
 用户要一个官网：shadcn 风格、与应用视觉完全同源；页面里能像用真软件一样操作（仿真交互）；主程序更新后官网自动跟着变；不部署、不发布（硬性规则 11）。统筹会话定了三条，这里照做并记下取舍。
@@ -1389,3 +1836,12 @@ T3、T5 的 `fill = block` 要在着色器里平铺“方块的贴图”，但�
 - 其余照旧：贴上后成为整体、跟手、还能继续吸；松手后留在原处；双击弹出、用力甩甩脱、单击敲碎；只在方块上按下才算；正文、控件、滚轮不受影响；松手压在正文上让开或缩小；触摸屏不抓。
 
 **没有验证的**：按用户要求这次没有跑测试，也没有起浏览器看效果（只跑了 `pnpm typecheck` 和对官网与官网测试的 lint）。T-WEB-19 的第一步改成“同一组、至少两块”（平齐的别的方块也可能一起被吸上），写了没跑。吸附的手感、阈值是否合适，交给用户在 5180 上试。
+
+
+### 官网合入主线（2026-11-15）
+
+- 用户要求把 website 上传到仓库，随后创建 PR 并直接合并。将主线 `f5230bc` 合入官网分支，保留主线的桌面功能、发版配置与全部来源登记，官网的原版素材例外仍只限于既定目录。
+- 浏览器宿主补齐主线新增的重载、打开工程请求、安装模板请求、宿主就绪、默认文件夹与自动更新接口。需要本机文件或目录的动作返回取消并给出桌面版下载引导；网页更新状态明确为 `unsupported`，不联网、不假报更新成功。
+- 设置补丁复用桌面端的 `applyUiPatch`。仿真器默认跳过首次启动和新手引导，直接进入演示工程；帮助菜单仍可重新打开引导。
+- 本机验证通过：`pnpm install --frozen-lockfile --offline`、`pnpm typecheck`、`pnpm lint`、`pnpm check:provenance`、`pnpm check:licenses`、`pnpm website:build`；来源检查和体素模型相关单元测试共 40 项通过；官网 Playwright/Electron 测试 18 项全部通过（包含此前未运行的最新 T-WEB-19）。测试使用不显示的离屏窗口，临时目录放在 E 盘。
+- 完整仓库 `pnpm check` 以合入后 GitHub Actions 的结果为准，本机没有重复跑桌面应用的全套引擎、导出和端到端检查。本次合并不配置网站托管、不部署官网、不创建发版标签。

@@ -18,6 +18,7 @@ import {
 import { HostCommandResultSchema } from './host-commands';
 import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
+import { FolderKindSchema } from './folders';
 import {
   AssetPathSchema,
   CopyBuiltinSchema,
@@ -44,6 +45,9 @@ export type TitleBarColors = z.infer<typeof TitleBarColorsSchema>;
 /** 文件引用：主进程发给渲染进程的不透明 ID，不是路径 */
 export const FileRefSchema = z.uuid();
 
+/** 文件关联的一次性令牌（M8）：主进程签发，换回的是主进程自己记着的路径 */
+export const OpenRequestTokenSchema = z.uuid();
+
 /** asset: 引用从哪个模板读：已安装的（id + 版本），或正在试运行的暂存包 */
 export const AssetSourceSchema = z.union([
   z.strictObject({ id: TemplateIdArgSchema, version: TemplateVersionArgSchema }),
@@ -55,6 +59,7 @@ export const IPC_ARGS = {
   [IPC.settings.get]: z.tuple([]),
   [IPC.settings.set]: z.tuple([UiSettingsPatchSchema]),
   [IPC.window.setTitleBarColors]: z.tuple([TitleBarColorsSchema]),
+  [IPC.window.reload]: z.tuple([]),
   [IPC.files.pickImage]: z.tuple([]),
   [IPC.files.read]: z.tuple([FileRefSchema]),
   [IPC.export.start]: z.tuple([ExportStartSchema]),
@@ -94,6 +99,7 @@ export const IPC_ARGS = {
   [IPC.templates.readAsset]: z.tuple([AssetSourceSchema, AssetPathSchema]),
   [IPC.templates.install]: z.tuple([]),
   [IPC.templates.installDropped]: z.tuple([DroppedPathSchema]),
+  [IPC.templates.installRequested]: z.tuple([OpenRequestTokenSchema]),
   [IPC.templates.commitInstall]: z.tuple([StagingIdSchema, InstallReportSchema]),
   [IPC.templates.cancelInstall]: z.tuple([StagingIdSchema]),
   [IPC.templates.remove]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
@@ -108,11 +114,21 @@ export const IPC_ARGS = {
   [IPC.presets.importFile]: z.tuple([]),
   [IPC.presets.exportFile]: z.tuple([PresetIdSchema]),
   [IPC.project.open]: z.tuple([]),
+  [IPC.project.openRequested]: z.tuple([OpenRequestTokenSchema]),
   [IPC.project.openRecent]: z.tuple([z.uuid()]),
   [IPC.project.save]: z.tuple([ProjectHandleSchema.nullable(), ProjectDataSchema]),
   [IPC.project.saveAs]: z.tuple([ProjectDataSchema]),
   [IPC.project.recents]: z.tuple([]),
   [IPC.host.commandResult]: z.tuple([HostCommandResultSchema]),
+  [IPC.host.ready]: z.tuple([]),
+  [IPC.folders.get]: z.tuple([]),
+  [IPC.folders.choose]: z.tuple([FolderKindSchema]),
+  [IPC.folders.reset]: z.tuple([FolderKindSchema]),
+  [IPC.updates.state]: z.tuple([]),
+  [IPC.updates.check]: z.tuple([]),
+  [IPC.updates.download]: z.tuple([]),
+  [IPC.updates.cancel]: z.tuple([]),
+  [IPC.updates.install]: z.tuple([]),
   [IPC.cache.getThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema]),
   [IPC.cache.putThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema, ThumbPngSchema]),
   [IPC.cache.clear]: z.tuple([]),

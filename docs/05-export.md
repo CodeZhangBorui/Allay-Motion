@@ -99,8 +99,9 @@ scale=out_color_matrix=bt709:out_range=limited,format=<像素格式>,setparams=c
 | 2 | `h264_qsv` | `-global_quality 18` |
 | 3 | `h264_amf` | `-rc cqp -qp_i 18 -qp_p 18`（未实测，测试机没有 AMD 显卡） |
 | 4 | `h264_mf` | `-b:v {码率}`，1080p60 取 20M，按像素数 × 帧率等比缩放 |
-| 5 | `libx264`（仅当所用构建里有） | `-crf 16 -preset medium` |
-| 6 | `libopenh264`（仅当所用构建里有） | `-b:v {码率}` |
+| 5 | `h264_videotoolbox`（macOS 的系统编码器，只在 macOS 的构建里有） | `-b:v {码率} -allow_sw 1`（没有硬件编码器时允许 VideoToolbox 的软件编码器） |
+| 6 | `libx264`（仅当所用构建里有） | `-crf 16 -preset medium` |
+| 7 | `libopenh264`（仅当所用构建里有） | `-b:v {码率}` |
 
 **编码器探测**：`ffmpeg -encoders` 里列出来不代表能用（取决于显卡和驱动）。首次需要时，按顺序对每个候选做一次真实的试编码（256×144、8 帧、输出到空设备），第一个成功的胜出。结果连同 FFmpeg 版本缓存在设置里，设置页提供“重新检测”。全部失败时禁用这个预设并说明原因。
 
@@ -128,7 +129,7 @@ scale=out_color_matrix=bt709:out_range=limited,format=<像素格式>,setparams=c
 ## 5.6 FFmpeg 二进制
 
 - FFmpeg 作为**独立进程**调用，不链接进应用。
-- `scripts/fetch-ffmpeg.ts` 在构建时下载一个**固定版本**的构建并校验 SHA-256，放到 `resources/ffmpeg/<平台>/`。二进制不进仓库。用 electron-builder 的 `extraResources` 打进安装包。
+- `scripts/fetch-ffmpeg.ts` 在构建时下载一个**固定版本**的构建并校验 SHA-256，放到 `resources/ffmpeg/<平台>/`。二进制不进仓库。用 electron-builder 的 `extraResources` 打进安装包。macOS 没有可用的 LGPL 预编译包，改为从官方源码 tarball（固定版本、校验 SHA-256）按 LGPL 配置编译（`scripts/ffmpeg-macos.ts`，见 `docs/decisions.md`“macOS 构建”）。
 - 默认用 **LGPL 构建**，这样项目无论开源还是闭源都能分发。LGPL 构建里没有 `libx264`，所以 H.264 走上面的探测顺序。具体选哪个发行渠道和变体见 `09-compliance.md`。
 - 5.9 的实测用的是本机已有的另一个构建（8.1.2 的 GPL 完整版）。**固定下来的那个 LGPL 构建必须把 5.10 的测试重新跑通**，尤其要用 `ffmpeg -encoders` 确认 `h264_mf` 在不在。
 - 开发环境可以用系统里已有的 FFmpeg：按 `ALLAY_FFMPEG` 环境变量、`resources/ffmpeg/`、`PATH` 的顺序查找。

@@ -1,4 +1,6 @@
-# Windows 安装包（docs/08-milestones.md M0、M8）。不签名（H-SIGN），不发布（--publish never）。
+# Windows 安装包（docs/08-milestones.md M0、M8）和 macOS 的 dmg、zip（docs/decisions.md“macOS 构建”）。
+# 不用证书签名（H-SIGN；macOS 只做 ad-hoc 签名、不公证），不发布（--publish never）。
+# 平台和架构由 scripts/dist.mjs 按当前机器选（Windows：--win --x64；macOS：--mac --arm64 或 --x64）。
 # productName 是品牌的一部分：换品牌（09-compliance.md 9.4）时这里也要改，见 docs/decisions.md。
 appId: dev.allay.motion
 productName: Allay Motion
@@ -14,14 +16,8 @@ files:
   - "!node_modules{,/**/*}"
 asar: true
 # FFmpeg 作为独立的可执行文件随包分发（05-export.md 5.6、09-compliance.md 9.9），附 LGPL 许可全文和构建来源。
-# 来自 pnpm ffmpeg:fetch；ffprobe 只给测试用，不进安装包。
+# 来自 pnpm ffmpeg:fetch，按平台放在 win.extraResources、mac.extraResources 里；ffprobe 只给测试用，不进安装包。
 extraResources:
-  - from: ../../resources/ffmpeg/win32-x64
-    to: ffmpeg/win32-x64
-    filter:
-      - ffmpeg.exe
-      - LICENSE.txt
-      - build.json
   # 没有原版层时文字的兜底像素字体（方舟像素字体，OFL-1.1），原样分发并附许可全文（docs/decisions.md M2b）
   - from: ../../resources/fonts
     to: fonts
@@ -56,6 +52,9 @@ electronFuses:
   onlyLoadAppFromAsar: true
   loadBrowserProcessSpecificV8Snapshot: false
   grantFileProtocolExtraPrivileges: false
+  # macOS arm64：改了 fuse 之后原有的签名失效，立刻重做一次 ad-hoc 签名（随后 mac.identity 的签名会再覆盖一次；
+  # electron-builder 在 PR 构建里跳过签名时，靠这一步保证 arm64 的应用仍能启动）。Windows 上不起作用
+  resetAdHocDarwinSignature: true
 win:
   # 应用图标：build/icon.ico（electron-builder 默认从 buildResources 取，安装程序也用它），
   # 是烘焙出的悦灵头像图标，由 scripts/mascot-dist.ts 放进去；不在仓库里
@@ -64,9 +63,77 @@ win:
       arch: [x64]
   # 没有证书，不签名
   signAndEditExecutable: true
+  extraResources:
+    - from: ../../resources/ffmpeg/win32-x64
+      to: ffmpeg/win32-x64
+      filter:
+        - ffmpeg.exe
+        - LICENSE.txt
+        - build.json
+  # 第三方许可的纯文本版（09-compliance.md 9.7），由 scripts/dist-extras.ts 生成，放在安装目录的根上（和 exe、LICENSES.chromium.html 在一起）
+  extraFiles:
+    - from: build/THIRD_PARTY_NOTICES.txt
+      to: THIRD_PARTY_NOTICES.txt
+# macOS（docs/decisions.md“macOS 构建”）：每个架构一份 dmg 和 zip，在对应架构的机器上构建（arm64、x64 各一台），
+# 不做 universal（Electron 和 FFmpeg 都得两份合一，包大一倍，而且打包时要另外下载另一个架构的 Electron）。
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.video
+  # Electron 45 的最低要求
+  minimumSystemVersion: "12.0"
+  # 没有 Apple 开发者证书：ad-hoc 签名（arm64 上没有签名的应用根本启动不了），不公证。
+  # 签名在 fuses 和 asar 完整性写进 Info.plist 之后做，两者都在签名覆盖的范围内。
+  # hardened runtime 只在公证时才需要；ad-hoc 签名开着它会因库验证（各框架没有共同的团队 ID）启动失败，所以关掉，
+  # 而不是加 disable-library-validation 的豁免
+  identity: "-"
+  hardenedRuntime: false
+  # 应用图标：build/icon.icns（electron-builder 默认从 buildResources 取），由 scripts/mascot-dist.ts 从提交的 icon.ico 生成；不在仓库里
+  artifactName: ${productName}-${version}-${arch}-mac.${ext}
+  extraResources:
+    - from: ../../resources/ffmpeg/darwin-${arch}
+      to: ffmpeg/darwin-${arch}
+      filter:
+        - ffmpeg
+        - LICENSE.txt
+        - build.json
+    # 第三方许可：.app 里只能放进 Contents/Resources（Contents 下的散文件会破坏签名的封装），
+    # Electron 和 Chromium 的许可也要自己带上（Windows 上它们随 Electron 目录整个复制过去）
+    - from: build/THIRD_PARTY_NOTICES.txt
+      to: THIRD_PARTY_NOTICES.txt
+    - from: node_modules/electron/dist/LICENSES.chromium.html
+      to: LICENSES.chromium.html
+    - from: node_modules/electron/dist/LICENSE
+      to: LICENSE.electron.txt
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  # 应用内的自动更新整包下载并按 SHA256SUMS.txt 校验（docs/decisions.md“自动更新”），不做差分更新，不需要 blockmap
+  writeUpdateInfo: false
+# 文件关联（M8）：双击工程文件和模板包用本应用打开。Windows 上按用户安装时写在 HKCU\Software\Classes 下，卸载时删掉；
+# macOS 上写进 Info.plist 的 CFBundleDocumentTypes，路径经 open-file 事件交给主进程。
+# 打开的路径经主进程的命令通道交给界面（apps/desktop/src/main/open-files.ts）。图标用应用图标（没有单独的文档图标）。
+# name 是注册表里的类型名（内部标识）；description 是资源管理器“类型”一栏的文字，属于构建配置，换品牌时和 productName 一起改。
+fileAssociations:
+  - ext: allay
+    name: AllayMotion.Project
+    description: Allay Motion Project
+    role: Editor
+  - ext: allaytpl
+    name: AllayMotion.Template
+    description: Allay Motion Template Package
+    role: Editor
+# 打成安装包之前，去掉 Electron 自带的 resources/default_app.asar（M0 起的遗留项，docs/decisions.md M8）
+afterPack: ./scripts/after-pack.mjs
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  # 开始菜单和桌面快捷方式（默认值，写明）；卸载时一并删除。用户数据（%APPDATA%\AllayMotion）卸载时保留
+  createStartMenuShortcut: true
+  createDesktopShortcut: true
+  deleteAppDataOnUninstall: false
+  # 欢迎页带非官方声明（09-compliance.md 9.5），由 scripts/dist-extras.ts 从 packages/ui/src/brand 生成，不提交
+  include: build/installer.nsh
   artifactName: ${productName}-${version}-x64-setup.${ext}
 publish: null

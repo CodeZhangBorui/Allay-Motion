@@ -5,7 +5,7 @@ import { requiredTextures } from '../../packages/assets/src/index';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
 import { catalogJarEntries, makeCatalogGame } from '../unit/helpers/resource-fixtures';
 import { writeFakeMascot } from './fake-mascot';
-import { DESKTOP_DIR, ELECTRON_PATH, launchApp, makeUserDataDir, readMainLog, removeUserDataDir, requirePinnedFfmpeg } from './helpers';
+import { DESKTOP_DIR, ELECTRON_PATH, launchApp, makeUserDataDir, readMainLog, removeUserDataDir, requirePinnedFfmpeg, seedSettings } from './helpers';
 
 // M5 后半（docs/07-allay-mascot.md 7.10）：T-ALY-3、T-ALY-4、T-ALY-5（图集版）、T-ALY-6，启动画面，产物缺失时的占位。
 // T-ALY-1、T-ALY-7 在 tests/unit/T-ALY.mascot-bake.test.ts（烘焙）；T-ALY-2 在 tests/unit/T-ALY-2.loader-timing.test.ts 和 m4.spec.ts。
@@ -361,6 +361,7 @@ test.describe('启动画面（7.5 第 1 项、7.6 C）', () => {
       ALLAY_E2E_MOJANG_ORIGIN: 'http://127.0.0.1:9',
       ALLAY_E2E_MASCOT_DIR: mascotDir,
     });
+    seedSettings(dir);
     const app = await electron.launch({ executablePath: ELECTRON_PATH, args: [DESKTOP_DIR], env, cwd: DESKTOP_DIR });
     const find = () => app.windows().find((p) => p.url().includes('/splash/'));
     await expect.poll(() => !!find(), { timeout: 15_000 }).toBe(true);
@@ -374,15 +375,8 @@ test.describe('启动画面（7.5 第 1 项、7.6 C）', () => {
     const { app, splash } = await launchWithSplash(dir, join(dir, 'mascot'));
     try {
       expect(splash.url()).toMatch(/^app:\/\/renderer\/splash\/zh-CN-dark\.html$/);
-      const brand = brandMessages['zh-CN'];
-      await expect(splash.locator('.wordmark')).toHaveText(brand.wordmark);
-      expect(await splash.getByTestId('splash-disclaimer').textContent()).toBe(brand.disclaimer);
-      // 没有脚本、拿不到 Node
-      expect(await splash.evaluate(() => [document.scripts.length, typeof (globalThis as { require?: unknown }).require, typeof (globalThis as { process?: unknown }).process])).toEqual([0, 'undefined', 'undefined']);
-      // 帧来自图集（CSS steps() 播帧），图集取得到
-      const bg = await splash.locator('.sprite').evaluate((el) => getComputedStyle(el).backgroundImage);
-      expect(bg).toContain('/mascot/allay-288.png');
-      expect(await splash.evaluate(async () => (await fetch('../mascot/allay-288.png')).ok)).toBe(true);
+      // 启动画面只活到“显示满 600 ms 且主窗口就绪”（产品行为，下面按日志核对）。慢机器上（CI 的软件渲染）逐项去问它，
+      // 问到一半它就按设计关了（docs/decisions.md M8）。所以先从主进程取 webPreferences，再在页面里一次取齐要看的东西
       // 1.6 第 1 条：与主窗口相同的 webPreferences，只是没有 preload
       const prefs = await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows().map((w) => {
@@ -391,6 +385,24 @@ test.describe('启动画面（7.5 第 1 项、7.6 C）', () => {
           return { url: w.webContents.getURL(), contextIsolation: p?.contextIsolation, sandbox: p?.sandbox, nodeIntegration: p?.nodeIntegration, webSecurity: p?.webSecurity, webviewTag: p?.webviewTag, nodeIntegrationInWorker: p?.nodeIntegrationInWorker, nodeIntegrationInSubFrames: p?.nodeIntegrationInSubFrames };
         }),
       );
+      await splash.waitForLoadState('domcontentloaded');
+      const facts = await splash.evaluate(async () => ({
+        wordmark: document.querySelector('.wordmark')?.textContent ?? null,
+        disclaimer: document.querySelector('[data-testid="splash-disclaimer"]')?.textContent ?? null,
+        // 没有脚本、拿不到 Node
+        scripts: document.scripts.length,
+        require: typeof (globalThis as { require?: unknown }).require,
+        process: typeof (globalThis as { process?: unknown }).process,
+        // 帧来自图集（CSS steps() 播帧），图集取得到
+        background: getComputedStyle(document.querySelector('.sprite')!).backgroundImage,
+        atlasOk: (await fetch('../mascot/allay-288.png')).ok,
+      }));
+      const brand = brandMessages['zh-CN'];
+      expect(facts.wordmark).toBe(brand.wordmark);
+      expect(facts.disclaimer).toBe(brand.disclaimer);
+      expect([facts.scripts, facts.require, facts.process]).toEqual([0, 'undefined', 'undefined']);
+      expect(facts.background).toContain('/mascot/allay-288.png');
+      expect(facts.atlasOk).toBe(true);
       const s = prefs.find((p) => p.url.includes('/splash/'));
       expect(s).toMatchObject({ contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, webviewTag: false, nodeIntegrationInWorker: false, nodeIntegrationInSubFrames: false });
       // 主窗口就绪后关闭；从显示到关闭至少 600 ms

@@ -24,6 +24,7 @@ Allay Motion（悦灵动画）是一个桌面应用，给 Minecraft 视频创作
 - 悦灵的加载与反馈系统。
 - 中文和英文；深色和浅色主题。
 - Windows x64 安装包。
+- 自动更新：从本仓库 GitHub / GitCode 的 Release 检查并下载新版本，可在设置里关闭（仓库所有者于 2026-11-14 要求加入，`docs/decisions.md`“自动更新”）。
 
 **v1 不做**
 
@@ -32,8 +33,8 @@ Allay Motion（悦灵动画）是一个桌面应用，给 Minecraft 视频创作
 | 关键帧时间轴、可视化模板编辑器 | 工作量相当于再做一个产品。v1 的“自定义”由预设、派生模板、脚本模板承担 |
 | 多图层合成 | 同上。一个工程只有一个模板 |
 | 导入用户的视频并对画面本身做变形 | 需要视频解码和合成。v1 只输出盖在上面的叠加层 |
-| 账号、云同步、在线模板市场、遥测、自动更新 | v1 完全离线 |
-| macOS、Linux 安装包 | 代码保持可移植，但 v1 只在 Windows 上验证 |
+| 账号、云同步、在线模板市场、遥测 | v1 不联网（例外只有用户触发的原版素材下载和自动更新，`docs/decisions.md` M2a、“自动更新”）。原来这一行还写着“自动更新” |
+| Linux 安装包 | 代码保持可移植，但 v1 只在 Windows 和 macOS 上构建。macOS 的 dmg、zip 由仓库所有者于 2026-11-14 要求加入（`docs/decisions.md`“macOS 构建”），原来这一行写的是“macOS、Linux 安装包” |
 | 基岩版资源包；1.12 及更早的 Java 版资源包 | 格式不同 |
 | 读取资源包自带的模型 JSON | v1 用应用自带的方块目录 |
 
@@ -176,6 +177,7 @@ docs/
 | `settings` | `get`、`set`、`onChanged` |
 | `shell` | `showItemInFolder`、`openLink(key)`（只能打开应用内置白名单里的链接） |
 | `window` | `setTitleBarColors` |
+| `updates` | `state`、`check`、`download`、`cancel`、`install`、`onChanged`（自动更新，`docs/decisions.md`“自动更新”） |
 
 ## 1.9 数据目录与工程文件
 

@@ -1,247 +1,83 @@
-import { Allay } from '@allay/mascot';
-import { Button } from '@allay/ui/components/button';
 import { Dialog, DialogContent, DialogTitle } from '@allay/ui/components/dialog';
-import { Kbd } from '@allay/ui/components/misc';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@allay/ui/components/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@allay/ui/components/tabs';
-import { useEffect, useState, type ReactNode } from 'react';
+import { ScrollArea } from '@allay/ui/components/misc';
+import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
+import { cn } from '@allay/ui/lib/utils';
+import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useExportInfo } from '../export/exportInfo';
-import type { CacheUsage } from '../../../shared/resources';
-import { notify } from '../../stores/noticeStore';
+import { ErrorBoundary } from '../../app/ErrorBoundary';
+import { useSettingsPages } from '../../app/registry';
 import { useUiStore } from '../../stores/uiStore';
-import { useCommands } from '../../app/registry';
-import { shortcutLabel } from '../commands/commands';
-import { ResourceStackPanel } from '../resources/ResourceStackPanel';
-import { OutputSettingsForm } from './OutputSettingsForm';
 
-// 设置对话框（6.4）：通用（语言、主题、减少动效）、素材（资源栈、缓存占用与清除）、导出（默认输出设置、FFmpeg 版本、
-// 重新检测编码器）、快捷键、关于（版本、第三方许可、非官方声明）。
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-h-10 items-center justify-between gap-4 border-b border-divider py-1 last:border-b-0">
-      <span className="text-sm">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function General() {
-  const { t } = useTranslation();
-  const settings = useUiStore((s) => s.settings);
-  const ui = useUiStore.getState();
-  return (
-    <div className="flex flex-col">
-      <Row label={t('settings.language')}>
-        <Select value={settings.language} onValueChange={(v) => ui.update({ language: v as typeof settings.language })}>
-          <SelectTrigger className="w-44" aria-label={t('settings.language')} data-testid="settings-language">
-            <SelectValue>{(v: unknown) => t(`settings.languages.${String(v)}`)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {(['system', 'zh-CN', 'en'] as const).map((l) => (
-              <SelectItem key={l} value={l}>
-                {t(`settings.languages.${l}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label={t('settings.theme')}>
-        <Select value={settings.theme} onValueChange={(v) => ui.setTheme(v as typeof settings.theme)}>
-          <SelectTrigger className="w-44" aria-label={t('settings.theme')} data-testid="settings-theme">
-            <SelectValue>{(v: unknown) => t(`settings.themes.${String(v)}`)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {(['dark', 'light'] as const).map((l) => (
-              <SelectItem key={l} value={l}>
-                {t(`settings.themes.${l}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-      <Row label={t('settings.reducedMotion')}>
-        <Select value={settings.reducedMotion} onValueChange={(v) => ui.update({ reducedMotion: v as typeof settings.reducedMotion })}>
-          <SelectTrigger className="w-44" aria-label={t('settings.reducedMotion')} data-testid="settings-reduced-motion">
-            <SelectValue>{(v: unknown) => t(`settings.reducedMotions.${String(v)}`)}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {(['system', 'on', 'off'] as const).map((l) => (
-              <SelectItem key={l} value={l}>
-                {t(`settings.reducedMotions.${l}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Row>
-    </div>
-  );
-}
-
-function Assets() {
-  const { t } = useTranslation();
-  const [usage, setUsage] = useState<CacheUsage | null>(null);
-  const refresh = () => void window.allay.cache.usage().then(setUsage);
-  useEffect(refresh, []);
-  return (
-    <div className="flex flex-col gap-4">
-      <ResourceStackPanel />
-      <div className="flex items-center justify-between gap-4 border-t border-divider pt-3">
-        <div className="flex flex-col">
-          <span className="text-sm">{t('settings.cache')}</span>
-          <span className="num text-xs text-fg-subtle" data-testid="cache-usage">
-            {usage ? t('settings.cacheUsage', { files: usage.files, size: formatBytes(usage.bytes) }) : '…'}
-          </span>
-        </div>
-        <Button
-          variant="secondary"
-          onClick={() =>
-            void window.allay.cache.clear().then(() => {
-              refresh();
-              notify('info', t('settings.cacheCleared'));
-            })
-          }
-        >
-          {t('settings.clearCache')}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function ExportPage() {
-  const { t } = useTranslation();
-  const info = useExportInfo((s) => s.info);
-  const probing = useExportInfo((s) => s.probing);
-  useEffect(() => void useExportInfo.getState().load(), []);
-  const h264 = info?.h264 ?? null;
-  return (
-    <div className="flex flex-col gap-4">
-      <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-semibold text-fg-subtle">{t('settings.defaultOutput')}</h3>
-        <OutputSettingsForm />
-      </section>
-      <section className="flex flex-col border-t border-divider pt-3">
-        <Row label={t('settings.ffmpeg')}>
-          <span className="num text-xs text-fg-subtle" data-testid="ffmpeg-version">
-            {info ? (info.available ? (info.version ?? t('settings.ffmpegUnknown')) : t('export.errors.ffmpegMissing')) : '…'}
-          </span>
-        </Row>
-        <Row label={t('settings.encoders')}>
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="num truncate text-xs text-fg-subtle" data-testid="h264-encoder" title={h264 ? h264.attempts.map((a) => `${a.encoder}: ${a.result}`).join('\n') : undefined}>
-              {probing ? t('settings.encoderProbing') : !info?.available ? t('export.errors.ffmpegMissing') : h264 ? (h264.encoder ?? t('settings.encoderNone')) : t('settings.encoderNotProbed')}
-            </span>
-            <Button variant="secondary" disabled={probing || !info?.available} data-testid="redetect-encoders" onClick={() => void useExportInfo.getState().probe(true)}>
-              {t('settings.redetect')}
-            </Button>
-          </div>
-        </Row>
-      </section>
-    </div>
-  );
-}
-
-function Shortcuts() {
-  const { t } = useTranslation();
-  // 注册表里所有带快捷键的命令（可选模块的也会列出来）
-  const commands = useCommands();
-  return (
-    <table className="w-full text-sm" data-testid="shortcut-table">
-      <tbody>
-        {commands.filter((c) => c.shortcut).map((c) => (
-          <tr key={c.id} className="border-b border-divider last:border-b-0">
-            <td className="py-1.5">{t(c.titleKey)}</td>
-            <td className="py-1.5 text-right">
-              <Kbd>{shortcutLabel(c.shortcut!)}</Kbd>
-            </td>
-          </tr>
-        ))}
-        <tr className="border-b border-divider last:border-b-0">
-          <td className="py-1.5">{t('shortcuts.frameStep')}</td>
-          <td className="py-1.5 text-right">
-            <Kbd>←</Kbd> <Kbd>→</Kbd> <span className="text-xs text-fg-subtle">{t('shortcuts.shiftTen')}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  );
-}
-
-function About() {
-  const { t } = useTranslation();
-  const [version, setVersion] = useState('');
-  useEffect(() => void window.allay.app.info().then((i) => setVersion(i.version)), []);
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <Allay clip="hover" size={56} priority="dialog" />
-        <div className="flex flex-col">
-          <span className="text-lg font-semibold">{t('brand.name')}</span>
-          <span className="num text-xs text-fg-subtle" data-testid="about-version">
-            {t('settings.version', { version })}
-          </span>
-        </div>
-      </div>
-      <p className="text-xs whitespace-pre-line text-fg-muted" data-testid="about-disclaimer">
-        {t('brand.disclaimer')}
-      </p>
-      <section className="flex flex-col gap-1.5 border-t border-divider pt-3">
-        <h3 className="text-xs font-semibold text-fg-subtle">{t('settings.thirdParty')}</h3>
-        <ul className="flex flex-col gap-1 text-xs text-fg-muted">
-          <li>{t('settings.licenses.ffmpeg')}</li>
-          <li>{t('settings.licenses.ark')}</li>
-          <li>{t('settings.licenses.plex')}</li>
-          <li>{t('settings.licenses.noto')}</li>
-          <li>{t('settings.licenses.phosphor')}</li>
-          <li>{t('settings.licenses.npm')}</li>
-        </ul>
-      </section>
-    </div>
-  );
-}
+// 设置对话框（docs/06-ui-design.md 6.11）：左边是分类（图标 + 名称，来自注册表的 registerSettingsPage），右边是这一类的设置。
+// 和主界面同一套语言：侧栏是面板色的一列，选中项是控件高亮底、图标换成实心；内容区是次级面，分组靠半粗标题和 1 px 分隔线。
 
 export function SettingsDialog() {
   const { t } = useTranslation();
-  const page = useUiStore((s) => s.settingsPage);
+  const pages = useSettingsPages();
+  const wanted = useUiStore((s) => s.settingsPage);
+  const current = pages.find((p) => p.id === wanted) ?? pages[0];
   const close = () => useUiStore.getState().openDialog(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  // 换页时回到顶部（新版 Chromium 的 scrollTo 返回 Promise，不能直接当 effect 的返回值）
+  useEffect(() => {
+    void scroller.current?.querySelector('.overscroll-contain')?.scrollTo({ top: 0 });
+  }, [current?.id]);
+
+  const go = (id: string) => useUiStore.setState({ settingsPage: id });
+  const onNavKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const d = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const next = pages[(i + d + pages.length) % pages.length]!;
+    go(next.id);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-testid="settings-tab-${next.id}"]`)?.focus());
+  };
+
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent closeLabel={t('common.close')} className="h-[520px] w-[720px] gap-3" data-testid="settings-dialog">
-        <DialogTitle>{t('settings.title')}</DialogTitle>
-        <Tabs value={page} onValueChange={(v) => useUiStore.setState({ settingsPage: v as typeof page })} orientation="vertical" className="flex min-h-0 flex-1 gap-4">
-          <TabsList className="h-auto w-40 shrink-0 flex-col items-stretch gap-0.5 self-start">
-            {(['general', 'assets', 'export', 'shortcuts', 'about'] as const).map((p) => (
-              <TabsTrigger key={p} value={p} className="h-8 flex-none justify-start px-2.5" data-testid={`settings-tab-${p}`}>
-                {t(`settings.pages.${p}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto pr-2 pl-1">
-            <TabsContent value="general">
-              <General />
-            </TabsContent>
-            <TabsContent value="assets">
-              <Assets />
-            </TabsContent>
-            <TabsContent value="export">
-              <ExportPage />
-            </TabsContent>
-            <TabsContent value="shortcuts">
-              <Shortcuts />
-            </TabsContent>
-            <TabsContent value="about">
-              <About />
-            </TabsContent>
+      <DialogContent closeLabel={t('common.close')} className="h-[min(640px,calc(100vh-48px))] w-[880px] flex-row gap-0 overflow-hidden p-0" data-testid="settings-dialog">
+        <nav className="flex w-[208px] shrink-0 flex-col gap-0.5 bg-surface-1 px-2.5 pt-4 pb-3" aria-label={t('settings.title')}>
+          <DialogTitle className="px-2.5 pb-3 text-base">{t('settings.title')}</DialogTitle>
+          <div role="tablist" aria-orientation="vertical" className="flex flex-col gap-0.5">
+            {pages.map((p, i) => {
+              const active = p.id === current?.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls="settings-page"
+                  tabIndex={active ? 0 : -1}
+                  data-active={active ? '' : undefined}
+                  data-testid={`settings-tab-${p.id}`}
+                  onClick={() => go(p.id)}
+                  onKeyDown={(e) => onNavKey(e, i)}
+                  className={cn(
+                    'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors duration-(--dur-1) outline-none',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)',
+                    active ? 'bg-control-hi text-foreground' : 'text-fg-muted hover:bg-control hover:text-foreground',
+                  )}
+                >
+                  <p.icon size={ICON.md} weight={active ? ICON_WEIGHT.active : ICON_WEIGHT.normal} className={active ? 'text-foreground' : 'text-fg-subtle'} aria-hidden="true" />
+                  <span className="truncate">{t(p.titleKey)}</span>
+                </button>
+              );
+            })}
           </div>
-        </Tabs>
+        </nav>
+        <div ref={scroller} className="flex min-w-0 flex-1 flex-col">
+          <ScrollArea className="h-full">
+            <div id="settings-page" role="tabpanel" aria-label={current ? t(current.titleKey) : undefined} className="px-7 pt-5 pb-7" data-page={current?.id}>
+              {/* 每一页单独兜底：一页出错只换成这一页的错误块，侧栏和其他页照常可用 */}
+              {current && (
+                <ErrorBoundary scope={`settings.${current.id}`} resetKey={current.id}>
+                  <current.component key={current.id} />
+                </ErrorBoundary>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

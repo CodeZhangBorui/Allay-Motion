@@ -1,6 +1,8 @@
 import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type ResourceStackSettings } from '@allay/assets';
 import { z } from 'zod';
 import { H264ProbeSchema } from './export';
+import { ShortcutOverridesPatchSchema, sanitizeShortcutOverrides, type ShortcutOverrides } from './shortcuts';
+import { UpdatePrefsPatchSchema, UpdatePrefsSchema, defaultUpdatePrefs } from './updates';
 
 // 设置文件 settings.json 的 schema（docs/01-product-architecture.md 1.9）。
 // 读取时每个字段单独兜底：坏掉的字段回到默认值，不连累其他字段。
@@ -99,6 +101,9 @@ export const OptionalModulesSchema = z
   .record(OptionalModuleIdSchema, z.boolean())
   .refine((m) => Object.keys(m).length <= MAX_OPTIONAL_MODULES, 'too many optional modules');
 
+/** 自定义快捷键（6.11）：坏掉的条目各自回到默认，不连累其他设置 */
+const ShortcutOverridesFileSchema = z.unknown().transform((raw): ShortcutOverrides => sanitizeShortcutOverrides(raw));
+
 /** 渲染进程可见、可改的部分 */
 export const UiSettingsSchema = z.strictObject({
   theme: ThemeSchema.catch('dark'),
@@ -107,6 +112,19 @@ export const UiSettingsSchema = z.strictObject({
   layout: LayoutSchema.catch({ left: { ...DEFAULT_LAYOUT.left }, right: { ...DEFAULT_LAYOUT.right } }),
   editor: EditorPrefsSchema.catch(defaultEditorPrefs).default(defaultEditorPrefs),
   optionalModules: OptionalModulesSchema.catch({}).default({}),
+  /**
+   * 首次启动引导（6.10）是否已经走完或跳过。新装时为 false；没有这个字段的旧设置文件读成 true（migrateSettingsFile），
+   * 老用户升级后不被拉进引导
+   */
+  onboardingCompleted: z.boolean().catch(true).default(true),
+  /**
+   * 新手引导（6.14：首次启动引导之后带用户认一遍主界面）是否已经看完或跳过。新装时为 false；
+   * 没有这个字段的旧设置文件读成 true（migrateSettingsFile），老用户不被拉进来，可以从帮助菜单打开
+   */
+  tourCompleted: z.boolean().catch(true).default(true),
+  shortcuts: ShortcutOverridesFileSchema.default({}),
+  /** 自动更新（docs/decisions.md“自动更新”）：没有这个字段的旧设置文件用默认值 */
+  updates: UpdatePrefsSchema.catch(defaultUpdatePrefs).default(defaultUpdatePrefs),
 });
 export type UiSettings = z.infer<typeof UiSettingsSchema>;
 
@@ -118,6 +136,10 @@ export function defaultUiSettings(): UiSettings {
     layout: { left: { ...DEFAULT_LAYOUT.left }, right: { ...DEFAULT_LAYOUT.right } },
     editor: defaultEditorPrefs(),
     optionalModules: {},
+    onboardingCompleted: false,
+    tourCompleted: false,
+    shortcuts: {},
+    updates: defaultUpdatePrefs(),
   };
 }
 
@@ -147,6 +169,12 @@ export const UiSettingsPatchSchema = z.strictObject({
     .optional(),
   /** 可选模块的开关表：整体替换 */
   optionalModules: OptionalModulesSchema.optional(),
+  onboardingCompleted: z.boolean().optional(),
+  tourCompleted: z.boolean().optional(),
+  /** 自定义快捷键：整张表替换 */
+  shortcuts: ShortcutOverridesPatchSchema.optional(),
+  /** 自动更新的设置：整体替换 */
+  updates: UpdatePrefsPatchSchema.optional(),
 });
 export type UiSettingsPatch = z.infer<typeof UiSettingsPatchSchema>;
 
@@ -174,6 +202,18 @@ export function defaultExportAppSettings(): ExportAppSettings {
   return { folder: null, h264: null };
 }
 
+/**
+ * 工程的应用级设置（6.11），只有主进程读写：新工程“保存”“另存为”时对话框默认打开的文件夹。
+ * 文件夹只来自主进程的文件夹对话框（1.6 第 6 条）。
+ */
+export const ProjectAppSettingsSchema = z.strictObject({
+  folder: z.string().min(1).max(1000).nullable(),
+});
+export type ProjectAppSettings = z.infer<typeof ProjectAppSettingsSchema>;
+export function defaultProjectAppSettings(): ProjectAppSettings {
+  return { folder: null };
+}
+
 export const SettingsFileSchema = z.object({
   formatVersion: z.literal(SETTINGS_FORMAT_VERSION),
   ui: UiSettingsSchema.catch(defaultUiSettings),
@@ -182,11 +222,48 @@ export const SettingsFileSchema = z.object({
   resources: ResourceStackSettingsSchema.catch(defaultResourceSettings).default(defaultResourceSettings),
   /** 导出（M7），只有主进程读写 */
   export: ExportAppSettingsSchema.catch(defaultExportAppSettings).default(defaultExportAppSettings),
+  /** 工程（6.11），只有主进程读写 */
+  project: ProjectAppSettingsSchema.catch(defaultProjectAppSettings).default(defaultProjectAppSettings),
 });
 export type SettingsFile = z.infer<typeof SettingsFileSchema>;
 
+/** 新装（没有设置文件）时的设置：引导还没走过 */
 export function defaultSettingsFile(): SettingsFile {
-  return { formatVersion: SETTINGS_FORMAT_VERSION, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings() };
+  return {
+    formatVersion: SETTINGS_FORMAT_VERSION,
+    ui: defaultUiSettings(),
+    resources: defaultResourceSettings(),
+    export: defaultExportAppSettings(),
+    project: defaultProjectAppSettings(),
+  };
+}
+
+/**
+ * 已有设置文件、但它整个不能用（损坏、版本不对）时的设置：用默认值，只是引导算已经走过——
+ * 有设置文件就说明不是第一次启动（docs/decisions.md 界面增强）。
+ */
+export function fallbackSettingsFile(): SettingsFile {
+  const s = defaultSettingsFile();
+  return { ...s, ui: { ...s.ui, onboardingCompleted: true, tourCompleted: true } };
+}
+
+/**
+ * 读设置文件（JSON 解析之后）：校验每个字段并做平滑升级。formatVersion 没有变（新字段都可缺省）：
+ * - 没有 ui.onboardingCompleted（引导上线之前写的文件，或 ui 整块坏了）：读成 true；
+ * - 没有 ui.tourCompleted（新手引导上线之前写的文件）：跟着 onboardingCompleted 明确记着的值，没有记就读成 true；
+ * - 没有 ui.shortcuts、project：用默认值。
+ * 整个不能用时返回 null（调用方把文件留档，换 fallbackSettingsFile）。
+ */
+export function migrateSettingsFile(json: unknown): SettingsFile | null {
+  const parsed = SettingsFileSchema.safeParse(json);
+  if (!parsed.success) return null;
+  const rawUi = (json as { ui?: unknown }).ui;
+  const hasFlag = (key: 'onboardingCompleted' | 'tourCompleted') => typeof rawUi === 'object' && rawUi !== null && typeof (rawUi as Record<string, unknown>)[key] === 'boolean';
+  const ui = { ...parsed.data.ui };
+  // 新手引导跟在首次启动引导后面：首次启动引导明确记着没走完（新装后中途退出）时，新手引导也还没看；否则算看过
+  if (!hasFlag('tourCompleted')) ui.tourCompleted = hasFlag('onboardingCompleted') ? ui.onboardingCompleted : true;
+  if (!hasFlag('onboardingCompleted')) ui.onboardingCompleted = true;
+  return { ...parsed.data, ui };
 }
 
 export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSettings {
@@ -200,5 +277,9 @@ export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSet
     },
     editor: { ...current.editor, ...patch.editor },
     optionalModules: patch.optionalModules ?? current.optionalModules,
+    onboardingCompleted: patch.onboardingCompleted ?? current.onboardingCompleted,
+    tourCompleted: patch.tourCompleted ?? current.tourCompleted,
+    shortcuts: patch.shortcuts ?? current.shortcuts,
+    updates: patch.updates ?? current.updates,
   };
 }

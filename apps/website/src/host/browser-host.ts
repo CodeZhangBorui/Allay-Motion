@@ -14,8 +14,9 @@ import { z } from 'zod';
 import type { AllayApi } from '../../../desktop/src/preload/api';
 import { EXPORT_PRESETS, type ExportPreset, type FfmpegInfo, type H264Probe, type PresetBlocker } from '../../../desktop/src/shared/export';
 import type { ResourceState } from '../../../desktop/src/shared/resources';
-import { UiSettingsPatchSchema, defaultUiSettings, type UiSettings, type UiSettingsPatch } from '../../../desktop/src/shared/settings';
+import { UiSettingsPatchSchema, applyUiPatch, defaultUiSettings, type UiSettings, type UiSettingsPatch } from '../../../desktop/src/shared/settings';
 import type { PresetEntry } from '../../../desktop/src/shared/templates';
+import { resolveUpdateSource, type UpdateState } from '../../../desktop/src/shared/updates';
 import desktopPackage from '../../../desktop/package.json';
 import type { DesktopOnlyFeature, SiteLanguage } from './bridge';
 import { demoTexture } from './demo-pack';
@@ -69,18 +70,6 @@ function emitter<T>() {
 function siteLanguage(settings: UiSettings): SiteLanguage {
   if (settings.language === 'zh-CN' || settings.language === 'en') return settings.language;
   return navigator.language.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en';
-}
-
-function mergeSettings(cur: UiSettings, patch: UiSettingsPatch): UiSettings {
-  return {
-    ...cur,
-    ...(patch.theme ? { theme: patch.theme } : {}),
-    ...(patch.language ? { language: patch.language } : {}),
-    ...(patch.reducedMotion ? { reducedMotion: patch.reducedMotion } : {}),
-    layout: { ...cur.layout, ...patch.layout },
-    editor: { ...cur.editor, ...patch.editor },
-    optionalModules: patch.optionalModules ?? cur.optionalModules,
-  };
 }
 
 function randomHex(bytes: number): string {
@@ -140,13 +129,29 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
   // 网页里默认静音（访客没点过任何东西就出声不礼貌）；用户可以在界面里打开
   let settings: UiSettings = { ...defaultUiSettings(), ...opts.settings };
   settings.editor = { ...settings.editor, muted: true };
+  // 仿真器直接进入演示工程；需要本机目录的首次启动流程不挡住网页预览，仍可从帮助菜单重开。
+  settings.onboardingCompleted = true;
+  settings.tourCompleted = true;
+  settings.updates = { ...settings.updates, mode: 'off' };
   const settingsChanged = emitter<UiSettings>();
+  const updatesChanged = emitter<UpdateState>();
   const resourcesChanged = emitter<ResourceState>();
   const thumbs = new Map<string, Uint8Array>();
   const presets: PresetEntry[] = [];
   const jobs = new Map<string, { preset: ExportPreset; frames: number }>();
 
   const desktopOnly = (feature: DesktopOnlyFeature) => opts.onDesktopOnly?.(feature);
+  // 网页不运行安装包更新，也不假报“已是最新版本”。
+  const updateState = (): UpdateState => ({
+    status: 'unsupported',
+    currentVersion: desktopPackage.version,
+    preferredSource: resolveUpdateSource(settings.updates.source, Intl.DateTimeFormat().resolvedOptions().timeZone),
+    latest: null,
+    progress: null,
+    error: null,
+    checkedAt: null,
+    announce: false,
+  });
 
   const resourceState = (): ResourceState => {
     const lang = siteLanguage(settings);
@@ -197,8 +202,9 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
   const applySettings = (patch: UiSettingsPatch): void => {
     const parsed = UiSettingsPatchSchema.parse(patch);
     const prevLang = siteLanguage(settings);
-    settings = mergeSettings(settings, parsed);
+    settings = applyUiPatch(settings, parsed);
     settingsChanged.emit(structuredClone(settings));
+    if (parsed.updates) updatesChanged.emit(updateState());
     opts.onSettings?.(structuredClone(settings));
     // 演示层的名字跟着语言走
     if (siteLanguage(settings) !== prevLang) resourcesChanged.emit(resourceState());
@@ -225,6 +231,7 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
     window: {
       // 标题栏的系统按钮由仿真器自己画，颜色直接用设计变量，这里不用记
       setTitleBarColors: async () => undefined,
+      reload: async () => window.location.reload(),
     },
     files: {
       pickImage: async () => {
@@ -327,6 +334,10 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
         desktopOnly('templates');
         return { canceled: true };
       },
+      installRequested: async () => {
+        desktopOnly('templates');
+        return { canceled: true };
+      },
       commitInstall: async () => ({ ok: false, error: { code: 'staging-expired', detail: 'web demo' } }),
       cancelInstall: async () => undefined,
       remove: async () => false,
@@ -376,6 +387,10 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
         desktopOnly('project');
         return { canceled: true };
       },
+      openRequested: async () => {
+        desktopOnly('project');
+        return { canceled: true };
+      },
       openRecent: async () => {
         desktopOnly('project');
         return { canceled: true };
@@ -393,6 +408,26 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
     host: {
       onCommand: () => () => undefined,
       commandResult: async () => true,
+      ready: async () => undefined,
+    },
+    folders: {
+      get: async () => ({
+        project: { kind: 'project', path: null, state: 'unset' },
+        export: { kind: 'export', path: null, state: 'unset' },
+      }),
+      choose: async () => {
+        desktopOnly('folder');
+        return { canceled: true };
+      },
+      reset: async (kind) => ({ kind, path: null, state: 'unset' }),
+    },
+    updates: {
+      state: async () => updateState(),
+      check: async () => updateState(),
+      download: async () => updateState(),
+      cancel: async () => undefined,
+      install: async () => updateState(),
+      onChanged: (cb) => updatesChanged.on(cb),
     },
     cache: {
       getThumb: async (stamp, key) => thumbs.get(`${stamp}/${key}`)?.slice() ?? null,

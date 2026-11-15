@@ -13,6 +13,8 @@ import type { HostCommandRequest, HostCommandResult } from '../shared/host-comma
 import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
+import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
+import type { UpdateState } from '../shared/updates';
 import type {
   CommitResult,
   CopyBuiltinRequest,
@@ -42,6 +44,8 @@ export interface AllayApi {
   };
   window: {
     setTitleBarColors(colors: TitleBarColors): Promise<void>;
+    /** 重新载入界面（错误页用；未保存的改动会丢） */
+    reload(): Promise<void>;
   };
   files: {
     /** 弹出主进程的文件对话框；取消时为 null */
@@ -120,6 +124,8 @@ export interface AllayApi {
     install(): Promise<StageResult>;
     /** 拖进窗口的模板包：只接收 File 对象，路径由 preload 取 */
     installDropped(file: File): Promise<StageResult>;
+    /** 文件关联（M8）：主进程经命令通道发来的令牌换成暂存的模板包；令牌不认识或用过了时 rejected */
+    installRequested(token: string): Promise<StageResult>;
     /** 试运行之后：把暂存的包装上，记下试运行的警告 */
     commitInstall(stagingId: string, report: InstallReport): Promise<CommitResult>;
     cancelInstall(stagingId: string): Promise<void>;
@@ -151,6 +157,8 @@ export interface AllayApi {
   project: {
     /** 弹出主进程的打开对话框 */
     open(): Promise<ProjectOpenResult>;
+    /** 文件关联（M8）：主进程经命令通道发来的令牌换成打开的工程；令牌不认识或用过了时 missing */
+    openRequested(token: string): Promise<ProjectOpenResult>;
     openRecent(id: string): Promise<ProjectOpenResult>;
     /** 保存到句柄对应的文件；句柄为 null 时弹出保存对话框 */
     save(handle: string | null, data: ProjectData): Promise<ProjectSaveResult>;
@@ -163,6 +171,26 @@ export interface AllayApi {
     onCommand(callback: (request: HostCommandRequest) => void): () => void;
     /** 交回命令的结果；主进程按 schema 校验 */
     commandResult(result: HostCommandResult): Promise<boolean>;
+    /** 界面就绪：首屏画完、初始模板装好、命令通道接好之后调用一次（M8） */
+    ready(): Promise<void>;
+  };
+  /** 默认文件夹（6.11）：只传“哪一个”，路径由主进程的文件夹对话框选，回来的路径只用于显示 */
+  folders: {
+    get(): Promise<FoldersInfo>;
+    choose(kind: FolderKind): Promise<FolderChooseResult>;
+    reset(kind: FolderKind): Promise<FolderInfo>;
+  };
+  /** 自动更新：联网、下载和安装都在主进程，界面只看状态、发指令 */
+  updates: {
+    state(): Promise<UpdateState>;
+    /** 手动检查（设置页的“检查更新”） */
+    check(): Promise<UpdateState>;
+    /** 下载并校验这台机器的安装包 */
+    download(): Promise<UpdateState>;
+    cancel(): Promise<void>;
+    /** 运行下好的安装包并退出应用 */
+    install(): Promise<UpdateState>;
+    onChanged(callback: (state: UpdateState) => void): () => void;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

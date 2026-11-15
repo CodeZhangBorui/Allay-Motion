@@ -5,6 +5,7 @@ import type { ResourceState } from '../shared/resources';
 import type { UiSettings } from '../shared/settings';
 import type { TemplateDevChange } from '../shared/templates';
 import type { HostCommandRequest } from '../shared/host-commands';
+import type { UpdateState } from '../shared/updates';
 
 // preload 只做转发，不做判断：所有参数原样交给主进程，由主进程的 zod schema 校验。
 // 不暴露 ipcRenderer 本身，也不暴露任何通用的“发消息”函数。
@@ -35,6 +36,7 @@ const api = {
   },
   window: {
     setTitleBarColors: invoke(IPC.window.setTitleBarColors),
+    reload: invoke(IPC.window.reload),
   },
   files: {
     pickImage: invoke(IPC.files.pickImage),
@@ -87,6 +89,7 @@ const api = {
     readAsset: invoke(IPC.templates.readAsset),
     install: invoke(IPC.templates.install),
     // 1.6 第 6 条：同 addDroppedPack，只接受 File，路径由 webUtils 取
+    installRequested: invoke(IPC.templates.installRequested),
     installDropped: (file: unknown): Promise<unknown> => {
       if (!(file instanceof File)) return Promise.reject(new TypeError('expected a File'));
       return ipcRenderer.invoke(IPC.templates.installDropped, webUtils.getPathForFile(file));
@@ -110,6 +113,7 @@ const api = {
   },
   project: {
     open: invoke(IPC.project.open),
+    openRequested: invoke(IPC.project.openRequested),
     openRecent: invoke(IPC.project.openRecent),
     save: invoke(IPC.project.save),
     saveAs: invoke(IPC.project.saveAs),
@@ -118,6 +122,20 @@ const api = {
   host: {
     onCommand: subscribe<HostCommandRequest>(IPC.host.command),
     commandResult: invoke(IPC.host.commandResult),
+    ready: invoke(IPC.host.ready),
+  },
+  folders: {
+    get: invoke(IPC.folders.get),
+    choose: invoke(IPC.folders.choose),
+    reset: invoke(IPC.folders.reset),
+  },
+  updates: {
+    state: invoke(IPC.updates.state),
+    check: invoke(IPC.updates.check),
+    download: invoke(IPC.updates.download),
+    cancel: invoke(IPC.updates.cancel),
+    install: invoke(IPC.updates.install),
+    onChanged: subscribe<UpdateState>(IPC.updates.changed),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

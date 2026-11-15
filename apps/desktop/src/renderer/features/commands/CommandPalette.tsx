@@ -12,7 +12,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { selectTemplate } from '../templates/actions';
 import { applyPresetEntry } from '../templates/presets';
 import { commandEnabled, trigger, useCommands } from '../../app/registry';
-import { shortcutLabel } from './commands';
+import { shortcutLabel, shortcutMap } from './shortcutState';
 
 // 命令面板（6.4，Ctrl+K）：搜索操作（注册表里的命令）、模板、预设。
 
@@ -20,6 +20,8 @@ export function CommandPalette() {
   const { t, i18n } = useTranslation();
   const entries = useTemplateStore((s) => s.entries);
   const commands = useCommands();
+  const overrides = useUiStore((s) => s.settings.shortcuts);
+  const keys = new Map([...shortcutMap(commands, overrides).byKey].map(([k, id]) => [id, k]));
   const [presets, setPresets] = useState<PresetEntry[]>([]);
   useEffect(() => {
     void window.allay.presets.list().then(setPresets);
@@ -49,9 +51,9 @@ export function CommandPalette() {
                 const enabled = commandEnabled(c);
                 return (
                   <CommandItem key={c.id} value={`action ${t(c.titleKey)} ${c.id}`} disabled={!enabled} onSelect={() => run(() => trigger(c.id))} data-testid={`command-${c.id}`}>
-                    <Lightning size={ICON.sm} />
+                    {c.icon ? <c.icon size={ICON.sm} /> : <Lightning size={ICON.sm} />}
                     <span className="flex-1 truncate">{t(c.titleKey)}</span>
-                    {c.shortcut && <Kbd>{shortcutLabel(c.shortcut)}</Kbd>}
+                    {keys.has(c.id) && <Kbd>{shortcutLabel(keys.get(c.id)!)}</Kbd>}
                   </CommandItem>
                 );
               })}

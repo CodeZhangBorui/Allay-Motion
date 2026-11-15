@@ -64,7 +64,8 @@ describe('固定的 FFmpeg 构建', () => {
   it('有 M1 两个预设需要的编码器，以及之后要用的编码器（5.6）', async () => {
     const info = await probeFfmpeg(FFMPEG);
     expect(info.available).toBe(true);
-    expect(info.version).toMatch(/^ffmpeg version n9\.0/);
+    // Windows 的构建是分支快照（n9.0.2-57-g…），macOS 的是 9.0.2 发布版本身（docs/decisions.md“macOS 构建”）
+    expect(info.version).toMatch(/^ffmpeg version n?9\.0/);
     expect(info.presets).toEqual({ prores4444: true, 'png-sequence': true, 'webm-vp9': true, 'greenscreen-mp4': true });
   });
   it('parseEncoders 认得 -encoders 的输出', () => {

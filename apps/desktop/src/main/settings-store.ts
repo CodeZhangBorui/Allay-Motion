@@ -1,12 +1,15 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync, renameSync } from 'node:fs';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
   SETTINGS_FORMAT_VERSION,
-  SettingsFileSchema,
   applyUiPatch,
   defaultSettingsFile,
+  fallbackSettingsFile,
+  migrateSettingsFile,
   type ExportAppSettings,
+  type ProjectAppSettings,
   type SettingsFile,
   type UiSettings,
   type UiSettingsPatch,
@@ -50,20 +53,49 @@ export class SettingsStore {
       this.current = defaultSettingsFile();
       return this.current;
     }
+    const bad = this.accept(raw);
+    if (bad) await this.quarantine(bad);
+    return this.current;
+  }
+
+  /**
+   * 同步版本，只在启动时用（M8）：启动画面要按主题和语言挑页面，同步读省掉一次线程池往返，
+   * 启动画面早一点建（T-ARC-7，docs/decisions.md M8）。文件只有几 KB。
+   */
+  loadSync(): SettingsFile {
+    let raw: string;
+    try {
+      raw = readFileSync(this.file, 'utf8');
+    } catch {
+      this.current = defaultSettingsFile();
+      return this.current;
+    }
+    const bad = this.accept(raw);
+    if (bad) {
+      const backup = `${this.file}.bad-${Date.now()}`;
+      this.log.warn('settings', 'settings file unusable, using defaults', { reason: bad, backup });
+      try {
+        renameSync(this.file, backup);
+      } catch {
+        // 留档失败就算了
+      }
+      this.current = fallbackSettingsFile();
+    }
+    return this.current;
+  }
+
+  /** 解析读到的内容；能用就换上并返回 null，不能用时返回原因（不改 current） */
+  private accept(raw: string): string | null {
     let json: unknown;
     try {
       json = JSON.parse(raw);
     } catch {
-      await this.quarantine('invalid JSON');
-      return this.current;
+      return 'invalid JSON';
     }
-    const parsed = SettingsFileSchema.safeParse(json);
-    if (!parsed.success) {
-      await this.quarantine(`schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`);
-      return this.current;
-    }
-    this.current = parsed.data;
-    return this.current;
+    const migrated = migrateSettingsFile(json);
+    if (!migrated) return `schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`;
+    this.current = migrated;
+    return null;
   }
 
   private async quarantine(reason: string): Promise<void> {
@@ -74,7 +106,8 @@ export class SettingsStore {
     } catch {
       // 留档失败就算了
     }
-    this.current = defaultSettingsFile();
+    // 有设置文件就不是第一次启动：引导算走过（docs/decisions.md 界面增强）
+    this.current = fallbackSettingsFile();
   }
 
   get ui(): UiSettings {
@@ -114,6 +147,16 @@ export class SettingsStore {
 
   async updateExport(patch: Partial<ExportAppSettings>): Promise<void> {
     this.current = { ...this.current, export: { ...this.current.export, ...patch } };
+    await this.persist();
+  }
+
+  /** 工程的应用级设置（默认保存文件夹） */
+  get projectSettings(): ProjectAppSettings {
+    return this.current.project;
+  }
+
+  async updateProject(patch: Partial<ProjectAppSettings>): Promise<void> {
+    this.current = { ...this.current, project: { ...this.current.project, ...patch } };
     await this.persist();
   }
 

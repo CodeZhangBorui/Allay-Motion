@@ -314,24 +314,29 @@ test.describe('下载原版资源（本机假服务器）', () => {
       await page.getByTestId('vanilla-download').click();
       await expect(page.getByTestId('download-progress')).toBeVisible();
       await expect.poll(() => server.holding(), { timeout: 15_000 }).toBe(true);
-      await expect.poll(() => page.getByTestId('download-progress').getAttribute('aria-valuenow'), { timeout: 15_000 }).not.toBeNull();
+      // 分阶段的进度（6.12）：停在“下载客户端 jar”，已经收到一半
+      await expect(page.getByTestId('download-progress')).toHaveAttribute('data-stage', 'jar');
+      await expect.poll(async () => Number(await page.getByTestId('download-progress').getAttribute('data-fraction')), { timeout: 15_000 }).toBeGreaterThan(0.2);
       await page.getByTestId('download-cancel').click();
-      await expect(page.getByTestId('download-progress')).toHaveCount(0);
-      await expect(page.getByTestId('vanilla-download')).toBeVisible();
+      // 取消：进度留着，指明停在哪一步，可以重试；不算错误
+      await expect(page.getByTestId('download-progress')).toHaveAttribute('data-status', 'canceled');
+      await expect(page.getByTestId('download-stage-jar')).toHaveAttribute('data-status', 'canceled');
+      await expect(page.getByTestId('download-retry')).toBeVisible();
       await expect(page.getByTestId('download-error')).toHaveCount(0);
       await expect.poll(() => partFiles()).toEqual([]);
       expect(await page.evaluate(() => window.__allayTest!.resourceState()!.vanilla.active)).toBeNull();
 
       // 2) 失败：服务器返回 500
       server.jarMode = 'fail';
-      await page.getByTestId('vanilla-download').click();
+      await page.getByTestId('download-retry').click();
       await expect(page.getByTestId('download-error')).toHaveAttribute('data-error', 'network');
+      await expect(page.getByTestId('download-stage-jar')).toHaveAttribute('data-status', 'failed');
       await expect(page.getByTestId('download-error')).toHaveText((await messages(page)).resources.download.errors.network!);
       expect(partFiles()).toEqual([]);
 
       // 3) 成功：原版层用下载的 jar，引导状态消失，预览变成假 jar 里的颜色
       server.jarMode = 'ok';
-      await page.getByTestId('vanilla-download').click();
+      await page.getByTestId('download-retry').click();
       await expect.poll(() => page.evaluate(() => window.__allayTest!.resourceState()!.vanilla.active), { timeout: 20_000 }).toBe('cached');
       await expect(page.getByTestId('resources-onboarding')).toHaveCount(0);
       await expectSpot(page, 'blue');

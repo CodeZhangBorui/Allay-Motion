@@ -3,6 +3,8 @@ import { BrowserWindow, screen } from 'electron';
 import type { Theme } from '../shared/settings';
 import { THEME_CHROME_COLORS, TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import type { Logger } from './logger';
+import { rendererErrorLimiter } from './renderer-log';
+import { startup } from './startup-timing';
 import type { SettingsStore } from './settings-store';
 import { MIN_WINDOW, restoreBounds } from './window-state';
 
@@ -37,7 +39,9 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     show: false,
     skipTaskbar: opts.hiddenForTests,
     backgroundColor: colors.background,
-    // 无边框窗口加系统窗口按钮（6.3）
+    // 无边框窗口加系统窗口按钮（6.3）。Windows 上按钮在右边、颜色跟主题；macOS 上是左边的红绿灯，
+    // titleBarOverlay 在那里只用 height（按钮在顶栏里竖直居中）并打开 Window Controls Overlay 的 CSS 变量，
+    // 顶栏据 env(titlebar-area-x) 给红绿灯让出位置（TopBar.tsx）
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: colors.titleBar, symbolColor: colors.titleBarSymbol, height: TITLEBAR_OVERLAY_HEIGHT },
     webPreferences: {
@@ -57,6 +61,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     },
   });
 
+  startup.mark('window-created');
   // 记的是内容区尺寸：无边框加 overlay 的窗口外框在高 DPI 下有 1 px 的取整误差，用外框尺寸会越存越大；
   // 构造参数 useContentSize 在这种窗口上也不准（实测差 1–3 px），创建后再设内容区尺寸是准的（见 docs/decisions.md）
   if (saved && bounds.x !== undefined) win.setContentSize(bounds.width, bounds.height);
@@ -72,6 +77,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
         if (win.isDestroyed()) return;
         if (saved?.maximized) win.maximize();
         else win.show();
+        startup.mark('window-shown');
         opts.onShown?.();
       });
     });
@@ -114,5 +120,20 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     log.error('window', 'renderer process gone', { reason: details.reason, exitCode: details.exitCode });
   });
 
+  // 渲染进程的 error 级控制台消息写进日志：未捕获的异常、Promise 拒绝、错误边界接住的渲染错误都经这里
+  // （docs/decisions.md “试用版的三个崩溃”）。限流，免得一个循环里的错误把日志写满。
+  const limiter = rendererErrorLimiter();
+  win.webContents.on('console-message', (event) => {
+    if (event.level !== 'error') return;
+    const verdict = limiter(Date.now());
+    if (verdict === 'drop') return;
+    if (verdict === 'notice') {
+      log.warn('renderer', 'too many renderer errors; dropping the rest for a minute');
+      return;
+    }
+    log.error('renderer', event.message, { source: event.sourceId, line: event.lineNumber });
+  });
+
   return win;
 }
+

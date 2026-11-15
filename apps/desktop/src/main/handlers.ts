@@ -18,6 +18,9 @@ import { PROJECT_EXTENSION, type ProjectOpenResult, type ProjectSaveResult } fro
 import type { TemplateService } from './templates/service';
 import type { TemplateDevService } from './templates/dev-service';
 import type { HostCommandChannel } from './host-commands';
+import type { OpenFileQueue } from './open-files';
+import type { FolderService } from './folders';
+import type { UpdateService } from './updates/service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
@@ -31,6 +34,14 @@ export interface HandlerDeps {
   templates: TemplateService;
   templateDev: TemplateDevService;
   hostCommands: HostCommandChannel;
+  /** 文件关联与第二实例参数（M8）：令牌换路径 */
+  openFiles: OpenFileQueue;
+  /** 默认文件夹（界面增强） */
+  folders: FolderService;
+  /** 自动更新（docs/decisions.md“自动更新”） */
+  updates: UpdateService;
+  /** 界面就绪（host.ready） */
+  onRendererReady(): void;
   presets: PresetStore;
   projects: ProjectService;
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
@@ -56,7 +67,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -72,8 +83,14 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
 
   handle(IPC.window.setTitleBarColors, (_event, colors) => {
     const win = getMainWindow();
-    if (!win || win.isDestroyed()) return;
+    // macOS 的窗口按钮（红绿灯）由系统绘制，颜色不可设（setTitleBarOverlay 只在 Windows、Linux 上有效）
+    if (!win || win.isDestroyed() || process.platform === 'darwin') return;
     win.setTitleBarOverlay({ color: colors.color, symbolColor: colors.symbolColor, height: TITLEBAR_OVERLAY_HEIGHT });
+  });
+
+  // 只重新载入发起请求的那个窗口的页面（同一个 app:// 地址，不经导航拦截之外的任何路）
+  handle(IPC.window.reload, (event) => {
+    event.sender.reload();
   });
 
   handle(IPC.files.pickImage, async (): Promise<PickedFile | null> => {
@@ -162,6 +179,11 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
     if (!isAbsolute(path)) throw new IpcRejected('dropped file has no path');
     return templates.stage(path);
   });
+  // 文件关联（M8）：路径只在主进程，界面拿主进程签发的一次性令牌来换（1.6 第 6 条）
+  handle(IPC.templates.installRequested, (_event, token): Promise<StageResult> | StageResult => {
+    const path = openFiles.take(token, 'template');
+    return path ? templates.stage(path) : { ok: false, error: { code: 'staging-expired', detail: 'open request is unknown or already used' } };
+  });
   handle(IPC.templates.commitInstall, (_event, stagingId, report) => templates.commit(stagingId, report));
   handle(IPC.templates.cancelInstall, (_event, stagingId) => templates.cancel(stagingId));
   handle(IPC.templates.remove, (_event, id, version) => templates.remove(id, version));
@@ -182,23 +204,30 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
 
   // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
   handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));
+  handle(IPC.host.ready, () => onRendererReady());
 
   // ---- project（1.9）----
   const pickProjectToOpen = async (): Promise<string | null> => {
     if (projectPathForTests) return projectPathForTests;
     const win = getMainWindow();
     if (!win) return null;
-    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Project', extensions: [PROJECT_EXTENSION] }] });
+    const defaultPath = await folders.projectOpenPath();
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Project', extensions: [PROJECT_EXTENSION] }], ...(defaultPath ? { defaultPath } : {}) });
     const path = result.filePaths[0];
     return result.canceled || !path ? null : path;
   };
+  // 新工程的“保存”“另存为”：对话框从默认保存文件夹开始（能用时，6.11）
   const pickProjectToSave = async (name: string): Promise<string | null> => {
     if (projectPathForTests) return projectPathForTests;
-    return pickSavePath(getMainWindow(), `${name.replace(/[\\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`, PROJECT_EXTENSION);
+    return pickSavePath(getMainWindow(), await folders.projectSavePath(`${name.replace(/[\\/:*?"<>|]/g, '_')}.${PROJECT_EXTENSION}`), PROJECT_EXTENSION);
   };
   handle(IPC.project.open, async (): Promise<ProjectOpenResult> => {
     const path = await pickProjectToOpen();
     return path ? projects.openPath(path) : { canceled: true };
+  });
+  handle(IPC.project.openRequested, (_event, token): Promise<ProjectOpenResult> | ProjectOpenResult => {
+    const path = openFiles.take(token, 'project');
+    return path ? projects.openPath(path) : { ok: false, error: 'missing' };
   });
   handle(IPC.project.openRecent, (_event, id) => projects.openRecent(id));
   handle(IPC.project.save, async (_event, handle, data): Promise<ProjectSaveResult> => {
@@ -241,6 +270,18 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   });
   handle(IPC.cache.clear, () => thumbs.clear());
   handle(IPC.cache.usage, () => thumbs.usage());
+
+  // ---- folders（6.11）：渲染进程只说哪一个，路径来自主进程的文件夹对话框 ----
+  handle(IPC.folders.get, () => folders.all());
+  handle(IPC.folders.choose, (_event, kind) => folders.choose(kind));
+  handle(IPC.folders.reset, (_event, kind) => folders.reset(kind));
+
+  // ---- updates：联网只在主进程（docs/decisions.md“自动更新”）----
+  handle(IPC.updates.state, () => updates.current);
+  handle(IPC.updates.check, () => updates.check(true));
+  handle(IPC.updates.download, () => updates.download());
+  handle(IPC.updates.cancel, () => updates.cancel());
+  handle(IPC.updates.install, () => updates.install());
 
   handle(IPC.export.ffmpegInfo, () => exports.ffmpegInfo());
   handle(IPC.export.start, (_event, req) => exports.start(req));

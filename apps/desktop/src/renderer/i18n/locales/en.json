@@ -102,7 +102,22 @@
     "diagnosticsFailed": "Couldn’t copy the diagnostics.",
     "title": "Preview",
     "toolbar": "Preview tools",
-    "hqShort": "HQ"
+    "hqShort": "HQ",
+    "issues": {
+      "param": "Parameter “{{label}}”: {{problem}}",
+      "paramField": "Parameter “{{label}}”, {{field}}: {{problem}}",
+      "field": "{{field}}: {{problem}}",
+      "more": "{{count}} more problems — see “Copy diagnostics”",
+      "unknownGroup": "refers to a group “{{group}}” that does not exist",
+      "unknownParam": "refers to a parameter “{{key}}” that does not exist",
+      "duplicateKey": "has the same key as another parameter",
+      "badDefault": "has an invalid default value",
+      "wrongType": "has the wrong type",
+      "tooBig": "is above the maximum",
+      "tooSmall": "is below the minimum",
+      "unknownField": "has unrecognized fields",
+      "invalid": "is not valid"
+    }
   },
   "transport": {
     "region": "Transport",
@@ -310,14 +325,6 @@
     "download": {
       "button": "Download vanilla assets (about 45 MB, from Mojang's official servers)",
       "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com, resources.download.minecraft.net) and downloads the latest Minecraft Java Edition release client jar, plus a few dozen sound files the built-in templates commonly use (estimated under 2 MB), into this app's data folder on your computer. Only its textures and sounds are read. Later, the app fetches another sound's file from resources.download.minecraft.net only when you preview or pick that sound, or confirm fetching before an export. No personal information is sent, nothing updates automatically, and nothing is downloaded in bulk in the background.",
-      "running": "Downloading vanilla assets…",
-      "phase": {
-        "manifest": "Reading the version list",
-        "version": "Reading version info",
-        "jar": "Downloading the client",
-        "index": "Downloading the asset index",
-        "object": "Downloading asset files"
-      },
       "progress": "Download progress",
       "cancel": "Cancel download",
       "errors": {
@@ -352,7 +359,37 @@
       "later": "You can change this any time under “Assets”."
     },
     "close": "Close",
-    "drag": "Drag to reorder “{{name}}”"
+    "drag": "Drag to reorder “{{name}}”",
+    "progress": {
+      "activity": {
+        "index": "Downloading the asset index…",
+        "done": "Done",
+        "version": "Reading version info for {{version}}…",
+        "scan": "Reading the asset list inside the jar…",
+        "manifest": "Fetching the version list…",
+        "sounds": "Fetching sound files ({{done}} of {{total}})…",
+        "stack": "Adding vanilla assets to the resource stack…",
+        "jar-cached": "The {{version}} client jar was already downloaded and verified",
+        "sounds-list": "Looking up common sounds…",
+        "jar": "Downloading the {{version}} client jar…"
+      },
+      "stages": {
+        "manifest": "Fetch version list",
+        "extract": "Extract assets",
+        "jar": "Download client jar",
+        "finalize": "Build asset index",
+        "sounds": "Fetch common sounds"
+      },
+      "etaMinutes": "about {{minutes}}:{{seconds}} left",
+      "etaSeconds": "about {{count}} s left",
+      "canceledAt": "Canceled at “{{stage}}”. No partial files were left behind.",
+      "stoppedAt": "Stopped at “{{stage}}”. Retrying won’t download files that were already verified.",
+      "items": "{{done}} of {{total}} files",
+      "stagesLabel": "Download stages",
+      "done": "Vanilla assets {{version}} are ready.",
+      "bytes": "{{received}} of {{total}}",
+      "speed": "{{speed}}/s"
+    }
   },
   "common": {
     "close": "Close",
@@ -408,7 +445,10 @@
       "assets": "Assets",
       "export": "Export",
       "shortcuts": "Shortcuts",
-      "about": "About"
+      "about": "About",
+      "appearance": "Appearance",
+      "folders": "Folders",
+      "updates": "Updates"
     },
     "language": "Language",
     "languages": {
@@ -431,7 +471,6 @@
     "cacheUsage": "{{files}} files, {{size}}",
     "clearCache": "Clear cache",
     "cacheCleared": "Cache cleared.",
-    "defaultOutput": "Output settings",
     "ffmpeg": "FFmpeg version",
     "ffmpegUnknown": "Unknown",
     "encoders": "H.264 encoder",
@@ -439,7 +478,7 @@
     "version": "Version {{version}}",
     "thirdParty": "Third-party licenses",
     "licenses": {
-      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process; the full license ships with the installer.",
+      "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process (ffmpeg.exe in the install folder, which you may replace); the full license ships with the installer.",
       "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
       "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
@@ -448,7 +487,106 @@
     },
     "encoderNone": "None works",
     "encoderNotProbed": "Not checked yet",
-    "encoderProbing": "Checking…"
+    "encoderProbing": "Checking…",
+    "guidelines": "If your exported videos show Minecraft content, follow the Minecraft Usage Guidelines yourself: {{url}}",
+    "ffmpegSource": "FFmpeg build: {{version}} from {{repo}}, release {{tag}} ({{asset}}). Source code: https://git.ffmpeg.org/ffmpeg.git at commit {{commit}}; build scripts: https://github.com/{{repo}}.",
+    "ffmpegSourceMacos": "On macOS, FFmpeg {{version}} (LGPL 3.0) is compiled by this project from the official source release, statically linking libvpx and libopus (BSD); build script: {{script}} in the source repository. Source packages: {{sources}}. Full license texts: LICENSE.txt under Contents/Resources/ffmpeg in the app bundle.",
+    "noticesFile": "The same list with full license texts is in THIRD_PARTY_NOTICES.txt in the install folder.",
+    "thirdPartyAll": "All components ({{count}})",
+    "thirdPartyLoading": "Loading the list…",
+    "licenseInFile": "Full license text: {{file}} in the install folder.",
+    "noLicenseFile": "The package has no license file; licensed under {{license}}.",
+    "license": {
+      "title": "License",
+      "body": "This software is licensed under GPL-3.0-only. To use it in ways the GPL does not allow (for example in closed-source products), contact the copyright holder for a commercial license through the repository’s Issues: {{url}}. Videos you export with it are yours and are not covered by this license."
+    },
+    "languageHint": "“Follow system” picks Simplified Chinese or English from your Windows display language.",
+    "shortcuts": {
+      "categories": {
+        "export": "Export",
+        "file": "File",
+        "help": "Help",
+        "playback": "Playback",
+        "view": "View",
+        "other": "Other",
+        "edit": "Edit",
+        "templates": "Templates"
+      },
+      "replace": "Replace",
+      "reserved": {
+        "navigation": "{{key}} steps frames and moves through lists, so it can’t be assigned.",
+        "text": "{{key}} is needed for typing text and can’t be assigned.",
+        "system": "{{key}} is used by the system and can’t be assigned."
+      },
+      "changed": "(changed)",
+      "reset": "Restore the default shortcut for “{{command}}”",
+      "edit": "Change the shortcut for “{{command}}”",
+      "search": "Search commands or keys",
+      "resetCleared": "The default shortcut was taken by “{{command}}”; that command’s shortcut was cleared.",
+      "empty": "Nothing found for “{{query}}”.",
+      "duplicate": "Same shortcut as another command; only the one listed first works.",
+      "clear": "Clear the shortcut for “{{command}}”",
+      "conflict": "{{key}} is already used by “{{command}}”. Replacing it leaves that command without a shortcut.",
+      "pressKeys": "Press the new shortcut…",
+      "resetAll": "Restore all defaults",
+      "none": "None",
+      "recording": "Recording a shortcut for “{{command}}”"
+    },
+    "descriptions": {
+      "export": "The current project's output format and the encoders found. Where exports go is set under Folders.",
+      "assets": "Where vanilla assets come from, resource pack order, and the thumbnail cache.",
+      "folders": "Where new projects are saved and where exports go. Folders can only be picked in the system folder dialog.",
+      "general": "Interface language and the first-run setup.",
+      "shortcuts": "Click the key next to a command to record a new shortcut. Press Esc to cancel recording.",
+      "appearance": "Theme and motion. Changes apply right away.",
+      "updates": "Your version, checking for new ones, and how and where updates come from."
+    },
+    "onboarding": {
+      "hint": "Go through language, theme, assets and folders again. Your current choices are kept.",
+      "rerun": "Run setup again",
+      "button": "Run setup",
+      "title": "Guides"
+    },
+    "assetsStack": "Resource stack",
+    "folders": {
+      "choose": "Choose…",
+      "problems": {
+        "missing": "This folder can’t be found (maybe an external drive isn’t connected). {{fallback}}",
+        "readonly": "This folder can’t be written to right now. {{fallback}}"
+      },
+      "export": {
+        "unset": "Not set (you’ll be asked on the first export)",
+        "hint": "Exports are written here; duplicate names get a number.",
+        "fallback": "Exporting will ask you to pick another folder first.",
+        "label": "Export folder"
+      },
+      "project": {
+        "fallback": "Saving falls back to the system default location.",
+        "unset": "Not set (system default location)",
+        "hint": "Save and Save As for new projects start here.",
+        "label": "Default project folder"
+      },
+      "chooseErrors": {
+        "missing": "This folder can’t be found. Choose another one.",
+        "readonly": "This folder can’t be written to. Choose another one."
+      },
+      "reset": "Clear this folder"
+    },
+    "themeHints": {
+      "dark": "Dark gray panels for long editing sessions",
+      "light": "Light gray panels for bright rooms"
+    },
+    "projectOutput": "Current project output",
+    "cacheTitle": "Cache",
+    "projectOutputHint": "Resolution and frame rate are saved in the project file and are the same as the Output tab in the properties panel. New projects start at 1920 × 1080, 60 fps.",
+    "encoderTitle": "Encoders",
+    "reducedMotionHint": "Turns off interface transitions; the mascot is shown still.",
+    "motionTitle": "Motion",
+    "tour": {
+      "rerun": "Take the editor tour again",
+      "hint": "A walk through each area of the main window, including what sets templates and presets apart.",
+      "button": "Editor tour"
+    }
   },
   "shortcuts": {
     "keys": {
@@ -492,7 +630,11 @@
       "projectSetParams": "Set parameters (with revision)",
       "exportTaskStart": "Start export task",
       "exportTaskGet": "Get export task",
-      "exportTaskCancel": "Cancel export task"
+      "exportTaskCancel": "Cancel export task",
+      "projectOpenAssociated": "Open project from file",
+      "templatesInstallAssociated": "Install template from file",
+      "onboarding": "First-run setup",
+      "tour": "Editor tour"
     }
   },
   "editor": {
@@ -749,5 +891,219 @@
   },
   "splash": {
     "starting": "Starting…"
+  },
+  "noWebgl": {
+    "title": "Your graphics card or driver does not support WebGL 2",
+    "body": "Preview and export both render with WebGL 2. Without it the app cannot draw anything, so it stops here instead of showing a blank window.",
+    "tips": {
+      "driver": "Update the graphics driver from your GPU vendor (NVIDIA, AMD, Intel), then restart the app.",
+      "gpu": "On laptops with two GPUs, try running the app on the other one (Windows Settings → System → Display → Graphics).",
+      "remote": "Remote desktop sessions and some virtual machines have no WebGL 2; run the app on the machine itself."
+    },
+    "diagnostics": "Diagnostics",
+    "copy": "Copy diagnostics",
+    "copied": "Copied"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "panelTitle": "This part ran into a problem",
+    "hint": "The part that failed has stopped; the rest is unaffected. Saved projects are safe; unsaved changes are lost when you reload.",
+    "panelHint": "Try this part again first; if that doesn’t help, reload the interface.",
+    "reason": "Reason: ",
+    "reload": "Reload",
+    "retry": "Try again",
+    "copy": "Copy diagnostics",
+    "copied": "Diagnostics copied",
+    "copyFailed": "Could not copy"
+  },
+  "onboarding": {
+    "assets": {
+      "local": {
+        "using": "Already using the installed game.",
+        "found": "Use Minecraft {{version}} on this computer",
+        "detail": "No Minecraft: Java Edition installation was found. You can point to the game folder (.minecraft) yourself.",
+        "title": "Use the game installed on this computer",
+        "foundDetail": "Found in {{dir}}. Read locally only; nothing is copied, uploaded or changed."
+      },
+      "summaryDownloading": "Downloading vanilla assets",
+      "summaryActive": "Vanilla assets {{version}}",
+      "download": {
+        "title": "Download vanilla assets",
+        "consent": "Clicking Start download means you agree to download from these three hosts as described above.",
+        "start": "Start download",
+        "detail": "About 45 MB from Mojang’s official servers. Nothing is downloaded until you click Start download."
+      },
+      "later": {
+        "title": "Decide later",
+        "detail": "Go without vanilla assets for now; missing textures show as placeholders. Add them later from the assets button in the top bar or in Settings."
+      },
+      "summaryNone": "No vanilla assets yet",
+      "active": "Using vanilla assets {{version}}",
+      "summaryLater": "Decide later"
+    },
+    "steps": {
+      "language": {
+        "name": "Language",
+        "title": "Choose the interface language",
+        "body": "Applies right away. “Follow system” follows your Windows display language."
+      },
+      "done": {
+        "name": "Done",
+        "body": "Here’s what you chose. Click Start editing to open the editor.",
+        "title": "All set"
+      },
+      "assets": {
+        "name": "Assets",
+        "title": "Where vanilla textures and sounds come from",
+        "body": "Templates draw blocks, items and text with Minecraft’s vanilla textures and sounds. This app doesn’t ship those files: download them from Mojang’s official servers, or read them from the game installed on this computer."
+      },
+      "appearance": {
+        "title": "Choose a theme",
+        "body": "Both themes have the same layering and contrast, only lighter or darker. If you’d rather skip transitions, turn on reduced motion below.",
+        "name": "Appearance"
+      },
+      "folders": {
+        "name": "Folders",
+        "body": "You can leave these unset: projects are saved to the system default location, and you’ll be asked on the first export.",
+        "title": "Where projects and exports go"
+      }
+    },
+    "folderDefault": {
+      "export": "Ask on export",
+      "project": "System default"
+    },
+    "language": {
+      "systemDetail": "Follow system ({{language}})",
+      "systemNow": "Uses your Windows display language — {{language}} right now",
+      "desc": "Interface, menus and messages in English"
+    },
+    "skipAll": "Skip setup",
+    "stepsLabel": "Setup steps",
+    "intro": "A minute to settle a few things. Every step can be skipped and changed later in Settings.",
+    "welcome": "Welcome to {{name}}",
+    "reducedMotionOn": "Reduced motion",
+    "finish": "Start editing",
+    "changeLater": "You can change all of this in Settings, or run this setup again from the Help menu.",
+    "skip": "Skip this step",
+    "back": "Back",
+    "eyebrow": "First-run setup",
+    "next": "Continue",
+    "previewLabel": "How it will look",
+    "illustrationLabel": "Welcome",
+    "mascot": {
+      "language": "Hi, I’m {{mascot}}! Pick the language you’re most comfortable with. It switches right away.",
+      "appearance": "Lighter or darker? Click one and see.",
+      "assets": "Templates draw blocks with the game’s textures. Tell me where to get them and I’ll fetch them for you.",
+      "assetsRunning": "I’m carrying them over. Progress is on the right.",
+      "assetsDone": "Got them! Blocks in the preview will look just like in the game.",
+      "assetsFailed": "That didn’t work… Try again, or pick “Decide later” for now.",
+      "folders": "Where should your work go? It’s fine to leave this for now.",
+      "done": "You’re all set!",
+      "doneTour": "You’re all set! Once you’re in, I’ll show you around the editor."
+    }
+  },
+  "tour": {
+    "skip": "Skip tour",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Start creating",
+    "steps": {
+      "welcome": {
+        "title": "Meet the editor",
+        "body": "I’m {{mascot}}. Give me a minute and I’ll show you around the editor.\nYou can skip the tour at any time and take it again from the Help menu."
+      },
+      "templates": {
+        "title": "Template library",
+        "body": "All your templates live here. A template is a ready-made transition or overlay animation, such as “Block wipe”.\nClick a card to switch to that template; hover over it to see it move. “Mine” holds the templates you saved yourself."
+      },
+      "templateVsPreset": {
+        "title": "Templates vs. presets",
+        "body": "A template decides what animation you get: how things move and which parameters you can adjust. Switching templates means switching to a different animation.\nA preset decides how those parameters are set: it’s a saved set of values for one template, like a save file. When you like a look, open “Presets” at the top right of the Properties panel and choose “Save as preset…”. Later, one click in the Presets tab on the left or in that menu brings all the values back.\nA preset only stores the parameters you changed and only works with the template it was made for. If you want a template of your own (new defaults, unused parameters hidden), use “Save as template” at the bottom of the Properties panel; it shows up under “Mine” in the library."
+      },
+      "preview": {
+        "title": "Preview",
+        "body": "The current template plays here live. Change any parameter and you see it on the next frame. Exports match this preview frame by frame.\nThe floating toolbar below the picture handles zoom, background and safe-area guides."
+      },
+      "params": {
+        "title": "Properties",
+        "body": "Every parameter of the current template is here: blocks, colors, timing, animation order…\nA changed parameter gets a small amber dot on its left; hover over the row to reset just that one. The Output tab next to it has resolution and frame rate."
+      },
+      "timeline": {
+        "title": "Timeline",
+        "body": "Play, pause and loop live here; by default the Space key also plays and pauses.\nThe Stages track shows the enter, hold and exit parts. Drag a boundary to change how long each part lasts. The Cut point marks the frame where you cut to the next shot in your video editor."
+      },
+      "resources": {
+        "title": "Assets",
+        "body": "Blocks, items and sounds in templates come from here: vanilla resources and the resource packs you add, with the top ones taking priority.\nWithout vanilla assets, missing textures show up as magenta and black squares. You can also drop a resource pack zip onto the window."
+      },
+      "export": {
+        "title": "Export",
+        "body": "Click here when you’re done. The small arrow on the right lets you pick a format directly, such as video with a transparent background.\nDrop the exported file into your video editor and use it as a transition or overlay."
+      },
+      "help": {
+        "title": "Come back any time",
+        "body": "That’s it! To see this again, choose “Editor tour” in the Help menu; you can rerun the first-run setup from there too.\nHave fun creating!"
+      }
+    }
+  },
+  "updates": {
+    "current": "Version {{version}}",
+    "check": "Check for updates",
+    "download": "Download update",
+    "install": "Restart and install",
+    "installMac": "Open installer image",
+    "later": "Later",
+    "skip": "Skip this version",
+    "unskip": "Stop skipping",
+    "skipped": "Skipping {{version}}",
+    "skippedHint": "Automatic checks won't mention this version. Manual checks still show it.",
+    "settingsTitle": "Automatic updates",
+    "mode": "Update mode",
+    "modes": {
+      "auto": "Download, then ask to install",
+      "notify": "Notify me about new versions",
+      "off": "Don't check automatically"
+    },
+    "modeHints": {
+      "auto": "Checks at startup and every few hours. New versions download and get verified in the background, then you're asked to restart.",
+      "notify": "Checks at startup and every few hours, and tells you when a new version is out. You decide whether to download it.",
+      "off": "Never goes online to check by itself. Check manually here when you want."
+    },
+    "source": "Update source",
+    "sourceHint": "Where new versions come from. If it can't be reached, the other source is tried.",
+    "sourceAutoHint": "Picked from the system time zone; currently {{source}}. If it can't be reached, the other source is tried.",
+    "sources": {
+      "auto": "Automatic (by time zone)",
+      "github": "GitHub",
+      "gitcode": "GitCode (China mirror)"
+    },
+    "status": {
+      "idle": "Not checked yet.",
+      "checking": "Checking…",
+      "upToDate": "You're up to date.",
+      "upToDateAt": "You're up to date (checked {{time}}).",
+      "available": "Version {{version}} is available ({{size}}, from {{source}}).",
+      "downloading": "Downloading {{version}}…",
+      "downloadingProgress": "Downloading {{version}}: {{received}} / {{total}}",
+      "downloaded": "{{version}} is downloaded and verified. It installs when you restart.",
+      "downloadedMac": "{{version}} is downloaded and verified. Open the installer image and drag the app into Applications to replace the old one.",
+      "unsupported": "There's no installer for this platform that can be installed automatically."
+    },
+    "errors": {
+      "network": "Couldn't reach the update source. Check your connection and try again.",
+      "no-release": "No usable release was found on the update source.",
+      "no-asset": "The latest version has no installer for this platform yet. Try again later.",
+      "checksum": "The installer failed verification and was discarded. Try again.",
+      "install": "Couldn't start the installer.",
+      "disk": "Couldn't save the downloaded installer. Check your free disk space.",
+      "space": "Not enough free space on the drive with the temporary folder: installing needs at least {{size}} MB. Free up space, then click “Restart and install” again. Your current version is untouched."
+    },
+    "toast": {
+      "available": "Version {{version}} is available",
+      "availableHint": "Download it now, or later from Settings → Updates.",
+      "downloaded": "Version {{version}} is ready",
+      "downloadedHint": "It installs when you restart. Save your work first.",
+      "downloadedHintMac": "The installer image opens and the app quits. Drag the app into Applications to replace the old one."
+    }
   }
 }

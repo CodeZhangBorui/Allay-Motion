@@ -110,10 +110,12 @@ describe('固定的 FFmpeg 构建（M7）', () => {
     expect(info.presets).toEqual({ prores4444: true, 'png-sequence': true, 'webm-vp9': true, 'greenscreen-mp4': true });
   });
 
-  it('H.264 编码器逐个实测（结果记进报告）：至少一个可用，h264_mf 在列表里', async ({ annotate }) => {
+  // 系统编码器：Windows 的构建里要有 h264_mf，macOS 的构建里要有 h264_videotoolbox
+  const systemEncoder = process.platform === 'darwin' ? 'h264_videotoolbox' : 'h264_mf';
+  it(`H.264 编码器逐个实测（结果记进报告）：至少一个可用，${systemEncoder} 在列表里`, async ({ annotate }) => {
     await annotate(`H.264 trial: ${fullProbe.attempts.map((a) => `${a.encoder}=${a.result}`).join(', ')}`);
     expect(working.length).toBeGreaterThan(0);
-    expect(fullProbe.attempts.find((a) => a.encoder === 'h264_mf')?.result).not.toBe('unlisted');
+    expect(fullProbe.attempts.find((a) => a.encoder === systemEncoder)?.result).not.toBe('unlisted');
     // 探测按 5.3 的顺序取第一个成功的
     expect(encoder).toBe(H264_ENCODERS.find((e) => working.includes(e)));
   });
@@ -250,8 +252,9 @@ describe('T-EXP-9 编码器探测', () => {
   it('T-EXP-9 候选里混入必然失败的：跳过它，选中下一个可用的；不在列表里的不试', async () => {
     const caps = await probeCaps(FFMPEG);
     const next = working[0]!;
-    // allay_bogus 不在 -encoders 里；h264_vaapi 在列表里但 Windows 上一定失败；伪造一个列表让 allay_forced 也被真的试一次
-    const listed = new Set([...caps.encoders, 'allay_forced']);
+    // allay_bogus 不在 -encoders 里；h264_vaapi 在 Windows 的构建的列表里但一定失败（macOS 的构建里没有，同样放进伪造的列表）；
+    // 伪造一个列表让 allay_forced 也被真的试一次
+    const listed = new Set([...caps.encoders, 'allay_forced', 'h264_vaapi']);
     const result = await probeH264({ ffmpeg: FFMPEG, version: caps.version!, listed, candidates: ['allay_bogus', 'h264_vaapi', 'allay_forced', next, 'h264_mf'] });
     expect(result.encoder).toBe(next);
     expect(result.attempts.map((a) => [a.encoder, a.result])).toEqual([
@@ -266,7 +269,9 @@ describe('T-EXP-9 编码器探测', () => {
 
   it('T-EXP-9 全部失败：没有胜出的编码器', async () => {
     const caps = await probeCaps(FFMPEG);
-    const result = await probeH264({ ffmpeg: FFMPEG, version: caps.version!, listed: caps.encoders, candidates: ['h264_vaapi', 'h264_vulkan_bogus'] });
+    // h264_vaapi 放进列表（macOS 的构建里没有它，Windows 的有），两个平台上都是“列出但失败”
+    const listed = new Set([...caps.encoders, 'h264_vaapi']);
+    const result = await probeH264({ ffmpeg: FFMPEG, version: caps.version!, listed, candidates: ['h264_vaapi', 'h264_vulkan_bogus'] });
     expect(result.encoder).toBeNull();
     expect(result.attempts.map((a) => a.result)).toEqual(['failed', 'unlisted']);
   });

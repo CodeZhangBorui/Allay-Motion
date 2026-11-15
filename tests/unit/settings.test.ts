@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger, formatLine } from '../../apps/desktop/src/main/logger';
 import { SettingsStore, writeJsonAtomic } from '../../apps/desktop/src/main/settings-store';
 import { restoreBounds } from '../../apps/desktop/src/main/window-state';
-import { defaultExportAppSettings, defaultResourceSettings, defaultUiSettings } from '../../apps/desktop/src/shared/settings';
+import { defaultExportAppSettings, defaultProjectAppSettings, defaultResourceSettings, defaultUiSettings } from '../../apps/desktop/src/shared/settings';
 
 let dir: string;
 const log = createLogger(null, false);
@@ -21,7 +21,7 @@ describe('设置读写（1.9）', () => {
   it('没有文件时用默认值', async () => {
     const store = new SettingsStore(join(dir, 'settings.json'), log);
     const s = await store.load();
-    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings() });
+    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings(), project: defaultProjectAppSettings() });
   });
 
   it('资源栈配置：M1 的设置文件没有 resources 时用默认值；坏掉时只回退这一项', async () => {
@@ -73,7 +73,20 @@ describe('设置读写（1.9）', () => {
     const file = join(dir, 'settings.json');
     writeFileSync(file, '{ not json');
     const store = new SettingsStore(file, log);
-    expect((await store.load()).ui).toEqual(defaultUiSettings());
+    // 有设置文件就不是第一次启动：引导算走过（docs/decisions.md 界面增强）
+    expect((await store.load()).ui).toEqual({ ...defaultUiSettings(), onboardingCompleted: true, tourCompleted: true });
+    expect(readdirSync(dir).some((f) => f.startsWith('settings.json.bad-'))).toBe(true);
+  });
+
+  it('启动时的同步读取（M8）与异步读取结果相同；坏文件同样留档', () => {
+    const file = join(dir, 'settings.json');
+    expect(new SettingsStore(file, log).loadSync().ui).toEqual(defaultUiSettings());
+    writeFileSync(file, JSON.stringify({ formatVersion: 1, ui: { theme: 'light', language: 'en' } }));
+    const ui = new SettingsStore(file, log).loadSync().ui;
+    expect(ui.theme).toBe('light');
+    expect(ui.language).toBe('en');
+    writeFileSync(file, '{ not json');
+    expect(new SettingsStore(file, log).loadSync().ui).toEqual({ ...defaultUiSettings(), onboardingCompleted: true, tourCompleted: true });
     expect(readdirSync(dir).some((f) => f.startsWith('settings.json.bad-'))).toBe(true);
   });
 
@@ -163,8 +176,10 @@ describe('只给测试用的开关', () => {
     ALLAY_E2E_PROJECT_PATH: 'C:/p.allay',
     ALLAY_E2E_MASCOT_DIR: 'C:/mascot',
     ALLAY_E2E_SPLASH: '1',
+    ALLAY_E2E_NO_WEBGL: '1',
+    ALLAY_E2E_PICK_FOLDER: 'C:/picked',
   };
-  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false };
+  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false, pickFolder: null };
   it('打包后的应用忽略它们', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
     expect(readTestSwitches(true, ALL)).toEqual(OFF);
@@ -183,6 +198,8 @@ describe('只给测试用的开关', () => {
       projectPath: 'C:/p.allay',
       mascotDir: 'C:/mascot',
       splash: true,
+      noWebgl: true,
+      pickFolder: 'C:/picked',
     });
     // 假服务器只能是本机回环地址
     for (const bad of ['https://127.0.0.1:4567', 'http://evil.example:80', 'http://127.0.0.1:4567/x', 'http://localhost:4567'])

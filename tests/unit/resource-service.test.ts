@@ -235,7 +235,9 @@ describe('ResourceService', () => {
     });
     const { svc } = await makeService({ downloader });
     expect(await svc.downloadVanilla()).toEqual({ ok: false, error: 'verify' });
-    expect(svc.state().download).toEqual({ status: 'failed', error: 'verify' });
+    // 失败时记下停在哪一步（docs/decisions.md 界面增强）
+    expect(svc.state().download).toMatchObject({ status: 'failed', error: 'verify', progress: { stage: 'jar' } });
+    expect(svc.state().download).toMatchObject({ progress: { stages: [{ status: 'done' }, { status: 'failed' }, { status: 'pending' }, { status: 'pending' }, { status: 'pending' }] } });
 
     mode = 'hang';
     const p = svc.downloadVanilla();
@@ -243,12 +245,13 @@ describe('ResourceService', () => {
     expect(await svc.downloadVanilla()).toEqual({ ok: false, error: 'busy' });
     svc.cancelDownload();
     expect(await p).toEqual({ canceled: true });
-    expect(svc.state().download).toEqual({ status: 'idle' });
+    expect(svc.state().download).toMatchObject({ status: 'canceled', progress: { stage: 'jar' } });
     release();
 
     mode = 'ok';
     expect(await svc.downloadVanilla()).toEqual({ ok: true });
     const s = svc.state();
+    expect(s.download).toMatchObject({ status: 'done', progress: { fraction: 1, activity: 'done' } });
     expect(s.vanilla).toMatchObject({ consent: true, active: 'cached', cached: { versionId: '26.3' } });
     expect(soundFetches).toEqual([{ version: '26.3', ids: [...SOUND_EVENTS] }]);
     expect(s.layers.find((l) => l.kind === 'vanilla')?.source).toBe('downloaded');

@@ -2,6 +2,7 @@
   "name": "@allay/host-api",
   "version": "0.1.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "description": "主程序给可选模块（内嵌编辑器、MCP）的宿主接口：只有类型",
   "exports": {

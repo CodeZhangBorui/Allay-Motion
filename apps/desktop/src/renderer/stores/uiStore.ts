@@ -24,8 +24,12 @@ interface UiState {
   settings: UiSettings;
   dialog: DialogName;
   resourcesOpen: boolean;
-  /** 设置对话框打开时的页 */
-  settingsPage: 'general' | 'assets' | 'export' | 'shortcuts' | 'about';
+  /** 设置对话框打开时的页（注册表里设置页的 id，6.11） */
+  settingsPage: string;
+  /** 首次启动引导开着（第一次启动，或设置里点了“重新运行引导”，6.10） */
+  onboardingOpen: boolean;
+  /** 新手引导开着（帮助菜单、设置里点了“新手引导”；首次启动引导之后自动出现的那次见 tourVisible，6.14） */
+  tourOpen: boolean;
   /** 左右面板当前的标签页（注册表里面板的 id） */
   leftTab: string;
   rightTab: string;
@@ -47,7 +51,15 @@ interface UiState {
   setEditor(patch: Partial<Omit<EditorPrefs, 'groups' | 'recent'>>): void;
   setGroupCollapsed(templateId: string, group: string, collapsed: boolean): void;
   addRecent(kind: RecentKind, value: string): void;
-  openDialog(dialog: DialogName, page?: UiState['settingsPage']): void;
+  openDialog(dialog: DialogName, page?: string): void;
+  /** 打开引导（关掉别的对话框） */
+  openOnboarding(): void;
+  /** 引导走完或跳过：记进设置，之后不再自动出现 */
+  finishOnboarding(): void;
+  /** 打开新手引导（关掉别的对话框、弹层） */
+  openTour(): void;
+  /** 新手引导看完或跳过：记进设置，之后不再自动出现 */
+  finishTour(): void;
   setResourcesOpen(open: boolean): void;
   bumpPresets(): void;
   setSearchOpen(open: boolean): void;
@@ -81,6 +93,8 @@ function persistEditor(patch: NonNullable<UiSettingsPatch['editor']>): void {
 export const useUiStore = create<UiState>((set, get) => ({
   settings: defaultUiSettings(),
   dialog: null,
+  onboardingOpen: false,
+  tourOpen: false,
   resourcesOpen: false,
   settingsPage: 'general',
   leftTab: 'templates',
@@ -136,9 +150,31 @@ export const useUiStore = create<UiState>((set, get) => ({
     persistEditor({ recent });
   },
   openDialog: (dialog, page) => set((s) => ({ dialog, settingsPage: page ?? s.settingsPage })),
+  openOnboarding: () => set({ onboardingOpen: true, dialog: null, resourcesOpen: false }),
+  finishOnboarding: () => {
+    set({ onboardingOpen: false });
+    if (!get().settings.onboardingCompleted) get().update({ onboardingCompleted: true });
+  },
+  openTour: () => set({ tourOpen: true, dialog: null, resourcesOpen: false }),
+  finishTour: () => {
+    set({ tourOpen: false });
+    if (!get().settings.tourCompleted) get().update({ tourCompleted: true });
+  },
   setResourcesOpen: (resourcesOpen) => set({ resourcesOpen }),
   bumpPresets: () => set((s) => ({ presetsVersion: s.presetsVersion + 1 })),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   openExport: (preset) => set({ dialog: 'export', exportPreset: preset ?? null }),
   setExporting: (exporting) => set({ exporting }),
 }));
+
+type OverlayState = Pick<UiState, 'onboardingOpen' | 'tourOpen'> & { settings: Pick<UiSettings, 'onboardingCompleted' | 'tourCompleted'> };
+
+/** 首次启动引导显示着（新装时自动出现，或重新运行，6.10） */
+export function onboardingVisible(s: OverlayState): boolean {
+  return s.onboardingOpen || !s.settings.onboardingCompleted;
+}
+
+/** 新手引导显示着：首次启动引导之后、还没看过时自动出现，或者从帮助菜单打开（6.14）。和首次启动引导不同时出现 */
+export function tourVisible(s: OverlayState): boolean {
+  return !onboardingVisible(s) && (s.tourOpen || !s.settings.tourCompleted);
+}

@@ -87,6 +87,24 @@ function alphaOf(buf: Uint8Array): { min: number; max: number } {
   return { min, max };
 }
 
+/**
+ * 剪辑点那一帧里没盖满（alpha < 255）的像素：数量和前 24 个的位置（docs/decisions.md M8：软件渲染下剪辑点 alpha 254 的诊断，
+ * 看它们是方块接缝上的边缘像素还是方块内部）
+ */
+function belowOpaque(buf: Uint8Array, width: number): { below: number; samples: [number, number, number][] } {
+  let below = 0;
+  const samples: [number, number, number][] = [];
+  for (let k = 3; k < buf.length; k += 4) {
+    if (buf[k]! >= 255) continue;
+    below++;
+    if (samples.length < 24) {
+      const p = (k - 3) / 4;
+      samples.push([p % width, Math.floor(p / width), buf[k]!]);
+    }
+  }
+  return { below, samples };
+}
+
 function toBase64(bytes: Uint8Array): string {
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -139,7 +157,8 @@ const harness = {
       const cutIndex = loaded.cutTime === null ? null : Math.round(loaded.cutTime * output.fps);
       const first = alphaOf(await host.renderFrame(0, quality));
       const last = alphaOf(await host.renderFrame(total - 1, quality));
-      const cut = cutIndex === null ? null : alphaOf(await host.renderFrame(cutIndex, quality));
+      const cutPixels = cutIndex === null ? null : await host.renderFrame(cutIndex, quality);
+      const cut = cutPixels === null ? null : { ...alphaOf(cutPixels), ...belowOpaque(cutPixels, output.width) };
       let deterministic: boolean | null = null;
       let distinct = 0;
       let mismatched: number[] = [];
@@ -315,6 +334,8 @@ const harness = {
         let premul = 0;
         let partial = 0;
         let nonEmpty = 0;
+        // alpha ≥ 128 里差得最多的那个像素：导出的 alpha 与颜色、预览的 alpha 与（预乘的）颜色（docs/decisions.md M8 的诊断）
+        let worstHigh: { a: number; pa: number; e: number; p: number; straight: number } | null = null;
         for (let k = 0; k < e.length; k += 4) {
           const a = e[k + 3]!;
           const pa = p[k + 3]!;
@@ -327,11 +348,12 @@ const harness = {
             const straight = Math.min(255, Math.round((p[k + c]! * 255) / pa));
             const d = Math.abs(straight - e[k + c]!);
             colorAny = Math.max(colorAny, d);
+            if (a >= 128 && d > colorHigh) worstHigh = { a, pa, e: e[k + c]!, p: p[k + c]!, straight };
             if (a >= 128) colorHigh = Math.max(colorHigh, d);
             if (a === 255) colorOpaque = Math.max(colorOpaque, d);
           }
         }
-        results.push({ index, alpha, colorOpaque, colorHigh, colorAny, premul, partial, nonEmpty, length: p.length === e.length });
+        results.push({ index, alpha, colorOpaque, colorHigh, worstHigh, colorAny, premul, partial, nonEmpty, length: p.length === e.length });
       }
       return results;
     } finally {
