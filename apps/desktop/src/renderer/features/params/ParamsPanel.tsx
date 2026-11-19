@@ -24,7 +24,7 @@ import { useTemplateStore } from '../../stores/templateStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { useUiStore } from '../../stores/uiStore';
 import { OutputSettingsForm } from '../settings/OutputSettingsForm';
-import { applyPresetEntry } from '../templates/presets';
+import { applyPresetEntry, builtinPresets } from '../templates/presets';
 
 // 右面板（6.4）的两个标签页（经注册表挂到 TabbedPanel 上，见 app/core.tsx）：
 // 属性页：模板名（15 px）和“类别 · 时长”，右侧预设下拉；主体是按 groups 分组的参数（ParamPanel，由参数定义自动生成），
@@ -35,10 +35,12 @@ import { applyPresetEntry } from '../templates/presets';
 /** 应用内的“剪贴板”：复制值、粘贴值只在参数之间用，不经系统剪贴板（权限请求一律被拒，1.6 第 4 条） */
 let clipboard: { type: ParamDef['type']; value: ParamValue } | null = null;
 
-/** 当前模板的预设；保存、导入预设后（uiStore.presetsVersion 变了）重新取 */
+/** 当前模板的预设：模板自带的在前，用户的在后；保存、导入预设后（uiStore.presetsVersion 变了）重新取 */
 export function usePresets(templateId: string | undefined): PresetEntry[] {
   const [presets, setPresets] = useState<PresetEntry[]>([]);
   const version = useUiStore((s) => s.presetsVersion);
+  const template = useProjectStore((s) => s.template);
+  const { i18n } = useTranslation();
   useEffect(() => {
     let alive = true;
     void window.allay.presets.list().then((all) => alive && setPresets(all.filter((p) => p.template.id === templateId)));
@@ -46,7 +48,8 @@ export function usePresets(templateId: string | undefined): PresetEntry[] {
       alive = false;
     };
   }, [templateId, version]);
-  return presets;
+  const builtin = useMemo(() => (template?.ref.id === templateId ? builtinPresets(template, i18n.language) : []), [template, templateId, i18n.language]);
+  return useMemo(() => [...builtin, ...presets], [builtin, presets]);
 }
 
 function useDefaults() {
@@ -60,7 +63,7 @@ export function PropsActions() {
   const { t, i18n } = useTranslation();
   const template = useProjectStore((s) => s.template);
   const params = useProjectStore((s) => s.params);
-  const presets = usePresets(template?.ref.id);
+  const presets = usePresets(template?.ref.id).filter((p) => !p.builtin);
   const defaults = useDefaults();
   const locale = i18n.language;
   if (!template) return null;
@@ -163,7 +166,7 @@ export function PropsTab() {
               presets.map((p) => (
                 <DropdownMenuItem
                   key={p.id}
-                  data-testid={`preset-${p.name}`}
+                  data-testid={p.builtin ? `preset-${p.id}` : `preset-${p.name}`}
                   onClick={() =>
                     void applyPresetEntry(p, locale).then((ok) => {
                       if (!ok) notify('error', t('params.presets.applyFailed'));

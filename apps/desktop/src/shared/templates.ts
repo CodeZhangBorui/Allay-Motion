@@ -132,6 +132,8 @@ export interface PresetEntry {
   template: { id: string; version: string };
   params: ParamValues;
   createdAt: string;
+  /** 模板 manifest 自带的预设（渲染进程从 manifest.presets 生成，不在 userData/presets 里，不能导出） */
+  builtin?: true;
 }
 
 export type PresetImportResult = { canceled: true } | { canceled?: false; ok: true; entry: PresetEntry } | { canceled?: false; ok: false; error: string };

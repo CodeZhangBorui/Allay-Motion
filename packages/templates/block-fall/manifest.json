@@ -101,5 +101,10 @@
       { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
     ]
   },
+  "presets": [
+    {"key": "rainbow-concrete-columns", "name": {"zh-CN": "七色混凝土（彩虹，按列）", "en": "Rainbow concrete (columns)"}, "params": {"blocks": [{"id": "minecraft:red_concrete", "weight": 2}, {"id": "minecraft:orange_concrete", "weight": 2}, {"id": "minecraft:yellow_concrete", "weight": 2}, {"id": "minecraft:lime_concrete", "weight": 2}, {"id": "minecraft:light_blue_concrete", "weight": 2}, {"id": "minecraft:blue_concrete", "weight": 2}, {"id": "minecraft:purple_concrete", "weight": 2}], "arrangement": "columns", "cols": 14, "columnOrder": "leftToRight"}},
+    {"key": "rainbow-concrete-rows", "name": {"zh-CN": "七色混凝土（彩虹，按行）", "en": "Rainbow concrete (rows)"}, "params": {"blocks": [{"id": "minecraft:red_concrete", "weight": 1}, {"id": "minecraft:orange_concrete", "weight": 1}, {"id": "minecraft:yellow_concrete", "weight": 1}, {"id": "minecraft:lime_concrete", "weight": 1}, {"id": "minecraft:light_blue_concrete", "weight": 1}, {"id": "minecraft:blue_concrete", "weight": 1}, {"id": "minecraft:purple_concrete", "weight": 1}], "arrangement": "rows", "cols": 12}},
+    {"key": "black-white-checker", "name": {"zh-CN": "黑白棋盘", "en": "Black and white checkerboard"}, "params": {"blocks": [{"id": "minecraft:white_concrete", "weight": 1}, {"id": "minecraft:black_concrete", "weight": 1}], "arrangement": "checker"}}
+  ],
   "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
 }

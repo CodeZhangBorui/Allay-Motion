@@ -7,10 +7,11 @@ import { FilmSlate, Lightning, SlidersHorizontal } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PresetEntry } from '../../../shared/templates';
+import { useProjectStore } from '../../stores/projectStore';
 import { useTemplateStore } from '../../stores/templateStore';
 import { useUiStore } from '../../stores/uiStore';
 import { selectTemplate } from '../templates/actions';
-import { applyPresetEntry } from '../templates/presets';
+import { applyPresetEntry, builtinPresets } from '../templates/presets';
 import { commandEnabled, trigger, useCommands } from '../../app/registry';
 import { shortcutLabel, shortcutMap } from './shortcutState';
 
@@ -22,10 +23,13 @@ export function CommandPalette() {
   const commands = useCommands();
   const overrides = useUiStore((s) => s.settings.shortcuts);
   const keys = new Map([...shortcutMap(commands, overrides).byKey].map(([k, id]) => [id, k]));
-  const [presets, setPresets] = useState<PresetEntry[]>([]);
+  const [userPresets, setUserPresets] = useState<PresetEntry[]>([]);
   useEffect(() => {
-    void window.allay.presets.list().then(setPresets);
+    void window.allay.presets.list().then(setUserPresets);
   }, []);
+  // 当前模板自带的预设在前
+  const template = useProjectStore((s) => s.template);
+  const presets = [...builtinPresets(template, i18n.language), ...userPresets];
   const close = () => useUiStore.getState().openDialog(null);
   const run = (fn: () => void) => {
     close();
