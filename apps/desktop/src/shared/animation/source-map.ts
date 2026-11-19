@@ -2,7 +2,8 @@
 // 某一时刻哪些图层可见、每条属性轨道处在哪两个关键帧之间、用的哪个缓动——这些都是文档本身的数据，
 // 不需要在 Worker 里埋运行时探针（画面仍是时间的纯函数，硬性规则 2）。
 // 文本位置来自一个记录位置的 JSON 解析（用户自己排版的文本也能定位），不依赖 serializeAnimation 的格式。
-import { offsetToLineColumn, type AnimationDoc } from './schema';
+import type { ResolvedDoc } from './resolve';
+import { isKeyed, offsetToLineColumn } from './schema';
 
 export interface JsonSpan {
   /** 值开始、结束的偏移（结束不含） */
@@ -112,7 +113,7 @@ const easeLabel = (e: unknown): string => (e === undefined ? 'linear' : Array.is
  * t 时刻在生效的代码：每个可见图层的开头一行；每条有关键帧的属性所处的区间（前后两个关键帧，标出缓动）；
  * 在第一个关键帧之前或最后一个之后时标出那个关键帧（edge）。常量属性不标。
  */
-export function liveMarks(doc: AnimationDoc, text: string, t: number, spans = locateJson(text)): LiveMark[] {
+export function liveMarks(doc: ResolvedDoc, text: string, t: number, spans = locateJson(text)): LiveMark[] {
   if (!spans) return [];
   const marks: LiveMark[] = [];
   doc.layers.forEach((layer, li) => {
@@ -153,7 +154,7 @@ export function liveMarks(doc: AnimationDoc, text: string, t: number, spans = lo
  * 在代码里点某处：它生效的时刻。关键帧 → 它的 t；图层里别处 → 可见区间的开头（没有就是它第一个关键帧）；
  * 音效 → 它的 at；时长、剪辑点 → 那个时刻。认不出时为 null（不跳）。
  */
-export function timeAtOffset(doc: AnimationDoc, text: string, offset: number, spans = locateJson(text)): number | null {
+export function timeAtOffset(doc: ResolvedDoc, text: string, offset: number, spans = locateJson(text)): number | null {
   if (!spans) return null;
   let best: { path: string; size: number } | null = null;
   for (const [path, s] of spans) {
@@ -172,19 +173,19 @@ export function timeAtOffset(doc: AnimationDoc, text: string, offset: number, sp
       if (!layer) return null;
       if (p[2] === 'props' && p[4] === 'keys' && p[5] !== undefined) {
         const track = layer.props[p[3] as keyof typeof layer.props];
-        const key = track !== undefined && typeof track === 'object' ? track.keys[Number(p[5])] : undefined;
+        const key = isKeyed(track) ? track.keys[Number(p[5])] : undefined;
         if (key) return key.t;
         continue;
       }
       if (p.length > 4) continue;
       if (p[2] === 'props' && p[3]) {
         const track = layer.props[p[3] as keyof typeof layer.props];
-        if (track !== undefined && typeof track === 'object') return track.keys[0]!.t;
+        if (isKeyed(track)) return track.keys[0]!.t;
       }
       if (p[2] === 'to' && layer.to !== undefined) return Math.max(0, layer.to - 1e-3);
       if (p.length <= 3) {
         if (layer.from !== undefined) return layer.from;
-        const first = Object.values(layer.props).flatMap((tr) => (tr !== undefined && typeof tr === 'object' ? [tr.keys[0]!.t] : []));
+        const first = Object.values(layer.props).flatMap((tr) => (isKeyed(tr) ? [tr.keys[0]!.t] : []));
         return first.length > 0 ? Math.min(...first) : 0;
       }
     }

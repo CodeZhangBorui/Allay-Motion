@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { liveMarks, locateJson, timeAtOffset } from '../../apps/desktop/src/shared/animation/source-map';
 import { AnimationDocSchema, newAnimationDoc, serializeAnimation } from '../../apps/desktop/src/shared/animation/schema';
+import { resolveDoc } from '../../apps/desktop/src/shared/animation/resolve';
 
 const doc = AnimationDocSchema.parse({
   ...newAnimationDoc('Map', 'Block'),
@@ -11,6 +12,8 @@ const doc = AnimationDocSchema.parse({
   ],
 });
 const text = serializeAnimation(doc);
+// 映射按解析过参数的文档算（这份文档没有参数，结果与原文相同）
+const view = resolveDoc(doc);
 const lineWith = (needle: string, from = 0) => text.slice(0, text.indexOf(needle, from)).split('\n').length;
 
 describe('T-ANIM-6 实时预览的映射', () => {
@@ -22,7 +25,7 @@ describe('T-ANIM-6 实时预览的映射', () => {
   });
 
   it('t = 0.3：第一个图层可见，y 在 0–0.6 的区间（backOut），rotY 在 0–1.2，opacity 还没到第一个关键帧；第二个图层在保持', () => {
-    const marks = liveMarks(doc, text, 0.3);
+    const marks = liveMarks(view, text, 0.3);
     const labels = marks.map((m) => `${m.kind}:${m.label}`);
     expect(labels).toContain('layer:Block');
     expect(labels.some((l) => l.startsWith('segment:Block · y · backOut（0–0.6 s）'))).toBe(true);
@@ -35,15 +38,15 @@ describe('T-ANIM-6 实时预览的映射', () => {
   });
 
   it('可见区间之外的图层不标；常量属性不标', () => {
-    const marks = liveMarks(doc, text, 1.9);
+    const marks = liveMarks(view, text, 1.9);
     expect(marks.some((m) => m.label.startsWith('Block'))).toBe(false);
     expect(marks.some((m) => m.label.includes('rotX'))).toBe(false);
   });
 
   it('点关键帧跳到它的时刻；点图层名跳到它出现的时刻；点时长跳到末尾；认不出的不跳', () => {
-    expect(timeAtOffset(doc, text, text.indexOf('{ "t": 1.2'))).toBe(1.2);
-    expect(timeAtOffset(doc, text, text.indexOf('"name": "Block"') + 3)).toBe(0.2);
-    expect(timeAtOffset(doc, text, text.indexOf('"duration"') + 2)).toBe(doc.duration);
-    expect(timeAtOffset(doc, text, 0)).toBeNull();
+    expect(timeAtOffset(view, text, text.indexOf('{ "t": 1.2'))).toBe(1.2);
+    expect(timeAtOffset(view, text, text.indexOf('"name": "Block"') + 3)).toBe(0.2);
+    expect(timeAtOffset(view, text, text.indexOf('"duration"') + 2)).toBe(doc.duration);
+    expect(timeAtOffset(view, text, 0)).toBeNull();
   });
 });

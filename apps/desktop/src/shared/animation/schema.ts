@@ -2,11 +2,16 @@
 // 可视化编辑和代码编辑改的都是它；预览、导出、“转为模板”都从它生成一份普通的模板代码（compile.ts），
 // 经与内置模板、用户模板同一条装载路径交给引擎 Worker（AGENTS.md 硬性规则 2、3、5）。
 // 文件、进程、线程边界都用这里的 zod schema 校验。
-import { EASING_NAMES, isResourceId } from '@allay/template-sdk';
+import { EASING_NAMES, FontDefaultSchema, isResourceId, LocalizedStringSchema, PARAM_KEY_RE } from '@allay/template-sdk';
 import { z } from 'zod';
 
 export const ANIMATION_KIND = 'allay-animation';
-export const ANIMATION_FORMAT_VERSION = 1;
+/**
+ * 格式版本。2（2026-11 第三轮）：值可以绑定到参数（{"$param": 键}）、参数表、音效的 id / 速率 / 空间位置。
+ * 第 1 版的文档读入时迁移（版本号改成 2，音效补上 id；第 1 版的写法在第 2 版里都合法）。更高的版本拒绝
+ */
+export const ANIMATION_FORMAT_VERSION = 2;
+export const MAX_PARAMS = 32;
 /** 文本上限：正常的动画不过几十 KB */
 export const MAX_ANIMATION_CHARS = 512 * 1024;
 export const MAX_LAYERS = 64;
@@ -20,20 +25,32 @@ const resourceId = z.string().max(256).refine(isResourceId, 'must be a resource 
 export const AnimEasingSchema = z.union([z.enum(EASING_NAMES), z.literal('hold'), z.tuple([finite, finite, finite, finite])]);
 export type AnimEasing = z.infer<typeof AnimEasingSchema>;
 
-/** 关键帧：t 秒时取值 v；ease 是从这个关键帧到下一个的缓动（缺省 linear） */
+// ---- 参数绑定（第 2 版）----
+
+/** 绑定到参数：{"$param": "title"}。转成模板后这个值就是 manifest 里的参数，用户在属性面板里改 */
+export const ParamRefSchema = z.strictObject({ $param: z.string().max(64).regex(PARAM_KEY_RE, 'param key must match ^[a-z][a-zA-Z0-9]*$') });
+export type ParamRef = z.infer<typeof ParamRefSchema>;
+export const isParamRef = (v: unknown): v is ParamRef => typeof v === 'object' && v !== null && !Array.isArray(v) && typeof (v as { $param?: unknown }).$param === 'string';
+const bindable = <T extends z.ZodType>(s: T) => z.union([s, ParamRefSchema]);
+
+/** 关键帧：t 秒时取值 v（可以绑定到数值参数）；ease 是从这个关键帧到下一个的缓动（缺省 linear） */
 export const KeyframeSchema = z.strictObject({
   t: finite.min(0).max(30),
-  v: finite,
+  v: bindable(finite),
   ease: AnimEasingSchema.optional(),
 });
 export type Keyframe = z.infer<typeof KeyframeSchema>;
 
-/** 一条属性轨：常量，或按时间排好序的关键帧 */
+/** 一条属性轨：常量（可以绑定到数值参数），或按时间排好序的关键帧 */
 export const TrackSchema = z.union([
   finite,
+  ParamRefSchema,
   z.strictObject({ keys: z.array(KeyframeSchema).min(1).max(MAX_KEYS) }).refine((tr) => tr.keys.every((k, i) => i === 0 || k.t > tr.keys[i - 1]!.t), 'keys must be sorted by t without duplicates'),
 ]);
 export type Track = z.infer<typeof TrackSchema>;
+export type KeyedTrack = Extract<Track, { keys: unknown }>;
+/** 有关键帧的轨道（常量、绑定到参数的常量都不是） */
+export const isKeyed = <T extends { keys: readonly unknown[] }>(track: number | ParamRef | T | undefined): track is T => typeof track === 'object' && track !== null && 'keys' in track;
 
 /** 每个图层都有的可动画属性：位置（设计单位，原点在画面中心，+y 向上）、旋转（度）、缩放、不透明度 */
 export const ANIM_PROPS = ['x', 'y', 'z', 'rotX', 'rotY', 'rotZ', 'scale', 'opacity'] as const;
@@ -58,41 +75,81 @@ const LayerBase = {
 export const LAYER_TYPES = ['block', 'item', 'text', 'rect'] as const;
 export type LayerType = (typeof LAYER_TYPES)[number];
 
+// 内容字段都可以绑定到参数（第 2 版）：方块、物品、文字、颜色、字体、大小
 export const LayerSchema = z.discriminatedUnion('type', [
   /** 方块：边长 size 设计单位的立方体 */
-  z.strictObject({ ...LayerBase, type: z.literal('block'), block: resourceId, size: finite.min(1).max(4000).default(160) }),
+  z.strictObject({ ...LayerBase, type: z.literal('block'), block: bindable(resourceId), size: bindable(finite.min(1).max(4000)).default(160) }),
   /** 物品：高 size 设计单位 */
-  z.strictObject({ ...LayerBase, type: z.literal('item'), item: resourceId, size: finite.min(1).max(4000).default(200) }),
-  /** 文字：size 是一个字体像素对应多少设计单位 */
+  z.strictObject({ ...LayerBase, type: z.literal('item'), item: bindable(resourceId), size: bindable(finite.min(1).max(4000)).default(200) }),
+  /** 文字：size 是一个字体像素对应多少设计单位；font 是 font 参数的值（字体族与样式），不给时用 minecraft:default */
   z.strictObject({
     ...LayerBase,
     type: z.literal('text'),
-    text: z.string().min(1).max(500),
-    size: finite.min(0.5).max(100).default(8),
-    color: hex.default('#FFFFFF'),
+    text: bindable(z.string().min(1).max(500)),
+    size: bindable(finite.min(0.5).max(100)).default(8),
+    color: bindable(hex).default('#FFFFFF'),
     shadow: z.boolean().default(true),
     align: z.enum(['left', 'center', 'right']).default('center'),
+    font: bindable(FontDefaultSchema).optional(),
   }),
   /** 矩形色块 */
-  z.strictObject({ ...LayerBase, type: z.literal('rect'), width: finite.min(1).max(8000).default(400), height: finite.min(1).max(8000).default(240), color: hex.default('#3CB7F4') }),
+  z.strictObject({ ...LayerBase, type: z.literal('rect'), width: bindable(finite.min(1).max(8000)).default(400), height: bindable(finite.min(1).max(8000)).default(240), color: bindable(hex).default('#3CB7F4') }),
 ]);
 export type Layer = z.infer<typeof LayerSchema>;
 
-/** 音效：at 秒时播放 */
+/**
+ * 音效：at 秒时播放。id 在第 2 版里加上（界面里选中、拖动要用；第 1 版的文档迁移时按序号补上）。
+ * position 是空间音效的声源位置（单位是格，+x 右、+y 上、-z 正前方，同 ctx.audio.cue 的 position）
+ */
 export const AnimSoundSchema = z.strictObject({
+  id: z.string().regex(LAYER_ID_RE, 'id must be lower-case letters, digits and dashes').optional(),
   at: finite.min(0).max(30),
-  sound: resourceId,
+  sound: bindable(resourceId),
   gain: finite.min(0).max(2).default(1),
+  rate: finite.min(0.5).max(2).optional(),
+  position: z.strictObject({ x: finite.min(-64).max(64), y: finite.min(-64).max(64), z: finite.min(-64).max(64) }).optional(),
 });
+export type AnimSound = z.infer<typeof AnimSoundSchema>;
 
-export const AnimationDocSchema = z
+// ---- 参数表（第 2 版）：转成模板时就是 manifest 的 params ----
+
+const paramBase = {
+  key: z.string().max(64).regex(PARAM_KEY_RE, 'key must match ^[a-z][a-zA-Z0-9]*$'),
+  label: LocalizedStringSchema,
+  group: z.string().max(64).optional(),
+};
+export const ANIM_PARAM_TYPES = ['number', 'duration', 'block', 'item', 'text', 'color', 'font', 'sound'] as const;
+export type AnimParamType = (typeof ANIM_PARAM_TYPES)[number];
+export const AnimParamSchema = z.discriminatedUnion('type', [
+  z.strictObject({ ...paramBase, type: z.literal('number'), default: finite, min: finite, max: finite, step: finite.positive().optional(), unit: z.string().max(16).optional() }),
+  /** 整段动画的时长：所有时刻按“新时长 ÷ 默认时长”等比伸缩 */
+  z.strictObject({ ...paramBase, type: z.literal('duration'), default: finite.min(0.1).max(30), min: finite.min(0.1).max(30), max: finite.min(0.1).max(30) }),
+  z.strictObject({ ...paramBase, type: z.literal('block'), default: resourceId }),
+  z.strictObject({ ...paramBase, type: z.literal('item'), default: resourceId }),
+  z.strictObject({ ...paramBase, type: z.literal('text'), default: z.string().min(1).max(500), multiline: z.boolean().optional() }),
+  z.strictObject({ ...paramBase, type: z.literal('color'), default: hex }),
+  z.strictObject({ ...paramBase, type: z.literal('font'), default: FontDefaultSchema }),
+  z.strictObject({ ...paramBase, type: z.literal('sound'), default: resourceId }),
+]);
+export type AnimParam = z.infer<typeof AnimParamSchema>;
+
+/** 第 1 版 → 第 2 版：版本号改成 2，音效按序号补上 id。其他版本、不是对象的原样交给 schema（照常报错） */
+export function migrateAnimation(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return raw;
+  const doc = raw as Record<string, unknown>;
+  if (doc.formatVersion !== 1) return raw;
+  const sounds = Array.isArray(doc.sounds) ? doc.sounds.map((snd: unknown, i) => (typeof snd === 'object' && snd !== null && !('id' in snd) ? { id: `sound-${i + 1}`, ...snd } : snd)) : doc.sounds;
+  return { ...doc, formatVersion: 2, ...(sounds !== undefined ? { sounds } : {}) };
+}
+
+const AnimationDocShape = z
   .strictObject({
     kind: z.literal(ANIMATION_KIND),
     formatVersion: z.literal(ANIMATION_FORMAT_VERSION),
     name: z.string().trim().min(1).max(60),
     category: z.enum(['transition', 'overlay', 'title']).default('overlay'),
-    /** 秒 */
-    duration: finite.min(0.1).max(30),
+    /** 秒；可以绑定到 duration 参数 */
+    duration: bindable(finite.min(0.1).max(30)),
     /** 转场类必填：剪辑点（秒） */
     cutTime: finite.min(0).max(30).nullable().default(null),
     /** 正交相机（默认，2D 排版），或透视相机（fov 是垂直视角，度） */
@@ -100,17 +157,95 @@ export const AnimationDocSchema = z
     /** 后面的图层画在前面 */
     layers: z.array(LayerSchema).max(MAX_LAYERS).default([]),
     sounds: z.array(AnimSoundSchema).max(64).default([]),
+    /** 暴露给模板用户的参数（第 2 版） */
+    params: z.array(AnimParamSchema).max(MAX_PARAMS).default([]),
   })
   .superRefine((doc, ctx) => {
+    const params = new Map<string, AnimParam>();
+    doc.params.forEach((p, i) => {
+      if (params.has(p.key)) ctx.addIssue({ code: 'custom', path: ['params', i, 'key'], message: `duplicate param key "${p.key}"` });
+      params.set(p.key, p);
+      if ((p.type === 'number' || p.type === 'duration') && !(p.min <= p.default && p.default <= p.max)) ctx.addIssue({ code: 'custom', path: ['params', i, 'default'], message: 'default must be within [min, max]' });
+    });
+    // 每个绑定都指向存在、类型对得上的参数
+    for (const site of bindingSites(doc)) {
+      const p = params.get(site.value.$param);
+      const allowed: readonly AnimParamType[] = BINDABLE_TYPES[site.kind];
+      if (!p) ctx.addIssue({ code: 'custom', path: site.path, message: `unknown param "${site.value.$param}"` });
+      else if (!allowed.includes(p.type)) ctx.addIssue({ code: 'custom', path: site.path, message: `param "${p.key}" is a ${p.type} param; this value needs ${allowed.join(' or ')}` });
+    }
+    const durationParam = isParamRef(doc.duration) ? params.get(doc.duration.$param) : undefined;
+    const duration = isParamRef(doc.duration) ? (durationParam?.type === 'duration' ? durationParam.default : null) : doc.duration;
     if (doc.category === 'transition' && doc.cutTime === null) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'a transition needs a cutTime' });
-    if (doc.cutTime !== null && doc.cutTime > doc.duration) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'cutTime must not exceed duration' });
+    if (doc.cutTime !== null && duration !== null && doc.cutTime > duration) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'cutTime must not exceed duration' });
     const seen = new Set<string>();
     doc.layers.forEach((l, i) => {
       if (seen.has(l.id)) ctx.addIssue({ code: 'custom', path: ['layers', i, 'id'], message: `duplicate layer id "${l.id}"` });
       seen.add(l.id);
     });
+    const soundIds = new Set<string>();
+    doc.sounds.forEach((snd, i) => {
+      if (snd.id === undefined) return;
+      if (soundIds.has(snd.id)) ctx.addIssue({ code: 'custom', path: ['sounds', i, 'id'], message: `duplicate sound id "${snd.id}"` });
+      soundIds.add(snd.id);
+    });
   });
-export type AnimationDoc = z.infer<typeof AnimationDocSchema>;
+
+/** 读入时先迁移旧版本（第 1 版 → 第 2 版），再校验 */
+export const AnimationDocSchema = z.preprocess(migrateAnimation, AnimationDocShape);
+export type AnimationDoc = z.infer<typeof AnimationDocShape>;
+
+// ---- 绑定的位置与类型 ----
+
+/** 各处的值能绑定到哪些类型的参数 */
+export const BINDABLE_TYPES = {
+  number: ['number'],
+  duration: ['duration'],
+  block: ['block'],
+  item: ['item'],
+  text: ['text'],
+  color: ['color'],
+  font: ['font'],
+  sound: ['sound'],
+} as const satisfies Record<string, readonly AnimParamType[]>;
+export type BindingKind = keyof typeof BINDABLE_TYPES;
+
+export interface BindingSite {
+  path: (string | number)[];
+  value: ParamRef;
+  kind: BindingKind;
+}
+
+/** 文档里所有绑定到参数的地方（校验、实时预览、界面显示用） */
+export function bindingSites(doc: Pick<AnimationDoc, 'duration' | 'layers' | 'sounds'>): BindingSite[] {
+  const out: BindingSite[] = [];
+  const at = (path: (string | number)[], value: unknown, kind: BindingKind) => {
+    if (isParamRef(value)) out.push({ path, value, kind });
+  };
+  at(['duration'], doc.duration, 'duration');
+  doc.layers.forEach((l, i) => {
+    const base = ['layers', i];
+    if (l.type === 'block') at([...base, 'block'], l.block, 'block');
+    if (l.type === 'item') at([...base, 'item'], l.item, 'item');
+    if (l.type === 'text') {
+      at([...base, 'text'], l.text, 'text');
+      at([...base, 'color'], l.color, 'color');
+      at([...base, 'font'], l.font, 'font');
+    }
+    if (l.type === 'rect') {
+      at([...base, 'color'], l.color, 'color');
+      at([...base, 'width'], l.width, 'number');
+      at([...base, 'height'], l.height, 'number');
+    }
+    if (l.type !== 'rect') at([...base, 'size'], l.size, 'number');
+    for (const [prop, track] of Object.entries(l.props)) {
+      if (isParamRef(track)) at([...base, 'props', prop], track, 'number');
+      else if (isKeyed(track)) track.keys.forEach((k, j) => at([...base, 'props', prop, 'keys', j, 'v'], k.v, 'number'));
+    }
+  });
+  doc.sounds.forEach((snd, i) => at(['sounds', i, 'sound'], snd.sound, 'sound'));
+  return out;
+}
 
 /** 解析的结果：失败时带上出错的位置（JSON 语法错误给行列，schema 错误给路径和对应的行） */
 export type AnimationParse =
@@ -298,5 +433,5 @@ export function newAnimationDoc(name: string, layerName = 'Block'): AnimationDoc
 // ---- 求值（编辑器里画曲线、算当前值用；Worker 里的同一套逻辑在 runtime.template.js，单元测试核对两者一致）----
 
 export function trackKeys(track: Track | undefined): Keyframe[] | null {
-  return track !== undefined && typeof track === 'object' ? track.keys : null;
+  return isKeyed(track) ? track.keys : null;
 }

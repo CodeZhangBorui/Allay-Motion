@@ -3,14 +3,65 @@
 // update(t) 不分配内存：所有对象在 setup 里建好，每帧只按 t 插值、写矩阵和不透明度。
 // 改这里要同时看 schema.ts 的格式和 tests/unit/T-ANIM-1.animation-doc.test.ts（T-ANIM-2 部分）。
 
+/**
+ * 把绑定到参数的值换成取值（第 2 版）。规则与 shared/animation/resolve.ts 的 resolveDoc 相同（T-ANIM-11 核对）：
+ * {"$param": 键} 换成 ctx.params 里的值（没有就是参数的默认值）；整段时长绑定到 duration 参数时所有时刻等比伸缩。
+ * @param {any} doc
+ * @param {Record<string, unknown>} values
+ */
+function resolveAnimation(doc, values) {
+  const params = new Map((doc.params || []).map((p) => [p.key, p]));
+  const isRef = (x) => typeof x === 'object' && x !== null && !Array.isArray(x) && typeof x.$param === 'string';
+  const valueOf = (p) => {
+    const v = values[p.key];
+    if (v === undefined || v === null) return p.default;
+    if (p.type === 'number' || p.type === 'duration') return typeof v === 'number' && Number.isFinite(v) ? Math.min(p.max, Math.max(p.min, v)) : p.default;
+    if (p.type === 'font') return typeof v === 'object' && !Array.isArray(v) && typeof v.family === 'string' ? v : p.default;
+    return typeof v === 'string' && v !== '' ? v : p.default;
+  };
+  const sub = (x) => {
+    if (isRef(x)) {
+      const p = params.get(x.$param);
+      return p ? valueOf(p) : undefined;
+    }
+    if (Array.isArray(x)) return x.map(sub);
+    if (typeof x === 'object' && x !== null) {
+      const o = {};
+      for (const k of Object.keys(x)) if (k !== 'params') o[k] = sub(x[k]);
+      return o;
+    }
+    return x;
+  };
+  const out = sub(doc);
+  let scale = 1;
+  if (isRef(doc.duration)) {
+    const p = params.get(doc.duration.$param);
+    if (p && p.type === 'duration' && p.default > 0) scale = out.duration / p.default;
+  }
+  if (scale !== 1) {
+    if (out.cutTime !== null && out.cutTime !== undefined) out.cutTime *= scale;
+    for (const s of out.sounds || []) s.at *= scale;
+    for (const l of out.layers || []) {
+      if (typeof l.from === 'number') l.from *= scale;
+      if (typeof l.to === 'number') l.to *= scale;
+      for (const p of Object.keys(l.props || {})) {
+        const tr = l.props[p];
+        if (tr && typeof tr === 'object' && Array.isArray(tr.keys)) for (const k of tr.keys) k.t *= scale;
+      }
+    }
+  }
+  return out;
+}
+
 // 这个文件单独看时 createAnimation 没有被用到：生成的 template.js 在它后面调用它（compile.ts）
 /**
  * @param {import('./template-api').SetupContext} ctx
  * @param {any} doc 已按 AnimationDocSchema 校验过的动画文档
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function createAnimation(ctx, doc) {
+async function createAnimation(ctx, source) {
   const { THREE, scene } = ctx;
+  const doc = resolveAnimation(source, ctx.params || {});
   const PROPS = ['x', 'y', 'z', 'rotX', 'rotY', 'rotZ', 'scale', 'opacity'];
   const DEFAULTS = { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0, scale: 1, opacity: 1 };
   const DEG = Math.PI / 180;
@@ -100,7 +151,7 @@ async function createAnimation(ctx, doc) {
           for (const m of mats) m.material.opacity = m.base * o;
         };
       } else if (def.type === 'text') {
-        const text = ctx.text.create({ text: def.text, size: def.size, color: def.color, shadow: def.shadow, align: def.align });
+        const text = ctx.text.create({ text: def.text, size: def.size, color: def.color, shadow: def.shadow, align: def.align, ...(def.font ? { font: def.font } : {}) });
         holder.add(text.object);
         setOpacity = (o) => text.setOpacity(o);
       } else {
@@ -126,7 +177,12 @@ async function createAnimation(ctx, doc) {
     layers.push(layer);
   }
 
-  for (const s of doc.sounds || []) ctx.audio.cue(s.sound, s.at, { gain: s.gain });
+  for (const s of doc.sounds || []) {
+    const opts = { gain: s.gain };
+    if (typeof s.rate === 'number') opts.rate = s.rate;
+    if (s.position) opts.position = { x: s.position.x, y: s.position.y, z: s.position.z };
+    ctx.audio.cue(s.sound, s.at, opts);
+  }
 
   return {
     duration,

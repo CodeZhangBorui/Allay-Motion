@@ -8,7 +8,8 @@ import i18next from 'i18next';
 import '../app.css';
 import { CodeWindowDownSchema, type CodeWindowDown } from '../../shared/code-window';
 import { liveMarks, timeAtOffset } from '../../shared/animation/source-map';
-import { parseAnimation, type AnimationDoc } from '../../shared/animation/schema';
+import { parseAnimation } from '../../shared/animation/schema';
+import { resolveDoc, type ResolvedDoc } from '../../shared/animation/resolve';
 import { applyThemeToDocument } from '../app/useThemeSync';
 import { discoveredModules } from '../app/optionalModules';
 import { initI18n } from '../i18n';
@@ -103,7 +104,8 @@ async function bootstrap(): Promise<void> {
   let pending: ReturnType<typeof setTimeout> | null = null;
   let pendingText: string | null = null;
   let liveOn = false;
-  let doc: AnimationDoc | null = null;
+  /** 解析过参数（默认值）的文档：实时预览的映射按它算 */
+  let doc: ResolvedDoc | null = null;
   let lastT = -1;
   let ready = false;
 
@@ -118,7 +120,7 @@ async function bootstrap(): Promise<void> {
   };
   const reparse = (text: string) => {
     const r = parseAnimation(text);
-    doc = r.ok ? r.doc : null;
+    doc = r.ok ? resolveDoc(r.doc) : null;
   };
   const relabel = () => {
     title.textContent = i18next.t('anim.code.title');

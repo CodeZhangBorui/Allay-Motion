@@ -2,7 +2,7 @@
 // 以及界面里的求值和 Worker 里的求值一致（同一份规则写了两遍：edit.ts 的 sampleTrack 与 runtime.template.js 的 sample）。
 // T-DEV-7：开发模式的设置与可选模块的生效开关。
 import { describe, expect, it } from 'vitest';
-import { keyIndexAt, layerKeyTimes, moveKey, removeKey, sampleTrack, setKeyEase, setValueAt, toggleKeyAt, type EaseEval } from '../../apps/desktop/src/shared/animation/edit';
+import { keyIndexAt, layerKeyTimes, moveKey, removeKey, sampleTrack, setKeyEase, setValueAt, toggleKeyAt, type EaseEval, type ResolvedTrack } from '../../apps/desktop/src/shared/animation/edit';
 import { AnimationDocSchema, newAnimationDoc, type Track } from '../../apps/desktop/src/shared/animation/schema';
 import { effectiveModuleSwitches } from '../../apps/desktop/src/renderer/features/dev/devMode';
 import { applyUiPatch, defaultUiSettings, UiSettingsPatchSchema, UiSettingsSchema } from '../../apps/desktop/src/shared/settings';
@@ -42,7 +42,7 @@ describe('T-ANIM-5 关键帧的编辑', () => {
   });
 
   it('求值：之前取第一个、之后取最后一个、hold 保持', () => {
-    const tr: Track = { keys: [{ t: 1, v: 0 }, { t: 2, v: 10, ease: 'hold' }, { t: 3, v: 20 }] };
+    const tr: ResolvedTrack = { keys: [{ t: 1, v: 0 }, { t: 2, v: 10, ease: 'hold' }, { t: 3, v: 20 }] };
     expect(sampleTrack(tr, 0, 0, linear)).toBe(0);
     expect(sampleTrack(tr, 0, 1.5, linear)).toBe(5);
     expect(sampleTrack(tr, 0, 2.9, linear)).toBe(10);
