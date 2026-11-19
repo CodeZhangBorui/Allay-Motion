@@ -1,6 +1,6 @@
 // M6b 音频里不依赖 Web Audio 的部分：WAV 编码与校验、FFmpeg 的音频参数、cue 的数值规则、音效事件表的覆盖。
 // 调度、离线混音的确定性在 test:engine（真实的 OfflineAudioContext）；T-EXP-4 在 test:export 和 e2e。
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PRESET_AUDIO_ARGS, PRESET_AUDIO_ENCODER } from '../../apps/desktop/src/main/export/ffmpeg-args';
@@ -8,6 +8,7 @@ import { voiceParams } from '../../apps/desktop/src/renderer/audio/schedule';
 import { encodeWav } from '../../apps/desktop/src/renderer/audio/wav';
 import { AudioWavSchema, EXPORT_PRESETS, MAX_AUDIO_BYTES, readWavInfo } from '../../apps/desktop/src/shared/export';
 import { SOUND_EVENTS } from '../../packages/assets/src/index';
+import { templateDirs } from '../../scripts/build-templates';
 
 describe('M6b WAV', () => {
   it('encodeWav：48 kHz 立体声 16 位 PCM，样本交错、钳制、四舍五入；readWavInfo 读回格式', () => {
@@ -55,11 +56,10 @@ describe('M6b cue 的数值规则', () => {
 
 describe('M6b 音效事件表', () => {
   it('内置模板 sound 参数的默认值都在事件表里（下载原版资源时一并取回的就是这张表）', () => {
-    const dir = join(import.meta.dirname, '../../packages/templates');
     const defaults: string[] = [];
-    for (const name of readdirSync(dir, { withFileTypes: true })) {
-      if (!name.isDirectory()) continue;
-      const manifest = JSON.parse(readFileSync(join(dir, name.name, 'manifest.json'), 'utf8')) as { params?: { type: string; default: unknown }[] };
+    // 有 manifest 的目录才是模板：共用的 _lib 和还没实现的骨架目录不算
+    for (const dir of templateDirs()) {
+      const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { params?: { type: string; default: unknown }[] };
       for (const p of manifest.params ?? []) if (p.type === 'sound' && typeof p.default === 'string') defaults.push(p.default);
     }
     expect(defaults.length).toBeGreaterThan(0);
