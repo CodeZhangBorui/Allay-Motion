@@ -157,14 +157,16 @@ const template: TemplateModule = {
     const outLen = outEnd - outStart;
     const lag = 1 - overlap;
 
-    // 音效：在最多 12 个均匀抽样的方块起始时刻放（4.10）
+    // 音效：在最多 12 个均匀抽样的方块起始时刻放（4.10）。
+    // 声源位置（空间音效，宿主开关）：舞台半宽当作 8 格，听者站在画面正前方 6 格
+    const toBlocks = 8 / (stage.width / 2);
     const sampleCues = (sound: ParamValue | undefined, u: Float64Array, start: number, len: number) => {
       if (typeof sound !== 'string') return;
-      const sorted = Array.from(u).sort((a, b) => a - b);
-      const k = Math.min(12, sorted.length);
+      const order = Array.from(u, (_, i) => i).sort((a, b) => u[a]! - u[b]! || a - b);
+      const k = Math.min(12, order.length);
       for (let j = 0; j < k; j++) {
-        const idx = k === 1 ? 0 : Math.round((j * (sorted.length - 1)) / (k - 1));
-        ctx.audio.cue(sound, start + sorted[idx]! * lag * len, { gain: volume });
+        const i = order[k === 1 ? 0 : Math.round((j * (order.length - 1)) / (k - 1))]!;
+        ctx.audio.cue(sound, start + u[i]! * lag * len, { gain: volume, position: { x: px[i]! * toBlocks, y: py[i]! * toBlocks, z: -6 } });
       }
     };
     sampleCues(params.placeSound, uIn, inStart, inLen);

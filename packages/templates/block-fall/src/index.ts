@@ -186,14 +186,16 @@ const template: TemplateModule = {
     const outLen = outEnd - outStart;
     const fallPart = bounce > 0 ? FALL_PART : 1;
 
-    // 音效：在最多 12 个均匀抽样的方块落地时刻放 placeSound，散落开始时刻放 breakSound（同 T1 的抽样）
+    // 音效：在最多 12 个均匀抽样的方块落地时刻放 placeSound，散落开始时刻放 breakSound（同 T1 的抽样）。
+    // 声源位置（空间音效，宿主开关）：舞台半宽当作 8 格，听者站在画面正前方 6 格
+    const toBlocks = 8 / (W / 2);
     const sampleCues = (sound: ParamValue | undefined, times: number[]) => {
       if (typeof sound !== 'string') return;
-      times.sort((a, b) => a - b);
-      const k = Math.min(12, times.length);
+      const order = times.map((_, i) => i).sort((a, b) => times[a]! - times[b]! || a - b);
+      const k = Math.min(12, order.length);
       for (let j = 0; j < k; j++) {
-        const idx = k === 1 ? 0 : Math.round((j * (times.length - 1)) / (k - 1));
-        ctx.audio.cue(sound, times[idx]!, { gain: volume });
+        const i = order[k === 1 ? 0 : Math.round((j * (order.length - 1)) / (k - 1))]!;
+        ctx.audio.cue(sound, times[i]!, { gain: volume, position: { x: px[i]! * toBlocks, y: py[i]! * toBlocks, z: -6 } });
       }
     };
     sampleCues(params.placeSound, Array.from(startIn, (u) => inStart + (u + IN_SPAN * fallPart) * inLen));
