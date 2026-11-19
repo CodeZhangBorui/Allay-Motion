@@ -5,6 +5,7 @@ export * from './easing';
 export { ScrubNumberField, SliderField, decimalsOf, type ScrubNumberFieldProps } from './ScrubNumberField';
 export { ColorField, type ColorFieldProps } from './ColorField';
 export { EasingField, type EasingFieldProps } from './EasingField';
+export { FontField, type FontFieldProps, type FontValue } from './FontField';
 export { AngleField, BooleanField, DurationField, EnumField, PatternField, SeedField, TextField, randomSeed, type EnumOption } from './fields';
 export { BlockListField, TextureField, type BlockListEntry } from './listFields';
 export { BlockPicker, ItemPicker, ResourcePickerPopover, ResourceThumb, entryName } from './ResourcePicker';

@@ -721,6 +721,35 @@
       "roll": "New random seed",
       "rollHint": "New random seed (R)"
     },
+    "font": {
+      "style": "Text style",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strikethrough": "Strikethrough",
+      "shadow": "Shadow",
+      "outline": "Outline",
+      "outlineColor": "Outline color",
+      "outlineHint": "Traced in all eight directions, like text on a glowing sign",
+      "outlineNoShadow": "Outlined text has no shadow, as in the game",
+      "import": "Import font…",
+      "missing": "Imported font not found",
+      "gameHint": "Read from the resource stack (vanilla assets or resource packs); falls back to the built-in pixel font",
+      "builtinHint": "Openly licensed pixel font that ships with the app",
+      "groups": { "game": "Game fonts", "builtin": "Built-in", "user": "Imported" },
+      "families": {
+        "default": "Default",
+        "uniform": "Unicode font (Unifont)",
+        "alt": "Standard Galactic Alphabet",
+        "illageralt": "Illager script",
+        "fallback": "Ark Pixel"
+      },
+      "importError": {
+        "unsupported": "This font file isn't recognized. TTF, OTF, WOFF, WOFF2 and BDF are supported.",
+        "too-large": "The font file is over 32 MB and wasn't imported.",
+        "unreadable": "The font file couldn't be read."
+      }
+    },
     "angle": {
       "hint": "Drag the dial to set the direction; hold Shift to snap to 15°"
     },
