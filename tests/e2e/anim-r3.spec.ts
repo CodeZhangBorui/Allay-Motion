@@ -441,3 +441,36 @@ test('T-ANIM-29 形状：加一个椭圆，改成径向渐变、加描边、换�
   await ready(page);
   expect(await hash(page, 1)).not.toBe(stroked);
 });
+
+test('T-ANIM-30 图片图层：加一个，空的时候不画；代码里写上贴图 ID 后画出来；打开九宫格、换宽度，画面跟着变', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  await ready(page);
+  const before = await hash(page, 1);
+  await page.getByTestId('anim-add-layer').click();
+  await page.getByTestId('anim-add-image').click();
+  type L = { type: string; image?: string; nineSlice?: number[]; width?: number };
+  const last = async () => (await docJson(page)).layers.at(-1) as L;
+  await expect.poll(async () => (await last()).type).toBe('image');
+  await expect(page.getByTestId('anim-layer-image')).toBeVisible();
+  await ready(page);
+  expect(await hash(page, 1)).toBe(before);
+  // 代码里写上贴图（没有原版素材时画占位图）
+  const text = ((await dispatch(page, 'animGet')) as { text: string }).text;
+  const r = (await dispatch(page, 'animSetText', { text: text.replace('"image": ""', '"image": "minecraft:gui/sprites/widget/button"') })) as { ok: boolean };
+  expect(r.ok).toBe(true);
+  await expect.poll(async () => (await last()).image).toBe('minecraft:gui/sprites/widget/button');
+  await ready(page);
+  const drawn = await hash(page, 1);
+  expect(drawn).not.toBe(before);
+  await page.getByTestId('anim-image-nine').click();
+  await expect.poll(async () => (await last()).nineSlice).toEqual([4, 4, 4, 4]);
+  await page.getByTestId('anim-image-width').getByRole('textbox').fill('600');
+  await page.getByTestId('anim-image-width').getByRole('textbox').press('Enter');
+  await expect.poll(async () => (await last()).width).toBe(600);
+  await ready(page);
+  expect(await hash(page, 1)).not.toBe(drawn);
+});

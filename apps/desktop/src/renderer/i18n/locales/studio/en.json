@@ -134,7 +134,8 @@
       "rect": "Rectangle",
       "group": "Group",
       "ellipse": "Ellipse",
-      "line": "Line"
+      "line": "Line",
+      "image": "Image"
     },
     "layers": {
       "title": "Layers",
@@ -225,7 +226,18 @@
         "add": "Add",
         "multiply": "Multiply",
         "screen": "Screen"
-      }
+      },
+      "image": "Image",
+      "nineSlice": "Nine-slice",
+      "nineBorder": "Border",
+      "sides": {
+        "left": "Left",
+        "top": "Top",
+        "right": "Right",
+        "bottom": "Bottom"
+      },
+      "pixelSize": "Pixel size",
+      "imageHint": "Pick a vanilla texture or GUI sprite, or import a picture from this computer (PNG, JPEG, WebP). Nine-slice keeps the border of panels and buttons sharp when stretched; borders are in texture pixels."
     },
     "propNames": {
       "x": "X",

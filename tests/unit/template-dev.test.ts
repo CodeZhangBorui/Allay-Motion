@@ -258,6 +258,21 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
     expect(await analyzeTemplateCode(bundle!.code)).toEqual([]);
   });
 
+  it('T-ANIM-30 转为模板时图片图层的本机图片复制进 assets/，文档里换成 asset: 引用；读不出的图片拒绝转换', async () => {
+    const { AnimationDocSchema, newAnimationDoc, serializeAnimation } = await import('../../apps/desktop/src/shared/animation/schema');
+    const img = join(base, 'pic.png');
+    writeFileSync(img, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 1, 2, 3]));
+    const ref = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+    const doc = AnimationDocSchema.parse({ ...newAnimationDoc('Pic'), layers: [{ id: 'pic', name: 'P', type: 'image', image: `file:${ref}`, props: {} }] });
+    expect(await dev.createFromAnimation(serializeAnimation(doc), () => null)).toMatchObject({ ok: false, error: 'invalid' });
+    const r = await dev.createFromAnimation(serializeAnimation(doc), (x) => (x === ref ? img : null));
+    if (!r.ok) throw new Error(r.error);
+    const dir = svc.userTemplateDir(r.entry.id, '1.0.0')!;
+    expect(readFileSync(join(dir, 'assets', 'image-pic.png'))).toEqual(readFileSync(img));
+    expect(JSON.parse(readFileSync(join(dir, 'animation.json'), 'utf8')).layers[0].image).toBe('asset:image-pic.png');
+    expect(await svc.readAsset({ id: r.entry.id, version: '1.0.0' }, 'image-pic.png')).not.toBeNull();
+  });
+
   it('复制出来的每个内置模板，按写进去的 jsconfig 做 checkJs：除了已知的一处都没有错误', async () => {
     const options = { ...ts.convertCompilerOptionsFromJson(TEMPLATE_JSCONFIG.compilerOptions, base).options, allowJs: true, noEmit: true };
     // 已知的例外：T3 的源码里有 `tex.image as { width?: number; height?: number }`，打包时类型断言被去掉了，

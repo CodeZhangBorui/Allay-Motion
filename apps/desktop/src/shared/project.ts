@@ -3,7 +3,7 @@
 // 主进程保存时换成 files 里的本机路径，打开时再签发新的引用（1.6 第 6 条）。
 import { TemplateIdSchema } from '@allay/template-sdk';
 import { z } from 'zod';
-import { AnimationDocSchema } from './animation/schema';
+import { AnimationDocSchema, LAYER_ID_RE } from './animation/schema';
 import { DEFAULT_KEY_COLOR, ExportPresetSchema, KeyColorSchema } from './export';
 
 export const PROJECT_FORMAT_VERSION = 1;
@@ -70,6 +70,8 @@ export const ProjectFileSchema = z.looseObject({
   resourceHint: z.array(z.string().max(200)).max(64).catch([]).default([]),
   /** 自建动画；坏了时整个工程打不开（catch 成 undefined 会把动画工程当成缺了模板的普通工程） */
   animation: AnimationDocSchema.optional(),
+  /** 自建动画里图片图层用的本机图片：图层 id → 本机路径（同 files，文档里存成空，打开时重新签发引用；第三轮） */
+  animationFiles: z.record(z.string().regex(LAYER_ID_RE), z.string().max(4096)).catch({}).default({}),
 });
 export type ProjectFile = z.infer<typeof ProjectFileSchema>;
 

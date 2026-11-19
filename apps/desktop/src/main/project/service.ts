@@ -133,6 +133,23 @@ export class ProjectService {
         missingFiles.push(key);
       }
     }
+    // animationFiles：图片图层的本机图片，规则同 files（丢了的图层不画图片，并提示图层名）
+    let animation = file.animation;
+    if (animation) {
+      const entries = Object.entries(file.animationFiles);
+      if (entries.length > 0) animation = structuredClone(animation);
+      for (const [layerId, p] of entries) {
+        const layer = animation.layers.find((l) => l.id === layerId);
+        if (!layer || layer.type !== 'image' || layer.image !== '') continue;
+        try {
+          const info = await stat(p);
+          if (!info.isFile()) throw new Error('not a file');
+          layer.image = `file:${this.opts.grants.grant(p)}`;
+        } catch {
+          missingFiles.push(layer.name);
+        }
+      }
+    }
     const name = basename(path, extname(path));
     const handle = this.register(path);
     await this.remember(path);
@@ -145,7 +162,7 @@ export class ProjectService {
       preview: file.preview,
       audio: file.audio,
       resourceHint: file.resourceHint,
-      ...(file.animation ? { animation: file.animation } : {}),
+      ...(animation ? { animation } : {}),
     };
     return { ok: true, handle, name, data, missingFiles };
   }
@@ -185,6 +202,20 @@ export class ProjectService {
         const p = this.opts.grants.resolve(m[1]!);
         if (p) files[key] = p;
       }
+      // 图片图层的 file: 引用：文档里存成空，路径记进 animationFiles（引用只在这次运行有效）
+      let animation = data.animation;
+      const animationFiles: Record<string, string> = {};
+      if (animation?.layers.some((l) => l.type === 'image' && typeof l.image === 'string' && l.image.startsWith('file:'))) {
+        animation = structuredClone(animation);
+        for (const l of animation.layers) {
+          if (l.type !== 'image' || typeof l.image !== 'string') continue;
+          const m = FILE_REF.exec(l.image);
+          if (!m) continue;
+          const p = this.opts.grants.resolve(m[1]!);
+          if (p) animationFiles[l.id] = p;
+          l.image = '';
+        }
+      }
       const file = {
         formatVersion: PROJECT_FORMAT_VERSION,
         appVersion: this.opts.appVersion,
@@ -198,7 +229,8 @@ export class ProjectService {
         files,
         resourceHint: data.resourceHint,
         // 自建动画（docs/animation-editor.md 3.3）：旧工程没有这一项
-        ...(data.animation ? { animation: data.animation } : {}),
+        ...(animation ? { animation } : {}),
+        ...(Object.keys(animationFiles).length > 0 ? { animationFiles } : {}),
       };
       try {
         await writeJsonAtomic(path, file);

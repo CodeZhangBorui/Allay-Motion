@@ -134,7 +134,8 @@
       "rect": "矩形",
       "group": "组",
       "ellipse": "椭圆",
-      "line": "线段"
+      "line": "线段",
+      "image": "图片"
     },
     "layers": {
       "title": "图层",
@@ -225,7 +226,18 @@
         "add": "相加",
         "multiply": "正片叠底",
         "screen": "滤色"
-      }
+      },
+      "image": "图片",
+      "nineSlice": "九宫格",
+      "nineBorder": "边框",
+      "sides": {
+        "left": "左",
+        "top": "上",
+        "right": "右",
+        "bottom": "下"
+      },
+      "pixelSize": "像素大小",
+      "imageHint": "可以选原版贴图、GUI 精灵，或导入本机图片（PNG、JPEG、WebP）。九宫格让面板、按钮拉伸时边框不变形，边框按贴图像素算。"
     },
     "propNames": {
       "x": "X",

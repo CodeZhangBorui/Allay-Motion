@@ -23,6 +23,7 @@ import {
   SoundField,
   SpatialAudioRow,
   TextField,
+  TextureField,
   type EasingValue,
   type FontValue,
 } from '@allay/ui/editor';
@@ -208,6 +209,9 @@ function ParamDefault({ p }: { p: AnimParam }) {
       return <FontField value={fullFont(p.default as Partial<FontValue>)} onChange={(v) => set(v)} label={label} testId={`anim-param-default-${p.key}`} />;
     case 'sound':
       return <SoundField value={p.default} onChange={(v) => v && set(v)} label={label} testId={`anim-param-default-${p.key}`} />;
+    case 'texture':
+      // 参数的默认值只能是资源栈里的贴图（本机图片是用户在模板的属性面板里选的）
+      return <TextureField value={p.default} onChange={set} label={label} testId={`anim-param-default-${p.key}`} />;
   }
 }
 
@@ -383,6 +387,7 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
       {(r.type === 'rect' || r.type === 'ellipse' || r.type === 'line') && layer.type === r.type && (
         <ShapeFields layer={layer as ShapeLayer} resolved={r} field={field} bind={bind} set={set} />
       )}
+      {r.type === 'image' && layer.type === 'image' && <ImageFields layer={layer} resolved={r} field={field} bind={bind} set={set} />}
       {r.type !== 'block' && r.type !== 'group' && (
         <Row label={t('anim.props.blend')}>
           <EnumField
@@ -407,7 +412,68 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
   );
 }
 
-type FieldName = 'block' | 'item' | 'text' | 'color' | 'font' | 'size' | 'width' | 'height' | 'radius';
+type FieldName = 'block' | 'item' | 'text' | 'color' | 'font' | 'size' | 'width' | 'height' | 'radius' | 'image';
+
+/**
+ * 图片图层（docs/animation-editor.md 10.13）：从资源栈选贴图（原版贴图、GUI 精灵），或导入本机图片；
+ * 宽高；九宫格（GUI 面板、按钮拉伸时边框不变形）。
+ */
+function ImageFields({
+  layer,
+  resolved: r,
+  field,
+  bind,
+  set,
+}: {
+  layer: Extract<Layer, { type: 'image' }>;
+  resolved: Extract<ResolvedLayer, { type: 'image' }>;
+  field(name: FieldName, value: unknown): void;
+  bind(name: FieldName, label: string): ReactNode;
+  set(patch: Record<string, unknown>): void;
+}) {
+  const { t } = useTranslation();
+  const fileNames = useProjectStore((s) => s.fileNames);
+  const ns = layer.nineSlice;
+  return (
+    <>
+      <Row label={t('anim.props.image')} bind={bind('image', t('anim.props.image'))}>
+        <TextureField value={r.image} onChange={(v) => field('image', v)} allowFile={!isParamRef(layer.image)} fileNames={fileNames} label={t('anim.props.image')} testId="anim-layer-image" />
+      </Row>
+      <Row label={t('anim.props.width')} bind={bind('width', t('anim.props.width'))}>
+        <ScrubNumberField value={r.width} min={1} max={8000} step={1} label={t('anim.props.width')} testId="anim-image-width" onChange={(v) => field('width', v)} />
+      </Row>
+      <Row label={t('anim.props.height')} bind={bind('height', t('anim.props.height'))}>
+        <ScrubNumberField value={r.height} min={1} max={8000} step={1} label={t('anim.props.height')} onChange={(v) => field('height', v)} />
+      </Row>
+      <Row label={t('anim.props.nineSlice')}>
+        <Switch checked={!!ns} onCheckedChange={(on) => set({ nineSlice: on ? [4, 4, 4, 4] : undefined })} aria-label={t('anim.props.nineSlice')} data-testid="anim-image-nine" />
+      </Row>
+      {ns && (
+        <>
+          <Row label={t('anim.props.nineBorder')}>
+            <div className="grid grid-cols-4 gap-[5px]">
+              {(['left', 'top', 'right', 'bottom'] as const).map((side, i) => (
+                <ScrubNumberField
+                  key={side}
+                  value={ns[i]!}
+                  min={0}
+                  max={512}
+                  step={1}
+                  label={t(`anim.props.sides.${side}`)}
+                  onChange={(v) => set({ nineSlice: ns.map((x, j) => (j === i ? Math.round(v) : x)) })}
+                />
+              ))}
+            </div>
+          </Row>
+          <Row label={t('anim.props.pixelSize')}>
+            <ScrubNumberField value={layer.pixelSize} min={0.25} max={100} step={0.25} label={t('anim.props.pixelSize')} onChange={(v) => set({ pixelSize: v })} />
+          </Row>
+        </>
+      )}
+      <p className="pt-1 text-xs leading-snug text-fg-subtle">{t('anim.props.imageHint')}</p>
+    </>
+  );
+}
 type ShapeLayer = Extract<Layer, { type: 'rect' | 'ellipse' | 'line' }>;
 
 /** 形状（矩形、椭圆、线段）的大小、圆角、填充（纯色或渐变）、描边、线端（docs/animation-editor.md 10.12） */

@@ -254,7 +254,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   // 内嵌代码编辑（只写用户模板的 template.js）与自建动画转为模板（2026-11）
   handle(IPC.templates.readSource, (_event, id, version) => templateDev.readSource({ id, version }));
   handle(IPC.templates.writeSource, (_event, req) => templateDev.writeSource(req));
-  handle(IPC.templates.createFromAnimation, (_event, req) => templateDev.createFromAnimation(req.text));
+  handle(IPC.templates.createFromAnimation, (_event, req) => templateDev.createFromAnimation(req.text, (ref) => grants.resolve(ref)));
 
   // ---- 代码窗口（来源：open/close/publish 只认主窗口，send 只认代码窗口，见 ipc-guard.ts）----
   handle(IPC.codeWindow.open, () => codeWindow.open());

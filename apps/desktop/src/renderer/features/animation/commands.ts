@@ -42,6 +42,8 @@ export function defaultLayer(type: LayerType, id: string): Layer {
       return LayerSchema.parse({ id, name, type, width: 240, height: 240, props: {} });
     case 'line':
       return LayerSchema.parse({ id, name, type, width: 400, height: 12, props: {} });
+    case 'image':
+      return LayerSchema.parse({ id, name, type, image: '', width: 256, height: 256, props: {} });
     case 'group':
       return LayerSchema.parse({ id, name, type, props: {} });
   }

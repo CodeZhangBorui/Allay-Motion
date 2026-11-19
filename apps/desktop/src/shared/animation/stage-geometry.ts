@@ -98,6 +98,7 @@ export function layerExtent(layer: ResolvedLayer, rotX: number, rotY: number): {
     case 'rect':
     case 'ellipse':
     case 'line':
+    case 'image':
       return { hw: layer.width / 2, hh: layer.height / 2 };
     default:
       // 组：画一个小方框表示它的原点

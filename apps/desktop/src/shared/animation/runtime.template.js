@@ -448,6 +448,16 @@ async function createAnimation(ctx, source) {
         blendObject(text.object, def.blend);
         holder.add(text.object);
         setOpacity = (o) => text.setOpacity(o);
+      } else if (def.type === 'image') {
+        // 图片（第三轮）：没选图片时不画
+        if (def.image) {
+          const tex = await ctx.resources.texture(def.image);
+          const sprite = ctx.sprite.create(tex, def.nineSlice ? { nineSlice: def.nineSlice, pixelSize: def.pixelSize } : { pixelSize: def.pixelSize });
+          sprite.setSize(def.width, def.height);
+          blendObject(sprite.object, def.blend);
+          holder.add(sprite.object);
+          setOpacity = (o) => sprite.setOpacity(o);
+        } else setOpacity = () => undefined;
       } else {
         setOpacity = shapeMeshes(def, index, holder);
       }

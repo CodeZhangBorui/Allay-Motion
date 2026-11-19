@@ -394,7 +394,7 @@ export class TemplateService {
    * 用一组文本文件建一个新的用户模板（自建动画转为模板，2026-11）：manifest.json 必须合法，id 不得重复、不得以 allay. 开头。
    * 版本由 manifest 决定。template.js 的静态检查由调用方做。
    */
-  createUser(files: Readonly<Record<string, string>>): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: 'invalid' | 'bad-id'; detail?: string }> {
+  createUser(files: Readonly<Record<string, string>>, assets: readonly { name: string; bytes: Uint8Array }[] = []): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: 'invalid' | 'bad-id'; detail?: string }> {
     return this.serial(async () => {
       const manifestText = files['manifest.json'];
       if (manifestText === undefined || files['template.js'] === undefined) return { ok: false, error: 'invalid', detail: 'manifest.json and template.js are required' };
@@ -407,6 +407,11 @@ export class TemplateService {
       await this.guard(id, version, async () => {
         await mkdir(dir, { recursive: true });
         for (const [name, text] of Object.entries(files)) await writeFile(join(dir, name), text, 'utf8');
+        // 图片图层用的本机图片（第三轮）：复制进 assets/，文档里已改成 asset: 引用
+        if (assets.length > 0) {
+          await mkdir(join(dir, 'assets'), { recursive: true });
+          for (const a of assets) await writeFile(join(dir, 'assets', a.name), a.bytes);
+        }
       });
       await writeJsonAtomic(this.metaFile(id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [], createdFrom: 'animation' });
       const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };

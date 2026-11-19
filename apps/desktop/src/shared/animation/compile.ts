@@ -39,6 +39,8 @@ export function manifestParamOf(p: AnimParam): Record<string, unknown> {
       return { ...base, type: 'duration', default: p.default, min: p.min, max: p.max };
     case 'text':
       return { ...base, type: 'text', default: p.default, maxLength: 500, ...(p.multiline ? { multiline: true } : {}) };
+    case 'texture':
+      return { ...base, type: 'texture', default: p.default, allowFile: true };
     default:
       return { ...base, type: p.type, default: p.default };
   }

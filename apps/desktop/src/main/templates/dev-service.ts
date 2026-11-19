@@ -11,7 +11,7 @@ import { TEMPLATE_API_DTS_NAME, TEMPLATE_JSCONFIG_NAME, templateJsconfigText } f
 import type { CreateFromAnimationResult, ReadSourceResult, TemplateDevChange, TemplateDevResult, WriteSourceRequest, WriteSourceResult } from '../../shared/templates';
 import type { Logger } from '../logger';
 import { hashTemplateDir, type TemplateWatcher } from './dev-watcher';
-import type { TemplateService } from './service';
+import { readImageFile, type TemplateService } from './service';
 import type { TemplateEntry } from '../../shared/templates';
 
 export interface TemplateDevServiceOptions {
@@ -176,9 +176,22 @@ export class TemplateDevService {
    * 自建动画转为模板：主进程自己解析和校验动画文档、生成 manifest.json、template.js、animation.json，
    * 新 id 是 user.<6 位随机十六进制>.<名字>，版本 1.0.0。再写好类型定义，方便之后用外部编辑器改。
    */
-  async createFromAnimation(text: string): Promise<CreateFromAnimationResult> {
+  async createFromAnimation(text: string, resolveFile: (ref: string) => string | null = () => null): Promise<CreateFromAnimationResult> {
     const parsed = parseAnimation(text);
     if (!parsed.ok) return { ok: false, error: 'invalid', detail: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ').slice(0, 2000) };
+    // 图片图层的本机图片（file: 引用只在这次运行有效）：读出来复制进模板的 assets/，文档里换成 asset: 引用（同派生模板，4.7）
+    const assets: { name: string; bytes: Uint8Array }[] = [];
+    for (const l of parsed.doc.layers) {
+      if (l.type !== 'image' || typeof l.image !== 'string') continue;
+      const m = /^file:([0-9a-fA-F-]{36})$/.exec(l.image);
+      if (!m) continue;
+      const path = resolveFile(m[1]!);
+      const image = path ? await readImageFile(path) : null;
+      if (!image) return { ok: false, error: 'invalid', detail: `layer "${l.name}": the image cannot be read` };
+      const name = `image-${l.id}.${image.ext}`;
+      assets.push({ name, bytes: image.bytes });
+      l.image = `asset:${name}`;
+    }
     const slug = parsed.doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'animation';
     const ref = { id: `user.${randomBytes(3).toString('hex')}.${slug}`, version: '1.0.0' };
     const files = animationTemplateFiles(parsed.doc, ref);
@@ -187,7 +200,7 @@ export class TemplateDevService {
     } catch (error) {
       return { ok: false, error: 'invalid', detail: error instanceof Error ? error.message.slice(0, 2000) : 'invalid code' };
     }
-    const created = await this.opts.templates.createUser(files);
+    const created = await this.opts.templates.createUser(files, assets);
     if (!created.ok) return { ok: false, error: created.error === 'bad-id' ? 'io' : 'invalid', ...(created.detail ? { detail: created.detail } : {}) };
     const dev = await this.writeDevFiles(ref);
     if (!dev.ok) this.opts.log.warn('templates', 'could not write dev files for animation template', { id: ref.id, error: dev.error });

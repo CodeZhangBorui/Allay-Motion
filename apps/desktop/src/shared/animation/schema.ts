@@ -2,7 +2,7 @@
 // 可视化编辑和代码编辑改的都是它；预览、导出、“转为模板”都从它生成一份普通的模板代码（compile.ts），
 // 经与内置模板、用户模板同一条装载路径交给引擎 Worker（AGENTS.md 硬性规则 2、3、5）。
 // 文件、进程、线程边界都用这里的 zod schema 校验。
-import { EASING_NAMES, FontDefaultSchema, isResourceId, LocalizedStringSchema, PARAM_KEY_RE } from '@allay/template-sdk';
+import { EASING_NAMES, FILE_REF_RE, FontDefaultSchema, isAssetRef, isResourceId, LocalizedStringSchema, PARAM_KEY_RE } from '@allay/template-sdk';
 import { z } from 'zod';
 import { PathSchema } from './path';
 
@@ -21,6 +21,10 @@ export const MAX_KEYS = 256;
 const finite = z.number().refine(Number.isFinite, 'must be a finite number');
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'must be #RRGGBB');
 const resourceId = z.string().max(256).refine(isResourceId, 'must be a resource id like minecraft:stone');
+/** 贴图：资源栈里的贴图 ID（minecraft:block/stone、minecraft:gui/sprites/…）、模板包里的 asset:路径，或空（不画） */
+const textureRef = z.string().max(256).refine((v) => v === '' || isResourceId(v) || isAssetRef(v), 'must be a texture id, asset:path or empty');
+/** 图片图层还可以是用户选的本机图片（file:引用，这次运行签发的；工程保存时记下路径，打开时重新签发） */
+const imageRef = z.string().max(256).refine((v) => v === '' || isResourceId(v) || isAssetRef(v) || FILE_REF_RE.test(v), 'must be a texture id, asset:path, file reference or empty');
 
 /** 缓动：预设名、三次贝塞尔控制点，或 hold（保持到下一个关键帧再跳变） */
 export const AnimEasingSchema = z.union([z.enum(EASING_NAMES), z.literal('hold'), z.tuple([finite, finite, finite, finite])]);
@@ -125,7 +129,7 @@ const LayerBase = {
   path: PathSchema.optional(),
 };
 
-export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'ellipse', 'line', 'group'] as const;
+export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'ellipse', 'line', 'image', 'group'] as const;
 
 // ---- 形状的填充、描边，和混合方式（第三轮）----
 
@@ -181,6 +185,20 @@ export const LayerSchema = z.discriminatedUnion('type', [
     cap: z.enum(['butt', 'round']).default('round'),
     blend,
   }),
+  /**
+   * 图片（第三轮）：原版贴图、GUI 精灵、模板包里的图片或用户选的本机图片，铺成 width × height 的四边形。
+   * nineSlice 是九宫格边框 [左, 上, 右, 下]（贴图像素，GUI 按钮、面板拉伸时边框不变形），pixelSize 是边框一个贴图像素多大
+   */
+  z.strictObject({
+    ...LayerBase,
+    type: z.literal('image'),
+    image: bindable(imageRef),
+    width: bindable(finite.min(1).max(8000)).default(256),
+    height: bindable(finite.min(1).max(8000)).default(256),
+    nineSlice: z.tuple([z.int().min(0).max(512), z.int().min(0).max(512), z.int().min(0).max(512), z.int().min(0).max(512)]).optional(),
+    pixelSize: finite.min(0.25).max(100).default(8),
+    blend,
+  }),
   /** 组（空对象）：只有变换，不画任何东西；子图层用 parent 指向它 */
   z.strictObject({ ...LayerBase, type: z.literal('group') }),
 ]);
@@ -207,7 +225,7 @@ const paramBase = {
   label: LocalizedStringSchema,
   group: z.string().max(64).optional(),
 };
-export const ANIM_PARAM_TYPES = ['number', 'duration', 'block', 'item', 'text', 'color', 'font', 'sound'] as const;
+export const ANIM_PARAM_TYPES = ['number', 'duration', 'block', 'item', 'text', 'color', 'font', 'sound', 'texture'] as const;
 export type AnimParamType = (typeof ANIM_PARAM_TYPES)[number];
 export const AnimParamSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...paramBase, type: z.literal('number'), default: finite, min: finite, max: finite, step: finite.positive().optional(), unit: z.string().max(16).optional() }),
@@ -219,6 +237,8 @@ export const AnimParamSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...paramBase, type: z.literal('color'), default: hex }),
   z.strictObject({ ...paramBase, type: z.literal('font'), default: FontDefaultSchema }),
   z.strictObject({ ...paramBase, type: z.literal('sound'), default: resourceId }),
+  /** 贴图参数（第三轮，图片图层用）：转为模板后用户可以从资源栈选，或选本机图片（manifest 里 allowFile） */
+  z.strictObject({ ...paramBase, type: z.literal('texture'), default: textureRef }),
 ]);
 export type AnimParam = z.infer<typeof AnimParamSchema>;
 
@@ -317,6 +337,7 @@ export const BINDABLE_TYPES = {
   color: ['color'],
   font: ['font'],
   sound: ['sound'],
+  texture: ['texture'],
 } as const satisfies Record<string, readonly AnimParamType[]>;
 export type BindingKind = keyof typeof BINDABLE_TYPES;
 
@@ -348,6 +369,11 @@ export function bindingSites(doc: Pick<AnimationDoc, 'duration' | 'layers' | 'so
       at([...base, 'height'], l.height, 'number');
     }
     if (l.type === 'rect') at([...base, 'radius'], l.radius, 'number');
+    if (l.type === 'image') {
+      at([...base, 'image'], l.image, 'texture');
+      at([...base, 'width'], l.width, 'number');
+      at([...base, 'height'], l.height, 'number');
+    }
     if (l.type === 'block' || l.type === 'item' || l.type === 'text') at([...base, 'size'], l.size, 'number');
     for (const [prop, track] of Object.entries(l.props)) {
       if (isParamRef(track)) at([...base, 'props', prop], track, 'number');
