@@ -101,14 +101,15 @@ describe('T-FNT-2 Unifont 的 .hex 解析', () => {
 function fakeDownloader(): VanillaDownloader {
   return {
     findCached: async () => null,
+    listCached: async () => [],
     downloadLatest: async () => {
       throw new DownloadError('offline in tests', 'network');
     },
     fetchObject: async () => {
       throw new Error('no network in tests');
     },
-    fetchSoundObjects: async (_install, ids) => ({ fetched: 0, missing: [...ids] }),
-  } as VanillaDownloader;
+    fetchSoundObjects: async (_install: unknown, ids: readonly string[]) => ({ fetched: 0, missing: [...ids] }),
+  } as unknown as VanillaDownloader;
 }
 
 describe('T-FNT-3 主进程读出 unihex 字形表', () => {

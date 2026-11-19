@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { crc32, deflateSync, inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { decodePng, findBdfGlyph, parseBdf, PngDecodeError } from '../../packages/assets/src/index';

@@ -199,7 +199,8 @@ const template: TemplateModule = {
     const { THREE, stage, scene, params } = ctx;
     const W = stage.width;
     const H = stage.height;
-    const style: Style = STYLES.includes(params.style as Style) ? (params.style as Style) : 'javaClassic';
+    // 不用类型断言：打包后断言会被去掉，复制出来的 template.js 在外部编辑器里会报类型错误（T-DEV-3）
+    const style: Style = STYLES.find((s) => s === params.style) ?? 'javaClassic';
     const blockId = str(params.block, 'minecraft:dirt');
     const dim = Math.min(1, Math.max(0, num(params.dim, 0.25)));
     const title = swapDefault(str(params.title, 'Loading world'), TITLES, style);
@@ -249,8 +250,8 @@ const template: TemplateModule = {
     let ty = new Float64Array(0);
     let count = 0;
     const thresholds: number[] = [];
-    const shader = (frag: string, uniforms: Record<string, { value: unknown }>, blending?: number) => {
-      const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms: { ...uniforms, opacity: { value: 1 } }, transparent: true, depthWrite: false, ...(blending !== undefined ? { blending } : {}) });
+    const shader = (frag: string, uniforms: Record<string, { value: unknown }>) => {
+      const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: frag, uniforms: { ...uniforms, opacity: { value: 1 } }, transparent: true, depthWrite: false });
       disposables.push(mat);
       fades.push((a) => {
         mat.uniforms.opacity!.value = a;
@@ -351,6 +352,8 @@ const template: TemplateModule = {
     };
     /** 界面坐标（左上角为原点）的矩形，颜色 #RRGGBB */
     const materials: InstanceType<typeof THREE.MeshBasicMaterial>[] = [];
+    /** 个别材质的不透明度上限（例如基岩版加载框的 0.6），整体淡入淡出时乘上它 */
+    const materialAlpha = new Map<InstanceType<typeof THREE.MeshBasicMaterial>, number>();
     const rect = (color: string, x0: number, y0: number, x1: number, y1: number, z: number) => {
       const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color.slice(0, 7)), transparent: true, depthWrite: false });
       materials.push(mat);
@@ -367,11 +370,11 @@ const template: TemplateModule = {
       t.object.position.y = H / 2 - yTop * g - t.height / 2;
     };
 
-    let progressFn: (p: number) => void = () => undefined;
+    let progressFn = (_p: number): void => undefined;
     /** javaSplash：进度条的不透明度单独控制 */
     const splashBar: InstanceType<typeof THREE.MeshBasicMaterial>[] = [];
     const splashLogo: { value: number }[] = [];
-    let stackH = 0;
+    let stackH: number;
 
     if (custom) {
       // 标题、副标题、进度条，竖直方向整体居中（规格没给这些尺寸，见 decisions.md M6a）
@@ -548,7 +551,7 @@ const template: TemplateModule = {
       const boxW = 200;
       const boxH = 64;
       const box = rect('#000000', cx - boxW / 2, cy - boxH / 2, cx + boxW / 2, cy + boxH / 2, 0);
-      (box.material as InstanceType<typeof THREE.MeshBasicMaterial>).userData.alpha = 0.6;
+      materialAlpha.set(box.material as InstanceType<typeof THREE.MeshBasicMaterial>, 0.6);
       if (title.trim() !== '') place(makeText(title, titleFont), cx, cy - boxH / 2 + 12);
       const barW = 182;
       const barH = 5;
@@ -635,7 +638,7 @@ const template: TemplateModule = {
         root.position.y = tiles ? 0 : offset;
         front.position.y = tiles ? offset : 0;
         for (const text of texts) text.setOpacity(opacity);
-        for (const mat of materials) mat.opacity = opacity * ((mat.userData.alpha as number | undefined) ?? 1);
+        for (const mat of materials) mat.opacity = opacity * (materialAlpha.get(mat) ?? 1);
         for (const mat of splashBar) mat.opacity = barOpacity;
         for (const u of splashLogo) u.value = opacity;
         // 全景图每游戏刻转 0.1°；末地传送门的 GameTime 是“游戏刻 / 24000”

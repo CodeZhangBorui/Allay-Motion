@@ -115,7 +115,6 @@ describe('T-SND-2 音效来源：原版、资源包改过、资源包新增、�
     const svc = new ResourceService({
       userDataDir: userData,
       builtinDir: join(dir, 'none'),
-      fallbackFontFile: join(dir, 'none.bdf'),
       settings,
       log,
       gameEnv: { platform: 'win32', appData, home: join(dir, 'home') },

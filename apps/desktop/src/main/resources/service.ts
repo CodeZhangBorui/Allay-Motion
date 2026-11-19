@@ -1,7 +1,7 @@
 // 主进程的资源栈服务（docs/03-assets.md 3.2–3.5、01-product-architecture.md 1.8 的 resources 命名空间）。
 // 持有各层、按设置组装资源栈、算 resourceStamp，栈一变就通知渲染进程。不依赖 Electron：对话框由调用方传入。
 import { randomUUID } from 'node:crypto';
-import { readFile, rm, stat } from 'node:fs/promises';
+import { rm, stat } from 'node:fs/promises';
 import { basename, extname, resolve as resolvePath } from 'node:path';
 import {
   buildStack,

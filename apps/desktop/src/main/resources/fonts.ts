@@ -165,7 +165,7 @@ export class UserFontStore {
 
   async list(): Promise<UserFontInfo[]> {
     if (this.index) return [...this.index];
-    let parsed: UserFontInfo[] = [];
+    let parsed: UserFontInfo[];
     try {
       parsed = IndexSchema.parse(JSON.parse(await readFile(join(this.dir, 'index.json'), 'utf8')));
     } catch {

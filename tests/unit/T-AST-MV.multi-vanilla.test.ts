@@ -80,7 +80,6 @@ async function makeService(opts: { cached?: boolean; settings?: (s: SettingsStor
   const svc = new ResourceService({
     userDataDir: userData,
     builtinDir: join(dir, 'no-builtin'),
-    fallbackFontFile: join(dir, 'no-font.bdf'),
     settings,
     log,
     gameEnv: { platform: 'win32', appData, home: join(dir, 'home') },
