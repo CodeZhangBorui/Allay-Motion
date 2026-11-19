@@ -7,9 +7,9 @@ import { json } from '@codemirror/lang-json';
 import { bracketMatching, foldGutter, HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
 import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { Compartment, EditorState, type Extension } from '@codemirror/state';
-import { drawSelection, EditorView, highlightActiveLine, highlightActiveLineGutter, hoverTooltip, keymap, lineNumbers, type Tooltip } from '@codemirror/view';
-import type { CodeViewDiagnostic, CodeViewHandle, CodeViewOptions } from '@allay/host-api';
+import { Compartment, EditorState, RangeSetBuilder, StateEffect, StateField, type Extension } from '@codemirror/state';
+import { Decoration, drawSelection, EditorView, GutterMarker, gutterLineClass, highlightActiveLine, highlightActiveLineGutter, hoverTooltip, keymap, lineNumbers, type DecorationSet, type Tooltip } from '@codemirror/view';
+import type { CodeViewDiagnostic, CodeViewHandle, CodeViewMark, CodeViewOptions } from '@allay/host-api';
 import { tags } from '@lezer/highlight';
 
 /** 颜色只用主程序的变量：中性灰为主，强调色天蓝给关键字（docs/design-direction.md） */
@@ -38,6 +38,47 @@ const theme = EditorView.theme({
   '.cm-hover-doc': { maxWidth: '420px', padding: '6px 9px', fontSize: '11.5px', lineHeight: '1.45' },
   '.cm-hover-doc code': { fontFamily: 'var(--font-num)', color: 'var(--primary-text)', whiteSpace: 'pre-wrap' },
   '.cm-hover-doc p': { margin: '4px 0 0', color: 'var(--fg-muted)' },
+  // 实时预览（2026-11 第二轮）：这一刻在生效的代码。区间是强调色 20% 的底，图层开头一行是更淡的底，行号旁一条强调色
+  '.cm-live-segment': { backgroundColor: 'var(--primary-soft)' },
+  '.cm-live-hold': { backgroundColor: 'color-mix(in srgb, var(--mark) 18%, transparent)' },
+  '.cm-live-edge': { backgroundColor: 'color-mix(in srgb, var(--primary-soft) 55%, transparent)' },
+  '.cm-live-layer': { backgroundColor: 'color-mix(in srgb, var(--control) 70%, transparent)' },
+  '.cm-gutterElement.cm-live-gutter': { color: 'var(--primary-text)', boxShadow: 'inset -2px 0 0 var(--primary)' },
+});
+
+// ---- 实时预览的标记 ----
+
+const setMarksEffect = StateEffect.define<readonly CodeViewMark[]>();
+const liveGutter = new (class extends GutterMarker {
+  override elementClass = 'cm-live-gutter';
+})();
+
+function buildMarks(state: EditorState, marks: readonly CodeViewMark[]): { lines: DecorationSet; gutter: ReturnType<typeof RangeSetBuilder.prototype.finish> } {
+  const perLine = new Map<number, string>();
+  // 先放图层，再放区间：同一行有两种时区间优先
+  const rank: Record<CodeViewMark['kind'], number> = { layer: 0, edge: 1, hold: 2, segment: 3 };
+  for (const m of [...marks].sort((a, b) => rank[a.kind] - rank[b.kind])) {
+    for (let l = Math.max(1, m.line); l <= Math.min(state.doc.lines, m.endLine); l++) perLine.set(l, m.kind);
+  }
+  const lines = new RangeSetBuilder<Decoration>();
+  const gutter = new RangeSetBuilder<GutterMarker>();
+  for (const l of [...perLine.keys()].sort((a, b) => a - b)) {
+    const from = state.doc.line(l).from;
+    lines.add(from, from, Decoration.line({ class: `cm-live-${perLine.get(l)!}` }));
+    gutter.add(from, from, liveGutter);
+  }
+  return { lines: lines.finish(), gutter: gutter.finish() };
+}
+
+const liveField = StateField.define<{ lines: DecorationSet; gutter: ReturnType<typeof RangeSetBuilder.prototype.finish>; marks: readonly CodeViewMark[] }>({
+  create: () => ({ lines: Decoration.none, gutter: new RangeSetBuilder<GutterMarker>().finish(), marks: [] }),
+  update(value, tr) {
+    let marks = value.marks;
+    for (const e of tr.effects) if (e.is(setMarksEffect)) marks = e.value;
+    if (marks === value.marks && !tr.docChanged) return value;
+    return { ...buildMarks(tr.state, marks), marks };
+  },
+  provide: (f) => [EditorView.decorations.from(f, (v) => v.lines), gutterLineClass.from(f, (v) => v.gutter)],
 });
 
 const highlight = HighlightStyle.define([
@@ -76,6 +117,7 @@ export interface Editor extends CodeViewHandle {
 export function createEditor(container: HTMLElement, options: CodeViewOptions, extras: EditorExtras = {}): Editor {
   const readOnly = new Compartment();
   let silent = false;
+  const hostHistory = !!options.onUndo && !!options.onRedo;
   const save = () => {
     options.onSave?.(view.state.doc.toString());
     return true;
@@ -85,7 +127,9 @@ export function createEditor(container: HTMLElement, options: CodeViewOptions, e
     highlightActiveLineGutter(),
     foldGutter(),
     lintGutter(),
-    history(),
+    // 宿主管撤销时编辑器自己不记（代码窗口与主窗口共用一份历史）
+    ...(hostHistory ? [] : [history()]),
+    liveField,
     drawSelection(),
     indentOnInput(),
     bracketMatching(),
@@ -98,7 +142,32 @@ export function createEditor(container: HTMLElement, options: CodeViewOptions, e
     autocompletion(extras.completion ? { override: [extras.completion], icons: false } : { icons: false }),
     ...(extras.hover ? [hoverTooltip((view, pos) => extras.hover!(view, pos))] : []),
     readOnly.of([EditorState.readOnly.of(options.readOnly ?? false), EditorView.editable.of(!(options.readOnly ?? false))]),
-    keymap.of([{ key: 'Mod-s', run: save, preventDefault: true }, ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
+    keymap.of([
+      { key: 'Mod-s', run: save, preventDefault: true },
+      ...(hostHistory
+        ? [
+            { key: 'Mod-z', run: () => (options.onUndo!(), true), preventDefault: true },
+            { key: 'Mod-Shift-z', run: () => (options.onRedo!(), true), preventDefault: true },
+            { key: 'Mod-y', run: () => (options.onRedo!(), true), preventDefault: true },
+          ]
+        : historyKeymap),
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      ...searchKeymap,
+      ...completionKeymap,
+      indentWithTab,
+    ]),
+    ...(options.onPick
+      ? [
+          EditorView.domEventHandlers({
+            mouseup: (_e, view) => {
+              const sel = view.state.selection.main;
+              if (sel.empty) options.onPick!(sel.head);
+              return false;
+            },
+          }),
+        ]
+      : []),
     EditorView.contentAttributes.of({ 'aria-label': options.label }),
     EditorView.updateListener.of((u) => {
       if (u.docChanged && !silent) options.onChange?.(u.state.doc.toString());
@@ -124,6 +193,12 @@ export function createEditor(container: HTMLElement, options: CodeViewOptions, e
     },
     focus() {
       view.focus();
+    },
+    setMarks(marks, reveal) {
+      const effects: StateEffect<unknown>[] = [setMarksEffect.of(marks)];
+      const first = marks.find((m) => m.kind !== 'layer') ?? marks[0];
+      if (reveal && first && first.line <= view.state.doc.lines) effects.push(EditorView.scrollIntoView(view.state.doc.line(first.line).from, { y: 'center' }));
+      view.dispatch({ effects });
     },
     dispose() {
       view.destroy();

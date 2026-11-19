@@ -1,7 +1,11 @@
 // 设置里的“开发”一页（docs/06-ui-design.md 6.15）：开发模式开关和它的说明、可选模块的开关。
 // 可选模块只按目录名列出（主程序不认识具体的模块）；开发模式关着时它们都不加载。
+import { Button } from '@allay/ui/components/button';
 import { Switch } from '@allay/ui/components/switch';
+import { EnumField } from '@allay/ui/editor';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { CodeEditorKind, EditorInfo } from '../../../shared/code-window';
 import { useUiStore } from '../../stores/uiStore';
 import { SettingsPageHeader, SettingsRow, SettingsSection } from '../settings/layout';
 import { setDevMode } from './devMode';
@@ -10,6 +14,37 @@ import { setDevMode } from './devMode';
 let availableModules: readonly string[] = [];
 export function setAvailableModules(ids: readonly string[]): void {
   availableModules = ids;
+}
+
+/** 打开动画代码用什么（docs/animation-editor.md 9.4）：程序只由主进程的对话框选，这里只看到文件名 */
+function CodeEditorChoice() {
+  const { t } = useTranslation();
+  const [info, setInfo] = useState<EditorInfo | null>(null);
+  useEffect(() => void window.allay.editors.get().then(setInfo), []);
+  if (!info) return null;
+  const kinds: CodeEditorKind[] = ['builtin', 'system', 'custom'];
+  return (
+    <SettingsSection title={t('devMode.settings.editorTitle')} description={t('devMode.settings.editorHint')} testId="settings-code-editor">
+      <SettingsRow label={t('devMode.settings.editorKind')}>
+        <div className="w-72">
+          <EnumField
+            value={info.kind}
+            label={t('devMode.settings.editorKind')}
+            testId="settings-code-editor-kind"
+            options={kinds.map((k) => ({ value: k, label: t(`devMode.settings.editorKinds.${k}`) }))}
+            onChange={(v) => void window.allay.editors.setKind(v as CodeEditorKind).then(setInfo)}
+          />
+        </div>
+      </SettingsRow>
+      {info.kind === 'custom' && (
+        <SettingsRow label={t('devMode.settings.editorProgram')} hint={info.programName ?? t('devMode.settings.editorNoProgram')}>
+          <Button variant="secondary" data-testid="settings-code-editor-choose" onClick={() => void window.allay.editors.chooseProgram().then(setInfo)}>
+            {t('devMode.settings.editorChoose')}
+          </Button>
+        </SettingsRow>
+      )}
+    </SettingsSection>
+  );
 }
 
 export function DevSettingsPage() {
@@ -32,6 +67,7 @@ export function DevSettingsPage() {
           <li>{t('devMode.settings.where4')}</li>
         </ul>
       </SettingsSection>
+      <CodeEditorChoice />
       <SettingsSection title={t('devMode.settings.modulesTitle')} description={t('devMode.settings.modulesHint')} testId="settings-optional-modules">
         {availableModules.length === 0 ? (
           <p className="py-2 text-xs text-fg-subtle">{t('devMode.settings.noModules')}</p>

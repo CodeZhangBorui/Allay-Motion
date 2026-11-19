@@ -9,13 +9,16 @@ import { AnimCodePanel } from './AnimCodePanel';
 import { AnimPropsPanel, AnimPropsActions } from './AnimPropsPanel';
 import { LayersActions, LayersPanel } from './LayersPanel';
 import { useAnimationUi } from './uiState';
+import { startCodeWindowBridge } from './codeWindow';
 
 export { ANIMATION_COMMANDS } from './commands';
 
 export const ANIMATION_MENU_ITEMS: MenuItemDef[] = [
   { id: 'file.newAnimation', menu: 'file', group: 0, order: 1, command: 'animNew', testId: 'menu-anim-new' },
   { id: 'file.animConvert', menu: 'file', group: 2, order: 3, command: 'animConvertToTemplate', testId: 'menu-anim-convert' },
-  { id: 'view.animCode', menu: 'view', group: 3, order: 1, command: 'animToggleCode', testId: 'menu-anim-code' },
+  { id: 'view.animCodeWindow', menu: 'view', group: 3, order: 1, command: 'animOpenCodeWindow', testId: 'menu-anim-code-window' },
+  { id: 'view.animExternal', menu: 'view', group: 3, order: 2, command: 'animOpenExternal', testId: 'menu-anim-external' },
+  { id: 'view.animCode', menu: 'view', group: 3, order: 3, command: 'animToggleCode', testId: 'menu-anim-code' },
 ];
 
 export function useAnimationActive(): boolean {
@@ -44,6 +47,7 @@ function applyCodePanel(active: boolean, codeOpen: boolean): void {
 
 /** 启动时调用一次（core.tsx）：之后跟着工作区模式和“动画代码”面板的开关变 */
 export function startAnimationWorkspace(): void {
+  startCodeWindowBridge();
   registerPanels();
   const sync = () => applyCodePanel(useWorkspaceMode.getState().shown === 'animation', useAnimationUi.getState().codeOpen);
   sync();

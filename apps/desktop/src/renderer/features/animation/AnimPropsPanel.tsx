@@ -20,6 +20,7 @@ import { setProp, toggleKey } from './commands';
 import { easeEval } from './easeEval';
 import { editDoc } from './source';
 import { useAnimationUi } from './uiState';
+import { useCodeWindow } from './codeWindow';
 
 const PROP_META: Record<AnimProp, { step: number; unit?: string; min?: number; max?: number }> = {
   x: { step: 1 },
@@ -285,9 +286,11 @@ function KeyframeSettings({ layer }: { layer: Layer }) {
 
 export function AnimPropsActions() {
   const { t } = useTranslation();
-  const open = useAnimationUi((s) => s.codeOpen);
+  const dock = useAnimationUi((s) => s.codeOpen);
+  const win = useCodeWindow((s) => s.open);
+  const open = dock || win;
   return (
-    <Button variant="ghost" size="icon-sm" className="text-fg-subtle" aria-label={t('anim.commands.toggleCode')} title={t('anim.commands.toggleCode')} aria-pressed={open} data-testid="anim-toggle-code" onClick={() => trigger('animToggleCode')}>
+    <Button variant="ghost" size="icon-sm" className="text-fg-subtle" aria-label={t('anim.commands.editCode')} title={t('anim.commands.editCode')} aria-pressed={open} data-testid="anim-toggle-code" onClick={() => trigger('animEditCode')}>
       <Code size={ICON.md - 1} weight={open ? 'fill' : 'regular'} />
     </Button>
   );

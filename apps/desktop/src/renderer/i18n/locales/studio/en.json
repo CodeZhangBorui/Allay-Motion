@@ -43,7 +43,18 @@
       "modulesTitle": "Optional modules",
       "modulesHint": "Features that can be removed as a whole. On by default when developer mode is on; you can turn each off.",
       "noModules": "This build has no optional modules.",
-      "moduleHint": "Turns on with developer mode"
+      "moduleHint": "Turns on with developer mode",
+      "editorTitle": "Code editor",
+      "editorHint": "What “Edit animation code” opens. An external editor opens the animation document file itself; saving there updates the main window, and changes made in the app are written back to the file.",
+      "editorKind": "Open with",
+      "editorKinds": {
+        "builtin": "Built-in",
+        "system": "System default",
+        "custom": "Choose program"
+      },
+      "editorProgram": "Program",
+      "editorNoProgram": "Not chosen yet",
+      "editorChoose": "Choose program…"
     }
   },
   "anim": {
@@ -60,7 +71,10 @@
       "removeKeyframe": "Delete keyframe",
       "moveKeyframe": "Move keyframe",
       "convert": "Convert to template",
-      "toggleCode": "Animation code"
+      "toggleCode": "Animation code panel",
+      "editCode": "Edit animation code",
+      "openCodeWindow": "Open in code window",
+      "openExternal": "Open in external editor"
     },
     "history": {
       "new": "New animation",
@@ -153,6 +167,19 @@
       "plainHint": "Applies when you pause typing",
       "close": "Close animation code",
       "invalid": "The code has a problem; the preview keeps the last working version:"
+    },
+    "codeWindow": {
+      "live": "Live preview",
+      "liveHint": "Highlights the code in effect at the playhead while playing or scrubbing; click a keyframe in the code to jump to its time",
+      "noEditor": "The code editor module (optional) isn’t installed. Edit in the Animation code panel of the main window, or open it in an external editor.",
+      "noAnimation": "The current project isn’t a custom animation",
+      "invalid": "{{count}} problem(s); the preview keeps the last working version",
+      "synced": "In sync",
+      "errors": {
+        "no-program": "No program chosen yet: pick one on the Developer settings page",
+        "open-failed": "Couldn’t open the external editor",
+        "io": "Couldn’t write the animation file"
+      }
     }
   }
 }

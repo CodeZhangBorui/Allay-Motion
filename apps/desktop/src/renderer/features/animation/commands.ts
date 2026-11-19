@@ -1,7 +1,7 @@
 // 动画工作区的类型化命令（docs/code-editing-and-mcp-plan.md H2；docs/animation-editor.md 第 6 节）。
 // 界面按钮、命令面板、将来内置的 agent 或 MCP 调的是同一套命令：入参、返回值都有 zod schema，write 命令进撤销历史。
 // 这里不做 MCP（H-MCP 未批准），只把命令层准备好。
-import { FilmSlate, Plus, Stack, TreeStructure } from '@phosphor-icons/react';
+import { AppWindow, ArrowSquareOut, Code, FilmSlate, Plus, Stack, TreeStructure } from '@phosphor-icons/react';
 import i18next from 'i18next';
 import { z } from 'zod';
 import { AnimEasingSchema, ANIM_PROPS, LAYER_TYPES, LayerSchema, newAnimationDoc, type Layer, type LayerType } from '../../../shared/animation/schema';
@@ -16,6 +16,7 @@ import { confirmDiscard } from '../project/actions';
 import { previewEngine } from '../preview/previewEngine';
 import { currentAnimation, draftRef, editDoc, isAnimationActive, nextLayerId, setAnimationText, sourceFromDoc } from './source';
 import { useAnimationUi } from './uiState';
+import { codeWindowAvailable, editCode, openCodeWindow, openExternal } from './codeWindow';
 
 const t = (key: string, vars?: Record<string, unknown>) => i18next.t(key, vars ?? {});
 
@@ -234,6 +235,34 @@ export const ANIMATION_COMMANDS: AnyCommand[] = [
     },
     output: z.strictObject({ id: z.string(), version: z.string() }).nullable(),
     run: () => convertToTemplate(),
+  }),
+  defineCommand({
+    id: 'animEditCode',
+    titleKey: 'anim.commands.editCode',
+    category: 'view',
+    icon: Code,
+    effect: 'read',
+    enabled: isAnimationActive,
+    run: () => editCode(),
+  }),
+  defineCommand({
+    id: 'animOpenCodeWindow',
+    titleKey: 'anim.commands.openCodeWindow',
+    category: 'view',
+    icon: AppWindow,
+    effect: 'read',
+    enabled: () => isAnimationActive() && codeWindowAvailable(),
+    run: () => openCodeWindow(),
+  }),
+  defineCommand({
+    id: 'animOpenExternal',
+    titleKey: 'anim.commands.openExternal',
+    category: 'view',
+    icon: ArrowSquareOut,
+    effect: 'read',
+    enabled: isAnimationActive,
+    output: z.boolean(),
+    run: () => openExternal(),
   }),
   defineCommand({
     id: 'animToggleCode',

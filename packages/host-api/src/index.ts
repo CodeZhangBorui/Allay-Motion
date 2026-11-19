@@ -115,6 +115,22 @@ export interface CodeViewOptions {
   onChange?(value: string): void;
   /** 用户按了保存（Ctrl+S） */
   onSave?(value: string): void;
+  /**
+   * 给了这两个时，编辑器的撤销、重做（Ctrl+Z、Ctrl+Shift+Z、Ctrl+Y）交给宿主的历史，编辑器自己不记（2026-11 第二轮：
+   * 代码窗口和主窗口共用一份撤销历史）
+   */
+  onUndo?(): void;
+  onRedo?(): void;
+  /** 用户点了文本里的某处（偏移量，UTF-16 码元）。代码窗口据此让主窗口跳到它生效的时刻 */
+  onPick?(offset: number): void;
+}
+
+/** 代码视图里标出的一段（实时预览：这一刻在生效的代码），行从 1 开始，endLine 含 */
+export interface CodeViewMark {
+  kind: 'layer' | 'segment' | 'hold' | 'edge';
+  line: number;
+  endLine: number;
+  label: string;
 }
 
 export interface CodeViewHandle extends Disposable {
@@ -123,6 +139,8 @@ export interface CodeViewHandle extends Disposable {
   setReadOnly(readOnly: boolean): void;
   setDiagnostics(diagnostics: readonly CodeViewDiagnostic[]): void;
   focus(): void;
+  /** 标出几段代码；reveal 时把第一段滚进视野（2026-11 第二轮：实时预览）。旧的提供者可以不实现 */
+  setMarks?(marks: readonly CodeViewMark[], reveal: boolean): void;
 }
 
 /** 把一个代码编辑器画进容器（容器实际是 HTMLElement，见 PanelContribution.mount） */

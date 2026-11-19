@@ -43,7 +43,18 @@
       "modulesTitle": "可选模块",
       "modulesHint": "可以整块拆掉的功能。开发模式打开时默认启用，可以单独关掉。",
       "noModules": "这个版本没有带可选模块。",
-      "moduleHint": "随开发模式启用"
+      "moduleHint": "随开发模式启用",
+      "editorTitle": "代码编辑器",
+      "editorHint": "“编辑动画代码”用什么打开。外部编辑器打开的是动画文档文件本身，保存后主窗口自动更新；在应用里改了，文件也跟着改。",
+      "editorKind": "打开方式",
+      "editorKinds": {
+        "builtin": "应用自带",
+        "system": "系统默认",
+        "custom": "指定程序"
+      },
+      "editorProgram": "程序",
+      "editorNoProgram": "还没有选择",
+      "editorChoose": "选择程序…"
     }
   },
   "anim": {
@@ -60,7 +71,10 @@
       "removeKeyframe": "删除关键帧",
       "moveKeyframe": "移动关键帧",
       "convert": "转为模板",
-      "toggleCode": "动画代码"
+      "toggleCode": "动画代码面板",
+      "editCode": "编辑动画代码",
+      "openCodeWindow": "在代码窗口中打开",
+      "openExternal": "用外部编辑器打开"
     },
     "history": {
       "new": "新建动画",
@@ -153,6 +167,19 @@
       "plainHint": "改完停一下就生效",
       "close": "关闭动画代码",
       "invalid": "代码有问题，预览保持上一份能用的版本："
+    },
+    "codeWindow": {
+      "live": "实时预览",
+      "liveHint": "播放或拖动播放头时标出这一刻在生效的代码；点代码里的关键帧跳到它的时刻",
+      "noEditor": "没有装代码编辑器模块（可选模块）。可以在主窗口的“动画代码”面板里改，或用外部编辑器打开。",
+      "noAnimation": "当前不是自建动画",
+      "invalid": "{{count}} 处问题，预览保持上一份能用的版本",
+      "synced": "已同步",
+      "errors": {
+        "no-program": "还没有指定程序：在设置“开发”页里选择",
+        "open-failed": "没能打开外部编辑器",
+        "io": "没能写出动画文件"
+      }
     }
   }
 }
