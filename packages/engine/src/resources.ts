@@ -4,7 +4,6 @@ import { animationFrameAt, frameRect, layoutAnimation, parseAnimationMeta, parse
 import {
   BitmapFontPayloadSchema,
   DEFAULT_FONT_ID,
-  FALLBACK_FONT_ID,
   FontPayloadSchema,
   SoundMetaPayloadSchema,
   TexturePayloadSchema,
@@ -83,7 +82,7 @@ function showFrame(tex: THREE.Texture, info: TextureInfo, index: number): void {
 }
 
 /**
- * 一个字体族载入后的样子：资源栈字体（提供器列表）、定长字形表（内置像素字体、用户导入的 BDF）、
+ * 一个字体族载入后的样子：资源栈字体（提供器列表）、定长字形表（用户导入的 BDF）、
  * 用户导入的矢量字体（已经用 FontFace 注册进 Worker，css 是注册时的字体名）。取不到时为 null。
  */
 export type FontAsset = { kind: 'stack'; payload: FontPayload } | { kind: 'table'; payload: BitmapFontPayload } | { kind: 'vector'; css: string };
@@ -108,7 +107,7 @@ export class EngineResources {
   private placeholder: THREE.Texture | null = null;
   /** 资源栈字体，随 stamp 清空 */
   private readonly stackFonts = new Map<string, Promise<FontAsset | null>>();
-  /** 兜底字体和用户导入的字体（内容不随资源栈变） */
+  /** 用户导入的字体（按内容哈希命名，不随资源栈变） */
   private readonly fixedFonts = new Map<string, Promise<FontAsset | null>>();
 
   constructor(
@@ -250,7 +249,7 @@ export class EngineResources {
    * 取不到（资源栈里没有、文件丢了、解析失败）时为 null，由调用方退回默认字体。
    */
   font(family: string): Promise<FontAsset | null> {
-    const fixed = family === FALLBACK_FONT_ID || USER_FONT_RE.test(family);
+    const fixed = USER_FONT_RE.test(family);
     const cache = fixed ? this.fixedFonts : this.stackFonts;
     let p = cache.get(family);
     if (!p) {
@@ -282,10 +281,10 @@ export class EngineResources {
     return p;
   }
 
-  /** 默认字体和兜底字体（缩略图、旧入口用） */
-  async fonts(): Promise<{ vanilla: FontPayload | null; fallback: BitmapFontPayload | null }> {
-    const [v, f] = await Promise.all([this.font(DEFAULT_FONT_ID), this.font(FALLBACK_FONT_ID)]);
-    return { vanilla: v?.kind === 'stack' ? v.payload : null, fallback: f?.kind === 'table' ? f.payload : null };
+  /** 资源栈里的默认字体；没有时为 null */
+  async defaultFont(): Promise<FontPayload | null> {
+    const v = await this.font(DEFAULT_FONT_ID);
+    return v?.kind === 'stack' ? v.payload : null;
   }
 
 }

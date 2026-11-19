@@ -154,12 +154,14 @@ const CASES: Record<ParamType, Case> = {
       [{ family: 'C:/fonts/x.ttf', bold: true }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, bold: true }],
       [{ family: 'minecraft:uniform', outline: '#ff0000' }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, family: 'minecraft:uniform', outline: '#FF0000' }],
       [{ family: 'user:0123456789abcdef0123456789abcdef', shadow: 'yes', outline: 'red' }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, family: 'user:0123456789abcdef0123456789abcdef' }],
+      // 旧版本的内置像素字体 allay:fallback 换成系统字体
+      [{ family: 'allay:fallback' }, { ...{ family: 'system:sans', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null } }],
       [{ family: 'user:../../x', italic: true, extra: 1 }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, italic: true }],
     ],
     wrongType: ['minecraft:default', null, 3, true, [], [{ family: 'minecraft:alt' }]],
     valid: [
       { family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null },
-      { family: 'allay:fallback', bold: true, italic: true, underline: true, strikethrough: true, shadow: false, outline: '#1D1D21' },
+      { family: 'system:sans', bold: true, italic: true, underline: true, strikethrough: true, shadow: false, outline: '#1D1D21' },
       { family: 'mypack:custom', bold: false, italic: false, underline: false, strikethrough: false, shadow: false, outline: null },
     ],
   },

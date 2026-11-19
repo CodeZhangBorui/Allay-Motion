@@ -1,5 +1,5 @@
 // pnpm test:engine：M2 的引擎部分（docs/02-engine.md 2.8、03-assets.md）：贴图缺失、动画贴图、方块、物品、文字、精灵、缩略图。
-// 资源来自测试页里的假资源栈（纯色色块，tests/engine/harness/fake-resources.ts），兜底字体用仓库里的方舟像素字体。
+// 资源来自测试页里的假资源栈（纯色色块，tests/engine/harness/fake-resources.ts），没有原版字体时文字走系统字体。
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
@@ -102,14 +102,23 @@ test('文字：资源栈的位图字体（墨水宽度 + 1 像素间距）、阴
   }
 });
 
-test('文字：没有原版层时回退到方舟像素字体（含中文）；哪个字体都没有的字形报警告', async () => {
+test('文字：没有原版字体时整段用系统字体（含中文），不报缺字形', async () => {
   const ok = await call('scenario', 'text', { text: 'A中' }, HD, [0], []);
   expect(ok.warnings).toHaveLength(1);
   const [w, h] = ok.warnings[0]!.replace('text-size:', '').split('x').map(Number);
   expect(w).toBeGreaterThan(100);
-  expect(h).toBeGreaterThan(100);
-  const missing = await call('scenario', 'text', { text: 'A\u{10FFFD}' }, HD, [0], []);
-  expect(missing.warnings.some((m) => m.includes('no glyph') && m.includes('U+10FFFD'))).toBe(true);
+  expect(h).toBeGreaterThan(80);
+});
+
+test('文字：原版字体里缺的字形用系统字体按像素补上（前进宽度同游戏的 Unifont 字形）', async () => {
+  await call('setFakeVanillaFont', true);
+  try {
+    // 测试字体只有 A–D：“中”由系统字体补，前进宽度 8 + 1 = 9 个字体像素；A 前进 3 → 共 12 个字体像素，size 10 → 宽 120
+    const r = await call('scenario', 'text', { text: 'A中' }, HD, [0], []);
+    expect(r.warnings).toEqual(['text-size:120x80']);
+  } finally {
+    await call('setFakeVanillaFont', false);
+  }
 });
 
 test('精灵：九宫格的边框不拉伸，中间拉伸', async () => {

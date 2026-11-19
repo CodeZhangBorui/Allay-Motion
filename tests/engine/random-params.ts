@@ -53,7 +53,7 @@ function randomValue(def: ParamDef, r: () => number): ParamValue {
     case 'font':
       // 字体族只取测试环境里一定有的两个；样式全部随机
       return {
-        family: pick(['minecraft:default', 'allay:fallback']),
+        family: pick(['minecraft:default', 'system:sans']),
         bold: r() < 0.5,
         italic: r() < 0.5,
         underline: r() < 0.3,

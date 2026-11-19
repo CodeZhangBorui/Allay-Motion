@@ -1,6 +1,6 @@
 // 文字（docs/02-engine.md 2.8、03-assets.md 3.9）：位图字，像素对齐，不做平滑。
-// 字形来源按字体族（font 参数，4.4）：资源栈里的字体（bitmap、space、unihex 提供器）、内置像素字体（BDF）、
-// 用户导入的 BDF；找不到的字形依次退回 minecraft:default 和内置像素字体。用户导入的矢量字体另走 OffscreenCanvas（见 vector-text.ts）。
+// 字形来源按字体族（font 参数，4.4）：资源栈里的字体（bitmap、space、unihex 提供器）、用户导入的 BDF；
+// 找不到的字形依次退回 minecraft:default 和系统字体（SystemGlyphs）。整段用系统字体、用户导入的矢量字体另走 vector-text.ts。
 //
 // 一段文字栅格化成一张贴图、按行配四边形。为了表示游戏里的半像素（Unifont 画成一半大小、它的阴影和粗体只偏 0.5 像素），
 // 栅格在“子像素”上做：一个字体像素 = SUB × SUB 个子像素。阴影、描边、粗体、下划线、删除线都直接画进贴图（颜色也烘进去），
@@ -128,6 +128,79 @@ class GlyphTable implements Provider {
   }
 }
 
+/**
+ * 系统字体的 CSS 字体栈（没有原版字体、或原版字体里没有某个字形时的兜底）。
+ * 结果取决于这台机器装了哪些字体：同一台机器上预览和导出走同一条路径、逐帧一致，换机器可能不同（decisions.md）。
+ */
+export const SYSTEM_FONT_STACK = '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", sans-serif';
+
+/** 系统字体的单个字形：一个 em = 8 个字体像素（与 Unifont 的字形同高），基线在格子顶下 7 个字体像素 */
+const SYS_EM = 8 * SUB;
+const SYS_BASELINE = 7 * SUB;
+const SYS_CELL_H = 10 * SUB;
+
+/**
+ * 原版字体里缺的字形，用系统字体在 OffscreenCanvas 上按子像素画出来，再按 alpha ≥ 50% 二值化，
+ * 和位图字一样是硬边像素（混排时不会一半糊一半锐）。阴影和粗体偏移同 Unifont（半个字体像素）。
+ * Worker 里没有 2D 画布时这个来源什么都没有，缺的字形照常报警告。
+ */
+export class SystemGlyphs implements Provider {
+  private readonly g: OffscreenCanvasRenderingContext2D | null;
+  private readonly canvas: OffscreenCanvas | null;
+  constructor() {
+    const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(4 * SYS_EM, SYS_CELL_H) : null;
+    const g = canvas?.getContext('2d', { willReadFrequently: true }) ?? null;
+    if (g) {
+      g.font = `${SYS_EM}px ${SYSTEM_FONT_STACK}`;
+      g.textBaseline = 'alphabetic';
+      g.fillStyle = '#FFFFFF';
+    }
+    this.canvas = canvas;
+    this.g = g;
+  }
+  get size() {
+    return this.g ? 1 : 0;
+  }
+  glyph(cp: number): Glyph | undefined {
+    const g = this.g;
+    if (!g || !this.canvas || cp < 0x20 || (cp >= 0x7f && cp < 0xa0)) return undefined;
+    const ch = String.fromCodePoint(cp);
+    const width = g.measureText(ch).width;
+    if (!(width > 0)) return undefined;
+    const W = this.canvas.width;
+    g.clearRect(0, 0, W, SYS_CELL_H);
+    g.fillText(ch, SUB, SYS_BASELINE);
+    const data = g.getImageData(0, 0, W, SYS_CELL_H).data;
+    let right = -1;
+    let left = W;
+    for (let y = 0; y < SYS_CELL_H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (data[(y * W + x) * 4 + 3]! >= 128) {
+          if (x < left) left = x;
+          if (x > right) right = x;
+        }
+      }
+    }
+    // 前进宽度：量出的宽度向上取整到整字体像素，加 1 像素字间距（中文 8 + 1 = 9，与游戏的 Unifont 字形一致）
+    const advance = (Math.ceil(width / SUB) + (cp === 0x20 ? 0 : GLYPH_SPACING)) * SUB;
+    if (right < 0) return { advance, dx: 0, dy: 0, w: 0, h: 0, alpha: () => 0, above: 0, below: 0, offset: 1 };
+    const w = right - left + 1;
+    const mask = new Uint8Array(w * SYS_CELL_H);
+    for (let y = 0; y < SYS_CELL_H; y++) for (let x = 0; x < w; x++) mask[y * w + x] = data[(y * W + left + x) * 4 + 3]! >= 128 ? 255 : 0;
+    return {
+      advance,
+      dx: left - SUB,
+      dy: -SYS_BASELINE,
+      w,
+      h: SYS_CELL_H,
+      alpha: (x, y) => mask[y * w + x] ?? 0,
+      above: SYS_BASELINE,
+      below: SUB,
+      offset: 1,
+    };
+  }
+}
+
 /** 一个字体族的字形查找：按提供器顺序第一个有这个码位的胜出，再退回后备链 */
 export class GlyphSource {
   private readonly cache = new Map<number, Glyph | null>();
@@ -175,14 +248,21 @@ export function stackGlyphSource(font: FontPayload | null, fallbacks: readonly G
   return new GlyphSource(providers, fallbacks);
 }
 
-/** BDF 字体（内置像素字体、用户导入的 BDF）的字形来源 */
+/** BDF 字体（用户导入的 BDF）的字形来源 */
 export function tableGlyphSource(table: BitmapFontPayload | null, fallbacks: readonly GlyphSource[] = []): GlyphSource {
   return new GlyphSource(table ? [new GlyphTable(table)] : [], fallbacks);
 }
 
-/** 旧的入口：minecraft:default 加兜底字体 */
-export function createGlyphSource(fonts: { vanilla: FontPayload | null; fallback: BitmapFontPayload | null }): GlyphSource {
-  return stackGlyphSource(fonts.vanilla, [tableGlyphSource(fonts.fallback)]);
+/** 系统字体字形的来源（整个 Worker 共用一个画布） */
+let systemGlyphs: GlyphSource | null = null;
+export function systemGlyphSource(): GlyphSource {
+  systemGlyphs ??= new GlyphSource([new SystemGlyphs()]);
+  return systemGlyphs;
+}
+
+/** minecraft:default，缺的字形退回系统字体 */
+export function createGlyphSource(vanilla: FontPayload | null): GlyphSource {
+  return stackGlyphSource(vanilla, [systemGlyphSource()]);
 }
 
 function isCjk(cp: number): boolean {

@@ -122,7 +122,7 @@ const template: TemplateModule = {
     const textX = k0.textX;
 
     // 面板：一行排的文字太长时向右加宽（九宫格拉伸，SystemToast 也是这样按文字宽度定宽）；
-    // 文字比原版字体高（例如内置像素字体）时两行重新均分、必要时加高
+    // 文字比原版字体高（例如导入的字体）时两行重新均分、必要时加高
     const panelW = multiLine ? PANEL_W : Math.max(PANEL_W, Math.ceil(textX + Math.max(hw, tw) + TEXT_RIGHT));
     let headerTop = HEADER_Y;
     let titleTop = TITLE_Y;

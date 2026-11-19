@@ -242,9 +242,12 @@ export type SoundMetaPayload = z.infer<typeof SoundMetaPayloadSchema>;
 export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema, VectorFontPayloadSchema, SoundMetaPayloadSchema]);
 export type ResourcePayload = z.infer<typeof ResourcePayloadSchema>;
 
-/** 资源栈里的默认字体，和兜底字体的 ID（resolveResource('font', id)） */
+/** 资源栈里的默认字体（resolveResource('font', id)） */
 export const DEFAULT_FONT_ID = 'minecraft:default';
-export const FALLBACK_FONT_ID = 'allay:fallback';
+/** 系统字体（不经宿主：引擎在 Worker 里用 OffscreenCanvas 的系统字体栈画） */
+export const SYSTEM_FONT_ID = 'system:sans';
+/** 旧版本的“内置像素字体”（方舟像素字体，2026-11 删除）：读到时当作系统字体 */
+export const LEGACY_FALLBACK_FONT_ID = 'allay:fallback';
 
 /** 缩略图请求（03-assets.md 3.10）：方块是带面明暗的等轴视角，物品正面平视 */
 export const ThumbRequestSchema = z.strictObject({

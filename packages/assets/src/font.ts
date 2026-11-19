@@ -1,5 +1,5 @@
 // 原版字体提供器的解析（docs/03-assets.md 3.9）：bitmap、space、reference、unihex 四种。
-// ttf 和 legacy_unicode 不解析，记下来让调用方报告；找不到的字形回退到内置像素字体（M2b）。
+// ttf 和 legacy_unicode 不解析，记下来让调用方报告；找不到的字形由引擎回退到系统字体（2026-11 起，内置像素字体已删除）。
 // 提供器和 reference 上的 filter（1.20 起，对应“强制使用 Unicode 字体”“日文字形变体”两个选项）按游戏默认（都关）处理：
 // 要求 uniform 或 jp 为 true 的跳过，要求为 false 的保留。
 import type { BitmapFontTables } from './bdf';

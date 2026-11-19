@@ -139,14 +139,14 @@ const SeedParam = z.looseObject({ ...base, type: z.literal('seed'), default: z.i
  * 字体族的写法（font 参数的 family）：
  * - 资源栈里的字体 ID，如 minecraft:default（游戏默认字体）、minecraft:uniform（Unifont）、minecraft:alt（标准银河字母）、
  *   minecraft:illageralt（灾厄村民文字），以及资源包自己加的字体；
- * - allay:fallback：应用内置的开放许可像素字体；
+ * - system:sans：系统字体（Worker 里 OffscreenCanvas 的系统字体栈）；旧版本的 allay:fallback（已删除的内置像素字体）当作它；
  * - user:<32 位十六进制>：用户导入的字体文件（内容哈希，文件在应用数据目录里，由主进程读取）。
  */
 export const USER_FONT_RE = /^user:[0-9a-f]{32}$/;
 export function isFontFamily(value: string): boolean {
   return USER_FONT_RE.test(value) || isResourceId(value);
 }
-const fontFamily = z.string().max(256).refine(isFontFamily, 'must be a font id like minecraft:default, allay:fallback or user:<hash>');
+const fontFamily = z.string().max(256).refine(isFontFamily, 'must be a font id like minecraft:default, system:sans or user:<hash>');
 /** font 参数的默认值：只给 family 也行，样式缺省为关、描边为 null */
 export const FontDefaultSchema = z.strictObject({
   family: fontFamily,

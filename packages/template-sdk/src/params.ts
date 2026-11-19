@@ -46,7 +46,9 @@ function sanitizeFont(def: ParamDefOf<'font'>, value: unknown): { [key: string]:
   const d = fontDefault(def);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return d;
   const v = value as Record<string, unknown>;
-  const out: { [key: string]: ParamValue } = { family: typeof v.family === 'string' && isFontFamily(v.family) ? v.family : d.family! };
+  // 旧工程里的 allay:fallback（已删除的内置像素字体）换成系统字体
+  const family = v.family === 'allay:fallback' ? 'system:sans' : v.family;
+  const out: { [key: string]: ParamValue } = { family: typeof family === 'string' && isFontFamily(family) ? family : d.family! };
   for (const k of FONT_FLAGS) out[k] = typeof v[k] === 'boolean' ? v[k] : d[k]!;
   out.outline = v.outline === null ? null : typeof v.outline === 'string' && OUTLINE_RE.test(v.outline) ? v.outline.toUpperCase() : d.outline!;
   return out;

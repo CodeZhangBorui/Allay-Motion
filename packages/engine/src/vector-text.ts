@@ -57,11 +57,11 @@ export interface VectorTextEnv {
 }
 
 /** ctx.text.create(opts)，矢量字体 */
-export function createVectorText(opts: TextOptions, css: string, style: ResolvedStyle, env: VectorTextEnv, warn: Warn, owned: THREE.Texture[]): TextObject {
+export function createVectorText(opts: TextOptions, css: string /* CSS 的 font-family 值 */, style: ResolvedStyle, env: VectorTextEnv, warn: Warn, owned: THREE.Texture[]): TextObject {
   const { text, size, align, maxWidthPx, color } = readTextOptions(opts);
   // 每个字体像素多少个输出像素；贴图超过上限时整体降低分辨率
   let k = Math.max(0.25, size * (Number.isFinite(env.pixelScale) && env.pixelScale > 0 ? env.pixelScale : 1));
-  const fontCss = (scale: number) => `${style.italic ? 'italic ' : ''}${style.bold ? 'bold ' : ''}${VECTOR_EM * scale}px "${css}"`;
+  const fontCss = (scale: number) => `${style.italic ? 'italic ' : ''}${style.bold ? 'bold ' : ''}${VECTOR_EM * scale}px ${css}`;
 
   const probe = new OffscreenCanvas(1, 1).getContext('2d');
   if (!probe) {
