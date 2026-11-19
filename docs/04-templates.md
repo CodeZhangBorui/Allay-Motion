@@ -97,7 +97,7 @@ interface ParamBase {
 - `text` 的 `default` 是多语言时，新建工程按界面语言取一次，之后值就是普通字符串。
 - `visibleWhen` 只做界面显隐，不影响值。
 - 模板有 `seed` 参数时，`ctx.random` 以它为种子。
-- `font`（2026-11 加入）：`family` 是资源栈里的字体 ID（`minecraft:default`、`minecraft:uniform`、`minecraft:alt`、`minecraft:illageralt` 或资源包自己的字体）、`allay:fallback`（内置的开放许可像素字体）或 `user:<sha256 前 32 位>`（用户导入、复制在 `userData/fonts/` 的字体文件）。清洗时逐个字段检查，坏的字段取默认值的那一项；`outline` 是 `#RRGGBB` 或 `null`。值原样交给 `ctx.text.create({ font })`。属性面板里的字体名不用该字体预览（应用自己的界面不用游戏字体，`09-compliance.md` 9.3）。
+- `font`（2026-11 加入）：`family` 是资源栈里的字体 ID（`minecraft:default`、`minecraft:uniform`、`minecraft:alt`、`minecraft:illageralt` 或资源包自己的字体）、`system:sans`（系统字体；旧工程里的 `allay:fallback` 读成它）或 `user:<sha256 前 32 位>`（用户导入、复制在 `userData/fonts/` 的字体文件）。清洗时逐个字段检查，坏的字段取默认值的那一项；`outline` 是 `#RRGGBB` 或 `null`。值原样交给 `ctx.text.create({ font })`。属性面板里的字体名不用该字体预览（应用自己的界面不用游戏字体，`09-compliance.md` 9.3）。
 
 ## 4.5 运行时契约
 

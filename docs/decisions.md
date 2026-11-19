@@ -259,7 +259,7 @@ M2 拆成两半并行：M2a 不依赖引擎（本节），M2b 在 M1 合入后�
 - **T-AST-2 的前提改为**：资源栈里只有一个由测试脚本生成的假原版层（纯色色块的假 jar，覆盖方块、物品、界面目录的全部贴图）。e2e 里这样装载临时模板，`warnings` 为空。另加一条：没有任何素材层时显示引导状态，不报错、不白屏。T-AST-7、H-ART 不再适用，没有做。
 - 覆盖率检查：`tests/unit/coverage-fake-vanilla.test.ts` 对假原版层全覆盖；对本机真实 jar 的检查仍是手动的 `scripts/smoke-vanilla.ts`。
 
-### 兜底字体：方舟像素字体
+### 兜底字体：方舟像素字体（2026-11 已删除，见“2026-11 反馈：原版动画还原与字体”）
 
 - 规格的“内置像素字体”用 9.7 推荐的方舟像素字体（Ark Pixel Font）2026.11.10，12px 比例宽度 zh_hans 的 **BDF**，从官方发布包原样取出，**不做任何修改**（不转格式、不裁剪），放在 `resources/fonts/ark-pixel/`，附发布包里的 `OFL.txt`，登记在 `ASSETS_PROVENANCE.json`，随安装包（`extraResources`）分发。
 - 许可核对（2026-11-13，经 GitHub API 读仓库）：字体部分是 `LICENSE-OFL`（SIL OFL 1.1，`Copyright (c) 2021, TakWolf`，**没有 Reserved Font Name**）；构建程序是 `LICENSE-MIT`，不随我们分发。README 写明“字体”和“构建程序”分别授权，没有发现其他条款。缝合像素字体合并了多个来源的字形，许可链更长，没有选。
@@ -1860,8 +1860,8 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 
 - **新参数类型 `font`**（template-sdk，第 16 种）：值是 `{ family, bold, italic, underline, strikethrough, shadow, outline }`。清洗时逐个字段检查，坏的字段取默认值的那一项，而不是整个回到默认：用户换了字体、样式里有一项坏了不至于全丢。
 - **`ctx.text.create` 多了 `font` 和几个样式字段**。传 `font` 参数的值时，对象里的样式优先于同一次调用里的 `shadow` 等字段：用户在参数里选的为准。
-- **字体族**：资源栈里的任意字体 ID（游戏的 `minecraft:default`、`uniform`、`alt`、`illageralt`，以及资源包自己的字体），`allay:fallback`（方舟像素字体），`user:<哈希>`（导入的字体）。资源栈里没有、或这个字体一个字形都没有时退回 `minecraft:default` 并记一条警告；缺的字形再退回方舟像素字体。游戏里缺字形画的是方框，这里退回是为了用户的中文标题不至于变成一排方框。
-- **只预载 font 参数里出现的字体**：`text.create` 是同步的，字体必须在 `setup` 之前载好。引擎按 manifest 的 font 参数（当前值和默认值）加上默认字体、兜底字体预载，最多 32 个。模板代码里临时写的其他字体族当作没载入。
+- **字体族**：资源栈里的任意字体 ID（游戏的 `minecraft:default`、`uniform`、`alt`、`illageralt`，以及资源包自己的字体），`system:sans`（系统字体），`user:<哈希>`（导入的字体）。资源栈里没有、或这个字体一个字形都没有时退回 `minecraft:default` 并记一条警告；缺的字形再退回系统字体（见下面“删除内置像素字体”）。游戏里缺字形画的是方框，这里退回是为了用户的中文标题不至于变成一排方框。
+- **只预载 font 参数里出现的字体**：`text.create` 是同步的，字体必须在 `setup` 之前载好。引擎按 manifest 的 font 参数（当前值和默认值）加上默认字体预载，最多 32 个；系统字体不用向宿主要。模板代码里临时写的其他字体族当作没载入。
 - **样式的画法照游戏**：粗体是向右偏一个“阴影偏移”重描一次、前进宽度加同样的量；斜体是把字形四边形的顶边右移 1 − 0.25 × 上沿、底边右移 1 − 0.25 × 下沿（相对行顶，换算成相对基线是 −0.75 − 0.25 × y），整行一个错切四边形；阴影偏移 1 个字体像素（Unifont 0.5），颜色取正文各通道的 1/4（`(c & 0xFCFCFC) >> 2`）；下划线在基线下 1–2、删除线在基线上 2.5–3.5，从字形左边 1 像素画到前进宽度末尾；描边是八个方向各偏一个阴影偏移、描边颜色，有描边时不画阴影（发光告示牌 `drawInBatch8xOutline` 的做法）。
 - **栅格化改成子像素**：为了表示 Unifont 的半像素（字形画一半大小、阴影和粗体偏 0.5），一个字体像素栅格成 2 × 2 个子像素。阴影、描边直接画进同一张贴图，颜色也烘进去，不再是“正文一张白色贴图加一个阴影网格”。原来阴影颜色是线性空间里乘 0.25 的近似，现在按游戏取整，**带阴影的文字颜色会和旧基准图差几个单位**。
 - **Unifont 的读取**：`hex_file` 指向资源栈里的 zip，主进程在内存里用 `yauzl.fromBuffer` 解开（不写盘），条目名不安全时整个拒绝，最多 64 个 .hex、每个 32 MB。解析成和 BDF 一样的定长表（度量单位是 Unifont 像素，`oversample = 2`），按（stamp、文件、覆盖）缓存，经新的 IPC `resources.unihexTables` 交给渲染进程。码位按 .hex 在 zip 里的顺序先出现的胜出。空字形（全是 0、没有覆盖）宽 0、前进 1 像素。
@@ -1870,6 +1870,20 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - **工程里的登记**：工程文件的 params 里存的是 `user:<哈希>`，内容寻址，同一台机器上打开工程就能找到字体。**换一台机器时字体文件不会跟着工程走**，那边会显示“找不到导入的字体”并退回默认字体。把字体文件打进工程（或在打开时提示缺字体、让用户重新导入）没有做，留作后续。
 - **属性面板**：新组件 `packages/ui/src/editor/FontField.tsx`：字体族下拉（游戏字体、内置字体、导入的字体，末尾“导入字体…”），一排样式开关，打开描边时出现描边颜色。字体名不用该字体预览（09 9.3：应用自己的界面不用游戏字体）。`ParamPanel.tsx` 只加了 `font` 的一个分支和“高行”判断。
 - **`service.ts` 的改动只有两处**：`fontProviders()` 的结果多了 unihex 提供器（`{ type: 'unihex', file, overrides }`）；多了一个 `unihexTables()` 方法和它的缓存字段，实现在新文件 `main/resources/fonts.ts`。用户字体的 `UserFontStore` 不在 `ResourceService` 里，在 `main/index.ts` 里另建，经 `handlers.ts` 接线。
+
+### 删除内置像素字体，改用原版字体和系统字体（用户补充要求，经主控转达）
+
+用户原话：“把应用原带的像素字体删除，使用minecraft内自带的像素字体，无该资源时默认先使用系统字体替代”。
+
+- **删掉的**：`resources/fonts/ark-pixel/`（BDF 和 OFL.txt）、`ASSETS_PROVENANCE.json` 里的登记、`.gitattributes` 里那一行、`electron-builder.yml` 的 `extraResources`、第三方许可清单（`scripts/third-party.ts`、`third-party-licenses.json`）和关于页里的那一条、README 的许可说明；主进程的 `fallbackFontFile` 选项、`fallbackFontTables()`，IPC 的 `resources.fallbackFont`，渲染进程的兜底字体载入。官网（`apps/website`）原来也用它做仿真器的兜底字形：构建插件 `pixelFont`、`fontLicense`，`pixel-font.worker.ts`、`paths.ts`，页脚的“像素字体许可全文”链接一起删了，仿真器里的文字现在走系统字体。BDF 解析器（`parseBdf`）留着：用户导入的 BDF 字体还要用它。
+- **中文走原版像素字形**：上面的 unihex（Unifont）解析就是为这个做的。有原版素材时，`minecraft:default` 经 `include/unifont.json` 引用 `unifont.zip`，中日韩字形和游戏一样来自 Unifont。`ttf` 提供器没有做：原版的字体定义里已经不用它（资源包偶尔用），而且要在 Worker 里解析 TrueType 轮廓。
+- **系统字体的两种用法**：
+  1. 资源栈里一个原版字形都没有（没有原版素材，也没有资源包提供字体）时，整段文字用系统字体，按输出分辨率抗锯齿画（和用户导入的矢量字体同一条路径，一个 em = 10 个字体像素），不报“缺字形”的警告。
+  2. 有原版字体、只是缺某些字形时，缺的字形用系统字体在 OffscreenCanvas 上按子像素（一个字体像素 2 × 2）画，alpha ≥ 50% 的算有墨迹、其余透明，和原版字形一样是硬边像素；一个 em = 8 个字体像素（和 Unifont 字形同高），基线在格子顶下 7 个字体像素，前进宽度 = 量出的宽度向上取整 + 1（中文正好 9，与游戏一致），阴影和粗体偏 0.5 个字体像素（同 Unifont）。
+- **字体栈**：`"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", sans-serif`。Worker 里的 2D 画布能直接用系统装的字体，不经网络，CSP 不用动。
+- **确定性**：预览和导出是同一个引擎、同一段代码、同一条回退路径，结果只取决于文字、样式、输出分辨率和这台机器上的字体，同一台机器上逐帧一致（引擎的确定性自检照常有效）。**已知限制：换一台机器（或者装、卸了字体）以后系统字体可能不同，同一个工程导出的文字字形会不同。**整段系统字体按输出分辨率抗锯齿，预览分辨率比导出低时边缘会略有不同。
+- **字体参数**：`minecraft:default`（“默认”，游戏字体一组的第一项）仍是所有内置模板的默认值；“系统字体”是新的字体族 `system:sans`，放在“系统字体”一组；导入的字体照旧。旧工程、旧预设里的 `allay:fallback` 在清洗时换成 `system:sans`（`LEGACY_FALLBACK_FONT_ID`）。
+- **测试**：引擎测试的假资源栈不再带兜底字体，只有拼出来的测试字体（`setFakeVanillaFont`，实心矩形，不是 Mojang 文件）。m2 的文字用例改成“没有原版字体时整段用系统字体”和“原版字体缺的字形由系统字体按像素补上”；BDF 解析的用例改用测试里手写的 BDF 文本；安装包检查改成“不带 fonts/”；第三方许可清单的检查去掉 Ark Pixel Font。T-TPL-5 的基准图本来就要重新生成（见下面），这一条让所有带文字的基准图也一起变了。
 
 ### 模板
 
