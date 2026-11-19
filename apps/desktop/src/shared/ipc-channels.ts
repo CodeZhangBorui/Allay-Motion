@@ -66,6 +66,19 @@ export const IPC = {
     removeLayer: 'resources:removeLayer',
     reorder: 'resources:reorder',
     setEnabled: 'resources:setEnabled',
+    /** 版本检索（2026-11 反馈）：本机、已下载、取过的版本清单（离线） */
+    versions: 'resources:versions',
+    /** 联网：取 Mojang 版本清单（只在用户点了按钮后） */
+    fetchRemoteVersions: 'resources:fetchRemoteVersions',
+    addVanillaSource: 'resources:addVanillaSource',
+    /** 联网：下载指定版本（只在用户点了按钮后） */
+    downloadVanillaVersion: 'resources:downloadVanillaVersion',
+    /** 本机 Minecraft 的资源包文件夹（只读本机文件） */
+    localPacks: 'resources:localPacks',
+    addLocalPack: 'resources:addLocalPack',
+    /** 导入音效文件（主进程弹文件对话框） */
+    importSounds: 'resources:importSounds',
+    removeImportedSound: 'resources:removeImportedSound',
     /** 主进程 → 渲染进程的事件 */
     changed: 'resources:changed',
   },
@@ -179,6 +192,14 @@ export const INVOKE_CHANNELS = [
   IPC.resources.removeLayer,
   IPC.resources.reorder,
   IPC.resources.setEnabled,
+  IPC.resources.versions,
+  IPC.resources.fetchRemoteVersions,
+  IPC.resources.addVanillaSource,
+  IPC.resources.downloadVanillaVersion,
+  IPC.resources.localPacks,
+  IPC.resources.addLocalPack,
+  IPC.resources.importSounds,
+  IPC.resources.removeImportedSound,
   IPC.templates.list,
   IPC.templates.read,
   IPC.templates.readAsset,

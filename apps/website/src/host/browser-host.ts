@@ -183,7 +183,7 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
             },
       ],
       brokenPacks: [],
-      vanilla: { consent: false, enabled: false, local: null, cached: null, active: null, problem: null },
+      vanilla: { consent: false, enabled: false, local: null, cached: null, active: null, problem: null, baseId: null, baseVersion: null, missingSources: [] },
       download: { status: 'idle' },
       detecting: false,
       hasAssets: true,
@@ -288,7 +288,7 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
         return png ? { png, mcmeta: null } : null;
       },
       soundVariants: async () => null,
-      soundLibrary: async () => ({ stamp: STAMP, events: [] }),
+      soundLibrary: async () => ({ stamp: STAMP, events: [], lang: { 'zh-CN': false, en: false } }),
       soundFiles: async (files) => ({ ok: true, states: Object.fromEntries(files.map((f) => [f, 'missing' as const])) }),
       list: async () => [],
       fontProviders: async () => null,
@@ -319,6 +319,30 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       removeLayer: async () => resourceState(),
       reorder: async () => resourceState(),
       setEnabled: async () => resourceState(),
+      versions: async () => ({ local: [], downloaded: [], remote: null }),
+      // 不联网：网页里不取版本清单、不下载
+      fetchRemoteVersions: async () => {
+        desktopOnly('vanilla');
+        return { ok: false, error: 'network' };
+      },
+      addVanillaSource: async () => {
+        desktopOnly('vanilla');
+        return resourceState();
+      },
+      downloadVanillaVersion: async () => {
+        desktopOnly('vanilla');
+        return { canceled: true };
+      },
+      localPacks: async () => [],
+      addLocalPack: async () => {
+        desktopOnly('packs');
+        return { canceled: true };
+      },
+      importSounds: async () => {
+        desktopOnly('packs');
+        return { canceled: true };
+      },
+      removeImportedSound: async () => resourceState(),
       onChanged: (cb) => resourcesChanged.on(cb),
     },
     templates: {

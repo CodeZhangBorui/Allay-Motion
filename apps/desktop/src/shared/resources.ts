@@ -17,10 +17,24 @@ export interface LayerInfo {
   /** 1.12 及更早的命名，大部分贴图不会生效（3.5） */
   legacyFormat: boolean;
   warnings: string[];
-  /** 原版层：本机游戏还是下载的；资源包：zip 还是文件夹 */
-  source?: 'local' | 'downloaded' | 'zip' | 'folder';
+  /** 原版层：本机游戏还是下载的；资源包：zip、文件夹、原地引用的本机 zip（linked）、导入的音效（imported） */
+  source?: 'local' | 'downloaded' | 'zip' | 'folder' | 'linked' | 'imported';
   /** 内置层里有没有任何文件（v1 不自制素材，通常是空的） */
   empty?: boolean;
+  /** 原版层：版本号、游戏目录（本机的）、这一版的资源包格式号（“75”或“69.0”这样的文字） */
+  versionId?: string;
+  gameDir?: string;
+  resourceFormat?: string;
+  /** 原版层：是不是生效的原版基底（最上面启用的原版层） */
+  base?: boolean;
+  /** 原版层：资源索引在不在（不在时没有音效和中文语言文件） */
+  hasAssetIndex?: boolean;
+  /** 资源包：pack.mcmeta 声明的格式范围（文字）、按对照表推出的“为哪个版本制作”、与原版基底的匹配 */
+  formats?: { min: string; max: string } | null;
+  madeFor?: string | null;
+  compat?: 'ok' | 'older' | 'newer' | 'unknown';
+  /** 资源包：文件在本机的位置（文件夹、原地引用的 zip） */
+  path?: string;
 }
 
 /** 设置里登记了、但打不开的资源包（文件被删、zip 被拒绝） */
@@ -42,7 +56,67 @@ export interface VanillaState {
   active: 'local' | 'cached' | null;
   /** 同意过使用原版素材，但游戏和下载缓存都找不到了（missing），或者 jar 打不开（jar-unreadable）；已静默退回 */
   problem: 'missing' | 'jar-unreadable' | null;
+  /** 生效的原版基底（资源栈里最上面启用的原版层）的层 id 和版本；没有时为 null */
+  baseId: string | null;
+  baseVersion: string | null;
+  /** 设置里登记了、但现在打不开的原版来源（游戏被移动、缓存被删） */
+  missingSources: { id: string; versionId: string; kind: 'local' | 'downloaded'; gameDir?: string }[];
 }
+
+// ---- 版本检索（docs/03-assets.md 3.12）----
+
+export type VersionKind = 'release' | 'snapshot' | 'old';
+
+export interface VersionEntry {
+  versionId: string;
+  type: VersionKind;
+  /** ISO 时间；版本清单里缺失时为空串 */
+  releaseTime: string;
+  /** 本机的：所在游戏目录 */
+  gameDir?: string;
+  /** 已经在资源栈里（对应的层 id） */
+  layerId: string | null;
+}
+
+export interface VersionCatalog {
+  /** 本机游戏目录里带 jar 的版本（官方启动器、用户选过的目录） */
+  local: VersionEntry[];
+  /** 下载缓存里完整的版本 */
+  downloaded: VersionEntry[];
+  /** Mojang 版本清单（用户点了“获取版本列表”之后才有，本次运行内有效） */
+  remote: { latest: string; versions: VersionEntry[] } | null;
+}
+
+export type RemoteVersionsResult = { ok: true; catalog: VersionCatalog } | { ok: false; error: DownloadErrorKind };
+
+export const VanillaSourceArgSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('local'), gameDir: z.string().min(1).max(4096), versionId: z.string().min(1).max(64).regex(/^[\w.-]+$/) }),
+  z.strictObject({ kind: z.literal('downloaded'), versionId: z.string().min(1).max(64).regex(/^[\w.-]+$/) }),
+]);
+export type VanillaSourceArg = z.infer<typeof VanillaSourceArgSchema>;
+export const VersionIdArgSchema = z.string().min(1).max(64).regex(/^[\w.-]+$/).refine((s) => s !== '.' && s !== '..');
+
+// ---- 本机 Minecraft 的资源包文件夹 ----
+
+export interface LocalPackFolderInfo {
+  launcher: 'official' | 'isolated' | 'prism' | 'curseforge' | 'modrinth';
+  instance: string | null;
+  gameVersion: string | null;
+  path: string;
+  packs: {
+    name: string;
+    path: string;
+    kind: 'zip' | 'folder';
+    description?: string;
+    formats: { min: string; max: string } | null;
+    madeFor: string | null;
+    compat: 'ok' | 'older' | 'newer' | 'unknown';
+    /** 已经在资源栈里 */
+    added: boolean;
+  }[];
+}
+
+export const LocalPackPathSchema = z.string().min(3).max(32_767);
 
 export const DOWNLOAD_ERROR_KINDS = ['network', 'verify', 'disk', 'unknown'] as const;
 export type DownloadErrorKind = (typeof DOWNLOAD_ERROR_KINDS)[number];
@@ -137,6 +211,8 @@ export interface SoundVariantInfo {
   volume: number;
   pitch: number;
   weight: number;
+  /** 衰减距离（格）：sounds.json 的 attenuation_distance，没写时 16（空间音效用） */
+  attenuation?: number;
 }
 
 /**
@@ -145,11 +221,36 @@ export interface SoundVariantInfo {
  */
 export type SoundFileState = 'local' | 'remote' | 'missing';
 
+/**
+ * 音效的来源（2026-11 反馈）：vanilla 只有原版定义且文件来自原版；overridden 原版有、但资源包改了定义或替换了文件；
+ * added 原版没有、资源包新加的；imported 用户自己导入的文件。
+ */
+export type SoundOrigin = 'vanilla' | 'overridden' | 'added' | 'imported';
+
+/** 音效选择器的分类（@allay/assets 的 SOUND_CATEGORIES） */
+export type SoundCategoryKey = 'ambient' | 'block' | 'enchant' | 'entity' | 'event' | 'item' | 'music' | 'music_disc' | 'particle' | 'ui' | 'weather' | 'other';
+
+export interface SoundLibraryEvent {
+  id: string;
+  state: SoundFileState;
+  origin: SoundOrigin;
+  /** overridden、added：改动它的资源包的名字（多个时最上面的那个在前） */
+  packs?: string[];
+  category: SoundCategoryKey;
+  /** 从语言文件推出的显示名；推不出时缺省（界面显示 ID） */
+  names?: { 'zh-CN'?: string; en?: string };
+}
+
 /** 音效选择器的库：资源栈合并后的 sounds.json 里的全部事件 */
 export interface SoundLibrary {
   stamp: string;
-  events: { id: string; state: SoundFileState }[];
+  events: SoundLibraryEvent[];
+  /** 名称来源：两种语言的语言文件在不在（zh_cn 不在时中文界面显示英文字幕） */
+  lang: { 'zh-CN': boolean; en: boolean };
 }
+
+export type ImportSoundsResult = { ok: true; ids: string[]; skipped: number } | { ok: false; error: 'unsupported' | 'unreadable' } | { canceled: true };
+export const ImportedSoundIdSchema = z.string().regex(/^allay_user:imported\.[a-z0-9_]{1,64}$/);
 
 export type SoundFilesResult = { ok: true; states: Record<string, SoundFileState> } | { ok: false; error: DownloadErrorKind; states: Record<string, SoundFileState> };
 

@@ -2,7 +2,7 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute } from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
 import type { AppInfo, PickedFile } from '../shared/ipc-contract';
-import type { AddPackResult, ChooseGameDirResult } from '../shared/resources';
+import type { AddPackResult, ChooseGameDirResult, ImportSoundsResult } from '../shared/resources';
 import { IPC } from '../shared/ipc-channels';
 import { TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import { UnknownJobError, type ExportService } from './export/export-service';
@@ -161,6 +161,27 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.removeLayer, (_event, id) => resources.removeLayer(id));
   handle(IPC.resources.reorder, (_event, ids) => resources.reorder(ids));
   handle(IPC.resources.setEnabled, (_event, id, enabled) => resources.setEnabled(id, enabled));
+  handle(IPC.resources.versions, async () => {
+    await resources.whenOpened();
+    return resources.versions();
+  });
+  // 联网只在用户点了按钮后（M2a 的下载例外：只访问 Mojang 的三个主机，边界写死在 download.ts）
+  handle(IPC.resources.fetchRemoteVersions, () => resources.fetchRemoteVersions());
+  handle(IPC.resources.addVanillaSource, (_event, source) => resources.addVanillaSource(source));
+  handle(IPC.resources.downloadVanillaVersion, (_event, versionId) => resources.downloadVanilla(versionId));
+  handle(IPC.resources.localPacks, () => resources.localPacks());
+  handle(IPC.resources.addLocalPack, (_event, path) => {
+    if (!isAbsolute(path)) throw new IpcRejected('local pack path must be absolute');
+    return resources.addLocalPack(path);
+  });
+  handle(IPC.resources.importSounds, async (): Promise<ImportSoundsResult> => {
+    const win = getMainWindow();
+    if (!win) return { canceled: true };
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Audio', extensions: ['ogg', 'wav'] }] });
+    if (result.canceled || result.filePaths.length === 0) return { canceled: true };
+    return resources.importSounds(result.filePaths.slice(0, 100));
+  });
+  handle(IPC.resources.removeImportedSound, (_event, id) => resources.removeImportedSound(id));
 
   // ---- templates（04-templates.md 4.7–4.9）----
   handle(IPC.templates.list, () => templates.list());

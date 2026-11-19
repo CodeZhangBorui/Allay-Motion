@@ -90,7 +90,7 @@ const SafeId = z.string().regex(/^[\w.-]+$/).refine((s) => s !== '.' && s !== '.
 const ManifestSchema = z.looseObject({
   latest: z.looseObject({ release: SafeId }),
   // 清单里有 "3D Shareware v1.34" 这类带空格的老版本 id；这里只要求是字符串，选中的那一个再按 SafeId 校验
-  versions: z.array(z.looseObject({ id: z.string(), type: z.string(), url: z.string(), sha1: Sha1.optional() })),
+  versions: z.array(z.looseObject({ id: z.string(), type: z.string(), url: z.string(), sha1: Sha1.optional(), releaseTime: z.string().optional() })),
 });
 
 const VersionSchema = z.looseObject({
@@ -257,6 +257,7 @@ export function createVanillaDownloader(options: DownloaderOptions) {
       jarPath: join(dir, 'client.jar'),
       assetIndexPath: v.assetIndex ? join(indexesDir, `${v.assetIndex.id}.json`) : null,
       objectsDir,
+      type: v.type,
     };
   }
 
@@ -290,33 +291,56 @@ export function createVanillaDownloader(options: DownloaderOptions) {
     return dest;
   }
 
+  async function listCached(): Promise<CachedVanilla[]> {
+    const ids = await readdir(versionsDir).catch(() => [] as string[]);
+    const found: VersionJson[] = [];
+    for (const id of ids) {
+      if (!SafeId.safeParse(id).success) continue;
+      const v = await readCachedVersion(id);
+      if (v && !Number.isNaN(Date.parse(v.releaseTime)) && (await isComplete(v))) found.push(v);
+    }
+    found.sort((a, b) => Date.parse(b.releaseTime) - Date.parse(a.releaseTime));
+    return found.map(toInstall);
+  }
+
   return {
     cacheDir,
 
+    /** 离线：已下载且校验通过的全部版本，新的在前。不联网 */
+    listCached,
+
     /** 离线：已下载且校验通过的版本里取 releaseTime 最新的；没有返回 null。不联网 */
     async findCached(): Promise<CachedVanilla | null> {
-      const ids = await readdir(versionsDir).catch(() => [] as string[]);
-      const found: VersionJson[] = [];
-      for (const id of ids) {
-        if (!SafeId.safeParse(id).success) continue;
-        const v = await readCachedVersion(id);
-        if (v && !Number.isNaN(Date.parse(v.releaseTime)) && (await isComplete(v))) found.push(v);
-      }
-      found.sort((a, b) => Date.parse(b.releaseTime) - Date.parse(a.releaseTime));
-      return found[0] ? toInstall(found[0]) : null;
+      return (await listCached())[0] ?? null;
+    },
+
+    /**
+     * 联网（只在用户点了“获取版本列表”之后）：取 Mojang 版本清单，返回全部版本的 id、类型、发布时间，新的在前。
+     * 只访问 piston-meta.mojang.com，与 downloadLatest 的第一步相同；不下载任何游戏文件。
+     */
+    async listRemoteVersions(opts: { signal?: AbortSignal } = {}): Promise<{ latest: string; versions: { id: string; type: string; releaseTime: string }[] }> {
+      const manifest = ManifestSchema.safeParse((await fetchJson(VERSION_MANIFEST_URL, opts.signal)).data);
+      if (!manifest.success) throw new DownloadError('版本清单格式不对', 'bad-data');
+      const versions = manifest.data.versions
+        .filter((v) => SafeId.safeParse(v.id).success)
+        .map((v) => ({ id: v.id, type: v.type, releaseTime: typeof v.releaseTime === 'string' ? v.releaseTime : '' }))
+        .slice(0, 2000);
+      return { latest: manifest.data.latest.release, versions };
     },
 
     /**
      * 联网：取版本清单 → 最新 release → 版本 JSON → 客户端 jar 和资源索引。已缓存且校验通过的文件不重复下载。
      * 只应在用户明确同意后调用。
      */
-    async downloadLatest(opts: { signal?: AbortSignal; onProgress?: (p: DownloadProgress) => void } = {}): Promise<CachedVanilla> {
+    async downloadLatest(opts: { signal?: AbortSignal; onProgress?: (p: DownloadProgress) => void; versionId?: string } = {}): Promise<CachedVanilla> {
       const { signal, onProgress } = opts;
       onProgress?.({ phase: 'manifest', received: 0, total: null });
       const manifest = ManifestSchema.safeParse((await fetchJson(VERSION_MANIFEST_URL, signal)).data);
       if (!manifest.success) throw new DownloadError('版本清单格式不对', 'bad-data');
-      const entry = manifest.data.versions.find((v) => v.id === manifest.data.latest.release && v.type === 'release');
-      if (!entry || !SafeId.safeParse(entry.id).success) throw new DownloadError('版本清单里找不到最新的正式版', 'bad-data');
+      // 指定了版本（用户在版本列表里选的）就取那一版，否则取最新的正式版
+      const wanted = opts.versionId ?? manifest.data.latest.release;
+      const entry = manifest.data.versions.find((v) => v.id === wanted && (opts.versionId !== undefined || v.type === 'release'));
+      if (!entry || !SafeId.safeParse(entry.id).success) throw new DownloadError(`版本清单里找不到 ${wanted}`, 'bad-data');
       onProgress?.({ phase: 'version', received: 0, total: null });
       const { data, bytes } = await fetchJson(entry.url, signal, entry.sha1);
       const version = VersionSchema.safeParse(data);
@@ -357,7 +381,7 @@ export function createVanillaDownloader(options: DownloaderOptions) {
     async fetchSoundObjects(
       install: CachedVanilla,
       eventIds: readonly string[],
-      opts: { signal?: AbortSignal; onProgress?: (p: DownloadProgress) => void } = {},
+      opts: { signal?: AbortSignal; onProgress?: (p: DownloadProgress) => void; extraKeys?: readonly string[] } = {},
     ): Promise<{ fetched: number; missing: string[] }> {
       const missing: string[] = [];
       if (!install.assetIndexPath) return { fetched: 0, missing: [...eventIds] };
@@ -381,6 +405,12 @@ export function createVanillaDownloader(options: DownloaderOptions) {
           if (!key) missing.push(v.file);
           else wanted.set(key, objects[key]!);
         }
+      }
+      // 另外要的对象（音效中文名用的 minecraft/lang/zh_cn.json，decisions.md 2026-11 反馈）
+      for (const key of opts.extraKeys ?? []) {
+        const obj = objects[key];
+        if (obj) wanted.set(key, obj);
+        else missing.push(key);
       }
       const total = [...wanted.values()].reduce((s, o) => s + o.size, 0);
       let received = 0;

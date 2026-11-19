@@ -5,7 +5,7 @@
 // 音效等文件在 assets/objects/<哈希前两位>/<哈希>。
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isSafeRelativePath } from '@allay/assets';
+import { isSafeRelativePath, parseJarVersionJson, type PackFormat } from '@allay/assets';
 import { z } from 'zod';
 import type { ClosableLayer } from './layers';
 import { MAX_ENTRY_BYTES, openZip } from './zip';
@@ -17,6 +17,7 @@ const VersionJsonSchema = z.looseObject({
   type: z.string(),
   releaseTime: z.string(),
   assetIndex: z.looseObject({ id: z.string().regex(/^[\w.-]+$/) }).optional(),
+  inheritsFrom: z.string().max(64).optional(),
 });
 
 const AssetIndexSchema = z.looseObject({
@@ -34,6 +35,8 @@ export interface VanillaInstall {
   /** 资源索引不存在时为 null（没有音效，贴图照常） */
   assetIndexPath: string | null;
   objectsDir: string;
+  /** 版本 JSON 的 type：release、snapshot、old_beta… （旧调用方不关心时可以缺省） */
+  type?: string;
 }
 
 export interface CandidateEnv {
@@ -71,6 +74,37 @@ async function readJson(path: string): Promise<unknown> {
   const st = await stat(path);
   if (!st.isFile() || st.size > MAX_JSON_BYTES) throw new Error(`not a readable json file: ${path}`);
   return JSON.parse((await readFile(path, 'utf8')).replace(/^\uFEFF/, '')) as unknown;
+}
+
+/**
+ * 一个游戏目录里所有带 jar 的版本（正式版、快照都算），新的在前。只读，不抛错。
+ * 版本 id 要能当目录名用（只含字母数字、点、下划线、连字符）；带空格的（PCL 给模组版本起的名字）跳过。
+ */
+export async function listVersions(gameDir: string): Promise<VanillaInstall[]> {
+  const versionsDir = join(gameDir, 'versions');
+  const names = await readdir(versionsDir, { withFileTypes: true }).catch(() => []);
+  const found: VanillaInstall[] = [];
+  for (const d of names) {
+    if (!d.isDirectory() || !/^[\w.-]{1,64}$/.test(d.name) || d.name === '.' || d.name === '..') continue;
+    const id = d.name;
+    const jarPath = join(versionsDir, id, `${id}.jar`);
+    if (!(await isFile(jarPath))) continue;
+    const parsed = VersionJsonSchema.safeParse(await readJson(join(versionsDir, id, `${id}.json`)).catch(() => null));
+    if (!parsed.success || Number.isNaN(Date.parse(parsed.data.releaseTime))) continue;
+    const indexId = parsed.data.assetIndex?.id;
+    const indexPath = indexId ? join(gameDir, 'assets', 'indexes', `${indexId}.json`) : null;
+    found.push({
+      gameDir,
+      versionId: id,
+      releaseTime: parsed.data.releaseTime,
+      jarPath,
+      assetIndexPath: indexPath && (await isFile(indexPath)) ? indexPath : null,
+      objectsDir: join(gameDir, 'assets', 'objects'),
+      type: parsed.data.type,
+    });
+  }
+  found.sort((a, b) => Date.parse(b.releaseTime) - Date.parse(a.releaseTime) || (a.versionId < b.versionId ? 1 : -1));
+  return found;
 }
 
 /** 在一个游戏目录里找有 jar 且最新的正式版；找不到返回 null，不抛错 */
@@ -122,8 +156,14 @@ export interface VanillaLayerOptions {
   fetchObject?: (hash: string, size: number) => Promise<string>;
 }
 
-export async function openVanillaLayer(install: VanillaInstall, options: VanillaLayerOptions = {}): Promise<ClosableLayer> {
-  const jar = await openZip(install.jarPath, { includePrefixes: ['assets/'] });
+/** 原版层多带的信息：版本和这一版的资源包格式号（jar 根目录的 version.json） */
+export interface VanillaLayerExtras {
+  vanilla: { versionId: string; releaseTime: string; type: string | null; resourceFormat: PackFormat | null; gameDir: string; hasAssetIndex: boolean };
+}
+
+export async function openVanillaLayer(install: VanillaInstall, options: VanillaLayerOptions & { id?: string } = {}): Promise<ClosableLayer & VanillaLayerExtras> {
+  // 根目录的 version.json 只用来读格式号；其余只收录 assets/
+  const jar = await openZip(install.jarPath, { includePrefixes: ['assets/', 'version.json'] });
   try {
     const objects = new Map<string, { file: string; size: number; hash: string }>();
     const warnings = [...jar.warnings];
@@ -142,15 +182,22 @@ export async function openVanillaLayer(install: VanillaInstall, options: Vanilla
       }
     }
     const jarStat = await stat(install.jarPath);
-    const all = [...new Set([...jar.paths, ...objects.keys()])].sort();
+    let resourceFormat: PackFormat | null = null;
+    if (jar.has('version.json')) {
+      const bytes = await jar.read('version.json').catch(() => null);
+      if (bytes && bytes.byteLength <= 65_536) resourceFormat = parseJarVersionJson(new TextDecoder().decode(bytes))?.resourceFormat ?? null;
+    }
+    const all = [...new Set([...[...jar.paths].filter((p) => p.startsWith('assets/')), ...objects.keys()])].sort();
     return {
-      id: VANILLA_LAYER_ID,
+      id: options.id ?? VANILLA_LAYER_ID,
       kind: 'vanilla',
       name: install.versionId,
       enabled: true,
+      ...(resourceFormat ? { packFormat: resourceFormat.major } : {}),
+      vanilla: { versionId: install.versionId, releaseTime: install.releaseTime, type: install.type ?? null, resourceFormat, gameDir: install.gameDir, hasAssetIndex: objects.size > 0 },
       revision: `${install.versionId}:${jarStat.size}:${Math.round(jarStat.mtimeMs)}:${Math.round(indexMtime)}`,
       warnings,
-      has: (path) => jar.has(path) || objects.has(path),
+      has: (path) => (path.startsWith('assets/') && jar.has(path)) || objects.has(path),
       list: (prefix) => all.filter((p) => p.startsWith(prefix)),
       read: async (path) => {
         if (jar.has(path)) return jar.read(path);

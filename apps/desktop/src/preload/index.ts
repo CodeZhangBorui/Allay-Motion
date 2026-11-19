@@ -75,6 +75,14 @@ const api = {
     removeLayer: invoke(IPC.resources.removeLayer),
     reorder: invoke(IPC.resources.reorder),
     setEnabled: invoke(IPC.resources.setEnabled),
+    versions: invoke(IPC.resources.versions),
+    fetchRemoteVersions: invoke(IPC.resources.fetchRemoteVersions),
+    addVanillaSource: invoke(IPC.resources.addVanillaSource),
+    downloadVanillaVersion: invoke(IPC.resources.downloadVanillaVersion),
+    localPacks: invoke(IPC.resources.localPacks),
+    addLocalPack: invoke(IPC.resources.addLocalPack),
+    importSounds: invoke(IPC.resources.importSounds),
+    removeImportedSound: invoke(IPC.resources.removeImportedSound),
     // 1.6 第 6 条：页面只能交来 File 对象，路径在这里用 webUtils 取。
     // 页面自己构造的 File 没有路径（返回空串），主进程会拒绝。
     addDroppedPack: (file: unknown): Promise<unknown> => {
