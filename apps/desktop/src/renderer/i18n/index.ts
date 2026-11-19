@@ -4,6 +4,9 @@ import { initReactI18next } from 'react-i18next';
 import type { LanguagePref } from '../../shared/settings';
 import en from './locales/en.json';
 import zhCN from './locales/zh-CN.json';
+// 开发模式与动画编辑器的文案（2026-11）单独成文件：顶层键 devMode、anim，不与主文案重名
+import studioEn from './locales/studio/en.json';
+import studioZhCN from './locales/studio/zh-CN.json';
 
 // i18next 骨架（6.9）：zh-CN 和 en 两套文案；brand.* 由 packages/ui/src/brand 统一提供。
 
@@ -11,8 +14,8 @@ export const SUPPORTED_LANGUAGES = ['zh-CN', 'en'] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
 export const resources = {
-  'zh-CN': { translation: { ...zhCN, brand: brandMessages['zh-CN'] } },
-  en: { translation: { ...en, brand: brandMessages.en } },
+  'zh-CN': { translation: { ...zhCN, ...studioZhCN, brand: brandMessages['zh-CN'] } },
+  en: { translation: { ...en, ...studioEn, brand: brandMessages.en } },
 } as const;
 
 let systemLocaleValue = '';

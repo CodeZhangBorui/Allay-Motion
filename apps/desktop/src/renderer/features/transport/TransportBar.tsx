@@ -27,7 +27,7 @@ export function formatTimecode(t: number, fps: number): string {
 }
 
 /** 播放：按真实时间推进当前时间（这是界面的时钟，模板的 update 只依赖传进去的 t） */
-function usePlayback() {
+export function usePlayback() {
   const playing = useTransportStore((s) => s.playing);
   useEffect(() => {
     if (!playing) {

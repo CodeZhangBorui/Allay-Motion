@@ -1,9 +1,15 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import en from '../../apps/desktop/src/renderer/i18n/locales/en.json';
-import zhCN from '../../apps/desktop/src/renderer/i18n/locales/zh-CN.json';
+import mainEn from '../../apps/desktop/src/renderer/i18n/locales/en.json';
+import mainZhCN from '../../apps/desktop/src/renderer/i18n/locales/zh-CN.json';
+import studioEn from '../../apps/desktop/src/renderer/i18n/locales/studio/en.json';
+import studioZhCN from '../../apps/desktop/src/renderer/i18n/locales/studio/zh-CN.json';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
+
+// 主文案和开发模式、动画编辑器的文案（studio/）合起来就是界面的全部文案；两边的顶层键不得重名
+const en = { ...mainEn, ...studioEn };
+const zhCN = { ...mainZhCN, ...studioZhCN };
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
@@ -19,6 +25,9 @@ function values(obj: unknown): string[] {
 }
 
 describe('i18n（6.9）', () => {
+  it('studio 文案的顶层键不与主文案重名', () => {
+    for (const k of Object.keys(studioEn)) expect(Object.keys(mainEn)).not.toContain(k);
+  });
   it('两种语言的文案键完全一致', () => {
     expect(keys(zhCN).sort()).toEqual(keys(en).sort());
     expect(Object.keys(brandMessages['zh-CN']).sort()).toEqual(Object.keys(brandMessages.en).sort());

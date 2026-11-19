@@ -2,6 +2,104 @@
 
 规格没说清、或与现实对不上的地方，在这里记一笔：偏离了什么、为什么。按里程碑分节。
 
+## 动画编辑器的第二轮反馈（2026-11-19）：界面变形、代码窗口、实时预览、外部编辑器
+
+用户的方向（原话见 `docs/animation-editor.md` 第 9 节，经主控转达）：进入动画编辑器时界面逐渐变成专业软件的样子；代码编辑器另开窗口、实时双向同步；可以开实时预览（哪一帧用了哪段代码，自动跳转、标记）；允许用 VS Code 等外部编辑器打开，默认用应用自带的。设计见 `docs/animation-editor.md` 第 9 节；新的提交都在第一轮的 8 个提交之后，没有改写它们。
+
+### 界面变形
+
+- 新增“工作区模式”（`app/workspaceMode.ts`），注册表的面板多一个可选的 `modes`。模板库、预设、模板参数标成只属于 template 模式，图层、检查器只属于 animation 模式；它们改为启动时注册一次（原来是进出动画时注册、注销），由左右面板按模式过滤。
+- 过渡：淡出 120 ms（左、右、下错开 60 ms）→ 换内容 → 淡入；时间轴容器的高度平滑过渡（236 → 280）。只改透明度和尺寸；“减少动效”时直接换。
+
+### 代码窗口与 1.6
+
+- **没有放宽 1.6 的任何一条**：
+  - 第 1 条：代码窗口的 webPreferences 与主窗口是同一个函数生成的（`secureWebPreferences`），同一个 preload。T-ANIM-10 在运行时核对两个窗口的设置。
+  - 第 2 条：页面 `app://renderer/code.html`，同一个协议处理函数、同一份 CSP，没有内联脚本（构建出的是普通的模块脚本）。
+  - 第 3、4 条：会话级网络拦截、导航、新窗口、权限的拦截本来就对所有 webContents 生效，代码窗口不需要额外做什么。
+  - 第 5 条：IPC 来源校验从“只认主窗口”变成“按通道认”。代码窗口按 `webContents.id` 登记（`CodeWindowService` 创建时登记，窗口关闭、webContents 销毁、渲染进程退出时注销），来源必须是登记的那个 webContents（对象和 id 都对得上）的主框架、页面正好是应用 origin 下的 `/code.html`——不按 URL 前缀放行。它只能调 `codeWindow:send` 一个通道（第一版还放行了 `app:info`，代码窗口的页面其实不调它，按主控的要求去掉了）；`codeWindow:send` 反过来不收主窗口的调用。这是收紧之后的白名单，不是放宽：主窗口能调的通道一个没少，也没有给代码窗口开任何读写文件、设置、模板的通道。两个窗口不直接通信，消息经主进程转发，两端都按 zod 校验。
+- 代码窗口的页面不启动引擎、不注册核心功能，只加载可选模块拿代码视图（受限的宿主：命令、模板读写等都不可用）。主程序仍不认识具体的模块；“在代码窗口中打开”的可用条件是“发现了至少一个没被设置关掉的可选模块”。**这意味着代码窗口里的模块不受开发模式开关的约束**：代码窗口是用户为动画编辑器明确打开的，开发模式只决定主窗口里加载哪些模块。
+- 撤销：代码窗口里的 Ctrl+Z 交给主窗口的历史（宿主接口的 `CodeViewOptions.onUndo/onRedo`，只加不改），与可视化编辑同一份。
+- 宿主接口新增（只加不改）：`CodeViewOptions.onUndo`、`onRedo`、`onPick`，`CodeViewMark`，`CodeViewHandle.setMarks`（可选）。
+
+### 实时预览
+
+- 映射从动画文档的结构推出来（`shared/animation/source-map.ts`）：一个记录位置的 JSON 解析 + 文档里的可见区间和关键帧时刻。没有在 Worker 里埋运行时探针，画面仍是时间的纯函数。播放头约 30 次每秒推给代码窗口（只在实时预览开着、代码窗口开着时）。
+- 对象的成员从键名开始算范围：点在键名上（例如 `"duration"`）也算点到了它。
+
+### 外部编辑器与 1.6
+
+- 设置 `editor`（settings.json 里只有主进程读写的一节，旧文件没有时是 builtin）：`kind`（builtin / system / custom）、`program`（只来自主进程的文件对话框，界面上只显示文件名）。**第 6 条（路径只来自主进程的对话框）没有放宽**：渲染进程交给主进程的只有动画的标识和文本，文件路径由主进程按标识决定，在应用自己的数据目录里（`userData/animations/`），标识按格式校验，拼不出别的路径。
+- 启动外部程序：只在主进程、只在用户点了“编辑动画代码”或“用外部编辑器打开”时。系统默认用 `shell.openPath(.json 文件)`（不对 .js 调用，方案 2.2 的 Windows Script Host 风险）；指定程序用 `spawn(程序, [文件], { shell: false })`，参数数组，不拼命令行。不联网（规则 10）。
+- 回写同步：监视那个文件，内容与应用最后写的不同才推回主窗口；主窗口改了文档时改写文件（防抖 300 ms）。走的都是代码编辑的同一条路（进撤销历史）。没有复用模板目录的监视服务（`TemplateWatcher`）：它只认 `<id>/<版本>/` 结构的模板文件夹，动画文档不是模板。
+
+### 测试
+
+- 单元：T-ANIM-6、T-ANIM-7、T-ANIM-8（`tests/unit/T-ANIM-6.source-map.test.ts、T-ANIM-7.code-window-guard.test.ts、T-ANIM-8.external-editor.test.ts`）；`settings.test.ts` 的默认设置多了 editor。
+- 端到端：T-ANIM-9、T-ANIM-10（`tests/e2e/anim.spec.ts`）；T-ARC-6 的畸形参数表补了 9 个新方法（这条测试仍因之前漏了 `folders.*`、`updates.*` 而失败，见上一轮的记录）。T-ANIM-3 改为直接打开主窗口的“动画代码”面板（`</>` 按钮现在默认开代码窗口）。
+
+### 没验证的
+
+- 真的用 VS Code 打开动画文件、在里面保存后回写（单元测试用真实的文件系统事件模拟外部保存，没有启动真的程序）。
+- “系统默认”在没有给 .json 关联程序的机器上：Windows 会弹“选择打开方式”。
+- 变形过渡的观感、代码窗口的浅色主题：只测了终态，过程要人看。
+
+## 2026-11 反馈：开发模式、代码编辑与动画编辑器
+
+来源：用户 2026-11-15 的 12 条反馈清单中“开发模式入口不好找”“允许直接在软件里纯代码编辑模板和动画”“要有新建/编辑动画的地方”（配图是一款手机动画软件，用户说明**不参考它的风格和内容**，只表达要有这个地方）。分支 `claude/code-anim-editor-4100ac`。
+
+### 范围与用户的决定
+
+- **H-CODE-EDITOR：做**（用户要求在软件里纯代码编辑）。P1 内嵌编辑器按 `docs/code-editing-and-mcp-plan.md` 第 3 节做成可选模块，默认随开发模式开启（第 9 节）。
+- **动画编辑器**是新的产品范围（`docs/01-product-architecture.md` 1.2 没有它），用户这次明确要求，设计说明在 `docs/animation-editor.md`，这次做第一期。
+- **H-MCP 仍未批准**：不写 MCP 的任何代码；动画和模板编辑只把类型化命令（H2）准备好。
+- 用户唯一要求固定的是 UI 风格与现有界面统一：新界面只用现有的设计变量和 `packages/ui` 的控件，没有新颜色、新圆角、新阴影。
+
+### 开发模式
+
+- 新设置 `ui.devMode`（布尔，旧设置文件读成 false）。位置见 `docs/06-ui-design.md` 6.15：视图菜单的开关、命令 `toggleDevMode`、状态栏指示、左栏“开发”页、设置“开发”页（说明“打开以后在哪里”——这就是任务里“在新手引导或设置里说明”的那一处；新手引导没有改，它的九步讲的都是普通用户的东西）。
+- **可选模块随开发模式启用**：`effectiveModuleSwitches(可用模块, devMode, ui.optionalModules)`——开发模式关着时全关；开着时除非 `optionalModules[id] === false` 都开。原来的开关表语义（“列为 true 才开”）因此变了：现在表里只用来单独关掉。主程序仍然只按目录名处理，不认识具体模块。
+- 原有的入口（文件菜单的“复制当前内置模板来修改”“打开模板文件夹”、状态栏的监视提示）不受开发模式影响，T-DEV-1 照旧。
+- 开发页的“工具”列出 id 里带点的命令（可选模块的命令都是“<模块>.”开头，核心命令的 id 不带点），不需要模块和主程序约定菜单位置。
+
+### 内嵌代码编辑器（P1）
+
+- 见 `docs/code-editing-and-mcp-plan.md` 第 9 节。CodeMirror 6 共 10 个包，全部 MIT；版本 state 6.7.6、view 6.43.15、commands 6.11.1、language 6.13.1、lang-javascript 6.2.5、lang-json 6.0.2、autocomplete 6.20.4、lint 6.9.8、search 6.7.2、@lezer/highlight 1.2.5（2026-11-19 取的最新版）。
+- **主进程的源码读写**：`templates.readSource(id, 版本)`（内置模板只读，版本 `builtin:<id>@<版本>`；用户模板的版本是监视服务用的文件夹内容哈希）和 `templates.writeSource({ id, version, source, baseVersion })`（只写用户模板的 `template.js`；内容哈希对不上是 conflict；acorn 预检不过是 invalid，带 compile 诊断；确定性规则命中照写，热重载会拦下并在浮层里显示，和外部编辑器的行为一致）。**写入不包在 `ownWrite` 里**：监视服务照常发现改动，界面走同一条热重载管线（H9），不另开一条“编辑器专用”的重载路径。
+- 面板用原生 DOM 画（模块不能引用 `packages/ui`），样式只用主程序的 CSS 变量；文案经 `ui.registerMessages` 注册，界面语言经新的 `ui.t` 取。
+- 宿主接口的新增都是**只加不改**（`packages/host-api`）：`templates.current`、`onCurrentChange`、`engine.lint`、`commands.dispatch`、`ui.registerCodeView`、`ui.t`、`ui.onLocaleChange`；`templates.read` / `write` 从“以 HostUnsupportedError 拒绝”改为已实现。
+
+### 动画编辑器（第一期）
+
+- **唯一真相是一份 JSON 文档**（`apps/desktop/src/shared/animation/schema.ts`），不是 JS：JSON 能被 zod 完整校验、能稳定地序列化（可视化编辑和代码编辑来回切换时不丢东西）、agent 能可靠地读写，而且它本身不能执行，不需要新的沙箱。任务说明里“声明式 JS/JSON 动画文档”二选一，选了更简单的。
+- **代码由文档生成**（`compile.ts`）：文档常量 + 解释器原文（`runtime.template.js`，以 Vite 的 `?raw` 文本嵌入）+ 默认导出。解释器只用公开的 `ctx`，与模板走同一条装载路径（`EngineHost.load`），所以预览、导出、封面、静帧接口都不需要知道“动画”这回事。T-ANIM-4 核对了转成模板后同一时刻的画面与动画逐字节相同。
+- **动画放在工程里**：`TemplateSource` 多一个可选的 `animation { text, doc, issues }`，工程状态的模板就是生成的那份。每次修改换一个新的 `TemplateSource`，撤销重做、“已修改”、保存全部沿用 projectStore（一次修改一步撤销；拖动是一次手势）。`.allay` 多一个可选字段 `animation`（zod 校验，旧工程没有）；有它时打开工程从文档生成模板，不去模板库里找。
+- **代码写到一半**：解析不过的文本也保存在工程状态里（不丢用户的输入），预览保持最后一份合法的文档；保存工程文件时只存合法的文档。
+- **每次修改都重新装载 Worker**（模板、输出没变时才走 `setParams`，动画的修改都算换了模板）。第一期没有为它做快速路径：装载一份动画只是几个方块、文字的 setup，拖数值时 previewEngine 本来就按帧合并请求、同一时刻最多一个在途的装载。**没有量过**图层多时拖动的流畅度，用户试用时如果觉得卡，先量再优化。第二期“暴露为参数”时，参数化的修改自然走 `setParams`。
+- **JSON 语法错误的位置**：Node 24 / Electron 的 V8 给的 `JSON.parse` 错误信息不再带 position，所以写了一个只找第一个出错字符的小扫描器（`jsonErrorOffset`）；它说合法而 `JSON.parse` 说不合法时不给位置（不猜）。
+- **新的时间轴组件**（`AnimTimeline.tsx`），不碰 `TimelineTrack.tsx`、`EasingField.tsx`（另一会话在改）；缓动的数学复用 `packages/ui/src/editor/easing.ts`（只读调用），关键帧的缓动用现有的 EasingField（只用，不改）。为了让新时间轴也能驱动播放，`TransportBar.tsx` 的 `usePlayback` 加了 `export`（只这一处改动）。
+- **转为模板**：主进程自己再解析一遍文档（不信渲染进程交来的代码），生成 `manifest.json`、`template.js`、`animation.json`，过 acorn 预检，经 `TemplateService.createUser`（新方法：用一组文本文件建用户模板，写入经监视服务的写入钩子）写盘，再写类型定义和 jsconfig。新 id `user.<6 位十六进制>.<名字>`。没有走安装流程的试运行：代码是应用自己生成的，确定性由解释器保证（T-ANIM-2 的乱序取帧）。
+- 新文案放在单独的 `i18n/locales/studio/{zh-CN,en}.json`（顶层键 `devMode`、`anim`），减少与其他会话同时改主文案文件的冲突；i18n 测试把两边合起来检查，并检查顶层键不重名。
+
+### 依赖安装（本机环境）
+
+- 这个 worktree 一开始没有 `node_modules`，`pnpm install --offline` 不行（本机 store 只有 403/728 个包）。沙箱的 HTTP(S) 代理拒绝连接，不走代理直连镜像可以：`env -u HTTPS_PROXY -u HTTP_PROXY pnpm install --frozen-lockfile`。lockfile 只多了 CodeMirror 那一组（+191 行）。
+
+### 测试
+
+- 单元：T-ANIM-1、T-ANIM-2（`tests/unit/T-ANIM-1.animation-doc.test.ts`）、T-ANIM-5 与 T-DEV-7（`tests/unit/T-ANIM-5.edit.test.ts`）、T-DEV-5（`packages/optional/code-editor/src/index.test.ts`；主进程读写源码与转为模板在 `tests/unit/template-dev.test.ts`）。T-DEV-4 的两份测试改为“发现的模块就是带 `src/index.ts` 的目录”“每个模块按约定命名、只依赖 host-api”（原来断言目录为空）。
+- 端到端：`tests/e2e/anim.spec.ts` 的 T-DEV-6（菜单开关、状态栏指示、开发页、模块随之启停、在应用里改用户模板的代码 Ctrl+S 保存后热重载成功）、T-ANIM-3、T-ANIM-4；T-ARC-6 的畸形参数表补了三个新方法。
+- **可拆除**：本机没有跑完整的 `pnpm check:removable`（它跑全部 `pnpm check`，其中几项端到端测试在这台机器上对未修改的 main 也失败，见下）。按同样的步骤手工做了一遍：把 `packages/optional` 移到同一块盘的临时目录、`pnpm install`、`pnpm licenses:gen`（94 项变 75 项），然后 `pnpm typecheck`、`pnpm lint`、全部单元测试（50 个文件 536 条）、`pnpm build`、`anim.spec.ts` 的 T-ANIM-3/4（代码视图退回文本框）全部通过，再放回、按原 lockfile 装回。`check-removable.ts` 补了一步：拆掉后重新生成第三方许可清单（否则 M8.third-party 必然失败），跑完放回。
+- **这台机器上与本次改动无关的失败**：`m4.spec.ts` 的 T-UI-3（焦点环）、T-UI-4（窗口宽 1122 不是 1120）、T-UI-5（截图 1441 不是 1440 像素宽）和 `layout.spec.ts` 的窗口位置恢复，在未修改的基线提交 63a2f23 上同样失败（检出到临时目录单独构建、单独跑过）。`ipc.spec.ts` 的 T-ARC-6 在本分支仍失败：`folders.*`、`updates.*` 八个方法不在畸形参数表里，是之前的改动漏的，不在本任务范围，没有补。
+- 网页演示（`apps/website`）的宿主实现同一份预加载接口的类型，补上了三个新方法（桌面专属，网页里返回失败）。
+
+### 没验证的
+
+- 动画工程导出成视频文件：导出走的是现有导出任务、同一份 `TemplateSource`，但这次没有单独跑一遍，更没有在真实剪辑软件里看。
+- 中文输入法（微软拼音、搜狗）在 CodeMirror 里的组合输入。
+- 真实 VS Code 打开“转为模板”生成的文件夹的补全体验。
+- 浅色主题下代码编辑器的配色只按变量推，没有人看过。
+
 ## GitCode 镜像与自动发布（2026-11-14）
 
 - 用户要求 GitCode `Mystic-Stars/Allay-Motion` 作为镜像分发源，使用 GitHub Actions 单向同步代码、标签及正式 Release 附件，不依赖开发者电脑登录或推送。

@@ -1,3 +1,4 @@
+import type { AnimationFileChange, CodeEditorKind, CodeWindowDown, CodeWindowUp, EditorInfo, OpenExternalResult } from '../shared/code-window';
 import type {
   ChooseFolderResult,
   ExportFinishResult,
@@ -35,6 +36,10 @@ import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
 import type { UpdateState } from '../shared/updates';
 import type {
+  CreateFromAnimationResult,
+  ReadSourceResult,
+  WriteSourceRequest,
+  WriteSourceResult,
   CommitResult,
   CopyBuiltinRequest,
   ExportFileResult,
@@ -176,6 +181,13 @@ export interface AllayApi {
     writeDevFiles(id: string, version: string): Promise<TemplateDevResult>;
     /** 在系统文件管理器里打开用户模板的文件夹 */
     openFolder(id: string, version: string): Promise<TemplateDevResult>;
+    // ---- 2026-11：内嵌代码编辑与自建动画 ----
+    /** 读模板的 template.js 和内容版本；内置模板只读 */
+    readSource(id: string, version: string): Promise<ReadSourceResult>;
+    /** 写用户模板的 template.js（内容版本对不上时返回 conflict）；写完监视服务照常发现、走热重载 */
+    writeSource(req: WriteSourceRequest): Promise<WriteSourceResult>;
+    /** 把动画文档转成一个新的用户模板（manifest.json、template.js、animation.json） */
+    createFromAnimation(req: { text: string }): Promise<CreateFromAnimationResult>;
     /** 用户模板文件夹在应用之外被改动（应用自己的写入不触发）；返回取消订阅的函数 */
     onChanged(callback: (change: TemplateDevChange) => void): () => void;
   };
@@ -233,6 +245,31 @@ export interface AllayApi {
     import(): Promise<ImportFontResult>;
     remove(id: string): Promise<UserFontInfo[]>;
     read(id: string): Promise<UserFontData | null>;
+  };
+  /** 代码窗口（2026-11 第二轮反馈）。两个窗口用同一个 preload；代码窗口的调用只有 send 会被主进程接受 */
+  codeWindow: {
+    open(): Promise<void>;
+    close(): Promise<void>;
+    /** 主窗口 → 代码窗口 */
+    publish(message: CodeWindowDown): Promise<void>;
+    /** 代码窗口 → 主窗口 */
+    send(message: CodeWindowUp): Promise<void>;
+    /** 代码窗口收主窗口的消息 */
+    onDown(callback: (message: CodeWindowDown) => void): () => void;
+    /** 主窗口收代码窗口的消息 */
+    onUp(callback: (message: CodeWindowUp) => void): () => void;
+  };
+  /** 打开动画代码用的编辑器：应用自带 / 系统默认 / 指定程序（程序由主进程的对话框选，界面只看到文件名） */
+  editors: {
+    get(): Promise<EditorInfo>;
+    setKind(kind: CodeEditorKind): Promise<EditorInfo>;
+    chooseProgram(): Promise<EditorInfo & { canceled: boolean }>;
+  };
+  /** 动画文档文件：外部编辑器打开的就是它，改了推回主窗口 */
+  animations: {
+    openExternal(req: { key: string; text: string }): Promise<OpenExternalResult>;
+    syncFile(req: { key: string; text: string }): Promise<void>;
+    onFileChanged(callback: (change: AnimationFileChange) => void): () => void;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

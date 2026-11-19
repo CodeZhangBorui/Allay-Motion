@@ -189,6 +189,28 @@ const MALFORMED: Record<string, unknown[][]> = {
   ],
   'templates.writeDevFiles': [[], ['user.abc.x'], ['C:\\Windows', '1.0.0'], [{ path: 'C:\\x' }, '1.0.0'], ['user.abc.x', '1.0.0', 'C:\\x']],
   'templates.openFolder': [[], ['C:\\Windows'], ['C:\\Windows', '1.0.0'], ['..', '..'], ['user.abc.x', { path: 'C:\\x' }], ['user.abc.x', '1.0.0', 'template.js']],
+  // 内嵌代码编辑与自建动画（2026-11）：路径一律不收，只认 id 和版本
+  'templates.readSource': [[], ['C:\\Windows\\win.ini'], ['user.abc.x'], ['..', '..'], ['user.abc.x', '1.0.0', 'template.js']],
+  'templates.writeSource': [
+    [],
+    [null],
+    ['user.abc.x', '1.0.0', 'code'],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x' }],
+    [{ id: 'C:\\x', version: '1.0.0', source: 'x', baseVersion: 'a' }],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x', baseVersion: 'a', path: 'C:\\x.js' }],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x'.repeat(1024 * 1024 + 1), baseVersion: 'a' }],
+  ],
+  'templates.createFromAnimation': [[], [null], ['{}'], [{ text: '' }], [{ text: '{}', path: 'C:\\x' }], [{ text: 'x'.repeat(512 * 1024 + 1) }]],
+  // 代码窗口与外部编辑器（第二轮反馈）：主窗口发 codeWindow.send 被拒（只收代码窗口的）；路径一律不收
+  'codeWindow.open': [[1], ['C:\\x']],
+  'codeWindow.close': [[1]],
+  'codeWindow.publish': [[], [null], [{ type: 'eval', code: 'x' }], [{ type: 'time', t: 99, playing: false }], [{ type: 'state', text: 'x' }]],
+  'codeWindow.send': [[{ type: 'ready' }], [{ type: 'edit', text: '{}', baseRevision: 0 }]],
+  'editors.get': [[1]],
+  'editors.setKind': [[], ['vim'], ['C:\\Windows\\notepad.exe']],
+  'editors.chooseProgram': [['C:\\Windows\\notepad.exe']],
+  'animations.openExternal': [[], [{ key: '..\\..\\x', text: '{}' }], [{ key: 'user.abc123.animation' }], [{ key: 'user.abc123.animation', text: '{}', program: 'C:\\x.exe' }]],
+  'animations.syncFile': [[], [{ key: 'C:\\x.json', text: '{}' }]],
   'presets.list': [[1]],
   'presets.save': [
     [],

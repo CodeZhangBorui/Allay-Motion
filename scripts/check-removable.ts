@@ -3,7 +3,7 @@
 // 跑完（无论成败、包括 Ctrl+C）把目录和 lockfile 原样放回。CI 手动勾选 check_removable 时运行。
 //
 // 目录里有模块时，挪走后先用 pnpm install --offline 刷新依赖（不联网：包都已经在本机的 store 里），
-// 放回后再按原来的 lockfile 装一次。现在 packages/optional 下没有模块，这两步都是空操作。
+// 放回后再按原来的 lockfile 装一次。第三方许可清单也按拆掉后的依赖重新生成，跑完放回原样。
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,6 +13,8 @@ import { pathToFileURL } from 'node:url';
 const ROOT = resolve(import.meta.dirname, '..');
 const OPTIONAL = join(ROOT, 'packages', 'optional');
 const LOCKFILE = join(ROOT, 'pnpm-lock.yaml');
+/** 第三方许可清单（提交进仓库）：可选模块的依赖也在里面，模块拆掉后要重新生成，跑完放回 */
+const THIRD_PARTY = join(ROOT, 'apps/desktop/src/renderer/features/settings/third-party-licenses.json');
 
 export type RemovableMode = 'missing' | 'empty';
 
@@ -47,6 +49,7 @@ export function main(argv: string[]): number {
   const stash = mkdtempSync(join(tmpdir(), 'allay-optional-'));
   const saved = join(stash, 'optional');
   const lock = readFileSync(LOCKFILE);
+  const notices = existsSync(THIRD_PARTY) ? readFileSync(THIRD_PARTY) : null;
   const had = existsSync(OPTIONAL);
   let restored = false;
   const restore = () => {
@@ -55,6 +58,7 @@ export function main(argv: string[]): number {
     rmSync(OPTIONAL, { recursive: true, force: true });
     if (had) move(saved, OPTIONAL);
     writeFileSync(LOCKFILE, lock);
+    if (notices) writeFileSync(THIRD_PARTY, notices);
     rmSync(stash, { recursive: true, force: true });
     console.log('[check:removable] packages/optional 已放回');
   };
@@ -69,6 +73,8 @@ export function main(argv: string[]): number {
     if (mode === 'empty') mkdirSync(OPTIONAL);
     console.log(`[check:removable] packages/optional ${mode === 'empty' ? '换成空目录' : '已移走'}（原有模块：${modules.length > 0 ? modules.join('、') : '无'}）`);
     if (modules.length > 0 && run('pnpm', ['install', '--offline', '--no-frozen-lockfile']) !== 0) return 1;
+    // 拆掉以后的产品就是这样：许可清单里没有可选模块的依赖（M8.third-party 核对清单与依赖一致）
+    if (modules.length > 0 && run('pnpm', ['licenses:gen']) !== 0) return 1;
     const code = run('pnpm', ['check']);
     console.log(`[check:removable] packages/optional ${mode === 'empty' ? '为空' : '不存在'}时 pnpm check ${code === 0 ? '通过' : `失败（${code}）`}`);
     return code;

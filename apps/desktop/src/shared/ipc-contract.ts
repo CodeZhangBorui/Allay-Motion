@@ -22,12 +22,15 @@ import {
   VanillaPatchSchema,
 } from './resources';
 import { HostCommandResultSchema } from './host-commands';
+import { CodeEditorKindSchema, CodeWindowDownSchema, CodeWindowUpSchema, OpenExternalSchema, SyncFileSchema } from './code-window';
 import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
 import { FolderKindSchema } from './folders';
 import {
   AssetPathSchema,
   CopyBuiltinSchema,
+  CreateFromAnimationSchema,
+  WriteSourceSchema,
   InstallReportSchema,
   PresetIdSchema,
   SaveDerivedSchema,
@@ -122,6 +125,18 @@ export const IPC_ARGS = {
   [IPC.templates.copyBuiltin]: z.tuple([CopyBuiltinSchema]),
   [IPC.templates.writeDevFiles]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
   [IPC.templates.openFolder]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
+  [IPC.templates.readSource]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
+  [IPC.templates.writeSource]: z.tuple([WriteSourceSchema]),
+  [IPC.templates.createFromAnimation]: z.tuple([CreateFromAnimationSchema]),
+  [IPC.codeWindow.open]: z.tuple([]),
+  [IPC.codeWindow.close]: z.tuple([]),
+  [IPC.codeWindow.publish]: z.tuple([CodeWindowDownSchema]),
+  [IPC.codeWindow.send]: z.tuple([CodeWindowUpSchema]),
+  [IPC.editors.get]: z.tuple([]),
+  [IPC.editors.setKind]: z.tuple([CodeEditorKindSchema]),
+  [IPC.editors.chooseProgram]: z.tuple([]),
+  [IPC.animations.openExternal]: z.tuple([OpenExternalSchema]),
+  [IPC.animations.syncFile]: z.tuple([SyncFileSchema]),
   [IPC.presets.list]: z.tuple([]),
   [IPC.presets.save]: z.tuple([SavePresetSchema]),
   [IPC.presets.remove]: z.tuple([PresetIdSchema]),

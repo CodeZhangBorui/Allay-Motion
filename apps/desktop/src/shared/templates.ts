@@ -164,3 +164,31 @@ export interface TemplateDevChange {
   /** 改动之后这个模板还能装载（manifest 合法、template.js 在）；为 false 时它已从模板列表里移除 */
   valid: boolean;
 }
+
+// ---- 2026-11：内嵌代码编辑与自建动画（docs/decisions.md“2026-11 反馈：开发模式、代码编辑与动画编辑器”）----
+
+/** template.js 的大小上限与安装时相同（1 MB，按 UTF-16 码元粗算） */
+export const MAX_TEMPLATE_SOURCE_CHARS = 1024 * 1024;
+
+/** templates.writeSource 的入参：只能写用户模板的 template.js；baseVersion 是读的时候拿到的内容版本 */
+export const WriteSourceSchema = z.strictObject({
+  id: TemplateIdSchema,
+  version: TemplateVersionArgSchema,
+  source: z.string().max(MAX_TEMPLATE_SOURCE_CHARS),
+  baseVersion: z.string().min(1).max(200),
+});
+export type WriteSourceRequest = z.infer<typeof WriteSourceSchema>;
+
+export type ReadSourceResult = { ok: true; source: string; version: string; readOnly: boolean } | { ok: false; error: 'not-found' | 'not-script' | 'outside' };
+
+export type WriteSourceResult =
+  | { ok: true; version: string }
+  | { ok: false; error: 'conflict'; currentVersion: string }
+  | { ok: false; error: 'not-user' | 'invalid' | 'io'; diagnostic?: TemplateDiagnostic };
+
+/** templates.createFromAnimation 的入参：动画文档的原文（主进程自己解析、校验、生成代码） */
+export const CreateFromAnimationSchema = z.strictObject({
+  text: z.string().min(1).max(512 * 1024),
+});
+
+export type CreateFromAnimationResult = { ok: true; entry: TemplateEntry } | { ok: false; error: 'invalid' | 'io'; detail?: string };
