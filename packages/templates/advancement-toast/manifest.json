@@ -1,52 +1,126 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.advancement-toast",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "进度提示", "en": "Advancement toast" },
   "description": {
-    "zh-CN": "屏幕一角滑入一个提示框：左边一个物品图标，右边两行字。停留后滑出。",
-    "en": "A toast slides into a corner with an item icon and two lines of text, holds, then slides out."
+    "zh-CN": "屏幕一角滑入一个提示框：左边一个物品图标，右边两行字。按游戏里的样式还原进度、配方、系统提示和旧版的成就弹窗。",
+    "en": "A toast slides into a corner with an item icon and two lines of text. Recreates the game's advancement, recipe and system toasts and the old achievement popup."
   },
   "license": "MIT",
   "category": "overlay",
   "tags": ["toast", "advancement", "text"],
   "groups": [
+    { "key": "style", "label": { "zh-CN": "样式", "en": "Style" } },
     { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "text", "label": { "zh-CN": "文字", "en": "Text" }, "collapsed": true },
     { "key": "layout", "label": { "zh-CN": "位置", "en": "Layout" } },
     { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
     { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
   ],
   "params": [
-    { "key": "icon", "type": "item", "label": { "zh-CN": "图标", "en": "Icon" }, "group": "content", "default": "minecraft:diamond" },
+    {
+      "key": "style",
+      "type": "enum",
+      "label": { "zh-CN": "版本样式", "en": "Version style" },
+      "hint": {
+        "zh-CN": "Java 版 1.12 起：从右边滑入滑出（各 0.6 秒，显示 5 秒）。Java 版 1.11 及更早：“获得成就！”从顶上落下（共 3 秒，进出 0.375 秒、停留 2.25 秒）",
+        "en": "Java 1.12+: slides in and out from the right (0.6 s each, shown for 5 s). Java 1.11 and earlier: “Achievement get!” drops from the top (3 s total: 0.375 s in and out, 2.25 s hold)"
+      },
+      "group": "style",
+      "default": "java",
+      "options": [
+        { "value": "java", "label": { "zh-CN": "Java 版 1.12 起", "en": "Java 1.12+" } },
+        { "value": "javaAchievement", "label": { "zh-CN": "Java 版 1.11 及更早（成就）", "en": "Java 1.11 and earlier (achievement)" } }
+      ]
+    },
+    {
+      "key": "kind",
+      "type": "enum",
+      "label": { "zh-CN": "提示类型", "en": "Toast type" },
+      "group": "style",
+      "default": "advancement",
+      "options": [
+        { "value": "advancement", "label": { "zh-CN": "进度", "en": "Advancement" } },
+        { "value": "recipe", "label": { "zh-CN": "配方解锁", "en": "Recipe unlocked" } },
+        { "value": "system", "label": { "zh-CN": "系统提示", "en": "System" } }
+      ],
+      "visibleWhen": { "key": "style", "equals": "java" }
+    },
     {
       "key": "frame",
       "type": "enum",
       "label": { "zh-CN": "进度类型", "en": "Frame" },
-      "hint": { "zh-CN": "决定标题行的默认颜色", "en": "Sets the default header color" },
-      "group": "content",
+      "hint": { "zh-CN": "决定标题行的默认文字和颜色；挑战还会放挑战完成的音效", "en": "Sets the default header text and color; challenges also play the challenge sound" },
+      "group": "style",
       "default": "task",
       "options": [
         { "value": "task", "label": { "zh-CN": "进度", "en": "Task" } },
         { "value": "goal", "label": { "zh-CN": "目标", "en": "Goal" } },
         { "value": "challenge", "label": { "zh-CN": "挑战", "en": "Challenge" } }
-      ]
+      ],
+      "visibleWhen": { "key": "kind", "equals": "advancement" }
     },
-    { "key": "header", "type": "text", "label": { "zh-CN": "标题行", "en": "Header" }, "group": "content", "default": { "zh-CN": "进度已达成！", "en": "Advancement Made!" }, "maxLength": 24 },
-    { "key": "title", "type": "text", "label": { "zh-CN": "名称", "en": "Title" }, "group": "content", "default": { "zh-CN": "钻石！", "en": "Diamonds!" }, "maxLength": 28 },
+    { "key": "icon", "type": "item", "label": { "zh-CN": "图标", "en": "Icon" }, "group": "content", "default": "minecraft:diamond", "visibleWhen": { "key": "kind", "not": "system" } },
+    {
+      "key": "header",
+      "type": "text",
+      "label": { "zh-CN": "标题行", "en": "Header" },
+      "hint": {
+        "zh-CN": "保持游戏里的默认文字时，会按类型自动换成对应的那一句（例如“挑战已完成！”）",
+        "en": "While it is one of the game's default lines it follows the type automatically (for example “Challenge Complete!”)"
+      },
+      "group": "content",
+      "default": { "zh-CN": "进度已达成！", "en": "Advancement Made!" },
+      "maxLength": 40
+    },
+    {
+      "key": "title",
+      "type": "text",
+      "label": { "zh-CN": "名称", "en": "Title" },
+      "hint": {
+        "zh-CN": "进度的名称超过一行时，和游戏一样先显示标题行 1.5 秒，再换成多行名称",
+        "en": "If an advancement title needs more than one line, the header shows for 1.5 s first and is then replaced by the wrapped title, as in the game"
+      },
+      "group": "content",
+      "default": { "zh-CN": "钻石！", "en": "Diamonds!" },
+      "maxLength": 60
+    },
     {
       "key": "headerColor",
       "type": "color",
       "label": { "zh-CN": "标题行颜色", "en": "Header color" },
-      "hint": { "zh-CN": "保持默认值时按进度类型取色（挑战为粉色）", "en": "At the default value the color follows the frame (pink for challenges)" },
-      "group": "content",
-      "default": "#FFFF55",
+      "hint": {
+        "zh-CN": "保持默认值时按类型取游戏里的颜色（进度黄色、挑战粉色、配方深紫色）",
+        "en": "At the default value it uses the game's color for the type (yellow, pink for challenges, dark purple for recipes)"
+      },
+      "group": "text",
+      "default": "#FFFF00",
       "palette": "chat"
     },
-    { "key": "titleColor", "type": "color", "label": { "zh-CN": "名称颜色", "en": "Title color" }, "group": "content", "default": "#FFFFFF", "palette": "chat" },
+    {
+      "key": "titleColor",
+      "type": "color",
+      "label": { "zh-CN": "名称颜色", "en": "Title color" },
+      "hint": { "zh-CN": "保持默认值时按类型取色（配方提示是黑色）", "en": "At the default value it follows the type (black for recipe toasts)" },
+      "group": "text",
+      "default": "#FFFFFF",
+      "palette": "chat"
+    },
+    {
+      "key": "headerFont",
+      "type": "font",
+      "label": { "zh-CN": "标题行字体", "en": "Header font" },
+      "hint": { "zh-CN": "游戏里提示框的文字不带阴影", "en": "Toast text has no shadow in the game" },
+      "group": "text",
+      "default": { "family": "minecraft:default" }
+    },
+    { "key": "titleFont", "type": "font", "label": { "zh-CN": "名称字体", "en": "Title font" }, "group": "text", "default": { "family": "minecraft:default" } },
     {
       "key": "anchor",
       "type": "enum",
       "label": { "zh-CN": "位置", "en": "Anchor" },
+      "hint": { "zh-CN": "游戏里固定在右上角", "en": "Always top right in the game" },
       "group": "layout",
       "default": "topRight",
       "options": [
@@ -57,11 +131,21 @@
       ]
     },
     { "key": "guiScale", "type": "integer", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位", "en": "Design units per GUI pixel" }, "group": "layout", "default": 4, "min": 2, "max": 10, "ui": "slider" },
-    { "key": "margin", "type": "number", "label": { "zh-CN": "边距", "en": "Margin" }, "hint": { "zh-CN": "离屏幕边缘的距离", "en": "Distance from the screen edges" }, "group": "layout", "default": 0, "min": 0, "max": 120, "step": 1 },
-    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "滑入", "en": "In" }, "group": "timing", "default": 0.25, "min": 0.1, "max": 1 },
-    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 2.5, "min": 0.5, "max": 10 },
-    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "滑出", "en": "Out" }, "group": "timing", "default": 0.25, "min": 0.1, "max": 1 },
-    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放", "en": "Plays at the start" }, "group": "sound", "default": "minecraft:ui.toast.in" },
+    { "key": "margin", "type": "number", "label": { "zh-CN": "边距", "en": "Margin" }, "hint": { "zh-CN": "离屏幕边缘的距离；游戏里是 0", "en": "Distance from the screen edges; 0 in the game" }, "group": "layout", "default": 0, "min": 0, "max": 120, "step": 1 },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "滑入", "en": "In" }, "hint": { "zh-CN": "游戏里：0.6（1.12 起）、0.375（1.11 及更早）", "en": "In the game: 0.6 (1.12+), 0.375 (1.11 and earlier)" }, "group": "timing", "default": 0.6, "min": 0.1, "max": 1 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "hint": { "zh-CN": "游戏里：4.4（1.12 起）、2.25（1.11 及更早）", "en": "In the game: 4.4 (1.12+), 2.25 (1.11 and earlier)" }, "group": "timing", "default": 4.4, "min": 0.5, "max": 10 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "滑出", "en": "Out" }, "hint": { "zh-CN": "游戏里：0.6（1.12 起）、0.375（1.11 及更早）", "en": "In the game: 0.6 (1.12+), 0.375 (1.11 and earlier)" }, "group": "timing", "default": 0.6, "min": 0.1, "max": 1 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "滑入音效", "en": "In sound" }, "hint": { "zh-CN": "在开头播放；1.11 及更早的成就弹窗没有音效", "en": "Plays at the start; the old achievement popup had none" }, "group": "sound", "default": "minecraft:ui.toast.in" },
+    { "key": "outSound", "type": "sound", "label": { "zh-CN": "滑出音效", "en": "Out sound" }, "hint": { "zh-CN": "开始滑出时播放", "en": "Plays when the toast starts to slide out" }, "group": "sound", "default": "minecraft:ui.toast.out", "visibleWhen": { "key": "style", "equals": "java" } },
+    {
+      "key": "challengeSound",
+      "type": "sound",
+      "label": { "zh-CN": "挑战音效", "en": "Challenge sound" },
+      "hint": { "zh-CN": "挑战类进度在开头额外播放", "en": "Also plays at the start for challenges" },
+      "group": "sound",
+      "default": "minecraft:ui.toast.challenge_complete",
+      "visibleWhen": { "key": "frame", "equals": "challenge" }
+    },
     { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
   ],
   "timeline": {
