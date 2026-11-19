@@ -144,6 +144,7 @@ export class ProjectService {
       export: file.export,
       preview: file.preview,
       resourceHint: file.resourceHint,
+      ...(file.animation ? { animation: file.animation } : {}),
     };
     return { ok: true, handle, name, data, missingFiles };
   }
@@ -194,6 +195,8 @@ export class ProjectService {
         preview: data.preview,
         files,
         resourceHint: data.resourceHint,
+        // 自建动画（docs/animation-editor.md 3.3）：旧工程没有这一项
+        ...(data.animation ? { animation: data.animation } : {}),
       };
       try {
         await writeJsonAtomic(path, file);
