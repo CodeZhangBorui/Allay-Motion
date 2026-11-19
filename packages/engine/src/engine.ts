@@ -42,7 +42,7 @@ import { createRng } from './random';
 import { EngineResources } from './resources';
 import { createSprite } from './sprite';
 import { computeStage, createDefaultCamera, createStageCamera } from './stage';
-import { createGlyphSource, createText } from './text';
+import { FontRegistry, fontFamiliesIn } from './fonts';
 import { buildThumbScene } from './thumbnail';
 
 /** 宿主实现的回调，经 Comlink.proxy 传入（2.3） */
@@ -449,8 +449,8 @@ export class Engine implements EngineApi {
     let setupDone = false;
     const resources = this.resources!;
     const owned: THREE.Texture[] = [];
-    // text.create 是同步的，字体要在 setup 之前载好
-    const glyphs = createGlyphSource(await resources.fonts());
+    // text.create 是同步的，字体要在 setup 之前载好：默认字体、兜底字体和 font 参数里用到的字体族
+    const fonts = await FontRegistry.load(resources, fontFamiliesIn(loaded.manifest.params, loaded.params));
 
     const scene = new THREE.Scene();
     let camera: THREE.Camera = createDefaultCamera(loaded.stage);
@@ -477,7 +477,7 @@ export class Engine implements EngineApi {
         block: (id, opts) => createBlockHandle(resources, id, opts, warn),
         item: (id) => createItemHandle(resources, id, warn),
       },
-      text: { create: (opts) => createText(opts, glyphs, warn, owned) },
+      text: { create: (opts) => fonts.create(opts, warn, owned, { pixelScale: loaded.stage.pixelScale }) },
       sprite: { create: (texture, opts) => createSprite(texture, opts) },
       random: (key = '') => createRng(seed, String(key)),
       noise2D: (x, y, key = '') => {
