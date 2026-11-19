@@ -132,6 +132,16 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.removeLayer': [[], [42], ['x'.repeat(200)]],
   'resources.reorder': [['x'], [[1, 2]], [null], [Array.from({ length: 300 }, (_, i) => `p${i}`)]],
   'resources.setEnabled': [['vanilla'], ['vanilla', 'yes'], [42, true]],
+  'resources.versions': [[1]],
+  // 合法的 fetchRemoteVersions、downloadVanillaVersion 会联网，这里只有畸形参数
+  'resources.fetchRemoteVersions': [[1], ['https://evil.example/manifest.json']],
+  'resources.addVanillaSource': [[], [null], [{ kind: 'local', versionId: '1.21' }], [{ kind: 'downloaded', versionId: '../x' }], [{ kind: 'remote', versionId: '1.21' }], [{ kind: 'downloaded', versionId: '1.21' }, 'x']],
+  'resources.downloadVanillaVersion': [[], [42], ['../../x'], ['1.21 beta'], ['x'.repeat(100)]],
+  'resources.localPacks': [[1]],
+  'resources.addLocalPack': [[], [42], [null], ['x'.repeat(40_000)]],
+  // 合法的 importSounds 会弹对话框，这里只有畸形参数
+  'resources.importSounds': [[1], ['C:\\x.ogg']],
+  'resources.removeImportedSound': [[], [42], ['minecraft:block.stone.place'], ['allay_user:imported.../x']],
   'templates.list': [[1], ['all']],
   'templates.read': [[], ['allay.builtin.block-wipe'], [42, '1.0.0'], ['../../x', '1.0.0'], ['Allay.Builtin', '1.0.0'], ['allay.builtin.block-wipe', '1.0.0', 'x']],
   'templates.readAsset': [

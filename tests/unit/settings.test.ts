@@ -39,7 +39,7 @@ describe('设置读写（1.9）', () => {
       JSON.stringify({ formatVersion: 1, resources: { vanilla: { consent: true, enabled: true, dir: null }, packs: [{ id: 'z', name: 'z', enabled: true, source: { kind: 'zip', file: '../../evil.zip' } }] } }),
     );
     expect((await store.load()).resources).toEqual(defaultResourceSettings());
-    await store.updateResources({ vanilla: { consent: false, enabled: true, dir: null }, packs: [] });
+    await store.updateResources({ vanilla: { consent: false, enabled: true, dir: null }, vanillaSources: [], packs: [] });
     expect(JSON.parse(readFileSync(file, 'utf8')).resources.vanilla.consent).toBe(false);
   });
 

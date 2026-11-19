@@ -26,6 +26,14 @@ afterEach(() => {
 function fakeDownloader(impl: Partial<VanillaDownloader> = {}): VanillaDownloader {
   return {
     findCached: async () => null,
+    // 多个原版来源（2026-11 反馈）之后服务读的是 listCached：默认由 findCached 推出
+    listCached: async () => {
+      const c = await (impl.findCached ?? (async () => null))();
+      return c ? [c] : [];
+    },
+    listRemoteVersions: async () => {
+      throw new DownloadError('offline in tests', 'network');
+    },
     downloadLatest: async () => {
       throw new DownloadError('offline in tests', 'network');
     },
@@ -271,8 +279,8 @@ describe('ResourceService', () => {
     });
     expect(await svc.addPackFromPath(a)).toMatchObject({ ok: true });
     expect(await svc.soundVariants('minecraft:block.stone.place')).toEqual([
-      { file: 'minecraft:test/a1', volume: 1, pitch: 1, weight: 1 },
-      { file: 'minecraft:test/a2', volume: 0.5, pitch: 2, weight: 3 },
+      { file: 'minecraft:test/a1', volume: 1, pitch: 1, weight: 1, attenuation: 16 },
+      { file: 'minecraft:test/a2', volume: 0.5, pitch: 2, weight: 3, attenuation: 16 },
     ]);
     expect(await svc.addPackFromPath(b)).toMatchObject({ ok: true });
     // b 在上层：追加
@@ -296,7 +304,7 @@ describe('ResourceService', () => {
     expect(await svc.addPackFromPath(pack)).toMatchObject({ ok: true });
     const lib = await svc.soundLibrary();
     expect(lib.stamp).toBe(svc.resourceStamp);
-    expect(lib.events).toEqual([
+    expect(lib.events.map(({ id, state }) => ({ id, state }))).toEqual([
       { id: 'minecraft:ambient.cave', state: 'missing' },
       { id: 'minecraft:block.stone.place', state: 'local' },
       { id: 'mypack:fx.boom', state: 'local' },
@@ -337,7 +345,7 @@ describe('ResourceService', () => {
     const { svc } = await makeService({ game: true, downloader });
     await svc.setVanilla({ consent: true });
     expect(svc.state().vanilla.active).toBe('cached');
-    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'remote' }]);
+    expect((await svc.soundLibrary()).events.map(({ id, state }) => ({ id, state }))).toEqual([{ id: 'minecraft:block.stone.place', state: 'remote' }]);
     expect(await svc.soundFiles(['minecraft:dig/stone1', 'minecraft:nope'], false)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'remote', 'minecraft:nope': 'missing' } });
     expect(fetched).toEqual([]);
     // 离线：取不到，报 network，状态仍是 remote，不报错
@@ -345,7 +353,7 @@ describe('ResourceService', () => {
     online = true;
     expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'local' } });
     expect(fetched).toEqual(['b'.repeat(40)]);
-    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
+    expect((await svc.soundLibrary()).events.map(({ id, state }) => ({ id, state }))).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
     svc.close();
   });
 
@@ -353,7 +361,7 @@ describe('ResourceService', () => {
     const { svc } = await makeService({ game: true });
     await svc.setVanilla({ consent: true });
     expect(svc.state().vanilla.active).toBe('local');
-    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
+    expect((await svc.soundLibrary()).events.map(({ id, state }) => ({ id, state }))).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
     rmSync(join(dir, 'appdata', '.minecraft', 'assets', 'objects', 'bb'), { recursive: true });
     expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'missing' } });
     svc.close();
