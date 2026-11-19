@@ -100,6 +100,18 @@ async function registerVectorFont(family: string, data: Uint8Array): Promise<str
   return css;
 }
 
+/** 一段栅格化过的文字：贴图像素（已翻成 DataTexture 的行序）、过滤方式、几何（用时复制）、设计单位的宽高，和画它时的警告 */
+export interface CachedText {
+  data: Uint8Array;
+  width: number;
+  height: number;
+  nearest: boolean;
+  geometry: THREE.BufferGeometry;
+  textWidth: number;
+  textHeight: number;
+  warnings: string[];
+}
+
 export class EngineResources {
   private stamp: string | null = null;
   private readonly textures = new Map<string, Promise<THREE.Texture>>();
@@ -109,6 +121,11 @@ export class EngineResources {
   private readonly stackFonts = new Map<string, Promise<FontAsset | null>>();
   /** 用户导入的字体（按内容哈希命名，不随资源栈变） */
   private readonly fixedFonts = new Map<string, Promise<FontAsset | null>>();
+  /**
+   * 栅格化过的文字（fonts.ts 的 TextCache）：每次 setup（改参数）都要重画所有文字，同样的输入画出同样的像素，
+   * 所以按输入缓存像素和几何，随资源栈清空。只是省时间，画面不变
+   */
+  readonly textCache = new Map<string, CachedText>();
 
   constructor(
     private readonly resolve: ResolveResource,
@@ -134,6 +151,7 @@ export class EngineResources {
     this.animated.clear();
     this.stackFonts.clear();
     this.sounds.clear();
+    this.textCache.clear();
   }
 
   private readonly sounds = new Map<string, Promise<readonly SoundMetaVariant[]>>();

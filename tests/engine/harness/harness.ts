@@ -233,6 +233,32 @@ const harness = {
     }
   },
 
+  /**
+   * 文字缓存（docs/animation-editor.md 第 9 项）：同一个 Worker 里装载文字场景、渲染，再用同样的参数 setParams（命中缓存）、
+   * 换一段文字再换回来，各渲染一帧。返回每次的整帧哈希和 warnings
+   */
+  async textCache(text: string, other: string, output: OutputSettings) {
+    const { host, loaded } = await exportEngine('m2Features', output, { scenario: 'text', text });
+    const hash = async () => {
+      const buf = new Uint8Array(await host.renderFrame(0, { subframes: 1, shutterAngle: 180 }));
+      let h = 2166136261;
+      for (let i = 0; i < buf.length; i++) h = Math.imul(h ^ buf[i]!, 16777619);
+      return (h >>> 0).toString(16);
+    };
+    try {
+      const first = { hash: await hash(), warnings: loaded.warnings };
+      const again = await host.setParams({ scenario: 'text', text });
+      const second = { hash: await hash(), warnings: again.warnings };
+      const changed = await host.setParams({ scenario: 'text', text: other });
+      const third = { hash: await hash(), warnings: changed.warnings };
+      const back = await host.setParams({ scenario: 'text', text });
+      const fourth = { hash: await hash(), warnings: back.warnings };
+      return { first, second, third, fourth };
+    } finally {
+      host.dispose();
+    }
+  },
+
   /** 缩略图（3.10）：尺寸、不透明像素比例、中心像素 */
   async thumbnail(kind: 'block' | 'item', id: string, size: 64 | 128) {
     const host = await EngineHost.create({ mode: 'utility', resolveResource: fakeResolveResource, strictDeterminism: true });

@@ -117,6 +117,20 @@ test('文字：没有原版字体时整段用系统字体（含中文），不�
   expect(h).toBeGreaterThan(80);
 });
 
+test('T-ANIM-32 文字缓存：同样的参数再 setup 一次（命中缓存）画面和警告都与第一次相同；换文字画面变，换回来又相同（位图字体和系统字体）', async () => {
+  for (const vanilla of [true, false]) {
+    await call('setFakeVanillaFont', vanilla);
+    try {
+      const r = await call('textCache', 'AB中', 'BA', HD);
+      expect(r.second).toEqual(r.first);
+      expect(r.fourth).toEqual(r.first);
+      expect(r.third.hash).not.toBe(r.first.hash);
+    } finally {
+      await call('setFakeVanillaFont', false);
+    }
+  }
+});
+
 test('文字：原版字体里缺的字形用系统字体按像素补上（前进宽度同游戏的 Unifont 字形）', async () => {
   await call('setFakeVanillaFont', true);
   try {
