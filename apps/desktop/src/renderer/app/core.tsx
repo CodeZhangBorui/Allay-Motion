@@ -30,6 +30,7 @@ import { ShortcutsPage } from '../features/settings/ShortcutsPage';
 import { UpdatesPage } from '../features/updates/UpdatesPage';
 import { DEV_MODE_COMMANDS, DevModeMenuItem, effectiveModuleSwitches, startDevMode } from '../features/dev/devMode';
 import { DevSettingsPage, setAvailableModules } from '../features/dev/DevSettingsPage';
+import { ANIMATION_COMMANDS, ANIMATION_MENU_ITEMS, startAnimationWorkspace } from '../features/animation/workspace';
 import {
   ArrowSquareIn,
   Checkerboard,
@@ -204,18 +205,19 @@ export function registerCore(): void {
   registered = true;
   for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS, ...OPEN_FILE_COMMANDS]) registerCommand(c);
   for (const c of EXPORT_TASK_COMMANDS) registerCommand(c);
-  for (const c of DEV_MODE_COMMANDS) registerCommand(c);
+  for (const c of [...DEV_MODE_COMMANDS, ...ANIMATION_COMMANDS]) registerCommand(c);
   registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
   registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });
   registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions });
   registerPanel({ id: 'output', titleKey: 'params.tabs.output', region: 'right', order: 10, component: OutputTab });
-  for (const m of MENU_ITEMS) registerMenuItem(m);
+  for (const m of [...MENU_ITEMS, ...ANIMATION_MENU_ITEMS]) registerMenuItem(m);
   for (const p of SETTINGS_PAGES) registerSettingsPage(p);
   // 模板开发模式的热重载（H9）与主进程到界面的命令通道（H11）
   hotReloader.start();
   installHostCommands();
-  // 开发模式（6.15）
+  // 开发模式（6.15）与动画工作区
   startDevMode();
+  startAnimationWorkspace();
   // 可选模块：随开发模式启用（开发模式关着时全关，关着的模块不加载代码块）；设置里可以单独关掉某一个
   setAvailableModules(optionalModules.available);
   if (optionalModules.available.length > 0) {
