@@ -2,7 +2,8 @@
 export { Engine, TemplateError, type EngineApi, type HostCallbacks, type InitOptions } from './engine';
 export { FACE_SHADE } from './blocks';
 export { buildItemGeometry } from './items';
-export { createGlyphSource, rasterizeText } from './text';
+export { createGlyphSource, italicShift, rasterizeText, resolveStyle, stackGlyphSource, SUB, tableGlyphSource } from './text';
+export { FontRegistry, fontFamiliesIn } from './fonts';
 export { placeholderPixels } from './resources';
 export { frameCount, frameTime, lastFrameIndex, subframeTimes } from './frames';
 export { DeterminismGuard, DeterminismViolation, REMOVED_GLOBALS, removeNetworkGlobals } from './harden';

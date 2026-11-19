@@ -1,8 +1,6 @@
 // test:engine 的假资源栈：纯色色块和几张拼出来的测试图，只是测试数据，不是产品素材（docs/09-compliance.md 9.6）。
-// 兜底字体用仓库里真实的方舟像素字体（构建时以文本导入），检验真实的字形路径。
-import { parseBdf } from '../../../packages/assets/src/index';
-import { FALLBACK_FONT_ID, type ResourceKind, type ResourcePayload } from '../../../packages/template-sdk/src/index';
-import bdfText from '../../../resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf?raw';
+// 原版字体用拼出来的测试字体（setFakeVanillaFont）；不打开时资源栈里没有字体，文字走系统字体。
+import { type ResourceKind, type ResourcePayload } from '../../../packages/template-sdk/src/index';
 
 export const FAKE_STAMP = 'test-fake-1';
 
@@ -54,18 +52,9 @@ function testFont(): ResourcePayload {
   };
 }
 
-let fallback: ResourcePayload | null = null;
-
 export async function fakeResolveResource(kind: ResourceKind, id: string): Promise<ResourcePayload | null> {
   if (kind === 'font') {
-    if (id === FALLBACK_FONT_ID) {
-      if (!fallback) {
-        const t = parseBdf(bdfText);
-        fallback = { kind: 'bdf', ascent: t.ascent, descent: t.descent, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits };
-      }
-      return structuredClone(fallback);
-    }
-    return vanillaFont ? testFont() : null;
+    return vanillaFont && id === 'minecraft:default' ? testFont() : null;
   }
   if (kind === 'sound-meta') {
     // M6b：多变体事件（权重 1、2、1）和单变体事件；其余事件没有定义

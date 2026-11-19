@@ -32,6 +32,15 @@ export interface SoundLibraryItem {
   names?: { 'zh-CN'?: string; en?: string };
 }
 
+/** 字体参数可选的字体族（font 参数，4.4）：game 是资源栈里的游戏字体，builtin 是应用内置的开放许可字体，user 是用户导入的 */
+export interface FontFamilyOption {
+  id: string;
+  label: string;
+  group: 'game' | 'builtin' | 'user';
+  /** 悬停说明 */
+  hint?: string;
+}
+
 export type RecentKind = 'color' | 'block' | 'item' | 'texture';
 
 export interface EditorServices {
@@ -77,6 +86,8 @@ export interface EditorServices {
   gesture(phase: 'start' | 'end'): void;
   /** 引导用户添加素材（缩略图占位旁的按钮） */
   openResources?(): void;
+  /** 字体参数的字体族列表；importFont 弹出主进程的对话框导入字体文件，返回新字体族的 ID（取消或失败为 null） */
+  fonts?: { families: readonly FontFamilyOption[]; importFont?(): Promise<string | null> };
   /** 选择器网格的缩略图还没好时，盖在网格上的加载编排（docs/07-allay-mascot.md 7.5 第 4 项）；不提供时只有每格的骨架 */
   pickerLoader?(loading: boolean): ReactNode;
 }

@@ -1,4 +1,2 @@
-# 第三方字体按原样保存，不做换行符转换（docs/decisions.md M2b）
-resources/fonts/** -text
 # 官网的原版素材必须与 jar 里的原始文件逐字节相同（check-provenance 按 SHA-256 核对，docs/decisions.md 官网 · 原版素材）
 apps/website/public/mc/assets/** -text

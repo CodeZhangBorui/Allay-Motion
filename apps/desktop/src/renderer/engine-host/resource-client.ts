@@ -3,8 +3,6 @@
 // Worker 自己不能读任何东西。解码结果按 resourceStamp 缓存；资源栈一变就清空。
 import { decodePng, type DecodedImage } from '@allay/assets';
 import {
-  DEFAULT_FONT_ID,
-  FALLBACK_FONT_ID,
   MAX_TEXTURE_SIZE,
   type BitmapFontPayload,
   type FontPayload,
@@ -12,6 +10,8 @@ import {
   type ResourceKind,
   type ResourcePayload,
   type SoundMetaPayload,
+  USER_FONT_RE,
+  type VectorFontPayload,
 } from '@allay/template-sdk';
 import { currentStamp, useResourceStore } from '../stores/resourceStore';
 import { assetKey, type AssetSource } from '../templates/catalog';
@@ -28,7 +28,8 @@ export function decodeImage(png: Uint8Array): Promise<DecodedImage> {
 
 let cacheStamp = '';
 const cache = new Map<string, Promise<ResourcePayload | null>>();
-let fallbackFont: Promise<BitmapFontPayload | null> | null = null;
+/** 用户导入的字体按内容哈希命名，不随资源栈变 */
+const userFonts = new Map<string, Promise<BitmapFontPayload | VectorFontPayload | null>>();
 
 function checkStamp(): void {
   const stamp = currentStamp();
@@ -93,6 +94,16 @@ async function loadFont(id: string): Promise<FontPayload | null> {
       providers.push(p);
       continue;
     }
+    if (p.type === 'unihex') {
+      // Unifont：主进程解开 zip、解析 .hex，给的是定长字形表
+      const t = await window.allay.resources.unihexTables(p.file, p.overrides);
+      if (!t) {
+        skipped.push(`missing(${p.file})`);
+        continue;
+      }
+      providers.push({ type: 'glyphs', ascent: t.ascent, descent: t.descent, oversample: t.oversample === 2 ? 2 : 1, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits });
+      continue;
+    }
     const png = await window.allay.resources.read(p.file);
     if (!png) {
       skipped.push(`missing(${p.file})`);
@@ -114,9 +125,12 @@ async function loadSoundMeta(id: string): Promise<SoundMetaPayload | null> {
   return variants ? { kind: 'sound', variants } : null;
 }
 
-async function loadFallbackFont(): Promise<BitmapFontPayload | null> {
-  const t = await window.allay.resources.fallbackFont();
-  return t ? { kind: 'bdf', ascent: t.ascent, descent: t.descent, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits } : null;
+/** 用户导入的字体（fonts.read）：BDF 是字形表，TTF/OTF/WOFF 是原样字节 */
+async function loadUserFont(id: string): Promise<BitmapFontPayload | VectorFontPayload | null> {
+  const f = await window.allay.fonts.read(id);
+  if (!f) return null;
+  if (f.kind === 'vector') return { kind: 'vector', data: f.data };
+  return { kind: 'bdf', ascent: f.ascent, descent: f.descent, codepoints: f.codepoints, metrics: f.metrics, offsets: f.offsets, bits: f.bits };
 }
 
 /**
@@ -148,10 +162,17 @@ export function loadStamp(assets: AssetSource | null): string {
 
 async function resolveWith(kind: ResourceKind, id: string, assets: AssetSource | null): Promise<ResourcePayload | null> {
   let p: Promise<ResourcePayload | null>;
-  if (kind === 'font' && id === FALLBACK_FONT_ID) {
-    // 兜底字体不随资源栈变
-    fallbackFont ??= loadFallbackFont().catch(() => null);
-    p = fallbackFont;
+  if (kind === 'font' && USER_FONT_RE.test(id)) {
+    let entry = userFonts.get(id);
+    if (!entry) {
+      entry = loadUserFont(id).catch(() => null);
+      // 失败（文件被删）不缓存，下次再试
+      void entry.then((v) => {
+        if (!v) userFonts.delete(id);
+      });
+      userFonts.set(id, entry);
+    }
+    p = entry;
   } else {
     checkStamp();
     const image = kind === 'texture' && /^(asset|file):/.test(id);
@@ -163,7 +184,7 @@ async function resolveWith(kind: ResourceKind, id: string, assets: AssetSource |
         ? loadImageTexture(id, assets)
         : kind === 'texture'
           ? loadTexture(id)
-          : kind === 'font' && id === DEFAULT_FONT_ID
+          : kind === 'font'
             ? loadFont(id)
             : kind === 'sound-meta'
               ? loadSoundMeta(id)

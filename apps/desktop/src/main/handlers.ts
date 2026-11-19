@@ -2,12 +2,13 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute } from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
 import type { AppInfo, PickedFile } from '../shared/ipc-contract';
-import type { AddPackResult, ChooseGameDirResult, ImportSoundsResult } from '../shared/resources';
+import type { AddPackResult, ChooseGameDirResult, ImportFontResult, ImportSoundsResult, UserFontData } from '../shared/resources';
 import { IPC } from '../shared/ipc-channels';
 import { TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import { UnknownJobError, type ExportService } from './export/export-service';
 import type { FileGrants } from './file-grants';
 import { IpcRejected, type createIpcRegistrar } from './ipc';
+import type { UserFontStore } from './resources/fonts';
 import type { ResourceService } from './resources/service';
 import type { SettingsStore } from './settings-store';
 import type { ThumbCache } from './thumb-cache';
@@ -30,6 +31,8 @@ export interface HandlerDeps {
   grants: FileGrants;
   exports: ExportService;
   resources: ResourceService;
+  /** 用户导入的字体（2026-11） */
+  fonts: UserFontStore;
   thumbs: ThumbCache;
   templates: TemplateService;
   templateDev: TemplateDevService;
@@ -67,7 +70,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, fonts, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -129,7 +132,27 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.soundLibrary, () => resources.soundLibrary());
   handle(IPC.resources.soundFiles, (_event, files, fetch) => resources.soundFiles(files, fetch));
   handle(IPC.resources.fontProviders, (_event, id) => resources.fontProviders(id));
-  handle(IPC.resources.fallbackFont, () => resources.fallbackFontTables());
+  handle(IPC.resources.unihexTables, (_event, file, overrides) => resources.unihexTables(file, overrides));
+
+  // ---- fonts：用户导入的字体（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）----
+  handle(IPC.fonts.list, () => fonts.list());
+  handle(IPC.fonts.import, async (): Promise<ImportFontResult> => {
+    const win = getMainWindow();
+    if (!win) return { canceled: true };
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2', 'bdf'] }] });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return { canceled: true };
+    return fonts.importFile(path);
+  });
+  handle(IPC.fonts.remove, async (_event, id) => {
+    await fonts.remove(id);
+    return fonts.list();
+  });
+  handle(IPC.fonts.read, async (_event, id): Promise<UserFontData | null> => {
+    const font = await fonts.read(id);
+    if (!font) return null;
+    return font.kind === 'bdf' ? { kind: 'bdf', ...font.tables } : font;
+  });
   handle(IPC.resources.detectMinecraft, () => resources.detectMinecraft());
   handle(IPC.resources.setVanilla, (_event, patch) => resources.setVanilla(patch));
   handle(IPC.resources.chooseGameDir, async (): Promise<ChooseGameDirResult> => {

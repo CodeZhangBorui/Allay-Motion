@@ -9,6 +9,7 @@ import { ICON, ICON_WEIGHT } from '../lib/icons';
 import { ColorField } from './ColorField';
 import { useEditor } from './context';
 import { EasingField } from './EasingField';
+import { FontField, type FontValue } from './FontField';
 import { AngleField, BooleanField, DurationField, EnumField, SeedField, TextField, type EnumOption } from './fields';
 import { SoundField, SpatialAudioRow } from './SoundPicker';
 import { BlockListField, TextureField, type BlockListEntry } from './listFields';
@@ -103,6 +104,8 @@ function ParamControl({ def, value, onChange, label, fileNames }: { def: ParamDe
       return <AngleField value={value as number} onChange={onChange} snap={def.snap} label={label} testId={testId} />;
     case 'seed':
       return <SeedField value={value as number} onChange={onChange} label={label} testId={testId} />;
+    case 'font':
+      return <FontField value={value as unknown as FontValue} onChange={(v) => onChange(v as unknown as ParamValue)} label={label} testId={testId} />;
   }
 }
 
@@ -164,7 +167,7 @@ export const ParamRow = memo(function ParamRow(props: ParamRowProps) {
   const changed = !sameValue(value, defaultValue);
   const set = useCallback((v: ParamValue) => onChange(def.key, v), [onChange, def.key]);
   const pattern = isPattern(def);
-  const tall = def.type === 'blockList' || (def.type === 'text' && def.multiline) || (def.type === 'easing' && typeof value !== 'string');
+  const tall = def.type === 'blockList' || def.type === 'font' || (def.type === 'text' && def.multiline) || (def.type === 'easing' && typeof value !== 'string');
   const labelText = (
     <span className="min-w-0 truncate" data-testid={`param-label-${def.key}`}>
       {label}

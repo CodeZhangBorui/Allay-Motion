@@ -184,8 +184,22 @@ export const TexturePayloadSchema = z
   .refine(rgbaLengthOk, RGBA_LENGTH_MESSAGE);
 export type TexturePayload = z.infer<typeof TexturePayloadSchema>;
 
-/** 资源栈里的位图字体（原版 font/*.json 展开 reference 之后的 bitmap、space 提供器，3.9） */
+/** 定长字形表（BDF 和 Unifont 共用，@allay/assets 的 BitmapFontTables）；oversample 是几个表像素对应一个字体像素 */
+const GlyphTableShape = {
+  ascent: z.int().min(0).max(64),
+  descent: z.int().min(0).max(64),
+  oversample: z.union([z.literal(1), z.literal(2)]).optional(),
+  codepoints: typedArray<Uint32Array>(Uint32Array),
+  metrics: typedArray<Int16Array>(Int16Array),
+  offsets: typedArray<Uint32Array>(Uint32Array),
+  bits: typedArray<Uint8Array>(Uint8Array),
+};
+const glyphTableOk = (p: { codepoints: Uint32Array; metrics: Int16Array; offsets: Uint32Array }) => p.metrics.length === p.codepoints.length * 5 && p.offsets.length === p.codepoints.length;
+const GLYPH_TABLE_MESSAGE = { message: 'table lengths mismatch' };
+
+/** 资源栈里的字体（原版 font/*.json 展开 reference 之后的 bitmap、space、unihex 提供器，3.9）；unihex 已经读成字形表 */
 export const FontProviderPayloadSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('glyphs'), ...GlyphTableShape }).refine(glyphTableOk, GLYPH_TABLE_MESSAGE),
   z.strictObject({
     type: z.literal('bitmap'),
     ascent: z.int().min(-512).max(512),
@@ -205,19 +219,17 @@ export const FontPayloadSchema = z.strictObject({
 });
 export type FontPayload = z.infer<typeof FontPayloadSchema>;
 
-/** 兜底的 BDF 像素字体（@allay/assets 的 BitmapFontTables） */
-export const BitmapFontPayloadSchema = z
-  .strictObject({
-    kind: z.literal('bdf'),
-    ascent: z.int().min(0).max(64),
-    descent: z.int().min(0).max(64),
-    codepoints: typedArray<Uint32Array>(Uint32Array),
-    metrics: typedArray<Int16Array>(Int16Array),
-    offsets: typedArray<Uint32Array>(Uint32Array),
-    bits: typedArray<Uint8Array>(Uint8Array),
-  })
-  .refine((p) => p.metrics.length === p.codepoints.length * 5 && p.offsets.length === p.codepoints.length, { message: 'table lengths mismatch' });
+/** 兜底的 BDF 像素字体和用户导入的 BDF 字体（@allay/assets 的 BitmapFontTables） */
+export const BitmapFontPayloadSchema = z.strictObject({ kind: z.literal('bdf'), ...GlyphTableShape }).refine(glyphTableOk, GLYPH_TABLE_MESSAGE);
 export type BitmapFontPayload = z.infer<typeof BitmapFontPayloadSchema>;
+
+/** 用户导入的矢量字体（TTF、OTF、WOFF、WOFF2）：原样的字节，由 Worker 用 FontFace 载入、OffscreenCanvas 栅格化 */
+export const MAX_VECTOR_FONT_BYTES = 32 * 1024 * 1024;
+export const VectorFontPayloadSchema = z.strictObject({
+  kind: z.literal('vector'),
+  data: typedArray<Uint8Array>(Uint8Array).refine((d) => d.byteLength > 0 && d.byteLength <= MAX_VECTOR_FONT_BYTES, { message: 'font data size out of range' }),
+});
+export type VectorFontPayload = z.infer<typeof VectorFontPayloadSchema>;
 
 /** 音效事件的全部变体（resolveResource('sound-meta', 事件 ID)）：资源栈里合并后的 sounds.json 展开 event 引用之后 */
 export const SoundMetaVariantSchema = z.strictObject({
@@ -235,12 +247,15 @@ export const SoundMetaPayloadSchema = z.strictObject({
 });
 export type SoundMetaPayload = z.infer<typeof SoundMetaPayloadSchema>;
 
-export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema, SoundMetaPayloadSchema]);
+export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema, VectorFontPayloadSchema, SoundMetaPayloadSchema]);
 export type ResourcePayload = z.infer<typeof ResourcePayloadSchema>;
 
-/** 资源栈里的默认字体，和兜底字体的 ID（resolveResource('font', id)） */
+/** 资源栈里的默认字体（resolveResource('font', id)） */
 export const DEFAULT_FONT_ID = 'minecraft:default';
-export const FALLBACK_FONT_ID = 'allay:fallback';
+/** 系统字体（不经宿主：引擎在 Worker 里用 OffscreenCanvas 的系统字体栈画） */
+export const SYSTEM_FONT_ID = 'system:sans';
+/** 旧版本的“内置像素字体”（方舟像素字体，2026-11 删除）：读到时当作系统字体 */
+export const LEGACY_FALLBACK_FONT_ID = 'allay:fallback';
 
 /** 缩略图请求（03-assets.md 3.10）：方块是带面明暗的等轴视角，物品正面平视 */
 export const ThumbRequestSchema = z.strictObject({

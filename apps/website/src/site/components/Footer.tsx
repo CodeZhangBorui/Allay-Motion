@@ -50,12 +50,7 @@ export function Footer() {
               {t('site.footer.source')}
             </a>
           </p>
-          <p>
-            {t('site.footer.fonts')}{' '}
-            <a className={link} href="./licenses/ark-pixel-font-OFL.txt">
-              {t('site.footer.fontLicense')}
-            </a>
-          </p>
+          <p>{t('site.footer.fonts')}</p>
           <p>{t('site.footer.noTracking')}</p>
         </div>
         <p className="t-mono text-[10.5px] md:text-right">

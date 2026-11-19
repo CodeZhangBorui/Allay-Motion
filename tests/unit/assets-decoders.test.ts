@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { crc32, deflateSync, inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
@@ -101,13 +100,23 @@ describe('parseBdf', () => {
     expect(findBdfGlyph(f.codepoints, 99)).toBe(-1);
   });
 
-  it('仓库里的方舟像素字体：覆盖拉丁字母和常用汉字', () => {
-    const file = join(import.meta.dirname, '../../resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf');
-    const f = parseBdf(readFileSync(file, 'utf8'));
-    expect(f.codepoints.length).toBeGreaterThan(20_000);
-    expect(f.ascent).toBeGreaterThan(0);
-    for (const ch of 'Aa字中文转场，。') expect(findBdfGlyph(f.codepoints, ch.codePointAt(0)!), ch).toBeGreaterThanOrEqual(0);
-    const a = findBdfGlyph(f.codepoints, 65);
-    expect(f.metrics[a * 5]).toBeGreaterThan(0);
+  it('BDF 的码位按升序排好；ENCODING 为负、尺寸超限的字形跳过（用户导入的 BDF 走这里）', () => {
+    const glyph = (name: string, enc: number, bbx: string, rows: string[]) =>
+      [`STARTCHAR ${name}`, `ENCODING ${enc}`, 'DWIDTH 9 0', `BBX ${bbx}`, 'BITMAP', ...rows, 'ENDCHAR'].join('\n');
+    const text = [
+      'STARTFONT 2.1',
+      'FONT_ASCENT 10',
+      'FONT_DESCENT 2',
+      glyph('zhong', 0x4e2d, '8 2 0 0', ['FF', '18']),
+      glyph('neg', -1, '1 1 0 0', ['80']),
+      glyph('huge', 0x41, '100 1 0 0', ['80']),
+      glyph('A', 0x41, '3 1 0 0', ['E0']),
+      'ENDFONT',
+    ].join('\n');
+    const f = parseBdf(text);
+    expect([...f.codepoints]).toEqual([0x41, 0x4e2d]);
+    expect(f.ascent).toBe(10);
+    expect(f.metrics[0]).toBe(9);
+    expect(findBdfGlyph(f.codepoints, 0x4e2d)).toBe(1);
   });
 });

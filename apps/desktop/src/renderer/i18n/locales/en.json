@@ -541,7 +541,6 @@
     "thirdParty": "Third-party licenses",
     "licenses": {
       "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process (ffmpeg.exe in the install folder, which you may replace); the full license ships with the installer.",
-      "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
       "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
       "phosphor": "Phosphor Icons: MIT.",
@@ -786,6 +785,35 @@
     "seed": {
       "roll": "New random seed",
       "rollHint": "New random seed (R)"
+    },
+    "font": {
+      "style": "Text style",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strikethrough": "Strikethrough",
+      "shadow": "Shadow",
+      "outline": "Outline",
+      "outlineColor": "Outline color",
+      "outlineHint": "Traced in all eight directions, like text on a glowing sign",
+      "outlineNoShadow": "Outlined text has no shadow, as in the game",
+      "import": "Import font…",
+      "missing": "Imported font not found",
+      "gameHint": "Read from the resource stack (vanilla assets or resource packs); falls back to the system font",
+      "builtinHint": "A font installed on this computer (Microsoft YaHei, PingFang, Noto Sans CJK…), also used when there are no vanilla assets or a character is missing from the game font. It may look different on another computer",
+      "groups": { "game": "Game fonts", "builtin": "System", "user": "Imported" },
+      "families": {
+        "default": "Default",
+        "uniform": "Unicode font (Unifont)",
+        "alt": "Standard Galactic Alphabet",
+        "illageralt": "Illager script",
+        "system": "System font"
+      },
+      "importError": {
+        "unsupported": "This font file isn't recognized. TTF, OTF, WOFF, WOFF2 and BDF are supported.",
+        "too-large": "The font file is over 32 MB and wasn't imported.",
+        "unreadable": "The font file couldn't be read."
+      }
     },
     "angle": {
       "hint": "Drag the dial to set the direction; hold Shift to snap to 15°"

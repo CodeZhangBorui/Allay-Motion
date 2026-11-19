@@ -50,6 +50,17 @@ function randomValue(def: ParamDef, r: () => number): ParamValue {
     }
     case 'block':
       return pick(OPAQUE_BLOCKS);
+    case 'font':
+      // 字体族只取测试环境里一定有的两个；样式全部随机
+      return {
+        family: pick(['minecraft:default', 'system:sans']),
+        bold: r() < 0.5,
+        italic: r() < 0.5,
+        underline: r() < 0.3,
+        strikethrough: r() < 0.3,
+        shadow: r() < 0.5,
+        outline: r() < 0.3 ? '#000000' : null,
+      };
     case 'sound':
       return r() < 0.2 ? null : pick(['minecraft:block.stone.place', 'minecraft:block.wood.break', 'minecraft:ui.toast.in']);
     default:

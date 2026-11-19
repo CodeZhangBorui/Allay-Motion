@@ -27,7 +27,6 @@ import {
   layersWith,
   listMerged,
   mergeSoundDefinitions,
-  parseBdf,
   parseFontJson,
   parseResourceId,
   parseSoundsJson,
@@ -38,10 +37,11 @@ import {
   soundsJsonPath,
   textureIdToPath,
   textureMetaPath,
-  type BitmapFontTables,
   type ResourceLayer,
   type ResourceStackSettings,
   type SoundDefinitions,
+  type UnihexOverride,
+  type UnihexTables,
 } from '@allay/assets';
 import type {
   AddPackResult,
@@ -73,6 +73,7 @@ import { DownloadTracker } from './download-progress';
 import { IMPORTED_LAYER_ID, importedRoot, importSoundFiles, readImportedNames, removeImportedSound } from './imported-sounds';
 import { BUILTIN_LAYER_ID, openBuiltinLayer, openFolderPack, openZipPack, type ClosableLayer } from './layers';
 import { discoverLocalPackFolders } from './local-packs';
+import { loadUnihexTables, UnihexCache } from './fonts';
 import { importZipPack, packZipPath } from './pack-import';
 import {
   candidateGameDirs,
@@ -91,8 +92,6 @@ export interface ResourceServiceOptions {
   userDataDir: string;
   /** 内置层的目录（v1 没有自制素材，通常不存在，见 decisions.md M2a） */
   builtinDir: string;
-  /** 兜底像素字体（BDF）的路径 */
-  fallbackFontFile: string;
   settings: SettingsStore;
   log: Logger;
   gameEnv: CandidateEnv;
@@ -164,7 +163,6 @@ export class ResourceService {
   private downloadAbort: AbortController | null = null;
   private lastProgress = 0;
   private progressTimer: ReturnType<typeof setTimeout> | null = null;
-  private fallbackFont: Promise<BitmapFontTables | null> | null = null;
   /** 改栈的操作串行执行，避免交错 */
   private queue: Promise<unknown> = Promise.resolve();
 
@@ -879,9 +877,21 @@ export class ResourceService {
     });
     if (!found) return null;
     return {
-      providers: providers.map((p) => (p.type === 'bitmap' ? { type: 'bitmap', file: p.file, ascent: p.ascent, height: p.height, rows: p.rows } : { type: 'space', advances: [...p.advances.entries()] })),
+      providers: providers.map((p) =>
+        p.type === 'bitmap'
+          ? { type: 'bitmap', file: p.file, ascent: p.ascent, height: p.height, rows: p.rows }
+          : p.type === 'unihex'
+            ? { type: 'unihex', file: p.file, overrides: p.overrides }
+            : { type: 'space', advances: [...p.advances.entries()] },
+      ),
       skipped,
     };
+  }
+
+  /** unihex 提供器的字形表（fonts.ts）：从资源栈读 zip、解析 .hex，按 stamp 缓存 */
+  private readonly unihex = new UnihexCache();
+  unihexTables(file: string, overrides: readonly UnihexOverride[]): Promise<UnihexTables | null> {
+    return this.unihex.get(this.stamp, file, overrides, () => loadUnihexTables((path) => this.read(path), file, overrides));
   }
 
   /** 合并后的 sounds.json，按 (stamp, 命名空间) 缓存；另记原版层自己定义了哪些事件（判断“被资源包改过”用） */
@@ -1099,18 +1109,6 @@ export class ResourceService {
       this.opts.log.info('resources', 'sound objects fetched on demand', { count: Object.values(states).filter((s) => s === 'local').length });
     }
     return failed ? { ok: false, error: failed, states } : { ok: true, states };
-  }
-
-  /** 兜底像素字体（不随资源栈变），第一次用到时解析 */
-  fallbackFontTables(): Promise<BitmapFontTables | null> {
-    this.fallbackFont ??= readFile(this.opts.fallbackFontFile, 'utf8').then(
-      (text) => parseBdf(text),
-      (error: unknown) => {
-        this.opts.log.warn('resources', 'fallback font unavailable', { error });
-        return null;
-      },
-    );
-    return this.fallbackFont;
   }
 
   close(): void {

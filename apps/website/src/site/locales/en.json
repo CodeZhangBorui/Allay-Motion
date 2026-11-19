@@ -147,8 +147,7 @@
   "footer": {
     "disclaimerLabel": "Disclaimer",
     "license": "Code released under the GPL-3.0 license.",
-    "fonts": "Interface fonts IBM Plex Sans, IBM Plex Mono and Noto Sans SC, and the Ark Pixel Font, all under the SIL OFL 1.1.",
-    "fontLicense": "Pixel font license",
+    "fonts": "Interface fonts IBM Plex Sans, IBM Plex Mono and Noto Sans SC, all under the SIL OFL 1.1.",
     "source": "Source code",
     "noTracking": "This site uses no cookies, analytics or third-party resources.",
     "end": "Fin.",

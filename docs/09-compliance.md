@@ -108,7 +108,7 @@
 | Pixel Perfection Legacy（延续版，覆盖到当前版本） | 各处标注不一致：一个平台标 CC-BY-4.0 却链接到 BY-SA 的条文，另一个平台标“自定义许可”，仓库里没有许可文件，还有多位贡献者 | **引入前必须由人向维护者确认并留存书面答复**（H-PACK） |
 | ProgrammerArt（deathcap） | CC BY 4.0 | 只到 1.9 的命名，不适用 |
 | Faithful、Bare Bones、Unity 等常见资源包 | 自定义许可、保留所有权利或禁止商用 | 不能内置 |
-| 方舟像素字体（Ark Pixel Font）、缝合像素字体（Fusion Pixel Font） | 字体 OFL 1.1 | **推荐作为内置像素字体**，自带中文，画风通用 |
+| 方舟像素字体（Ark Pixel Font）、缝合像素字体（Fusion Pixel Font） | 字体 OFL 1.1 | 曾作为内置像素字体（方舟），**2026-11 按用户要求删除**：文字改用运行时取得的原版字体，没有时用系统字体（docs/decisions.md“2026-11 反馈：原版动画还原与字体”） |
 | GNU Unifont | OFL 1.1 与 GPLv2+（带字体嵌入例外）双许可 | 可选。游戏里的中日韩字形用的就是它，想让模板里的中文更像游戏时可以用 |
 | Monocraft | OFL 1.1 | 不用。它模仿的是 Minecraft 的字体 |
 | IBM Plex Sans、IBM Plex Mono | OFL 1.1 | 界面字体（英文与数字、等宽数字与时间码）。用 `@fontsource/ibm-plex-sans`、`@fontsource/ibm-plex-mono`，只引用 400/500/600 与 400/500。用户于 2026-11-13 同意引入 |

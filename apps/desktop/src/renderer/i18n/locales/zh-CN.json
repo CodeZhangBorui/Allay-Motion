@@ -541,7 +541,6 @@
     "thirdParty": "第三方许可",
     "licenses": {
       "ffmpeg": "FFmpeg：LGPL 3.0，以独立进程调用（安装目录里的 ffmpeg.exe，可以自行替换），许可全文随安装包附带。",
-      "ark": "方舟像素字体：SIL Open Font License 1.1。",
       "plex": "IBM Plex Sans、IBM Plex Mono 字体：SIL Open Font License 1.1。",
       "noto": "Noto Sans SC（思源黑体）字体：SIL Open Font License 1.1。",
       "phosphor": "Phosphor 图标：MIT。",
@@ -786,6 +785,35 @@
     "seed": {
       "roll": "换一个随机种子",
       "rollHint": "换一个随机种子（R）"
+    },
+    "font": {
+      "style": "文字样式",
+      "bold": "粗体",
+      "italic": "斜体",
+      "underline": "下划线",
+      "strikethrough": "删除线",
+      "shadow": "阴影",
+      "outline": "描边",
+      "outlineColor": "描边颜色",
+      "outlineHint": "八个方向各描一圈，像发光墨囊告示牌上的字",
+      "outlineNoShadow": "有描边时不画阴影，和游戏里一样",
+      "import": "导入字体…",
+      "missing": "找不到导入的字体",
+      "gameHint": "从资源栈（原版素材或资源包）读取；没有时用系统字体",
+      "builtinHint": "这台机器上装的字体（微软雅黑、苹方、Noto Sans CJK……）；没有原版素材、或原版字体里没有某个字时也用它。换一台机器字形可能不同",
+      "groups": { "game": "游戏字体", "builtin": "系统字体", "user": "导入的字体" },
+      "families": {
+        "default": "默认",
+        "uniform": "Unicode 字体（Unifont）",
+        "alt": "标准银河字母",
+        "illageralt": "灾厄村民文字",
+        "system": "系统字体"
+      },
+      "importError": {
+        "unsupported": "认不出这个字体文件。支持 TTF、OTF、WOFF、WOFF2 和 BDF。",
+        "too-large": "字体文件超过 32 MB，没有导入。",
+        "unreadable": "读不了这个字体文件。"
+      }
     },
     "angle": {
       "hint": "拖动转盘调整方向，按住 Shift 以 15° 吸附"
