@@ -259,13 +259,16 @@ export default {
 ```
 packages/templates/<name>/
   manifest.json
-  src/index.ts        只允许从 @allay/template-sdk 做类型导入，以及导入本目录内的文件
+  src/index.ts        只允许从 @allay/template-sdk 做类型导入，以及导入本目录和 _lib 里的文件
   assets/
+packages/templates/_lib/
+  src/                内置模板共用的源码（时间余量、界面像素布局、闭式粒子），不是模板
 ```
 
 - `scripts/build-templates.ts` 用 esbuild 把每个模板打成单文件 ESM（不留任何 import），连同 manifest 和 assets 打成 `.allaytpl`，输出到 `resources/templates/`。
 - 应用启动时把 `resources/templates/` 当作只读的模板来源。内置模板走和用户模板相同的装载路径，只跳过 4.8 的第 1、3 步（体积和导入检查已经在构建时保证）。
 - 用 lint 规则禁止内置模板导入 `three` 的运行时或引擎内部模块。
+- 共用的源码放在 `packages/templates/_lib/`（2026-11，`docs/template-catalog.md` P1）：模板用相对路径导入，esbuild 把用到的函数并进那个模板的单文件产物，产物里仍然没有任何 import。它只是源码层面的复用，不是新的运行时接口：`_lib` 和模板一样只能用 `ctx` 给的东西，用户模板想要同样的函数可以照抄。名字以 `_` 开头的目录不打包；模板之间不能互相导入（lint 和构建脚本各拦一次）。
 
 ## 4.10 六个内置模板
 

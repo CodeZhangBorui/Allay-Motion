@@ -71,6 +71,8 @@ const coreRules = [
     patterns: [
       onlyAllow(['@allay/template-sdk'], '内置模板只能依赖 template-sdk 的类型（1.4），包括不能用 three 的运行时。'),
       typeOnly('@allay/template-sdk', '内置模板只能导入 template-sdk 的类型（1.4）。'),
+      // 模板的源码在 <名字>/src/ 下：往上两层就出了自己的目录，只能去共用的 _lib（04-templates.md 4.9）。构建脚本按解析后的路径再拦一次
+      { regex: String.raw`^(\.\./){2,}(?!_lib(/|$))`, message: '内置模板只能导入本目录和 packages/templates/_lib 里的文件（04-templates.md 4.9）。' },
     ],
     globals: ['window', 'document'],
   },
