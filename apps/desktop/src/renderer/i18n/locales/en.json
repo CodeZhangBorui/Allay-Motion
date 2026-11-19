@@ -969,6 +969,7 @@
   },
   "audio": {
     "missing": "These sounds aren't in the current resources and are muted: {{list}}",
+    "notFetched": "These sounds haven't been downloaded yet and are muted for now: {{list}}. Preview a sound in the properties panel, or confirm fetching when you export, and they'll be fetched from Mojang's servers.",
     "peakNormalized": "The mix peaked above 0 dBFS, so it was turned down to −1 dBFS.",
     "fetchFailed": "Some sounds couldn't be fetched from Mojang's server (you may be offline), so they're muted for now.",
     "imported": "Imported {{count}} sounds.",

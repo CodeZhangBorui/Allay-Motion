@@ -969,6 +969,7 @@
   },
   "audio": {
     "missing": "当前的资源里找不到这些音效，已静音：{{list}}",
+    "notFetched": "这些音效还没下载到本机，暂时静音：{{list}}。在属性面板里点音效旁的试听按钮，或在导出时确认取回，就会从 Mojang 的服务器取回。",
     "peakNormalized": "混音的峰值超过了 0 dBFS，已整体压低到 −1 dBFS。",
     "fetchFailed": "有音效没能从 Mojang 的服务器取回（可能没有联网），这些音效暂时静音。",
     "imported": "已导入 {{count}} 个音效。",
