@@ -1,64 +1,532 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.loading-screen",
-  "version": "1.0.0",
-  "name": { "zh-CN": "加载界面", "en": "Loading screen" },
+  "version": "1.1.0",
+  "name": {
+    "zh-CN": "加载界面",
+    "en": "Loading screen"
+  },
   "description": {
-    "zh-CN": "整屏平铺的压暗方块贴图，中间一行标题、一行副标题和一条进度条，进度条在停留阶段走满。",
-    "en": "A full screen of dimmed block tiles with a title, a subtitle and a progress bar that fills during the hold."
+    "zh-CN": "按游戏里的样子还原加载画面：旧版泥土背景的“正在生成地形”、区块加载图、换维度时的“正在加载地形”、资源加载画面和基岩版的世界加载，也可以自由排版。",
+    "en": "Recreates the game's loading screens: the classic dirt “Building terrain”, the chunk loading map, “Loading terrain” when changing dimensions, the resource loading screen and the Bedrock world loader, or a free layout."
   },
   "license": "MIT",
   "category": "transition",
-  "tags": ["loading", "text", "blocks"],
+  "tags": [
+    "loading",
+    "text",
+    "blocks"
+  ],
   "groups": [
-    { "key": "background", "label": { "zh-CN": "背景", "en": "Background" } },
-    { "key": "text", "label": { "zh-CN": "文字", "en": "Text" } },
-    { "key": "motion", "label": { "zh-CN": "进出方式", "en": "Transitions" } },
-    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } }
+    {
+      "key": "style",
+      "label": {
+        "zh-CN": "样式",
+        "en": "Style"
+      }
+    },
+    {
+      "key": "background",
+      "label": {
+        "zh-CN": "背景",
+        "en": "Background"
+      }
+    },
+    {
+      "key": "text",
+      "label": {
+        "zh-CN": "文字",
+        "en": "Text"
+      }
+    },
+    {
+      "key": "motion",
+      "label": {
+        "zh-CN": "进出方式",
+        "en": "Transitions"
+      }
+    },
+    {
+      "key": "timing",
+      "label": {
+        "zh-CN": "时间",
+        "en": "Timing"
+      }
+    }
   ],
   "params": [
-    { "key": "block", "type": "block", "label": { "zh-CN": "方块", "en": "Block" }, "group": "background", "default": "minecraft:dirt" },
-    { "key": "dim", "type": "number", "label": { "zh-CN": "亮度", "en": "Brightness" }, "hint": { "zh-CN": "贴图颜色乘以这个值", "en": "The tile color is multiplied by this" }, "group": "background", "default": 0.25, "min": 0.05, "max": 1, "step": 0.01, "ui": "slider" },
-    { "key": "tileSize", "type": "number", "label": { "zh-CN": "贴图大小", "en": "Tile size" }, "group": "background", "default": 128, "min": 32, "max": 360, "step": 1 },
-    { "key": "title", "type": "text", "label": { "zh-CN": "标题", "en": "Title" }, "group": "text", "default": { "zh-CN": "正在加载世界", "en": "Loading world" }, "maxLength": 40 },
-    { "key": "subtitle", "type": "text", "label": { "zh-CN": "副标题", "en": "Subtitle" }, "hint": { "zh-CN": "可以留空", "en": "Can be left empty" }, "group": "text", "default": { "zh-CN": "正在生成地形…", "en": "Building terrain…" }, "maxLength": 60 },
-    { "key": "textColor", "type": "color", "label": { "zh-CN": "文字颜色", "en": "Text color" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
-    { "key": "textScale", "type": "number", "label": { "zh-CN": "字号", "en": "Text scale" }, "hint": { "zh-CN": "一个字体像素对应的设计单位", "en": "Design units per font pixel" }, "group": "text", "default": 5, "min": 2, "max": 12, "step": 0.5, "ui": "slider" },
-    { "key": "showBar", "type": "boolean", "label": { "zh-CN": "显示进度条", "en": "Show progress bar" }, "group": "text", "default": true },
-    { "key": "barColor", "type": "color", "label": { "zh-CN": "进度条颜色", "en": "Bar color" }, "group": "text", "default": "#55FF55", "palette": "chat", "visibleWhen": { "key": "showBar", "equals": true } },
+    {
+      "key": "style",
+      "type": "enum",
+      "label": {
+        "zh-CN": "版本样式",
+        "en": "Version style"
+      },
+      "hint": {
+        "zh-CN": "每种样式对应的游戏版本见模板说明（docs/04-templates.md T4）",
+        "en": "See the template notes for the game versions behind each style"
+      },
+      "group": "style",
+      "default": "javaClassic",
+      "options": [
+        {
+          "value": "javaClassic",
+          "label": {
+            "zh-CN": "Java 版 Beta–1.13：正在生成地形",
+            "en": "Java Beta–1.13: Building terrain"
+          }
+        },
+        {
+          "value": "javaChunks",
+          "label": {
+            "zh-CN": "Java 版 1.14–1.20.4：区块加载图",
+            "en": "Java 1.14–1.20.4: chunk map"
+          }
+        },
+        {
+          "value": "javaChunksModern",
+          "label": {
+            "zh-CN": "Java 版 1.20.5–1.21.8：区块加载图（模糊背景）",
+            "en": "Java 1.20.5–1.21.8: chunk map (blurred)"
+          }
+        },
+        {
+          "value": "javaTerrain",
+          "label": {
+            "zh-CN": "Java 版：正在加载地形（换维度）",
+            "en": "Java: Loading terrain (dimension change)"
+          }
+        },
+        {
+          "value": "javaSplash",
+          "label": {
+            "zh-CN": "Java 版 1.16 起：资源加载画面",
+            "en": "Java 1.16+: resource loading screen"
+          }
+        },
+        {
+          "value": "bedrock",
+          "label": {
+            "zh-CN": "基岩版：世界加载（近似）",
+            "en": "Bedrock: world loading (approximate)"
+          }
+        },
+        {
+          "value": "custom",
+          "label": {
+            "zh-CN": "自由排版",
+            "en": "Free layout"
+          }
+        }
+      ]
+    },
+    {
+      "key": "guiScale",
+      "type": "number",
+      "label": {
+        "zh-CN": "界面缩放",
+        "en": "GUI scale"
+      },
+      "hint": {
+        "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）",
+        "en": "Design units per GUI pixel (4 for a 1080p window at Auto)"
+      },
+      "group": "style",
+      "default": 4,
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "ui": "slider",
+      "visibleWhen": {
+        "key": "style",
+        "not": "custom"
+      }
+    },
+    {
+      "key": "background",
+      "type": "enum",
+      "label": {
+        "zh-CN": "背景",
+        "en": "Background"
+      },
+      "hint": {
+        "zh-CN": "“自动”按样式取游戏里的背景；下界传送门、末地传送门是穿过传送门时的背景（较新的 Java 版）",
+        "en": "Auto uses the game's background for the style; the portal backgrounds are what newer Java versions show when going through a portal"
+      },
+      "group": "background",
+      "default": "auto",
+      "options": [
+        {
+          "value": "auto",
+          "label": {
+            "zh-CN": "自动",
+            "en": "Auto"
+          }
+        },
+        {
+          "value": "dirt",
+          "label": {
+            "zh-CN": "方块平铺",
+            "en": "Block tiles"
+          }
+        },
+        {
+          "value": "panorama",
+          "label": {
+            "zh-CN": "全景图",
+            "en": "Panorama"
+          }
+        },
+        {
+          "value": "netherPortal",
+          "label": {
+            "zh-CN": "下界传送门",
+            "en": "Nether portal"
+          }
+        },
+        {
+          "value": "endPortal",
+          "label": {
+            "zh-CN": "末地传送门",
+            "en": "End portal"
+          }
+        }
+      ],
+      "visibleWhen": {
+        "key": "style",
+        "not": "javaSplash"
+      }
+    },
+    {
+      "key": "monochrome",
+      "type": "boolean",
+      "label": {
+        "zh-CN": "单色标志",
+        "en": "Monochrome logo"
+      },
+      "hint": {
+        "zh-CN": "游戏 1.17 起的辅助功能选项：黑底代替红底",
+        "en": "The accessibility option added in 1.17: black instead of red"
+      },
+      "group": "background",
+      "default": false,
+      "visibleWhen": {
+        "key": "style",
+        "equals": "javaSplash"
+      }
+    },
+    {
+      "key": "block",
+      "type": "block",
+      "label": {
+        "zh-CN": "方块",
+        "en": "Block"
+      },
+      "group": "background",
+      "default": "minecraft:dirt",
+      "hint": {
+        "zh-CN": "背景为方块平铺时用；游戏里是泥土",
+        "en": "Used by the block tile background; dirt in the game"
+      }
+    },
+    {
+      "key": "dim",
+      "type": "number",
+      "label": {
+        "zh-CN": "亮度",
+        "en": "Brightness"
+      },
+      "hint": {
+        "zh-CN": "贴图颜色乘以这个值",
+        "en": "The tile color is multiplied by this"
+      },
+      "group": "background",
+      "default": 0.25,
+      "min": 0.05,
+      "max": 1,
+      "step": 0.01,
+      "ui": "slider",
+      "visibleWhen": {
+        "key": "style",
+        "equals": "custom"
+      }
+    },
+    {
+      "key": "tileSize",
+      "type": "number",
+      "label": {
+        "zh-CN": "贴图大小",
+        "en": "Tile size"
+      },
+      "group": "background",
+      "default": 128,
+      "min": 32,
+      "max": 360,
+      "step": 1,
+      "visibleWhen": {
+        "key": "style",
+        "equals": "custom"
+      }
+    },
+    {
+      "key": "title",
+      "type": "text",
+      "label": {
+        "zh-CN": "标题",
+        "en": "Title"
+      },
+      "group": "text",
+      "default": {
+        "zh-CN": "正在加载世界",
+        "en": "Loading world"
+      },
+      "maxLength": 40,
+      "hint": {
+        "zh-CN": "保持游戏里的默认文字时会按样式换成对应的那一句",
+        "en": "While it is one of the game's default lines it follows the style"
+      }
+    },
+    {
+      "key": "subtitle",
+      "type": "text",
+      "label": {
+        "zh-CN": "副标题",
+        "en": "Subtitle"
+      },
+      "hint": {
+        "zh-CN": "可以留空；基岩版样式里是提示文字",
+        "en": "Can be left empty; the tip line in the Bedrock style"
+      },
+      "group": "text",
+      "default": {
+        "zh-CN": "正在生成地形…",
+        "en": "Building terrain…"
+      },
+      "maxLength": 60
+    },
+    {
+      "key": "titleFont",
+      "type": "font",
+      "label": {
+        "zh-CN": "标题字体",
+        "en": "Title font"
+      },
+      "group": "text",
+      "default": {
+        "family": "minecraft:default",
+        "shadow": true
+      }
+    },
+    {
+      "key": "subtitleFont",
+      "type": "font",
+      "label": {
+        "zh-CN": "副标题字体",
+        "en": "Subtitle font"
+      },
+      "group": "text",
+      "default": {
+        "family": "minecraft:default",
+        "shadow": true
+      }
+    },
+    {
+      "key": "textColor",
+      "type": "color",
+      "label": {
+        "zh-CN": "文字颜色",
+        "en": "Text color"
+      },
+      "group": "text",
+      "default": "#FFFFFF",
+      "palette": "chat"
+    },
+    {
+      "key": "textScale",
+      "type": "number",
+      "label": {
+        "zh-CN": "字号",
+        "en": "Text scale"
+      },
+      "hint": {
+        "zh-CN": "一个字体像素对应的设计单位",
+        "en": "Design units per font pixel"
+      },
+      "group": "text",
+      "default": 5,
+      "min": 2,
+      "max": 12,
+      "step": 0.5,
+      "ui": "slider",
+      "visibleWhen": {
+        "key": "style",
+        "equals": "custom"
+      }
+    },
+    {
+      "key": "showBar",
+      "type": "boolean",
+      "label": {
+        "zh-CN": "显示进度条",
+        "en": "Show progress bar"
+      },
+      "group": "text",
+      "default": true,
+      "hint": {
+        "zh-CN": "游戏里 1.3 之前的“正在生成地形”和资源加载画面有进度条",
+        "en": "The game had a bar on “Building terrain” before 1.3, and on the resource loading screen"
+      }
+    },
+    {
+      "key": "barColor",
+      "type": "color",
+      "label": {
+        "zh-CN": "进度条颜色",
+        "en": "Bar color"
+      },
+      "group": "text",
+      "default": "#55FF55",
+      "palette": "chat",
+      "visibleWhen": {
+        "key": "style",
+        "equals": "custom"
+      }
+    },
     {
       "key": "inStyle",
       "type": "enum",
-      "label": { "zh-CN": "进入方式", "en": "In style" },
+      "label": {
+        "zh-CN": "进入方式",
+        "en": "In style"
+      },
       "group": "motion",
       "default": "fade",
       "options": [
-        { "value": "fade", "label": { "zh-CN": "淡入", "en": "Fade" } },
-        { "value": "slideUp", "label": { "zh-CN": "向上滑入", "en": "Slide up" } },
-        { "value": "dissolve", "label": { "zh-CN": "像素溶解", "en": "Dissolve" } }
-      ]
+        {
+          "value": "fade",
+          "label": {
+            "zh-CN": "淡入",
+            "en": "Fade"
+          }
+        },
+        {
+          "value": "slideUp",
+          "label": {
+            "zh-CN": "向上滑入",
+            "en": "Slide up"
+          }
+        },
+        {
+          "value": "dissolve",
+          "label": {
+            "zh-CN": "像素溶解",
+            "en": "Dissolve"
+          }
+        }
+      ],
+      "hint": {
+        "zh-CN": "资源加载画面固定照游戏淡出",
+        "en": "The resource loading screen always fades as in the game"
+      }
     },
     {
       "key": "outStyle",
       "type": "enum",
-      "label": { "zh-CN": "退出方式", "en": "Out style" },
+      "label": {
+        "zh-CN": "退出方式",
+        "en": "Out style"
+      },
       "group": "motion",
       "default": "fade",
       "options": [
-        { "value": "fade", "label": { "zh-CN": "淡出", "en": "Fade" } },
-        { "value": "slideUp", "label": { "zh-CN": "向上滑出", "en": "Slide up" } },
-        { "value": "dissolve", "label": { "zh-CN": "像素溶解", "en": "Dissolve" } }
-      ]
+        {
+          "value": "fade",
+          "label": {
+            "zh-CN": "淡出",
+            "en": "Fade"
+          }
+        },
+        {
+          "value": "slideUp",
+          "label": {
+            "zh-CN": "向上滑出",
+            "en": "Slide up"
+          }
+        },
+        {
+          "value": "dissolve",
+          "label": {
+            "zh-CN": "像素溶解",
+            "en": "Dissolve"
+          }
+        }
+      ],
+      "hint": {
+        "zh-CN": "资源加载画面固定照游戏淡出",
+        "en": "The resource loading screen always fades as in the game"
+      }
     },
-    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "hint": { "zh-CN": "只有像素溶解用到", "en": "Only used by Dissolve" }, "group": "motion", "default": 1 },
-    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.3, "min": 0.1, "max": 2 },
-    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.9, "min": 0.2, "max": 5 },
-    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.3, "min": 0.1, "max": 2 },
+    {
+      "key": "seed",
+      "type": "seed",
+      "label": {
+        "zh-CN": "随机种子",
+        "en": "Seed"
+      },
+      "hint": {
+        "zh-CN": "只有像素溶解用到",
+        "en": "Only used by Dissolve"
+      },
+      "group": "motion",
+      "default": 1
+    },
+    {
+      "key": "inDuration",
+      "type": "duration",
+      "label": {
+        "zh-CN": "进入",
+        "en": "In"
+      },
+      "group": "timing",
+      "default": 0.3,
+      "min": 0.1,
+      "max": 2
+    },
+    {
+      "key": "hold",
+      "type": "duration",
+      "label": {
+        "zh-CN": "停留",
+        "en": "Hold"
+      },
+      "group": "timing",
+      "default": 0.9,
+      "min": 0.2,
+      "max": 5
+    },
+    {
+      "key": "outDuration",
+      "type": "duration",
+      "label": {
+        "zh-CN": "退出",
+        "en": "Out"
+      },
+      "group": "timing",
+      "default": 0.3,
+      "min": 0.1,
+      "max": 2
+    },
     {
       "key": "cutAt",
       "type": "number",
-      "label": { "zh-CN": "剪辑点", "en": "Cut point" },
-      "hint": { "zh-CN": "剪辑点在停留阶段里的位置，0 为开头、1 为末尾", "en": "Where the cut falls within the hold, 0 = start, 1 = end" },
+      "label": {
+        "zh-CN": "剪辑点",
+        "en": "Cut point"
+      },
+      "hint": {
+        "zh-CN": "剪辑点在停留阶段里的位置，0 为开头、1 为末尾",
+        "en": "Where the cut falls within the hold, 0 = start, 1 = end"
+      },
       "group": "timing",
       "default": 0.5,
       "min": 0,
@@ -69,10 +537,32 @@
   ],
   "timeline": {
     "segments": [
-      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
-      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
-      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+      {
+        "param": "inDuration",
+        "label": {
+          "zh-CN": "进入",
+          "en": "In"
+        }
+      },
+      {
+        "param": "hold",
+        "label": {
+          "zh-CN": "停留",
+          "en": "Hold"
+        }
+      },
+      {
+        "param": "outDuration",
+        "label": {
+          "zh-CN": "退出",
+          "en": "Out"
+        }
+      }
     ]
   },
-  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+  "defaultOutput": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 60
+  }
 }
