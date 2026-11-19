@@ -31,6 +31,7 @@ import {
   updateSound,
 } from '../../../shared/animation/params';
 import { docDuration } from '../../../shared/animation/resolve';
+import { removeLayer } from '../../../shared/animation/layers';
 import { ANIM_PROPS, AnimationDocSchema, AnimParamSchema, isKeyed, LAYER_ID_RE, type AnimationDoc } from '../../../shared/animation/schema';
 import { defineCommand, type AnyCommand } from '../../app/registry';
 import { notify } from '../../stores/noticeStore';
@@ -375,7 +376,7 @@ export const ANIMATION_R3_COMMANDS: AnyCommand[] = [
     category: 'edit',
     effect: 'write',
     undoLabelKey: 'anim.history.keyframe',
-    enabled: () => isAnimationActive() && (selected().length > 0 || useAnimationUi.getState().sound !== null),
+    enabled: () => isAnimationActive() && (selected().length > 0 || useAnimationUi.getState().sound !== null || useAnimationUi.getState().layers.length > 0),
     run: () => {
       const ui = useAnimationUi.getState();
       if (ui.keys.length > 0) {
@@ -384,6 +385,14 @@ export const ANIMATION_R3_COMMANDS: AnyCommand[] = [
       } else if (ui.sound) {
         const doc = currentAnimation()?.doc;
         if (doc && replaceDoc({ ...doc, sounds: doc.sounds.filter((s) => s.id !== ui.sound) })) ui.selectSound(null);
+      } else if (ui.layers.length > 0) {
+        // 删选中的图层（子图层改挂到被删图层的父级）；锁定的不删
+        let doc = currentAnimation()?.doc ?? null;
+        for (const id of ui.layers) {
+          if (!doc || doc.layers.find((l) => l.id === id)?.locked) continue;
+          doc = removeLayer(doc, id) ?? doc;
+        }
+        if (doc && replaceDoc(doc)) ui.selectLayers([]);
       }
     },
   }),

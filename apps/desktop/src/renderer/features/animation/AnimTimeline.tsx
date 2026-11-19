@@ -15,6 +15,7 @@ import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, ty
 import { useTranslation } from 'react-i18next';
 import { KEY_EPSILON, keysOf, layerKeyTimes, sameKey, scaleKeys, shiftKeys, snapTime, type KeyRef } from '../../../shared/animation/edit';
 import { resolveDoc } from '../../../shared/animation/resolve';
+import { layerTree, setLayerInterval } from '../../../shared/animation/layers';
 import { ANIM_PROPS, type AnimationDoc, type AnimProp } from '../../../shared/animation/schema';
 import { trigger } from '../../app/registry';
 import { usePreviewStore } from '../../stores/previewStore';
@@ -249,6 +250,33 @@ export function AnimTimeline() {
     trackPointer(e, { move, up });
   };
 
+  /** 拖可见区间的一端（吸附同关键帧；一次拖动一步撤销） */
+  const dragInterval = (layerId: string, side: 'from' | 'to', at: number) => (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const cur = currentAnimation();
+    if (!cur) return;
+    const base = cur.doc;
+    const x0 = e.clientX;
+    let started = false;
+    trackPointer(e, {
+      move: (ev) => {
+        if (!started && Math.abs(ev.clientX - x0) < 2) return;
+        if (!started) {
+          beginGesture();
+          started = true;
+        }
+        let to = frame(at + ((ev.clientX - x0) / laneWidth()) * duration);
+        if (useAnimationUi.getState().snap && !ev.altKey) to = snapTime(to, snapPoints([]), snapTol());
+        const next = setLayerInterval(base, layerId, side === 'from' ? to : undefined, side === 'to' ? to : undefined, duration);
+        if (next) replaceDoc(next);
+      },
+      up: () => {
+        if (started) endGesture();
+      },
+    });
+  };
+
   /** 选中的关键帧按一帧（Shift 十帧）挪 */
   const nudge = (e: ReactKeyboardEvent) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
@@ -294,7 +322,8 @@ export function AnimTimeline() {
   const step = tickStep(duration, 600);
   const ticks: number[] = [];
   for (let s = 0; s <= duration + 1e-9; s += step) ticks.push(Math.round(s * 1000) / 1000);
-  const layers = doc.layers.map((l, i) => ({ l, r: resolved.layers[i]! })).reverse();
+  // 显示顺序与图层面板相同：画在最前面的在最上面，子图层缩进排在父级下面
+  const layers = layerTree(doc).map((e) => ({ l: e.layer, r: resolved.layers[e.index]!, depth: e.depth }));
   const playX = duration > 0 ? time / duration : 0;
   const selTimes = selKeys.map((k) => k.t);
   const minT = selTimes.length > 1 ? Math.min(...selTimes) : 0;
@@ -401,7 +430,7 @@ export function AnimTimeline() {
                 {t('anim.layers.empty')}
               </p>
             )}
-            {layers.map(({ l: layer, r: rl }) => {
+            {layers.map(({ l: layer, r: rl, depth }) => {
               const open = !!expanded[layer.id];
               const from = (rl.from ?? 0) / duration;
               const to = Math.min(1, (rl.to ?? duration) / duration);
@@ -410,7 +439,12 @@ export function AnimTimeline() {
               return (
                 <div key={layer.id} data-testid="anim-track" data-layer={layer.id}>
                   <div className={cn('flex items-center rounded-sm', isSelLayer && 'bg-control')} style={{ height: ROW_H }}>
-                    <button type="button" className="flex min-w-0 shrink-0 items-center gap-1.5 pr-2 text-left text-xs text-fg-muted hover:text-foreground" style={{ width: NAME_W }} onClick={() => useAnimationUi.getState().select({ layer: layer.id, key: null })}>
+                    <button
+                      type="button"
+                      className={cn('flex min-w-0 shrink-0 items-center gap-1.5 pr-2 text-left text-xs text-fg-muted hover:text-foreground', layer.hidden && 'opacity-60')}
+                      style={{ width: NAME_W, paddingLeft: depth * 12 }}
+                      onClick={() => useAnimationUi.getState().select({ layer: layer.id, key: null })}
+                    >
                       <span
                         role="button"
                         tabIndex={0}
@@ -436,7 +470,15 @@ export function AnimTimeline() {
                       <span className={cn('truncate', isSelLayer && 'text-foreground')}>{layer.name}</span>
                     </button>
                     <div className="relative h-full flex-1">
-                      <span className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[3px] bg-control-hi" style={{ left: `${from * 100}%`, width: `${Math.max(0, to - from) * 100}%` }} />
+                      <span className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[3px] bg-control-hi" style={{ left: `${from * 100}%`, width: `${Math.max(0, to - from) * 100}%` }} data-testid="anim-interval" data-layer={layer.id}>
+                        {/* 可见区间两端可拖（锁定的图层不能） */}
+                        {!layer.locked && (
+                          <>
+                            <span role="slider" aria-label={t('anim.timeline.intervalStart', { name: layer.name })} aria-valuenow={rl.from ?? 0} tabIndex={-1} className="absolute top-0 -left-0.5 z-[1] h-full w-1.5 cursor-ew-resize rounded-l-[3px] hover:bg-fg-muted" onPointerDown={dragInterval(layer.id, 'from', rl.from ?? 0)} data-testid="anim-interval-from" />
+                            <span role="slider" aria-label={t('anim.timeline.intervalEnd', { name: layer.name })} aria-valuenow={Math.min(rl.to ?? duration, duration)} tabIndex={-1} className="absolute top-0 -right-0.5 z-[1] h-full w-1.5 cursor-ew-resize rounded-r-[3px] hover:bg-fg-muted" onPointerDown={dragInterval(layer.id, 'to', Math.min(rl.to ?? duration, duration))} data-testid="anim-interval-to" />
+                          </>
+                        )}
+                      </span>
                       {layerKeyTimes(rl).map((kt) => {
                         const refs = ANIM_PROPS.filter((p) => keysOf(rl.props[p]).some((k) => Math.abs(k.t - kt) < KEY_EPSILON)).map((p) => ({ layer: layer.id, prop: p, t: kt }));
                         const all = refs.length > 0 && refs.every(isSel);
@@ -448,7 +490,7 @@ export function AnimTimeline() {
                             label={t('anim.timeline.keyAt', { t: kt })}
                             dim
                             data={{ 'key-layer': layer.id, 'key-t': String(kt) }}
-                            onPointerDown={(e) => dragKeys(refs, e.shiftKey || e.ctrlKey || e.metaKey)(e)}
+                            onPointerDown={layer.locked ? undefined : (e) => dragKeys(refs, e.shiftKey || e.ctrlKey || e.metaKey)(e)}
                           />
                         );
                       })}
@@ -472,7 +514,7 @@ export function AnimTimeline() {
                                 label={t('anim.timeline.propKeyAt', { prop: t(`anim.propNames.${prop}`), t: k.t })}
                                 testId="anim-key"
                                 data={{ 'key-layer': layer.id, 'key-prop': prop, 'key-t': String(k.t) }}
-                                onPointerDown={(e) => dragKeys([ref], e.shiftKey || e.ctrlKey || e.metaKey)(e)}
+                                onPointerDown={layer.locked ? undefined : (e) => dragKeys([ref], e.shiftKey || e.ctrlKey || e.metaKey)(e)}
                                 onKeyDown={nudge}
                               />
                             );

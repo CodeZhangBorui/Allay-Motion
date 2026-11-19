@@ -70,9 +70,17 @@ const LayerBase = {
   from: finite.min(0).max(30).optional(),
   to: finite.min(0).max(30).optional(),
   props: PropsSchema,
+  /** 父级图层的 id（第三轮）：这个图层的变换接在父级的变换后面，不透明度乘以父级的，父级不可见时它也不可见 */
+  parent: z.string().regex(LAYER_ID_RE).optional(),
+  /** 隐藏：不画（预览和导出都不画） */
+  hidden: z.boolean().optional(),
+  /** 独显：有图层独显时只画独显的图层和它们的子图层（预览和导出都是） */
+  solo: z.boolean().optional(),
+  /** 锁定：界面上不能选中拖动、不能改（画面不受影响） */
+  locked: z.boolean().optional(),
 };
 
-export const LAYER_TYPES = ['block', 'item', 'text', 'rect'] as const;
+export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'group'] as const;
 export type LayerType = (typeof LAYER_TYPES)[number];
 
 // 内容字段都可以绑定到参数（第 2 版）：方块、物品、文字、颜色、字体、大小
@@ -94,6 +102,8 @@ export const LayerSchema = z.discriminatedUnion('type', [
   }),
   /** 矩形色块 */
   z.strictObject({ ...LayerBase, type: z.literal('rect'), width: bindable(finite.min(1).max(8000)).default(400), height: bindable(finite.min(1).max(8000)).default(240), color: bindable(hex).default('#3CB7F4') }),
+  /** 组（空对象）：只有变换，不画任何东西；子图层用 parent 指向它 */
+  z.strictObject({ ...LayerBase, type: z.literal('group') }),
 ]);
 export type Layer = z.infer<typeof LayerSchema>;
 
@@ -183,6 +193,23 @@ const AnimationDocShape = z
       if (seen.has(l.id)) ctx.addIssue({ code: 'custom', path: ['layers', i, 'id'], message: `duplicate layer id "${l.id}"` });
       seen.add(l.id);
     });
+    // 父级：要存在，不能是自己，不能成环
+    const parentOf = new Map(doc.layers.map((l) => [l.id, l.parent]));
+    doc.layers.forEach((l, i) => {
+      if (l.parent === undefined) return;
+      if (!parentOf.has(l.parent)) ctx.addIssue({ code: 'custom', path: ['layers', i, 'parent'], message: `unknown parent layer "${l.parent}"` });
+      else if (l.parent === l.id) ctx.addIssue({ code: 'custom', path: ['layers', i, 'parent'], message: 'a layer cannot be its own parent' });
+      else {
+        const visited = new Set<string>([l.id]);
+        for (let p: string | undefined = l.parent; p !== undefined; p = parentOf.get(p)) {
+          if (visited.has(p)) {
+            ctx.addIssue({ code: 'custom', path: ['layers', i, 'parent'], message: 'parent layers form a cycle' });
+            break;
+          }
+          visited.add(p);
+        }
+      }
+    });
     const soundIds = new Set<string>();
     doc.sounds.forEach((snd, i) => {
       if (snd.id === undefined) return;
@@ -237,7 +264,7 @@ export function bindingSites(doc: Pick<AnimationDoc, 'duration' | 'layers' | 'so
       at([...base, 'width'], l.width, 'number');
       at([...base, 'height'], l.height, 'number');
     }
-    if (l.type !== 'rect') at([...base, 'size'], l.size, 'number');
+    if (l.type === 'block' || l.type === 'item' || l.type === 'text') at([...base, 'size'], l.size, 'number');
     for (const [prop, track] of Object.entries(l.props)) {
       if (isParamRef(track)) at([...base, 'props', prop], track, 'number');
       else if (isKeyed(track)) track.keys.forEach((k, j) => at([...base, 'props', prop, 'keys', j, 'v'], k.v, 'number'));

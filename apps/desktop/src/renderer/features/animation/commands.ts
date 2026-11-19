@@ -15,7 +15,8 @@ import { useTransportStore } from '../../stores/transportStore';
 import { easeEval } from './easeEval';
 import { confirmDiscard } from '../project/actions';
 import { previewEngine } from '../preview/previewEngine';
-import { currentAnimation, draftRef, editDoc, isAnimationActive, nextLayerId, setAnimationText, sourceFromDoc } from './source';
+import { currentAnimation, draftRef, editDoc, isAnimationActive, nextLayerId, replaceDoc, setAnimationText, sourceFromDoc } from './source';
+import { removeLayer } from '../../../shared/animation/layers';
 import { useAnimationUi } from './uiState';
 import { codeWindowAvailable, editCode, openCodeWindow, openExternal } from './codeWindow';
 
@@ -37,6 +38,8 @@ export function defaultLayer(type: LayerType, id: string): Layer {
       return LayerSchema.parse({ id, name, type, text: t('anim.defaultText'), size: 8, props: {} });
     case 'rect':
       return LayerSchema.parse({ id, name, type, width: 400, height: 240, props: {} });
+    case 'group':
+      return LayerSchema.parse({ id, name, type, props: {} });
   }
 }
 
@@ -159,9 +162,10 @@ export const ANIMATION_COMMANDS: AnyCommand[] = [
     output: z.boolean(),
     run: ({ layer }) => {
       if (layerIndex(layer) < 0) return false;
-      return editDoc((doc) => {
-        doc.layers = doc.layers.filter((l) => l.id !== layer);
-      });
+      // 子图层改挂到被删图层的父级（layers.ts 的 removeLayer）
+      const cur = currentAnimation();
+      const next = cur ? removeLayer(cur.doc, layer) : null;
+      return !!next && replaceDoc(next);
     },
   }),
   defineCommand({

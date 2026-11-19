@@ -98,7 +98,18 @@
       "alignToPlayhead": "Align to playhead",
       "snapToFrames": "Snap to frames",
       "toggleSnap": "Toggle snapping",
-      "toggleGraph": "Switch between keyframes and curves"
+      "toggleGraph": "Switch between keyframes and curves",
+      "duplicateLayers": "Duplicate layers",
+      "duplicateSelection": "Duplicate selected layers",
+      "groupLayers": "Group",
+      "groupSelection": "Group selected layers",
+      "moveLayer": "Move layer",
+      "renameLayer": "Rename layer",
+      "setLayerFlags": "Hide, solo or lock a layer",
+      "setLayerInterval": "Change when a layer is visible",
+      "setParent": "Set parent",
+      "ungroup": "Ungroup",
+      "ungroupSelection": "Ungroup"
     },
     "history": {
       "new": "New animation",
@@ -107,7 +118,8 @@
       "removeLayer": "Delete layer",
       "keyframe": "Edit keyframe",
       "params": "Edit parameters",
-      "sound": "Edit sound"
+      "sound": "Edit sound",
+      "layer": "Edit layer"
     },
     "errors": {
       "invalidEdit": "That change isn't valid and wasn't applied: {{reason}}",
@@ -117,7 +129,8 @@
       "block": "Block",
       "item": "Item",
       "text": "Text",
-      "rect": "Shape"
+      "rect": "Shape",
+      "group": "Group"
     },
     "layers": {
       "title": "Layers",
@@ -125,7 +138,17 @@
       "up": "Move up",
       "down": "Move down",
       "remove": "Delete layer",
-      "empty": "No layers yet. Click + at the top right to add a block, item, text or shape."
+      "empty": "No layers yet. Click + at the top right to add a block, item, text or shape.",
+      "copySuffix": " copy",
+      "hide": "Hide",
+      "show": "Show",
+      "solo": "Solo (show only this layer and its children)",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "lockedHint": "This layer is locked; it can’t be dragged or edited.",
+      "rename": "Layer name",
+      "selected": "{{count}} layers selected",
+      "ungroupHasTransform": "This group has its own position, rotation, scale or opacity; ungrouping would make its layers jump. Reset the group’s transform first."
     },
     "props": {
       "title": "Animation",
@@ -168,7 +191,9 @@
       "easeHint": "Easing applies from this keyframe to the next one. Hold keeps the value until the next keyframe, then jumps.",
       "backToDocument": "← Whole animation",
       "transform": "Transform",
-      "font": "Font"
+      "font": "Font",
+      "parent": "Parent",
+      "noParent": "None"
     },
     "propNames": {
       "x": "X",
@@ -190,7 +215,9 @@
       "view": "Timeline view",
       "keys": "Keyframes",
       "graph": "Curves",
-      "snapHint": "Snap to frames, the playhead, keyframes and sounds (hold Alt while dragging to turn it off)"
+      "snapHint": "Snap to frames, the playhead, keyframes and sounds (hold Alt while dragging to turn it off)",
+      "intervalStart": "When “{{name}}” appears",
+      "intervalEnd": "When “{{name}}” disappears"
     },
     "code": {
       "title": "Animation code",

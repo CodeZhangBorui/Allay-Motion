@@ -100,8 +100,12 @@ async function createAnimation(ctx, source) {
   const euler = new THREE.Euler();
   const quaternion = new THREE.Quaternion();
   const scaleV = new THREE.Vector3();
+  /** 交给图层对象的矩阵：世界变换 × 图层自己的大小（大小不传给子图层） */
   const matrix = new THREE.Matrix4();
+  const unitM = new THREE.Matrix4();
   const disposables = [];
+  // 有图层独显时只画独显的图层和它们的子图层（父级的变换照常起作用）
+  const anySolo = doc.layers.some((l) => l.solo === true);
 
   /** 把对象里的材质换成自己的副本并打开透明，按图层单独改不透明度（不碰引擎缓存里的共享材质） */
   function ownMaterials(object) {
@@ -126,10 +130,26 @@ async function createAnimation(ctx, source) {
     const def = doc.layers[index];
     const tracks = {};
     for (const p of PROPS) tracks[p] = compileTrack(def.props ? def.props[p] : undefined, DEFAULTS[p]);
-    const layer = { def, tracks, from: typeof def.from === 'number' ? def.from : 0, to: typeof def.to === 'number' ? def.to : Infinity, unit: 1, apply: null };
+    const layer = {
+      def,
+      tracks,
+      from: typeof def.from === 'number' ? def.from : 0,
+      to: typeof def.to === 'number' ? def.to : Infinity,
+      unit: 1,
+      apply: null,
+      parent: -1,
+      /** 世界变换（不含图层自己的大小）、可见、不透明度：子图层从这里接着算 */
+      world: new THREE.Matrix4(),
+      visible: false,
+      opacity: 1,
+      solo: def.solo === true,
+    };
     const holder = new THREE.Object3D();
     holder.renderOrder = index;
-    if (def.type === 'block') {
+    if (def.type === 'group') {
+      // 组：只有变换，不画任何东西
+      layer.apply = () => undefined;
+    } else if (def.type === 'block') {
       const inst = (await ctx.resources.block(def.block)).instanced(1);
       holder.add(inst.object);
       layer.unit = def.size;
@@ -177,6 +197,25 @@ async function createAnimation(ctx, source) {
     layers.push(layer);
   }
 
+  // 父子层级：父级先算。按依赖排一个顺序（schema 已经保证没有环、父级存在）
+  const byId = new Map(layers.map((l, i) => [l.def.id, i]));
+  for (const l of layers) l.parent = typeof l.def.parent === 'string' && byId.has(l.def.parent) ? byId.get(l.def.parent) : -1;
+  const order = [];
+  const placed = new Array(layers.length).fill(false);
+  const place = (i, depth) => {
+    if (placed[i] || depth > layers.length) return;
+    const pi = layers[i].parent;
+    if (pi >= 0) place(pi, depth + 1);
+    placed[i] = true;
+    order.push(i);
+  };
+  for (let i = 0; i < layers.length; i++) place(i, 0);
+  // 独显：自己或某个祖先独显
+  for (const i of order) {
+    const l = layers[i];
+    l.solo = l.solo || (l.parent >= 0 && layers[l.parent].solo);
+  }
+
   for (const s of doc.sounds || []) {
     const opts = { gain: s.gain };
     if (typeof s.rate === 'number') opts.rate = s.rate;
@@ -188,18 +227,25 @@ async function createAnimation(ctx, source) {
     duration,
     cutTime: doc.cutTime === undefined ? null : doc.cutTime,
     update(t) {
-      for (let i = 0; i < layers.length; i++) {
-        const l = layers[i];
+      for (let k = 0; k < order.length; k++) {
+        const l = layers[order[k]];
         const tr = l.tracks;
-        const opacity = Math.min(1, Math.max(0, sample(tr.opacity, t)));
-        const visible = t >= l.from && t < l.to && opacity > 0;
-        const s = sample(tr.scale, t) * l.unit;
+        const parent = l.parent >= 0 ? layers[l.parent] : null;
+        // 不透明度沿父级相乘；父级不可见（隐藏、在可见区间外）时子图层也不可见
+        const opacity = Math.min(1, Math.max(0, sample(tr.opacity, t))) * (parent ? parent.opacity : 1);
+        const inside = t >= l.from && t < l.to && l.def.hidden !== true && (parent ? parent.visible : true);
+        l.visible = inside;
+        l.opacity = opacity;
+        const s = sample(tr.scale, t);
         position.set(sample(tr.x, t), sample(tr.y, t), sample(tr.z, t));
         euler.set(sample(tr.rotX, t) * DEG, sample(tr.rotY, t) * DEG, sample(tr.rotZ, t) * DEG, 'YXZ');
         quaternion.setFromEuler(euler);
         scaleV.set(s, s, s);
-        matrix.compose(position, quaternion, scaleV);
-        l.apply(visible, opacity);
+        l.world.compose(position, quaternion, scaleV);
+        if (parent) l.world.premultiply(parent.world);
+        unitM.makeScale(l.unit, l.unit, l.unit);
+        matrix.multiplyMatrices(l.world, unitM);
+        l.apply(inside && opacity > 0 && (!anySolo || l.solo), opacity);
       }
     },
     dispose() {

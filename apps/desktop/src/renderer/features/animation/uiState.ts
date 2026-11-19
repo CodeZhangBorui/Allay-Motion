@@ -17,6 +17,8 @@ export type GraphMode = 'value' | 'speed';
 
 interface AnimationUiState {
   layer: string | null;
+  /** 选中的全部图层（多选；layer 是其中最后点中的那个） */
+  layers: string[];
   /** 最后点中的那个关键帧（右栏显示它的数值和缓动） */
   key: KeySelection | null;
   /** 选中的全部关键帧（多选、框选） */
@@ -36,6 +38,8 @@ interface AnimationUiState {
   /** 选中一组关键帧；additive 时加进现有的选择（再点一次已选中的就取消它） */
   selectKeys(keys: readonly KeyRef[], mode?: 'replace' | 'add' | 'toggle'): void;
   selectSound(id: string | null): void;
+  /** 选中图层：replace 只选这些，toggle 加选或取消（Ctrl），range 从上一个选到这个（Shift，order 是显示顺序） */
+  selectLayers(ids: readonly string[], mode?: 'replace' | 'toggle' | 'range', order?: readonly string[]): void;
   setCodeOpen(open: boolean): void;
   toggleExpanded(layer: string): void;
   setView(view: TimelineView): void;
@@ -47,6 +51,7 @@ interface AnimationUiState {
 
 export const useAnimationUi = create<AnimationUiState>((set) => ({
   layer: null,
+  layers: [],
   key: null,
   keys: [],
   sound: null,
@@ -57,7 +62,20 @@ export const useAnimationUi = create<AnimationUiState>((set) => ({
   graphSeparate: false,
   snap: true,
   clipboard: null,
-  select: (sel) => set({ ...sel, keys: sel.key ? [sel.key] : [], sound: null }),
+  select: (sel) => set({ ...sel, layers: sel.layer ? [sel.layer] : [], keys: sel.key ? [sel.key] : [], sound: null }),
+  selectLayers: (ids, mode = 'replace', order = []) =>
+    set((s) => {
+      let next: string[];
+      if (mode === 'toggle') {
+        next = [...s.layers];
+        for (const id of ids) next = next.includes(id) ? next.filter((x) => x !== id) : [...next, id];
+      } else if (mode === 'range' && s.layer && ids[0] && order.includes(s.layer) && order.includes(ids[0])) {
+        const [a, b] = [order.indexOf(s.layer), order.indexOf(ids[0])].sort((x, y) => x - y);
+        next = order.slice(a!, b! + 1);
+      } else next = [...ids];
+      const last = mode === 'range' ? (ids[0] ?? null) : (next.at(-1) ?? null);
+      return { layers: next, layer: last, key: null, keys: [], sound: null };
+    }),
   selectKeys: (keys, mode = 'replace') =>
     set((s) => {
       let next: KeyRef[];
@@ -72,7 +90,7 @@ export const useAnimationUi = create<AnimationUiState>((set) => ({
         }
       }
       const last = next.at(-1) ?? null;
-      return { keys: next, key: last, layer: last?.layer ?? s.layer, sound: null };
+      return { keys: next, key: last, layer: last?.layer ?? s.layer, layers: last ? [last.layer] : s.layers, sound: null };
     }),
   selectSound: (sound) => set({ sound, key: null, keys: [] }),
   setCodeOpen: (codeOpen) => set({ codeOpen }),

@@ -23,7 +23,7 @@ async function dispatch(page: Page, id: string, input?: unknown): Promise<unknow
 
 interface DocJson {
   params: { key: string; type: string; default: unknown }[];
-  layers: { id: string; block?: unknown; props: Record<string, unknown> }[];
+  layers: { id: string; name: string; type: string; parent?: string; to?: number; block?: unknown; props: Record<string, unknown> }[];
   sounds: { id: string; at: number; sound: string; position?: unknown }[];
 }
 
@@ -198,4 +198,81 @@ test('T-ANIM-20 曲线视图的“各自的纵轴”：量程差很大的属性�
   expect(flat).toBeLessThan(10);
   await page.getByTestId('anim-graph-separate').click();
   await expect.poll(opacityHeight).toBeGreaterThan(60);
+});
+
+test('T-ANIM-23 图层：多选、成组（子图层缩进）、复制、重命名、隐藏和独显改变画面、锁定后检查器不能改、拖动排序、拖可见区间的一端', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await dispatch(page, 'animAddLayer', { type: 'rect' });
+  await expect(page.getByTestId('anim-layer')).toHaveCount(2);
+  const rows = page.getByTestId('anim-layer');
+  // 多选：点第一个，Ctrl 点第二个，成组
+  await rows.nth(0).click();
+  await rows.nth(1).click({ modifiers: ['Control'] });
+  await page.getByTestId('anim-layers-group').click();
+  await expect(rows).toHaveCount(3);
+  await expect(page.locator('[data-testid="anim-layer"][data-depth="1"]')).toHaveCount(2);
+  const groupId = (await docJson(page)).layers.find((l) => l.type === 'group')!.id;
+  expect((await docJson(page)).layers.filter((l) => l.parent === groupId)).toHaveLength(2);
+
+  // 复制组（Ctrl+D）：连同两个子图层
+  await page.locator(`[data-testid="anim-layer"][data-layer="${groupId}"]`).click();
+  await page.keyboard.press('Control+d');
+  await expect(rows).toHaveCount(6);
+  await dispatch(page, 'undo');
+  await expect(rows).toHaveCount(3);
+
+  // 重命名：双击名字
+  await page.locator(`[data-testid="anim-layer"][data-layer="${groupId}"]`).dblclick();
+  await page.getByTestId('anim-layer-rename').fill('Scene');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await docJson(page)).layers.find((l) => l.id === groupId)!.name).toBe('Scene');
+
+  // 隐藏组：画面变（两个子图层都不画了）；再显示回来
+  await ready(page);
+  const shown = await hash(page, 1);
+  const groupRow = page.locator(`[data-testid="anim-layer"][data-layer="${groupId}"]`);
+  await groupRow.hover();
+  await groupRow.getByTestId('anim-layer-hide').click();
+  await ready(page);
+  expect(await hash(page, 1)).not.toBe(shown);
+  await groupRow.getByTestId('anim-layer-hide').click();
+  await ready(page);
+  expect(await hash(page, 1)).toBe(shown);
+
+  // 锁定方块：检查器不能改
+  const blockRow = page.locator('[data-testid="anim-layer"][data-layer="block-1"]');
+  await blockRow.click();
+  await blockRow.hover();
+  await blockRow.getByTestId('anim-layer-lock').click();
+  await expect(page.getByTestId('anim-layer-locked')).toBeVisible();
+  await expect(page.getByTestId('anim-layer-editor')).toHaveAttribute('inert', '');
+  await page.getByTestId('anim-layer-locked').getByRole('button').click();
+  await expect(page.getByTestId('anim-layer-locked')).toHaveCount(0);
+
+  // 拖动排序：把方块拖到色块的上面（同一个组里），画的顺序跟着变
+  const order = async () => (await docJson(page)).layers.map((l) => l.id);
+  const before = await order();
+  const rect = page.locator('[data-testid="anim-layer"][data-layer="rect-1"]');
+  const from = (await blockRow.boundingBox())!;
+  const to = (await rect.boundingBox())!;
+  await page.mouse.move(from.x + 40, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 40, to.y + 3, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(order).not.toEqual(before);
+  const after = await order();
+  expect(after.indexOf('block-1')).toBeGreaterThan(after.indexOf('rect-1'));
+
+  // 拖可见区间的终点往左：to 变小
+  const end = page.locator('[data-testid="anim-interval-to"]').first();
+  const eb = (await end.boundingBox())!;
+  const ruler = (await page.getByTestId('anim-ruler').boundingBox())!;
+  await page.mouse.move(eb.x + eb.width / 2, eb.y + eb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(eb.x + eb.width / 2 - ruler.width * 0.25, eb.y + eb.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await docJson(page)).layers.some((l) => l.to !== undefined && l.to < 1.6)).toBe(true);
 });

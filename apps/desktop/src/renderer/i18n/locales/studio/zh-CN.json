@@ -98,7 +98,18 @@
       "alignToPlayhead": "对齐到播放头",
       "snapToFrames": "对齐到帧",
       "toggleSnap": "开关吸附",
-      "toggleGraph": "切换关键帧和曲线视图"
+      "toggleGraph": "切换关键帧和曲线视图",
+      "duplicateLayers": "复制图层",
+      "duplicateSelection": "复制选中的图层",
+      "groupLayers": "成组",
+      "groupSelection": "把选中的图层成组",
+      "moveLayer": "移动图层",
+      "renameLayer": "重命名图层",
+      "setLayerFlags": "隐藏、独显或锁定图层",
+      "setLayerInterval": "修改图层的出现时间",
+      "setParent": "设置父级",
+      "ungroup": "解组",
+      "ungroupSelection": "解组"
     },
     "history": {
       "new": "新建动画",
@@ -107,7 +118,8 @@
       "removeLayer": "删除图层",
       "keyframe": "修改关键帧",
       "params": "修改参数",
-      "sound": "修改音效"
+      "sound": "修改音效",
+      "layer": "修改图层"
     },
     "errors": {
       "invalidEdit": "这个修改不合规，没有生效：{{reason}}",
@@ -117,7 +129,8 @@
       "block": "方块",
       "item": "物品",
       "text": "文字",
-      "rect": "色块"
+      "rect": "色块",
+      "group": "组"
     },
     "layers": {
       "title": "图层",
@@ -125,7 +138,17 @@
       "up": "上移",
       "down": "下移",
       "remove": "删除图层",
-      "empty": "还没有图层。点右上角的 + 添加方块、物品、文字或色块。"
+      "empty": "还没有图层。点右上角的 + 添加方块、物品、文字或色块。",
+      "copySuffix": " 副本",
+      "hide": "隐藏",
+      "show": "显示",
+      "solo": "独显（只看这个图层和它的子图层）",
+      "lock": "锁定",
+      "unlock": "解锁",
+      "lockedHint": "这个图层已锁定，不能拖动和修改。",
+      "rename": "图层名称",
+      "selected": "已选 {{count}} 个图层",
+      "ungroupHasTransform": "这个组自己有位置、旋转、缩放或不透明度：解组会让里面的图层跳位。先把组的变换归零再解组。"
     },
     "props": {
       "title": "动画",
@@ -168,7 +191,9 @@
       "easeHint": "缓动作用在这个关键帧到下一个关键帧之间；“保持”表示数值不变，到下一个关键帧再跳过去。",
       "backToDocument": "← 整段动画",
       "transform": "变换",
-      "font": "字体"
+      "font": "字体",
+      "parent": "父级",
+      "noParent": "无"
     },
     "propNames": {
       "x": "X",
@@ -190,7 +215,9 @@
       "view": "时间轴视图",
       "keys": "关键帧",
       "graph": "曲线",
-      "snapHint": "吸附到帧、播放头、关键帧和音效（拖动时按住 Alt 临时关掉）"
+      "snapHint": "吸附到帧、播放头、关键帧和音效（拖动时按住 Alt 临时关掉）",
+      "intervalStart": "“{{name}}”出现的时刻",
+      "intervalEnd": "“{{name}}”消失的时刻"
     },
     "code": {
       "title": "动画代码",

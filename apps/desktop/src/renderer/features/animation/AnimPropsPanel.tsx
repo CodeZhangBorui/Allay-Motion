@@ -28,7 +28,9 @@ import {
 } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
-import { Code, Diamond, LinkSimple, LinkBreak, Plus, Trash, TreeStructure } from '@phosphor-icons/react';
+import { Code, Diamond, LinkSimple, LinkBreak, Lock, Plus, Trash, TreeStructure } from '@phosphor-icons/react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@allay/ui/components/select';
+import { descendants } from '../../../shared/animation/layers';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { keyIndexAt, keysOf, propValue, setKeyEase } from '../../../shared/animation/edit';
@@ -157,6 +159,29 @@ function patchLayer(id: string, patch: Record<string, unknown>): void {
 }
 
 const fullFont = (f: Partial<FontValue> | undefined): FontValue => ({ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: false, outline: null, ...f });
+
+/** 父级：没有，或任何不是自己、不是自己子孙的图层 */
+function ParentSelect({ doc, layer }: { doc: AnimationDoc; layer: Layer }) {
+  const { t } = useTranslation();
+  const banned = new Set([layer.id, ...descendants(doc, layer.id)]);
+  const options = doc.layers.filter((l) => !banned.has(l.id));
+  const NONE = '__none__';
+  return (
+    <Select value={layer.parent ?? NONE} onValueChange={(v) => trigger('animSetParent', { layer: layer.id, parent: v === NONE ? null : String(v) })}>
+      <SelectTrigger className="w-full" aria-label={t('anim.props.parent')} data-testid="anim-layer-parent">
+        <SelectValue>{(v: unknown) => (v === NONE || v === undefined ? t('anim.props.noParent') : (doc.layers.find((l) => l.id === v)?.name ?? String(v)))}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>{t('anim.props.noParent')}</SelectItem>
+        {options.map((l) => (
+          <SelectItem key={l.id} value={l.id}>
+            {l.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 /** 参数默认值的编辑控件（按参数类型） */
 function ParamDefault({ p }: { p: AnimParam }) {
@@ -365,6 +390,9 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
           </Row>
         </>
       )}
+      <Row label={t('anim.props.parent')}>
+        <ParentSelect doc={doc} layer={layer} />
+      </Row>
       <Row label={t('anim.props.visible')}>
         <div className="grid grid-cols-2 gap-[5px]">
           <ScrubNumberField value={layer.from ?? 0} min={0} max={duration} step={0.01} minDecimals={2} unit="s" lead={t('anim.props.from')} label={t('anim.props.from')} onChange={(v) => set({ from: v })} />
@@ -600,13 +628,25 @@ export function AnimPropsPanel() {
           <>
             {back}
             <MultiKeySettings />
-            <LayerContent doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
-            <Group id="transform" title={t('anim.props.transform')}>
-              {ANIM_PROPS.map((p) => (
-                <PropRow key={p} doc={doc} layer={layer} resolvedLayer={resolvedLayer} prop={p} />
-              ))}
-            </Group>
-            <KeyframeSettings doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
+            {layer.locked && (
+              <div className="mx-3.5 mb-2 flex items-center gap-2 rounded-md bg-control px-2.5 py-1.5 text-xs text-fg-muted" data-testid="anim-layer-locked">
+                <Lock size={ICON.sm} weight="fill" className="shrink-0" />
+                <span className="min-w-0 flex-1">{t('anim.layers.lockedHint')}</span>
+                <Button variant="ghost" size="sm" onClick={() => trigger('animSetLayerFlags', { layer: layer.id, locked: false })}>
+                  {t('anim.layers.unlock')}
+                </Button>
+              </div>
+            )}
+            {/* 锁定的图层：内容照常显示，但不能改（inert 让里面的控件都不接收输入） */}
+            <div {...(layer.locked ? { inert: true } : {})} className={cn(layer.locked && 'opacity-60')} data-testid="anim-layer-editor">
+              <LayerContent doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
+              <Group id="transform" title={t('anim.props.transform')}>
+                {ANIM_PROPS.map((p) => (
+                  <PropRow key={p} doc={doc} layer={layer} resolvedLayer={resolvedLayer} prop={p} />
+                ))}
+              </Group>
+              <KeyframeSettings doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
+            </div>
           </>
         ) : (
           <>
