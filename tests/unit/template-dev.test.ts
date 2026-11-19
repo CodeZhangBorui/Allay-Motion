@@ -240,7 +240,8 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
     expect(w.version).not.toBe(read.version);
     expect(readFileSync(join(svc.userTemplateDir(ref.id, ref.version)!, 'template.js'), 'utf8')).toBe(`${BASE_CODE}\n// edited\n`);
     // 不算“自己的写入”：监视服务照常报，热重载照常走
-    await waitFor(() => changes.find((e) => e.id === ref.id && e.hash === w.version));
+    // 全量单元测试并行时文件系统事件可能来得慢：放宽到 15 秒
+    await waitFor(() => changes.find((e) => e.id === ref.id && e.hash === w.version), 15_000);
   });
 
   it('T-ANIM-4 自建动画转为模板：主进程自己校验文档，写出 manifest、template.js、animation.json 和类型定义，模板列表里有它', async () => {
