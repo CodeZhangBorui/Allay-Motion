@@ -27,6 +27,8 @@ interface AnimationUiState {
   expanded: Record<string, boolean>;
   view: TimelineView;
   graphMode: GraphMode;
+  /** 曲线视图里每条曲线各自的纵轴 */
+  graphSeparate: boolean;
   /** 拖动时吸附到帧、播放头、别的关键帧（按住 Alt 临时关掉） */
   snap: boolean;
   clipboard: KeyClipboard | null;
@@ -38,6 +40,7 @@ interface AnimationUiState {
   toggleExpanded(layer: string): void;
   setView(view: TimelineView): void;
   setGraphMode(mode: GraphMode): void;
+  setGraphSeparate(on: boolean): void;
   setSnap(on: boolean): void;
   setClipboard(clip: KeyClipboard | null): void;
 }
@@ -51,6 +54,7 @@ export const useAnimationUi = create<AnimationUiState>((set) => ({
   expanded: {},
   view: 'keys',
   graphMode: 'value',
+  graphSeparate: false,
   snap: true,
   clipboard: null,
   select: (sel) => set({ ...sel, keys: sel.key ? [sel.key] : [], sound: null }),
@@ -75,6 +79,7 @@ export const useAnimationUi = create<AnimationUiState>((set) => ({
   toggleExpanded: (layer) => set((s) => ({ expanded: { ...s.expanded, [layer]: !s.expanded[layer] } })),
   setView: (view) => set({ view }),
   setGraphMode: (graphMode) => set({ graphMode }),
+  setGraphSeparate: (graphSeparate) => set({ graphSeparate }),
   setSnap: (snap) => set({ snap }),
   setClipboard: (clipboard) => set({ clipboard }),
 }));

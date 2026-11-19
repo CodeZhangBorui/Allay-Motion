@@ -266,7 +266,9 @@
       "curves": "Curves",
       "empty": "The selected layer has no keyframes.",
       "valueHint": "Drag squares to change time and value (Shift: value only, Alt: time only), drag handles to change easing",
-      "speedHint": "Speed: change in value per second, view only"
+      "speedHint": "Speed: change in value per second, view only",
+      "separate": "Separate axes",
+      "separateHint": "Each curve uses its own vertical range (so a small-range property is not flattened next to a large one); the readout follows the last clicked curve"
     }
   }
 }

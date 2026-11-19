@@ -94,6 +94,7 @@ export function AnimTimeline() {
   const expanded = useAnimationUi((s) => s.expanded);
   const view = useAnimationUi((s) => s.view);
   const graphMode = useAnimationUi((s) => s.graphMode);
+  const graphSeparate = useAnimationUi((s) => s.graphSeparate);
   const snap = useAnimationUi((s) => s.snap);
   const laneRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -326,6 +327,19 @@ export function AnimTimeline() {
           <span className="mr-2 text-xs text-fg-subtle num" data-testid="anim-selection-count">
             {t('anim.keys.selected', { count: selKeys.length })}
           </span>
+        )}
+        {view === 'graph' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-pressed={graphSeparate}
+            className={cn('mr-1 aria-pressed:bg-transparent', graphSeparate ? 'text-primary-text hover:text-primary-text' : 'text-fg-muted')}
+            title={t('anim.graph.separateHint')}
+            data-testid="anim-graph-separate"
+            onClick={() => useAnimationUi.getState().setGraphSeparate(!graphSeparate)}
+          >
+            {t('anim.graph.separate')}
+          </Button>
         )}
         {view === 'graph' && (
           <ToggleGroup value={[graphMode]} onValueChange={(v: string[]) => v[0] && useAnimationUi.getState().setGraphMode(v[0] as 'value' | 'speed')} aria-label={t('anim.graph.mode')} className="mr-1">

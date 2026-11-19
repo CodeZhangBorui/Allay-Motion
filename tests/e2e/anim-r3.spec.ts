@@ -177,3 +177,25 @@ test('T-ANIM-19 曲线视图：显示有关键帧的属性的曲线；选中关�
   await expect(page.getByTestId('anim-graph')).toHaveAttribute('data-mode', 'speed');
   await expect(page.locator('[data-testid="anim-graph-handle"]')).toHaveCount(0);
 });
+
+test('T-ANIM-20 曲线视图的“各自的纵轴”：量程差很大的属性（y 几百、不透明度 0–1）叠在一起时，小量程的那条不再被压平', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await page.getByTestId('anim-layer').first().click();
+  await page.getByTestId('anim-view-graph').click();
+  // 只看 y 和不透明度
+  await page.locator('[data-curve="block-1.rotY"]').click();
+  await expect(page.getByTestId('anim-graph-path')).toHaveCount(2);
+  const opacityHeight = async () => {
+    const paths = page.getByTestId('anim-graph-path');
+    const boxes = await Promise.all([0, 1].map(async (i) => (await paths.nth(i).boundingBox())!.height));
+    return Math.min(...boxes);
+  };
+  const flat = await opacityHeight();
+  // 共用纵轴时 0–1 的不透明度只占描边那么高
+  expect(flat).toBeLessThan(10);
+  await page.getByTestId('anim-graph-separate').click();
+  await expect.poll(opacityHeight).toBeGreaterThan(60);
+});

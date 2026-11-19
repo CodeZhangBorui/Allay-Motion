@@ -1,6 +1,7 @@
 // 曲线视图（图表编辑器，docs/animation-editor.md 10.3）：时间轴的另一种视图。
 // 左侧列出选中图层（没选时是全部图层）有关键帧的属性，点一下显示或隐藏；右侧把显示的属性叠在同一张图上，
-// 每条属性一种颜色（只用设计变量里已有的颜色）。纵轴自动取显示的曲线的范围。
+// 每条属性一种颜色（只用设计变量里已有的颜色）。纵轴自动取显示的曲线的范围；“各自的纵轴”打开时每条曲线各用自己的
+// 范围（读数跟着最后点中的那条，用它的颜色写），量程差很大的属性叠在一起时小量程的不会被压平。
 // - 数值曲线：关键帧是小方块，拖动改时刻（对齐到帧）和数值（绑定到参数的值改参数的默认值）；
 //   选中的关键帧两侧画出这一段缓动的贝塞尔手柄，拖手柄改这一段的缓动（预设缓动先换成同样形状的贝塞尔）。
 //   弹性、回弹、保持这类不是一条三次贝塞尔的缓动不给手柄。
@@ -48,6 +49,8 @@ export function GraphEditor() {
   const selectedLayer = useAnimationUi((s) => s.layer);
   const selKeys = useAnimationUi((s) => s.keys);
   const mode = useAnimationUi((s) => s.graphMode);
+  /** 每条曲线各自的纵轴（量程差很大的属性叠在一起时，小量程的不至于被压平） */
+  const separate = useAnimationUi((s) => s.graphSeparate);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const plotRef = useRef<SVGSVGElement>(null);
@@ -84,29 +87,45 @@ export function GraphEditor() {
     const tr = layerOf(c.layer).props[c.prop];
     return mode === 'speed' ? trackSpeed(tr, PROP_DEFAULTS[c.prop], tt, easeEval) : sampleTrack(tr, PROP_DEFAULTS[c.prop], tt, easeEval);
   };
-  // 纵轴范围：所有显示的曲线（含手柄）的最小、最大值
-  let lo = Infinity;
-  let hi = -Infinity;
-  for (const c of visible) {
+  // 纵轴范围：每条曲线自己的最小、最大值；不分开时所有显示的曲线共用一个范围
+  const rangeOfCurve = (c: Curve): [number, number] => {
+    let lo = Infinity;
+    let hi = -Infinity;
     for (let i = 0; i <= SAMPLES; i++) {
       const v = evalAt(c, (i / SAMPLES) * duration);
       lo = Math.min(lo, v);
       hi = Math.max(hi, v);
     }
+    return [lo, hi];
+  };
+  const widen = ([lo, hi]: [number, number]): [number, number] => {
+    if (!Number.isFinite(lo)) return [-1, 1];
+    if (hi - lo < 1e-6) return [lo - 1, hi + 1];
+    return [lo, hi];
+  };
+  const ranges = new Map<string, [number, number]>();
+  let shared: [number, number] = [Infinity, -Infinity];
+  for (const c of visible) {
+    const r = rangeOfCurve(c);
+    ranges.set(`${c.layer}.${c.prop}`, widen(r));
+    shared = [Math.min(shared[0], r[0]), Math.max(shared[1], r[1])];
   }
-  if (!Number.isFinite(lo)) {
-    lo = -1;
-    hi = 1;
-  }
-  if (hi - lo < 1e-6) {
-    lo -= 1;
-    hi += 1;
-  }
+  shared = widen(shared);
+  const rangeOf = (c: Curve): [number, number] => (separate ? (ranges.get(`${c.layer}.${c.prop}`) ?? shared) : shared);
+  // 纵轴读数跟着的曲线：分开时是最后点中的关键帧所在的那条，否则是第一条显示的
+  const focus = visible.find((c) => selKeys.at(-1)?.layer === c.layer && selKeys.at(-1)?.prop === c.prop) ?? visible[0];
+  const [lo, hi] = focus ? rangeOf(focus) : shared;
   const { w, h } = size;
   const xOf = (tt: number) => (tt / duration) * w;
-  const yOf = (v: number) => PAD_Y + (1 - (v - lo) / (hi - lo)) * (h - PAD_Y * 2);
+  const yOf = (c: Curve, v: number) => {
+    const [a, b] = rangeOf(c);
+    return PAD_Y + (1 - (v - a) / (b - a)) * (h - PAD_Y * 2);
+  };
   const tOf = (x: number) => Math.min(duration, Math.max(0, Math.round(((x / w) * duration) * fps) / fps));
-  const vOf = (y: number) => lo + (1 - (y - PAD_Y) / (h - PAD_Y * 2)) * (hi - lo);
+  const vOf = (c: Curve, y: number) => {
+    const [a, b] = rangeOf(c);
+    return a + (1 - (y - PAD_Y) / (h - PAD_Y * 2)) * (b - a);
+  };
   const local = (e: { clientX: number; clientY: number }) => {
     const r = plotRef.current!.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -140,7 +159,7 @@ export function GraphEditor() {
         started = true;
       }
       const dt = ev.shiftKey ? 0 : tOf(xOf(kt) + (p.x - p0.x)) - kt;
-      const dv = ev.altKey ? 0 : vOf(p.y) - vOf(p0.y);
+      const dv = ev.altKey ? 0 : vOf(c, p.y) - vOf(c, p0.y);
       const next = moveKeysAndValues(base, group, dt, dv, duration);
       if (next && replaceDoc(next.doc)) useAnimationUi.getState().selectKeys(next.refs);
     };
@@ -178,7 +197,7 @@ export function GraphEditor() {
       }
       const p = local(ev);
       const nx = ((p.x / w) * duration - a.t) / (b.t - a.t);
-      const ny = (vOf(p.y) - a.v) / (b.v - a.v);
+      const ny = (vOf(c, p.y) - a.v) / (b.v - a.v);
       const next: [number, number, number, number] = which === 0 ? [nx, ny, bez[2], bez[3]] : [bez[0], bez[1], nx, ny];
       const draft = structuredClone(base);
       const l = draft.layers.find((x) => x.id === c.layer);
@@ -222,7 +241,7 @@ export function GraphEditor() {
       for (const c of visible) {
         for (const k of keysOf(layerOf(c.layer).props[c.prop])) {
           const kx = xOf(k.t);
-          const ky = yOf(mode === 'speed' ? evalAt(c, k.t) : k.v);
+          const ky = yOf(c, mode === 'speed' ? evalAt(c, k.t) : k.v);
           // 框碰到小方块（边长 8）就算选中
           if (kx + 4 >= x0 && kx - 4 <= x1 && ky + 4 >= y0 && ky - 4 <= y1) hits.push({ layer: c.layer, prop: c.prop, t: k.t });
         }
@@ -236,7 +255,7 @@ export function GraphEditor() {
     const pts: string[] = [];
     for (let i = 0; i <= SAMPLES; i++) {
       const tt = (i / SAMPLES) * duration;
-      pts.push(`${xOf(tt).toFixed(1)},${yOf(evalAt(c, tt)).toFixed(1)}`);
+      pts.push(`${xOf(tt).toFixed(1)},${yOf(c, evalAt(c, tt)).toFixed(1)}`);
     }
     return `M${pts.join('L')}`;
   };
@@ -268,12 +287,12 @@ export function GraphEditor() {
       <div ref={measure} className="relative min-w-0 flex-1 overflow-hidden rounded-sm bg-well">
         <svg ref={plotRef} width={w} height={h} className="absolute inset-0 select-none" onPointerDown={startBox} data-testid="anim-graph-plot" role="img" aria-label={t(mode === 'speed' ? 'anim.graph.speed' : 'anim.graph.value')}>
           {/* 零线与范围读数 */}
-          {lo < 0 && hi > 0 && <line x1={0} x2={w} y1={yOf(0)} y2={yOf(0)} stroke="var(--divider)" strokeWidth={1} />}
-          <text x={4} y={11} fontSize={10} fill="var(--fg-subtle)" className="num">
+          {!separate && focus && lo < 0 && hi > 0 && <line x1={0} x2={w} y1={yOf(focus, 0)} y2={yOf(focus, 0)} stroke="var(--divider)" strokeWidth={1} />}
+          <text x={4} y={11} fontSize={10} fill={separate && focus ? COLORS[focus.prop] : 'var(--fg-subtle)'} className="num" data-testid="anim-graph-max">
             {round(hi, 2)}
             {mode === 'speed' ? ' /s' : ''}
           </text>
-          <text x={4} y={h - 4} fontSize={10} fill="var(--fg-subtle)" className="num">
+          <text x={4} y={h - 4} fontSize={10} fill={separate && focus ? COLORS[focus.prop] : 'var(--fg-subtle)'} className="num" data-testid="anim-graph-min">
             {round(lo, 2)}
             {mode === 'speed' ? ' /s' : ''}
           </text>
@@ -289,12 +308,12 @@ export function GraphEditor() {
                 const touching = isSel({ layer: c.layer, prop: c.prop, t: a.t }) || isSel({ layer: c.layer, prop: c.prop, t: b.t });
                 const bez = touching && Math.abs(b.v - a.v) > 1e-9 ? easeToBezier(a.ease) : null;
                 if (!bez) return [];
-                const h1 = { x: xOf(a.t + bez[0] * (b.t - a.t)), y: yOf(a.v + bez[1] * (b.v - a.v)) };
-                const h2 = { x: xOf(a.t + bez[2] * (b.t - a.t)), y: yOf(a.v + bez[3] * (b.v - a.v)) };
+                const h1 = { x: xOf(a.t + bez[0] * (b.t - a.t)), y: yOf(c, a.v + bez[1] * (b.v - a.v)) };
+                const h2 = { x: xOf(a.t + bez[2] * (b.t - a.t)), y: yOf(c, a.v + bez[3] * (b.v - a.v)) };
                 return [
                   <g key={`${c.layer}.${c.prop}.${a.t}.h`}>
-                    <line x1={xOf(a.t)} y1={yOf(a.v)} x2={h1.x} y2={h1.y} stroke="var(--fg-subtle)" strokeWidth={1} />
-                    <line x1={xOf(b.t)} y1={yOf(b.v)} x2={h2.x} y2={h2.y} stroke="var(--fg-subtle)" strokeWidth={1} />
+                    <line x1={xOf(a.t)} y1={yOf(c, a.v)} x2={h1.x} y2={h1.y} stroke="var(--fg-subtle)" strokeWidth={1} />
+                    <line x1={xOf(b.t)} y1={yOf(c, b.v)} x2={h2.x} y2={h2.y} stroke="var(--fg-subtle)" strokeWidth={1} />
                     <circle cx={h1.x} cy={h1.y} r={4} fill="var(--surface-1)" stroke={COLORS[c.prop]} strokeWidth={1.5} className="cursor-move" onPointerDown={dragHandle(c, a.t, 0)} data-testid="anim-graph-handle" data-handle="out" />
                     <circle cx={h2.x} cy={h2.y} r={4} fill="var(--surface-1)" stroke={COLORS[c.prop]} strokeWidth={1.5} className="cursor-move" onPointerDown={dragHandle(c, a.t, 1)} data-testid="anim-graph-handle" data-handle="in" />
                   </g>,
@@ -305,7 +324,7 @@ export function GraphEditor() {
             keysOf(layerOf(c.layer).props[c.prop]).map((k) => {
               const ref = { layer: c.layer, prop: c.prop, t: k.t };
               const sel = isSel(ref);
-              const y = yOf(mode === 'speed' ? evalAt(c, k.t) : k.v);
+              const y = yOf(c, mode === 'speed' ? evalAt(c, k.t) : k.v);
               return (
                 <rect
                   key={`${c.layer}.${c.prop}.${k.t}`}
