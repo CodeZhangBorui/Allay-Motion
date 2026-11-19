@@ -74,14 +74,40 @@
       "toggleCode": "Animation code panel",
       "editCode": "Edit animation code",
       "openCodeWindow": "Open in code window",
-      "openExternal": "Open in external editor"
+      "openExternal": "Open in external editor",
+      "addParam": "Add parameter",
+      "updateParam": "Edit parameter",
+      "removeParam": "Delete parameter",
+      "exposeParam": "Expose as parameter",
+      "bindParam": "Bind to parameter",
+      "unbindParam": "Unbind parameter",
+      "addSound": "Add sound",
+      "updateSound": "Edit sound",
+      "removeSound": "Delete sound",
+      "moveKeys": "Move keyframes",
+      "scaleKeys": "Scale keyframe timing",
+      "alignKeys": "Align keyframes",
+      "deleteKeys": "Delete keyframes",
+      "copyKeys": "Copy keyframes",
+      "pasteKeys": "Paste keyframes",
+      "setSegmentCurve": "Edit easing curve",
+      "copySelection": "Copy selected keyframes",
+      "pasteSelection": "Paste keyframes",
+      "deleteSelection": "Delete selected keyframes or sound",
+      "selectAllKeys": "Select all keyframes",
+      "alignToPlayhead": "Align to playhead",
+      "snapToFrames": "Snap to frames",
+      "toggleSnap": "Toggle snapping",
+      "toggleGraph": "Switch between keyframes and curves"
     },
     "history": {
       "new": "New animation",
       "code": "Edit animation code",
       "addLayer": "Add layer",
       "removeLayer": "Delete layer",
-      "keyframe": "Edit keyframe"
+      "keyframe": "Edit keyframe",
+      "params": "Edit parameters",
+      "sound": "Edit sound"
     },
     "errors": {
       "invalidEdit": "That change isn't valid and wasn't applied: {{reason}}",
@@ -141,7 +167,8 @@
       "ease": "Easing",
       "easeHint": "Easing applies from this keyframe to the next one. Hold keeps the value until the next keyframe, then jumps.",
       "backToDocument": "← Whole animation",
-      "transform": "Transform"
+      "transform": "Transform",
+      "font": "Font"
     },
     "propNames": {
       "x": "X",
@@ -159,7 +186,11 @@
       "expand": "Expand “{{name}}”",
       "collapse": "Collapse “{{name}}”",
       "keyAt": "Keyframe at {{t}} s",
-      "propKeyAt": "“{{prop}}” keyframe at {{t}} s"
+      "propKeyAt": "“{{prop}}” keyframe at {{t}} s",
+      "view": "Timeline view",
+      "keys": "Keyframes",
+      "graph": "Curves",
+      "snapHint": "Snap to frames, the playhead, keyframes and sounds (hold Alt while dragging to turn it off)"
     },
     "code": {
       "title": "Animation code",
@@ -180,6 +211,62 @@
         "open-failed": "Couldn’t open the external editor",
         "io": "Couldn’t write the animation file"
       }
+    },
+    "params": {
+      "title": "Parameters",
+      "empty": "No parameters yet. Pick “Expose as new parameter” from the link button at the right of any row; once converted to a template, it shows up in the Properties panel.",
+      "expose": "Expose as parameter",
+      "exposeNew": "Expose as new parameter",
+      "bindTo": "Bind to “{{name}}”",
+      "boundTo": "Bound to parameter “{{name}}”",
+      "unbind": "Unbind",
+      "label": "Name",
+      "default": "Default",
+      "range": "Range",
+      "min": "Min",
+      "max": "Max",
+      "remove": "Delete parameter (bound values get its default back)",
+      "usage": "Used in {{count}} place(s)",
+      "types": {
+        "number": "Number",
+        "duration": "Duration",
+        "block": "Block",
+        "item": "Item",
+        "text": "Text",
+        "color": "Color",
+        "font": "Font",
+        "sound": "Sound"
+      }
+    },
+    "sounds": {
+      "track": "Sounds",
+      "add": "Add a sound at the playhead",
+      "one": "Sound",
+      "sound": "Sound",
+      "at": "Time",
+      "atLabel": "Sound at {{t}} s",
+      "gain": "Volume",
+      "rate": "Rate",
+      "positional": "Position in space",
+      "position": "Position",
+      "positionHint": "Position is in blocks: +X right, +Y up, −Z straight ahead. With “Spatial audio” on, it fades and pans by the game’s rules; mono sounds only.",
+      "remove": "Delete sound"
+    },
+    "keys": {
+      "selected": "{{count}} keyframes selected",
+      "copied": "Copied {{count}} keyframes",
+      "scaleStart": "Scale timing from the start",
+      "scaleEnd": "Scale timing from the end",
+      "hint": "Shift or Ctrl click to add to the selection, drag on empty space to box-select; drag to move the group, drag the ends of the selection bar to scale timing; hold Alt to stop snapping; Ctrl+C / Ctrl+V to copy and paste."
+    },
+    "graph": {
+      "mode": "Curve type",
+      "value": "Value",
+      "speed": "Speed",
+      "curves": "Curves",
+      "empty": "The selected layer has no keyframes.",
+      "valueHint": "Drag squares to change time and value (Shift: value only, Alt: time only), drag handles to change easing",
+      "speedHint": "Speed: change in value per second, view only"
     }
   }
 }

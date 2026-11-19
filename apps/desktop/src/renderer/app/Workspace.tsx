@@ -113,6 +113,7 @@ export function Workspace() {
               style={{ ...fade.style, height: animation ? 'max(var(--h-timeline), 280px)' : 'var(--h-timeline)', transitionProperty: 'height, opacity' }}
               data-testid="timeline-slot"
               data-mode={mode}
+              data-phase={phase}
             >
               {animation ? <AnimTimeline /> : <TimelinePanel />}
             </div>

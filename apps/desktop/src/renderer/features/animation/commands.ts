@@ -4,7 +4,8 @@
 import { AppWindow, ArrowSquareOut, Code, FilmSlate, Plus, Stack, TreeStructure } from '@phosphor-icons/react';
 import i18next from 'i18next';
 import { z } from 'zod';
-import { AnimEasingSchema, ANIM_PROPS, LAYER_TYPES, LayerSchema, newAnimationDoc, type Layer, type LayerType } from '../../../shared/animation/schema';
+import { AnimEasingSchema, ANIM_PROPS, isKeyed, LAYER_TYPES, LayerSchema, newAnimationDoc, type Layer, type LayerType } from '../../../shared/animation/schema';
+import { docDuration, resolveDoc } from '../../../shared/animation/resolve';
 import { keyIndexAt, moveKey, propValue, removeKey, setKeyEase, setValueAt } from '../../../shared/animation/edit';
 import { defineCommand, type AnyCommand } from '../../app/registry';
 import { notify } from '../../stores/noticeStore';
@@ -86,8 +87,10 @@ export function toggleKey(layerId: string, prop: (typeof ANIM_PROPS)[number], at
       if (next === undefined) delete l.props[prop];
       else l.props[prop] = next;
     } else {
-      const v = propValue(l, prop, at, easeEval);
-      const keys = track !== undefined && typeof track === 'object' ? track.keys : [];
+      // 当前插值出来的值（绑定到参数的按参数的默认值算）
+      const resolved = resolveDoc(doc).layers.find((x) => x.id === layerId)!;
+      const v = propValue(resolved, prop, at, easeEval);
+      const keys = isKeyed(track) ? track.keys : [];
       l.props[prop] = { keys: [...keys, { t: Math.round(at * 10000) / 10000, v: Math.round(v * 10000) / 10000 }].sort((a, b) => a.t - b.t) };
     }
   });
@@ -176,7 +179,7 @@ export const ANIMATION_COMMANDS: AnyCommand[] = [
         if (!l) throw new Error(`unknown layer ${layer}`);
         const track = l.props[prop];
         // 命令总是落成关键帧（常量轨道先变成一个关键帧）
-        const keyed = track !== undefined && typeof track === 'object' ? track : { keys: [{ t: at, v }] };
+        const keyed = isKeyed(track) ? track : { keys: [{ t: at, v }] };
         let next = setValueAt(keyed, at, v);
         if (ease !== undefined) next = setKeyEase(next, keyIndexAt(next, at), ease) ?? next;
         l.props[prop] = next;
@@ -214,7 +217,7 @@ export const ANIMATION_COMMANDS: AnyCommand[] = [
       const ok = editDoc((doc) => {
         const l = doc.layers.find((x) => x.id === layer);
         if (!l) return;
-        const next = moveKey(l.props[prop], keyIndexAt(l.props[prop], from), to, doc.duration);
+        const next = moveKey(l.props[prop], keyIndexAt(l.props[prop], from), to, docDuration(doc));
         if (next) {
           l.props[prop] = next;
           moved = true;

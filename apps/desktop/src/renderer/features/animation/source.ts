@@ -52,6 +52,14 @@ export function editDoc(mutate: (doc: AnimationDoc) => void): boolean {
   return true;
 }
 
+/** 整份换成另一份文档（多个关键帧、参数这类一次改好几处的操作用）：校验通过才提交，一次一步撤销 */
+export function replaceDoc(next: AnimationDoc): boolean {
+  return editDoc((draft) => {
+    for (const k of Object.keys(draft)) delete (draft as Record<string, unknown>)[k];
+    Object.assign(draft, structuredClone(next));
+  });
+}
+
 /**
  * 代码编辑：换整份文本。解析得过就换文档（预览随之更新）；解析不过时文本照样保存在工程里（不丢用户的输入），
  * 预览保持最后一份合法的文档，原因放进 issues。

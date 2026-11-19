@@ -11,7 +11,10 @@ import { LayersActions, LayersPanel } from './LayersPanel';
 import { useAnimationUi } from './uiState';
 import { startCodeWindowBridge } from './codeWindow';
 
-export { ANIMATION_COMMANDS } from './commands';
+import { ANIMATION_COMMANDS as BASE_COMMANDS } from './commands';
+import { ANIMATION_R3_COMMANDS } from './commands-r3';
+
+export const ANIMATION_COMMANDS = [...BASE_COMMANDS, ...ANIMATION_R3_COMMANDS];
 
 export const ANIMATION_MENU_ITEMS: MenuItemDef[] = [
   { id: 'file.newAnimation', menu: 'file', group: 0, order: 1, command: 'animNew', testId: 'menu-anim-new' },
