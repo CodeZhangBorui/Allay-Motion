@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import type { KeyClipboard, KeyRef } from '../../../shared/animation/edit';
 import { sameKey } from '../../../shared/animation/edit';
 import type { AnimProp } from '../../../shared/animation/schema';
+import type { TimeView } from '../../../shared/animation/time-view';
 
 export interface KeySelection {
   layer: string;
@@ -34,6 +35,9 @@ interface AnimationUiState {
   /** 拖动时吸附到帧、播放头、别的关键帧（按住 Alt 临时关掉） */
   snap: boolean;
   clipboard: KeyClipboard | null;
+  /** 时间轴的可见范围（缩放、滚动；null 是整段）。关键帧视图和曲线视图共用 */
+  zoom: TimeView | null;
+  setZoom(zoom: TimeView | null): void;
   select(sel: { layer: string | null; key: KeySelection | null }): void;
   /** 选中一组关键帧；additive 时加进现有的选择（再点一次已选中的就取消它） */
   selectKeys(keys: readonly KeyRef[], mode?: 'replace' | 'add' | 'toggle'): void;
@@ -62,6 +66,8 @@ export const useAnimationUi = create<AnimationUiState>((set) => ({
   graphSeparate: false,
   snap: true,
   clipboard: null,
+  zoom: null,
+  setZoom: (zoom) => set({ zoom }),
   select: (sel) => set({ ...sel, layers: sel.layer ? [sel.layer] : [], keys: sel.key ? [sel.key] : [], sound: null }),
   selectLayers: (ids, mode = 'replace', order = []) =>
     set((s) => {

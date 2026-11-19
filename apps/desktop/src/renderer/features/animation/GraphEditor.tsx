@@ -12,6 +12,7 @@ import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } fro
 import { useTranslation } from 'react-i18next';
 import { easeToBezier, KEY_EPSILON, keysOf, moveKeysAndValues, round, sameKey, sampleTrack, setSegmentBezier, trackSpeed, type KeyRef } from '../../../shared/animation/edit';
 import { resolveDoc } from '../../../shared/animation/resolve';
+import { fracOf, viewRange } from '../../../shared/animation/time-view';
 import { ANIM_PROPS, isKeyed, PROP_DEFAULTS, type AnimProp } from '../../../shared/animation/schema';
 import { beginGesture, endGesture, useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
@@ -52,6 +53,7 @@ export function GraphEditor() {
   const mode = useAnimationUi((s) => s.graphMode);
   /** 每条曲线各自的纵轴（量程差很大的属性叠在一起时，小量程的不至于被压平） */
   const separate = useAnimationUi((s) => s.graphSeparate);
+  const zoom = useAnimationUi((s) => s.zoom);
   const [hidden, setHidden] = useState<Record<string, boolean>>({});
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const plotRef = useRef<SVGSVGElement>(null);
@@ -82,6 +84,7 @@ export function GraphEditor() {
 
   if (!doc || !resolved) return null;
   const duration = resolved.duration;
+  const range = viewRange(zoom, duration);
   const visible = curves.filter((c) => !hidden[`${c.layer}.${c.prop}`]);
   const layerOf = (id: string) => resolved.layers.find((l) => l.id === id)!;
   const evalAt = (c: Curve, tt: number) => {
@@ -117,12 +120,13 @@ export function GraphEditor() {
   const focus = visible.find((c) => selKeys.at(-1)?.layer === c.layer && selKeys.at(-1)?.prop === c.prop) ?? visible[0];
   const [lo, hi] = focus ? rangeOf(focus) : shared;
   const { w, h } = size;
-  const xOf = (tt: number) => (tt / duration) * w;
+  // 横轴是时间轴的可见范围（缩放、滚动，第 11 项）
+  const xOf = (tt: number) => fracOf(range, tt) * w;
   const yOf = (c: Curve, v: number) => {
     const [a, b] = rangeOf(c);
     return PAD_Y + (1 - (v - a) / (b - a)) * (h - PAD_Y * 2);
   };
-  const tOf = (x: number) => Math.min(duration, Math.max(0, Math.round(((x / w) * duration) * fps) / fps));
+  const tOf = (x: number) => Math.min(duration, Math.max(0, Math.round((range.start + (x / w) * (range.end - range.start)) * fps) / fps));
   const vOf = (c: Curve, y: number) => {
     const [a, b] = rangeOf(c);
     return a + (1 - (y - PAD_Y) / (h - PAD_Y * 2)) * (b - a);
@@ -197,7 +201,7 @@ export function GraphEditor() {
         started = true;
       }
       const p = local(ev);
-      const nx = ((p.x / w) * duration - a.t) / (b.t - a.t);
+      const nx = (range.start + (p.x / w) * (range.end - range.start) - a.t) / (b.t - a.t);
       const ny = (vOf(c, p.y) - a.v) / (b.v - a.v);
       const next: [number, number, number, number] = which === 0 ? [nx, ny, bez[2], bez[3]] : [bez[0], bez[1], nx, ny];
       const draft = structuredClone(base);
@@ -255,7 +259,7 @@ export function GraphEditor() {
   const path = (c: Curve) => {
     const pts: string[] = [];
     for (let i = 0; i <= SAMPLES; i++) {
-      const tt = (i / SAMPLES) * duration;
+      const tt = range.start + (i / SAMPLES) * (range.end - range.start);
       pts.push(`${xOf(tt).toFixed(1)},${yOf(c, evalAt(c, tt)).toFixed(1)}`);
     }
     return `M${pts.join('L')}`;

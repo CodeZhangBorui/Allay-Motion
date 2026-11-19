@@ -541,3 +541,39 @@ test('T-ANIM-33 转出来的模板重新打开继续编辑：“在动画编辑�
   await ready(page);
   await expect.poll(async () => hash(page, 1)).toBe(edited);
 });
+
+test('T-ANIM-35 时间轴缩放：放大按钮、Ctrl+滚轮在指针处放大，关键帧跟着散开；拖缩略条滚动；显示整段回到原样', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  // 新动画的方块在 0 和 1 秒有关键帧：展开它看属性轨上的菱形
+  await page.getByTestId('anim-track-expand').first().click();
+  const keyX = async (i: number) => (await page.getByTestId('anim-key').nth(i).boundingBox())!.x;
+  const gap0 = (await keyX(1)) - (await keyX(0));
+  await page.evaluate(() => window.__allayTest!.setTime(0.5));
+  await page.getByTestId('anim-zoom-in').click();
+  await page.getByTestId('anim-zoom-in').click();
+  await expect.poll(async () => (await keyX(1)) - (await keyX(0))).toBeGreaterThan(gap0 * 1.4);
+  await expect(page.getByTestId('anim-zoom-bar')).toBeVisible();
+  // Ctrl+滚轮再放大
+  const ruler = (await page.getByTestId('anim-ruler').boundingBox())!;
+  const gap1 = (await keyX(1)) - (await keyX(0));
+  await page.mouse.move(ruler.x + ruler.width / 2, ruler.y + 40);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.up('Control');
+  await expect.poll(async () => (await keyX(1)) - (await keyX(0))).toBeGreaterThan(gap1 * 1.1);
+  // 拖缩略条往右：菱形往左走
+  const thumb = (await page.getByTestId('anim-zoom-thumb').boundingBox())!;
+  const before = await keyX(0);
+  await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(thumb.x + thumb.width / 2 + 40, thumb.y + thumb.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(async () => keyX(0)).toBeLessThan(before);
+  // 显示整段
+  await page.getByTestId('anim-zoom-fit').click();
+  await expect(page.getByTestId('anim-zoom-bar')).toHaveCount(0);
+  await expect.poll(async () => Math.round((await keyX(1)) - (await keyX(0)))).toBe(Math.round(gap0));
+});

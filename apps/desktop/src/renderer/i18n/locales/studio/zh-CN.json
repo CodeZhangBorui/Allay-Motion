@@ -271,7 +271,12 @@
       "graph": "曲线",
       "snapHint": "吸附到帧、播放头、关键帧和音效（拖动时按住 Alt 临时关掉）",
       "intervalStart": "“{{name}}”出现的时刻",
-      "intervalEnd": "“{{name}}”消失的时刻"
+      "intervalEnd": "“{{name}}”消失的时刻",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomFit": "显示整段",
+      "zoomHint": "放大（Ctrl + 滚轮在指针处缩放，Shift + 滚轮左右滚动）",
+      "scroll": "左右滚动时间轴"
     },
     "code": {
       "title": "动画代码",

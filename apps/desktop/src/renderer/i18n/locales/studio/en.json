@@ -271,7 +271,12 @@
       "graph": "Curves",
       "snapHint": "Snap to frames, the playhead, keyframes and sounds (hold Alt while dragging to turn it off)",
       "intervalStart": "When “{{name}}” appears",
-      "intervalEnd": "When “{{name}}” disappears"
+      "intervalEnd": "When “{{name}}” disappears",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomFit": "Show whole clip",
+      "zoomHint": "Zoom in (Ctrl + wheel zooms at the pointer, Shift + wheel scrolls sideways)",
+      "scroll": "Scroll the timeline"
     },
     "code": {
       "title": "Animation code",

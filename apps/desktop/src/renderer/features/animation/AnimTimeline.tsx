@@ -10,11 +10,12 @@ import { Button } from '@allay/ui/components/button';
 import { ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
 import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
-import { CaretRight, MagnetStraight, Pause, Play, Plus, Repeat, SkipBack, SkipForward, SpeakerHigh } from '@phosphor-icons/react';
-import { useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { ArrowsOutLineHorizontal, CaretRight, MagnetStraight, MagnifyingGlassMinus, MagnifyingGlassPlus, Pause, Play, Plus, Repeat, SkipBack, SkipForward, SpeakerHigh } from '@phosphor-icons/react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KEY_EPSILON, keysOf, layerKeyTimes, sameKey, scaleKeys, shiftKeys, snapTime, type KeyRef } from '../../../shared/animation/edit';
 import { resolveDoc } from '../../../shared/animation/resolve';
+import { fracOf, panBy, revealTime, viewRange, zoomAt } from '../../../shared/animation/time-view';
 import { layerTree, setLayerInterval } from '../../../shared/animation/layers';
 import { ANIM_PROPS, type AnimationDoc, type AnimProp } from '../../../shared/animation/schema';
 import { trigger } from '../../app/registry';
@@ -35,11 +36,21 @@ const ROW_H = 24;
 const SNAP_PX = 6;
 const DEFAULT_SOUND = 'minecraft:ui.button.click';
 
-/** 刻度的间隔（秒）：让相邻两个刻度至少隔 56 px */
-function tickStep(duration: number, width: number): number {
-  for (const s of [0.1, 0.25, 0.5, 1, 2, 5, 10]) if ((s / duration) * width >= 56) return s;
+/** 刻度的间隔（秒）：让相邻两个刻度至少隔 56 px（span 是可见范围的长度，放大后刻度变细，最细一帧） */
+function tickStep(span: number, width: number, fps: number): number {
+  for (const s of [1 / fps, 2 / fps, 5 / fps, 0.1, 0.25, 0.5, 1, 2, 5, 10]) if ((s / span) * width >= 56) return s;
   return 10;
 }
+
+/** 刻度的文字：整秒和小数秒写秒数，不足 0.1 秒的写成“秒:帧” */
+function tickLabel(s: number, fps: number): string {
+  const frames = Math.round(s * fps);
+  if (Math.abs(s * 10 - Math.round(s * 10)) < 1e-6) return `${Math.round(s * 1000) / 1000}s`;
+  return `${Math.floor(frames / fps)}:${String(frames % fps).padStart(2, '0')}`;
+}
+
+/** 缩放按钮、Ctrl+滚轮每一下的倍数 */
+const ZOOM_STEP = 1.25;
 
 interface DiamondProps {
   x: number;
@@ -97,20 +108,56 @@ export function AnimTimeline() {
   const graphMode = useAnimationUi((s) => s.graphMode);
   const graphSeparate = useAnimationUi((s) => s.graphSeparate);
   const snap = useAnimationUi((s) => s.snap);
+  const zoom = useAnimationUi((s) => s.zoom);
   const laneRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const resolved = useMemo(() => (doc ? resolveDoc(doc) : null), [doc]);
+  const durationNow = resolved?.duration ?? 0;
+  // 播放时播放头跑出可见范围就翻页
+  useEffect(() => {
+    if (!zoom) return;
+    const next = revealTime(zoom, durationNow, time);
+    if (next !== zoom) useAnimationUi.getState().setZoom(next);
+  }, [time, zoom, durationNow]);
+  // Ctrl+滚轮在指针处缩放，Shift+滚轮（或横向滚轮）左右滚动；普通滚轮照常上下滚图层（监听要非被动的才能拦下滚轮）
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el || !durationNow) return undefined;
+    const onWheel = (e: WheelEvent) => {
+      const lane = laneRef.current?.getBoundingClientRect();
+      if (!lane || lane.width <= 0) return;
+      const ui = useAnimationUi.getState();
+      const range = viewRange(ui.zoom, durationNow);
+      const span = range.end - range.start;
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const anchor = range.start + ((e.clientX - lane.left) / lane.width) * span;
+        ui.setZoom(zoomAt(ui.zoom, durationNow, anchor, e.deltaY < 0 ? 1 / ZOOM_STEP : ZOOM_STEP));
+      } else if (ui.zoom && (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))) {
+        e.preventDefault();
+        const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        ui.setZoom(panBy(ui.zoom, durationNow, (d / lane.width) * span));
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [durationNow, view]);
   if (!doc || !resolved) return null;
   const duration = resolved.duration;
+  const range = viewRange(zoom, duration);
+  const span = range.end - range.start;
+  /** 时刻在轨道上的位置（可见范围里的比例） */
+  const fx = (tt: number) => fracOf(range, tt);
   const total = frameCount(duration, fps);
   const frame = (x: number) => Math.min(duration, Math.max(0, Math.round(x * fps) / fps));
   const laneWidth = () => laneRef.current?.getBoundingClientRect().width ?? 1;
   const timeAt = (clientX: number): number => {
     const r = laneRef.current?.getBoundingClientRect();
     if (!r || r.width <= 0) return 0;
-    return frame(((clientX - r.left) / r.width) * duration);
+    return frame(range.start + ((clientX - r.left) / r.width) * span);
   };
+  const zoomBy = (factor: number) => useAnimationUi.getState().setZoom(zoomAt(zoom, duration, useTransportStore.getState().time, factor));
   const isSel = (k: KeyRef) => selKeys.some((s) => sameKey(s, k));
 
   /** 吸附点：播放头、没选中的关键帧、音效、剪辑点、两端 */
@@ -120,7 +167,7 @@ export function AnimTimeline() {
     for (const l of resolved.layers) for (const p of ANIM_PROPS) for (const k of keysOf(l.props[p])) if (!exclude.some((r) => r.layer === l.id && r.prop === p && Math.abs(r.t - k.t) < KEY_EPSILON)) pts.push(k.t);
     return pts;
   };
-  const snapTol = () => (SNAP_PX / laneWidth()) * duration;
+  const snapTol = () => (SNAP_PX / laneWidth()) * span;
 
   // ---- 定位 ----
   const scrub = (e: ReactPointerEvent) => {
@@ -197,7 +244,7 @@ export function AnimTimeline() {
     const lead = refs[0]!;
     const move = (ev: PointerEvent) => {
       const w = laneWidth();
-      let dt = ((ev.clientX - st.startX) / w) * duration;
+      let dt = ((ev.clientX - st.startX) / w) * span;
       if (!st.started && Math.abs(ev.clientX - st.startX) < 3) return;
       if (!st.started) {
         beginGesture();
@@ -266,7 +313,7 @@ export function AnimTimeline() {
           beginGesture();
           started = true;
         }
-        let to = frame(at + ((ev.clientX - x0) / laneWidth()) * duration);
+        let to = frame(at + ((ev.clientX - x0) / laneWidth()) * span);
         if (useAnimationUi.getState().snap && !ev.altKey) to = snapTime(to, snapPoints([]), snapTol());
         const next = setLayerInterval(base, layerId, side === 'from' ? to : undefined, side === 'to' ? to : undefined, duration);
         if (next) replaceDoc(next);
@@ -303,7 +350,7 @@ export function AnimTimeline() {
         beginGesture();
         started = true;
       }
-      let to = frame(at + ((ev.clientX - x0) / laneWidth()) * duration);
+      let to = frame(at + ((ev.clientX - x0) / laneWidth()) * span);
       if (useAnimationUi.getState().snap && !ev.altKey) to = snapTime(to, snapPoints([]).filter((p) => Math.abs(p - at) > KEY_EPSILON), snapTol());
       const i = base.sounds.findIndex((s) => s.id === id);
       if (i < 0) return;
@@ -319,12 +366,12 @@ export function AnimTimeline() {
     trackPointer(e, { move, up });
   };
 
-  const step = tickStep(duration, 600);
+  const step = tickStep(span, laneRef.current?.getBoundingClientRect().width ?? 600, fps);
   const ticks: number[] = [];
-  for (let s = 0; s <= duration + 1e-9; s += step) ticks.push(Math.round(s * 1000) / 1000);
+  for (let i = Math.ceil(range.start / step - 1e-9); i * step <= range.end + 1e-9; i++) ticks.push(Math.round(i * step * 100000) / 100000);
   // 显示顺序与图层面板相同：画在最前面的在最上面，子图层缩进排在父级下面
   const layers = layerTree(doc).map((e) => ({ l: e.layer, r: resolved.layers[e.index]!, depth: e.depth }));
-  const playX = duration > 0 ? time / duration : 0;
+  const playX = fx(time);
   const selTimes = selKeys.map((k) => k.t);
   const minT = selTimes.length > 1 ? Math.min(...selTimes) : 0;
   const maxT = selTimes.length > 1 ? Math.max(...selTimes) : 0;
@@ -380,6 +427,15 @@ export function AnimTimeline() {
             </ToggleGroupItem>
           </ToggleGroup>
         )}
+        <Button variant="ghost" size="icon" aria-label={t('anim.timeline.zoomOut')} title={t('anim.timeline.zoomOut')} disabled={!zoom} data-testid="anim-zoom-out" onClick={() => zoomBy(ZOOM_STEP)}>
+          <MagnifyingGlassMinus size={ICON.md} />
+        </Button>
+        <Button variant="ghost" size="icon" aria-label={t('anim.timeline.zoomIn')} title={t('anim.timeline.zoomHint')} disabled={span <= Math.max(0.1, 2 / fps) + 1e-9} data-testid="anim-zoom-in" onClick={() => zoomBy(1 / ZOOM_STEP)}>
+          <MagnifyingGlassPlus size={ICON.md} />
+        </Button>
+        <Button variant="ghost" size="icon" aria-label={t('anim.timeline.zoomFit')} title={t('anim.timeline.zoomFit')} disabled={!zoom} data-testid="anim-zoom-fit" onClick={() => useAnimationUi.getState().setZoom(null)}>
+          <ArrowsOutLineHorizontal size={ICON.md} />
+        </Button>
         <ToggleGroup value={[view]} onValueChange={(v: string[]) => v[0] && useAnimationUi.getState().setView(v[0] as 'keys' | 'graph')} aria-label={t('anim.timeline.view')}>
           <ToggleGroupItem value="keys" data-testid="anim-view-keys">
             {t('anim.timeline.keys')}
@@ -410,21 +466,48 @@ export function AnimTimeline() {
             <div style={{ width: NAME_W }} className="shrink-0" />
             <div ref={laneRef} className="relative flex-1 cursor-ew-resize rounded-sm bg-well" onPointerDown={scrub} data-testid="anim-ruler" role="slider" aria-label={t('transport.scrub')} aria-valuemin={0} aria-valuemax={duration} aria-valuenow={time} tabIndex={-1}>
               {ticks.map((s) => (
-                <span key={s} className="absolute top-0 flex h-full items-end pb-0.5 pl-1 text-[10.5px] text-fg-subtle num" style={{ left: `${(s / duration) * 100}%` }}>
+                <span key={s} className="absolute top-0 flex h-full items-end pb-0.5 pl-1 text-[10.5px] text-fg-subtle num" style={{ left: `${fx(s) * 100}%` }} data-testid="anim-tick">
                   <span className="absolute top-0 left-0 h-1.5 w-px bg-fg-faint" />
-                  {s}s
+                  {tickLabel(s, fps)}
                 </span>
               ))}
-              {resolved.cutTime !== null && <span className="absolute top-0 h-full w-0.5 bg-mark" style={{ left: `${(resolved.cutTime / duration) * 100}%` }} title={t('transport.cut')} />}
+              {resolved.cutTime !== null && fx(resolved.cutTime) >= 0 && fx(resolved.cutTime) <= 1 && <span className="absolute top-0 h-full w-0.5 bg-mark" style={{ left: `${fx(resolved.cutTime) * 100}%` }} title={t('transport.cut')} />}
               {showScale && (
-                <span className="absolute bottom-0 h-1.5 rounded-sm bg-primary-soft" style={{ left: `${(minT / duration) * 100}%`, width: `${((maxT - minT) / duration) * 100}%` }} data-testid="anim-selection-span">
+                <span className="absolute bottom-0 h-1.5 rounded-sm bg-primary-soft" style={{ left: `${fx(minT) * 100}%`, width: `${(fx(maxT) - fx(minT)) * 100}%` }} data-testid="anim-selection-span">
                   <span role="slider" aria-label={t('anim.keys.scaleStart')} aria-valuenow={minT} tabIndex={-1} className="absolute -top-1 -left-1 h-3 w-2 cursor-ew-resize rounded-[2px] bg-primary" onPointerDown={dragScale('start', minT, maxT)} data-testid="anim-scale-start" />
                   <span role="slider" aria-label={t('anim.keys.scaleEnd')} aria-valuenow={maxT} tabIndex={-1} className="absolute -top-1 -right-1 h-3 w-2 cursor-ew-resize rounded-[2px] bg-primary" onPointerDown={dragScale('end', minT, maxT)} data-testid="anim-scale-end" />
                 </span>
               )}
             </div>
           </div>
-          <div onPointerDown={startBox} data-testid="anim-tracks">
+          {/* 缩放后：整段的缩略条，亮的一段是可见范围，拖它左右滚动 */}
+          {zoom && (
+            <div className="sticky top-6 z-10 flex h-2 bg-surface-1 pt-0.5">
+              <div style={{ width: NAME_W }} className="shrink-0" />
+              <div className="relative flex-1 rounded-full bg-well" data-testid="anim-zoom-bar">
+                <span
+                  role="scrollbar"
+                  aria-controls="anim-tracks"
+                  aria-orientation="horizontal"
+                  aria-valuenow={Math.round((range.start / duration) * 100)}
+                  aria-label={t('anim.timeline.scroll')}
+                  tabIndex={-1}
+                  className="absolute inset-y-0 cursor-grab rounded-full bg-fg-faint hover:bg-fg-subtle"
+                  style={{ left: `${(range.start / duration) * 100}%`, width: `${(span / duration) * 100}%` }}
+                  data-testid="anim-zoom-thumb"
+                  onPointerDown={(e) => {
+                    if (e.button !== 0) return;
+                    e.stopPropagation();
+                    const bar = e.currentTarget.parentElement!.getBoundingClientRect();
+                    const x0 = e.clientX;
+                    const v0 = zoom;
+                    trackPointer(e, { move: (ev) => useAnimationUi.getState().setZoom(panBy(v0, duration, ((ev.clientX - x0) / bar.width) * duration)), up: () => undefined });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          <div id="anim-tracks" onPointerDown={startBox} data-testid="anim-tracks">
             {layers.length === 0 && (
               <p className="py-3 text-xs text-fg-subtle" style={{ paddingLeft: NAME_W }}>
                 {t('anim.layers.empty')}
@@ -432,8 +515,8 @@ export function AnimTimeline() {
             )}
             {layers.map(({ l: layer, r: rl, depth }) => {
               const open = !!expanded[layer.id];
-              const from = (rl.from ?? 0) / duration;
-              const to = Math.min(1, (rl.to ?? duration) / duration);
+              const from = fx(rl.from ?? 0);
+              const to = fx(Math.min(rl.to ?? duration, duration));
               const LayerIcon = LAYER_ICONS[layer.type];
               const isSelLayer = selectedLayer === layer.id;
               return (
@@ -469,7 +552,7 @@ export function AnimTimeline() {
                       <LayerIcon size={ICON.xs} className="shrink-0" />
                       <span className={cn('truncate', isSelLayer && 'text-foreground')}>{layer.name}</span>
                     </button>
-                    <div className="relative h-full flex-1">
+                    <div className={cn('relative h-full flex-1', zoom && 'overflow-x-clip')}>
                       <span className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-[3px] bg-control-hi" style={{ left: `${from * 100}%`, width: `${Math.max(0, to - from) * 100}%` }} data-testid="anim-interval" data-layer={layer.id}>
                         {/* 可见区间两端可拖（锁定的图层不能） */}
                         {!layer.locked && (
@@ -485,7 +568,7 @@ export function AnimTimeline() {
                         return (
                           <Diamond
                             key={kt}
-                            x={kt / duration}
+                            x={fx(kt)}
                             selected={all}
                             label={t('anim.timeline.keyAt', { t: kt })}
                             dim
@@ -502,14 +585,14 @@ export function AnimTimeline() {
                         <span className="shrink-0 truncate pl-9 text-[11px] text-fg-subtle" style={{ width: NAME_W }}>
                           {t(`anim.propNames.${prop}`)}
                         </span>
-                        <div className="relative h-full flex-1">
+                        <div className={cn('relative h-full flex-1', zoom && 'overflow-x-clip')}>
                           <span className="absolute top-1/2 h-px w-full bg-divider" />
                           {keysOf(rl.props[prop]).map((k) => {
                             const ref = { layer: layer.id, prop, t: k.t };
                             return (
                               <Diamond
                                 key={k.t}
-                                x={k.t / duration}
+                                x={fx(k.t)}
                                 selected={isSel(ref)}
                                 label={t('anim.timeline.propKeyAt', { prop: t(`anim.propNames.${prop}`), t: k.t })}
                                 testId="anim-key"
@@ -534,7 +617,7 @@ export function AnimTimeline() {
                   <Plus size={ICON.xs} />
                 </Button>
               </div>
-              <div className="relative h-full flex-1">
+              <div className={cn('relative h-full flex-1', zoom && 'overflow-x-clip')}>
                 <span className="absolute top-1/2 h-px w-full bg-divider" />
                 {resolved.sounds.map((s, i) => {
                   const id = doc.sounds[i]?.id;
@@ -548,7 +631,7 @@ export function AnimTimeline() {
                       data-testid="anim-sound"
                       data-sound={id}
                       className={cn('absolute top-1/2 z-[1] h-4 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-[2px]', selSound === id ? 'bg-primary' : 'bg-cue hover:brightness-125')}
-                      style={{ left: `${(s.at / duration) * 100}%` }}
+                      style={{ left: `${fx(s.at) * 100}%` }}
                       onPointerDown={dragSound(id, s.at)}
                     />
                   );
@@ -565,7 +648,7 @@ export function AnimTimeline() {
             />
           )}
           {/* 播放头 */}
-          <div className="pointer-events-none absolute top-0 bottom-0 z-[2]" style={{ left: `calc(12px + ${NAME_W}px + (100% - 24px - ${NAME_W}px) * ${playX})` }}>
+          <div className={cn('pointer-events-none absolute top-0 bottom-0 z-[2]', (playX < 0 || playX > 1) && 'hidden')} style={{ left: `calc(12px + ${NAME_W}px + (100% - 24px - ${NAME_W}px) * ${playX})` }}>
             <span className="absolute top-0 bottom-0 w-px bg-primary" data-testid="anim-playhead" />
           </div>
         </div>
