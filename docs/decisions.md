@@ -47,6 +47,9 @@
 
 - 单元：T-ANIM-1、T-ANIM-2（`tests/unit/T-ANIM-1.animation-doc.test.ts`）、T-ANIM-5 与 T-DEV-7（`tests/unit/T-ANIM-5.edit.test.ts`）、T-DEV-5（`packages/optional/code-editor/src/index.test.ts`；主进程读写源码与转为模板在 `tests/unit/template-dev.test.ts`）。T-DEV-4 的两份测试改为“发现的模块就是带 `src/index.ts` 的目录”“每个模块按约定命名、只依赖 host-api”（原来断言目录为空）。
 - 端到端：`tests/e2e/anim.spec.ts` 的 T-DEV-6（菜单开关、状态栏指示、开发页、模块随之启停、在应用里改用户模板的代码 Ctrl+S 保存后热重载成功）、T-ANIM-3、T-ANIM-4；T-ARC-6 的畸形参数表补了三个新方法。
+- **可拆除**：本机没有跑完整的 `pnpm check:removable`（它跑全部 `pnpm check`，其中几项端到端测试在这台机器上对未修改的 main 也失败，见下）。按同样的步骤手工做了一遍：把 `packages/optional` 移到同一块盘的临时目录、`pnpm install`、`pnpm licenses:gen`（94 项变 75 项），然后 `pnpm typecheck`、`pnpm lint`、全部单元测试（50 个文件 536 条）、`pnpm build`、`anim.spec.ts` 的 T-ANIM-3/4（代码视图退回文本框）全部通过，再放回、按原 lockfile 装回。`check-removable.ts` 补了一步：拆掉后重新生成第三方许可清单（否则 M8.third-party 必然失败），跑完放回。
+- **这台机器上与本次改动无关的失败**：`m4.spec.ts` 的 T-UI-3（焦点环）、T-UI-4（窗口宽 1122 不是 1120）、T-UI-5（截图 1441 不是 1440 像素宽）和 `layout.spec.ts` 的窗口位置恢复，在未修改的基线提交 63a2f23 上同样失败（检出到临时目录单独构建、单独跑过）。`ipc.spec.ts` 的 T-ARC-6 在本分支仍失败：`folders.*`、`updates.*` 八个方法不在畸形参数表里，是之前的改动漏的，不在本任务范围，没有补。
+- 网页演示（`apps/website`）的宿主实现同一份预加载接口的类型，补上了三个新方法（桌面专属，网页里返回失败）。
 
 ### 没验证的
 
