@@ -70,7 +70,7 @@ export default {
 | `ctx.time` | 对象 | 时间工具 |
 | `ctx.time.segment` | `segment(t: number, start: number, duration: number): number` | t 在 [start, start + duration] 里的进度，钳制到 [0, 1] |
 | `ctx.audio` | 对象 | 音频提示 |
-| `ctx.audio.cue` | `cue(sound: string \| null, at: number, opts?: { gain?: number; rate?: number; pan?: number }): void` | 在时刻 at（秒）播放音效事件；只能在 setup 里调用。sound 为 null 时什么也不做 |
+| `ctx.audio.cue` | `cue(sound: string \| null, at: number, opts?: AudioCueOptions): void` | 在时刻 at（秒）播放音效事件；只能在 setup 里调用。sound 为 null 时什么也不做 |
 | `ctx.warn` | `warn(message: string): void` | 记一条警告，显示在应用里（一次装载最多 50 条） |
 
 ctx 交出来的对象：

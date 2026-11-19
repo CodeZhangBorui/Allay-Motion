@@ -501,7 +501,10 @@ export class Engine implements EngineApi {
           }
           if (sound === null) return;
           if (typeof sound !== 'string' || typeof at !== 'number' || !Number.isFinite(at)) throw new TypeError('invalid audio cue');
-          cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0, variant: null });
+          // 空间音效的声源位置（相对听者，单位格；2026-11 反馈）：原样带给宿主
+          const p = opts.position;
+          if (p !== undefined && (typeof p !== 'object' || p === null || ![p.x, p.y, p.z].every((v) => typeof v === 'number' && Number.isFinite(v)))) throw new TypeError('invalid audio cue position');
+          cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0, variant: null, ...(p ? { spatial: { x: p.x, y: p.y, z: p.z } } : {}) });
         },
       },
       warn,
@@ -546,7 +549,7 @@ export class Engine implements EngineApi {
       ordinal.set(cue.sound, n + 1);
       const variants = await resources.soundVariants(cue.sound);
       const picked = pickSoundVariant(variants, createRng(seed, `sound:${cue.sound}:${n}`).next());
-      out.push({ ...cue, variant: picked ? { file: picked.file, volume: picked.volume, pitch: picked.pitch } : null });
+      out.push({ ...cue, variant: picked ? { file: picked.file, volume: picked.volume, pitch: picked.pitch, ...(picked.attenuation !== undefined ? { attenuation: picked.attenuation } : {}) } : null });
     }
     return out;
   }

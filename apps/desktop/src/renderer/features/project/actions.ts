@@ -17,7 +17,7 @@ const t = (key: string, vars?: Record<string, unknown>) => i18next.t(key, vars ?
 function resourceHint(): string[] {
   const st = useResourceStore.getState().state;
   if (!st) return [];
-  return st.layers.filter((l) => l.enabled && !(l.kind === 'builtin' && l.empty)).map((l) => (l.kind === 'vanilla' ? 'vanilla' : l.kind === 'pack' ? `pack:${l.name}` : 'builtin'));
+  return st.layers.filter((l) => l.enabled && !(l.kind === 'builtin' && l.empty) && l.source !== 'imported').map((l) => (l.kind === 'vanilla' ? 'vanilla' : l.kind === 'pack' ? `pack:${l.name}` : 'builtin'));
 }
 
 export function projectData(): ProjectData | null {
@@ -31,6 +31,7 @@ export function projectData(): ProjectData | null {
     output: { width: s.output.width, height: s.output.height, fps },
     export: s.exportSettings,
     preview: { background: useUiStore.getState().settings.editor.background },
+    audio: { spatial: useUiStore.getState().settings.editor.spatialAudio },
     resourceHint: resourceHint(),
   };
 }
@@ -79,7 +80,7 @@ async function applyOpened(result: ProjectOpenResult): Promise<boolean> {
     locale: i18next.language,
   });
   clearHistory();
-  useUiStore.getState().setEditor({ background: data.preview.background });
+  useUiStore.getState().setEditor({ background: data.preview.background, spatialAudio: data.audio?.spatial ?? false });
   previewEngine.retry();
   if (result.missingFiles.length > 0) notify('error', t('project.missingFiles', { keys: result.missingFiles.join(', ') }));
   else {

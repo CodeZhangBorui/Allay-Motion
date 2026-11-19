@@ -26,7 +26,7 @@ export function mixFrames(videoFrames: number, fps: number): number {
  * 离线混音。length 是样本数（mixFrames 给出）。同样的 cue、同样的解码结果，两次混音逐样本相同
  * （每个声音单独渲染、按 cue 的顺序相加；淡出和峰值处理在渲染之后用固定的算术做）。
  */
-export async function mixOffline(cues: readonly AudioCue[], length: number, bank: SoundBank): Promise<MixResult> {
+export async function mixOffline(cues: readonly AudioCue[], length: number, bank: SoundBank, opts: { spatial?: boolean } = {}): Promise<MixResult> {
   const { voices, missing } = await bank.prepare(cues);
   if (voices.length === 0 || length <= 0) return { wav: null, peakNormalized: false, missing };
   // 每个声音单独在一个离线上下文里渲染（同一个 scheduleCues），再按 cue 的顺序在这里相加。
@@ -44,7 +44,7 @@ export async function mixOffline(cues: readonly AudioCue[], length: number, bank
     const ctx = new OfflineAudioContext(2, span, MIX_SAMPLE_RATE);
     const offset = Math.min(startFrame / MIX_SAMPLE_RATE, cue.at);
     // 和预览同一个函数：时间轴的 offset 对应这个上下文的 0，声音在视频结尾截断
-    scheduleCues(ctx, ctx.destination, [voice], { from: offset, startAt: 0, until: seconds });
+    scheduleCues(ctx, ctx.destination, [voice], { from: offset, startAt: 0, until: seconds, spatial: opts.spatial === true });
     const rendered = await ctx.startRendering();
     for (let c = 0; c < 2; c++) {
       const src = rendered.getChannelData(c);

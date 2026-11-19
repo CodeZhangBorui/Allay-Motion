@@ -109,7 +109,7 @@ class PreviewAudio {
       if (t.playing) this.restart(t.time);
     });
     useUiStore.subscribe((s, prev) => {
-      if (s.settings.editor.muted === prev.settings.editor.muted) return;
+      if (s.settings.editor.muted === prev.settings.editor.muted && s.settings.editor.spatialAudio === prev.settings.editor.spatialAudio) return;
       const t = useTransportStore.getState();
       if (s.settings.editor.muted) this.stop();
       else if (t.playing) this.restart(t.time);
@@ -165,7 +165,7 @@ class PreviewAudio {
     const gain = c.createGain();
     gain.connect(c.destination);
     const startAt = c.currentTime + 0.01;
-    const sources = scheduleCues(c, gain, prepared.voices, { from, startAt, until: transport.duration });
+    const sources = scheduleCues(c, gain, prepared.voices, { from, startAt, until: transport.duration, spatial: useUiStore.getState().settings.editor.spatialAudio });
     this.session = { gain, sources, from, startAt };
   }
 

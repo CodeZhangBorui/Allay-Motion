@@ -12,6 +12,7 @@ import i18next from 'i18next';
 import { reportMissingSounds, soundBank } from '../../audio/app-audio';
 import { mixFrames, mixOffline } from '../../audio/mix';
 import { notify } from '../../stores/noticeStore';
+import { useUiStore } from '../../stores/uiStore';
 
 /** 画质档位（02-engine.md 2.7） */
 export const QUALITY_SUBFRAMES = { draft: 1, standard: 8, high: 16, ultra: 32 } as const;
@@ -144,7 +145,8 @@ export class ExportRun {
       // 离线混音（5.5，M6b）：和预览同一段调度代码，变体是导出引擎写进 cue 的（与预览同一个选择）。
       // 四个预设都带音轨。没有能出声的 cue 时不加音轨；缺失或还没取回的音效静音并提示——导出过程中不联网
       if (this.canceled) return { kind: 'canceled' };
-      const mix = await mixOffline(loaded.audioCues, mixFrames(total, req.output.fps), soundBank);
+      // 空间音效：和预览同一个开关、同一份算法（schedule.ts 的 spatialFactors）
+      const mix = await mixOffline(loaded.audioCues, mixFrames(total, req.output.fps), soundBank, { spatial: useUiStore.getState().settings.editor.spatialAudio });
       reportMissingSounds(mix.missing);
       if (mix.peakNormalized) notify('info', i18next.t('audio.peakNormalized'));
 
