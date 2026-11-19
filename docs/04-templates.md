@@ -125,6 +125,7 @@ export interface SetupContext {
 
   resources: {
     texture(id: string): Promise<THREE.Texture>;                           // 已设好过滤和色彩空间
+    texture(id: string, opts: { optional: true }): Promise<THREE.Texture | null>;   // 没有时是 null、不记警告（按版本依次试路径）
     block(id: string, opts?: { shading?: boolean }): Promise<BlockHandle>;
     item(id: string): Promise<ItemHandle>;
   };

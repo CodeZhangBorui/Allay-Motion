@@ -57,6 +57,7 @@ export default {
 | `ctx.createStageCamera` | `createStageCamera(opts: { fov: number }): THREE.PerspectiveCamera` | 建一台透视相机（fov 是垂直视角，度），位置已算好，z = 0 平面恰好填满舞台 |
 | `ctx.resources` | 对象 | 贴图、方块、物品。都在 setup 里 await 完，update 里不要再取 |
 | `ctx.resources.texture` | `texture(id: string): Promise<THREE.Texture>` | 已设好过滤和色彩空间的贴图；缺失时返回占位图并记一条警告。.mcmeta 动画由引擎按 t 自动播放 |
+| `ctx.resources.texture` | `texture(id: string, opts: { optional: true }): Promise<THREE.Texture \| null>` | 可选贴图：资源栈里没有时返回 null，不记警告。用来按游戏版本依次试几个路径 （例如先试 1.20.2 起的 gui/sprites/…，没有再退回旧的图集），或者在缺素材时换一种画法 |
 | `ctx.resources.block` | `block(id: string, opts?: { shading?: boolean }): Promise<BlockHandle>` | 方块目录里的方块；不认识的 ID 用占位贴图的立方体并记一条警告 |
 | `ctx.resources.item` | `item(id: string): Promise<ItemHandle>` | 物品目录里的物品（方块 ID 按方块渲染）；不认识的 ID 用占位贴图并记一条警告 |
 | `ctx.text` | 对象 | 用资源栈里的字体排一段文字 |

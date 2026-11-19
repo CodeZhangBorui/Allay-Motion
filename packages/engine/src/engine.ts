@@ -473,7 +473,7 @@ export class Engine implements EngineApi {
       },
       createStageCamera: (opts) => createStageCamera(loaded.stage, opts.fov),
       resources: {
-        texture: (id) => resources.texture(id, warn),
+        texture: ((id: string, opts?: { optional?: boolean }) => resources.texture(id, warn, opts?.optional === true)) as SetupContext['resources']['texture'],
         block: (id, opts) => createBlockHandle(resources, id, opts, warn),
         item: (id) => createItemHandle(resources, id, warn),
       },

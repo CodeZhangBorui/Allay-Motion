@@ -66,6 +66,13 @@
           "doc": "已设好过滤和色彩空间的贴图；缺失时返回占位图并记一条警告。.mcmeta 动画由引擎按 t 自动播放"
         },
         {
+          "name": "texture",
+          "kind": "method",
+          "optional": false,
+          "signature": "texture(id: string, opts: { optional: true }): Promise<THREE.Texture | null>;",
+          "doc": "可选贴图：资源栈里没有时返回 null，不记警告。用来按游戏版本依次试几个路径\n（例如先试 1.20.2 起的 gui/sprites/…，没有再退回旧的图集），或者在缺素材时换一种画法"
+        },
+        {
           "name": "block",
           "kind": "method",
           "optional": false,

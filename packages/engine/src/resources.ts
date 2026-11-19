@@ -177,8 +177,13 @@ export class EngineResources {
     }
   }
 
-  /** 设好过滤和色彩空间的贴图；缺失时返回占位图并经 warn 记一条警告（3.2、T-AST-3） */
-  texture(id: string, warn: Warn): Promise<THREE.Texture> {
+  /**
+   * 设好过滤和色彩空间的贴图；缺失时返回占位图并经 warn 记一条警告（3.2、T-AST-3）。
+   * optional 为真时缺失返回 null、不记警告：模板按“新路径 → 旧路径”依次试（docs/template-catalog.md P3）
+   */
+  texture(id: string, warn: Warn): Promise<THREE.Texture>;
+  texture(id: string, warn: Warn, optional: boolean): Promise<THREE.Texture | null>;
+  texture(id: string, warn: Warn, optional = false): Promise<THREE.Texture | null> {
     if (typeof id !== 'string' || id.length === 0 || id.length > 512) return Promise.reject(new TypeError('invalid texture id'));
     let p = this.textures.get(id);
     if (!p) {
@@ -195,7 +200,10 @@ export class EngineResources {
       this.textures.set(id, p);
     }
     return p.then((tex) => {
-      if (textureInfo(tex)?.missing) warn(`texture ${id} is missing; a placeholder is used`);
+      if (textureInfo(tex)?.missing) {
+        if (optional) return null;
+        warn(`texture ${id} is missing; a placeholder is used`);
+      }
       return tex;
     });
   }

@@ -51,6 +51,13 @@ test('T-AST-3 引用不存在的贴图、方块、物品：得到占位图和警
   near(r.frames[0]![1]!, [0, 0, 0, 255], 1);
 });
 
+test('T-TPL-OPT-1 可选贴图：没有时返回 null、不记警告；有时和普通贴图一样', async () => {
+  const stone = await call('fakeColor', 'minecraft:block/stone');
+  const r = await call('scenario', 'optional', {}, HD, [0], [[960, 540]]);
+  expect(r.warnings).toEqual([]);
+  near(r.frames[0]![0]!, [...stone, 255], 1);
+});
+
 test('T-AST-4（引擎）4 帧动画贴图、frametime 2：t = 0, 0.1, 0.2, 0.3, 0.4 依次显示第 0, 1, 2, 3, 0 帧', async () => {
   const colors = await call('animColors');
   // 20 fps：第 0、2、4、6、8 帧就是 t = 0 … 0.4

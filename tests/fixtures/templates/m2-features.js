@@ -60,6 +60,13 @@ const template = {
       scene.add(s.object);
       await ctx.resources.block('minecraft:not_a_block');
       await ctx.resources.item('minecraft:not_an_item');
+    } else if (scenario === 'optional') {
+      // 可选贴图：没有时是 null、不记警告，模板退回另一个路径
+      const first = await ctx.resources.texture('minecraft:gui/does_not_exist', { optional: true });
+      if (first !== null) ctx.warn('optional texture should be null when missing');
+      const tex = first ?? (await ctx.resources.texture('minecraft:block/stone', { optional: true }));
+      if (tex === null) ctx.warn('optional texture should resolve when present');
+      else scene.add(ctx.sprite.create(tex, { pixelSize: 10 }).object);
     }
     return { duration: 1, cutTime: 0.5, update };
   },

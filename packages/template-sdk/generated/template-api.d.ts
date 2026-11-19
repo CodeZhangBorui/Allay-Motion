@@ -87,6 +87,11 @@ export interface SetupContext {
   resources: {
     /** 已设好过滤和色彩空间的贴图；缺失时返回占位图并记一条警告。.mcmeta 动画由引擎按 t 自动播放 */
     texture(id: string): Promise<THREE.Texture>;
+    /**
+     * 可选贴图：资源栈里没有时返回 null，不记警告。用来按游戏版本依次试几个路径
+     * （例如先试 1.20.2 起的 gui/sprites/…，没有再退回旧的图集），或者在缺素材时换一种画法
+     */
+    texture(id: string, opts: { optional: true }): Promise<THREE.Texture | null>;
     /** 方块目录里的方块；不认识的 ID 用占位贴图的立方体并记一条警告 */
     block(id: string, opts?: { shading?: boolean }): Promise<BlockHandle>;
     /** 物品目录里的物品（方块 ID 按方块渲染）；不认识的 ID 用占位贴图并记一条警告 */
