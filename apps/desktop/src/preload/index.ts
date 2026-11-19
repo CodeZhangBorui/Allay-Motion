@@ -1,4 +1,4 @@
-import type { CodeWindowDown, CodeWindowUp } from '../shared/code-window';
+import type { AnimationFileChange, CodeWindowDown, CodeWindowUp } from '../shared/code-window';
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import { IPC, type InvokeChannel } from '../shared/ipc-channels';
 import type { AllayApi } from './api';
@@ -148,6 +148,16 @@ const api = {
     send: invoke(IPC.codeWindow.send),
     onDown: subscribe<CodeWindowDown>(IPC.codeWindow.down),
     onUp: subscribe<CodeWindowUp>(IPC.codeWindow.up),
+  },
+  editors: {
+    get: invoke(IPC.editors.get),
+    setKind: invoke(IPC.editors.setKind),
+    chooseProgram: invoke(IPC.editors.chooseProgram),
+  },
+  animations: {
+    openExternal: invoke(IPC.animations.openExternal),
+    syncFile: invoke(IPC.animations.syncFile),
+    onFileChanged: subscribe<AnimationFileChange>(IPC.animations.fileChanged),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

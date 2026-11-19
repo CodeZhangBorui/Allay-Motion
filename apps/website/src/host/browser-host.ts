@@ -436,7 +436,7 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       install: async () => updateState(),
       onChanged: (cb) => updatesChanged.on(cb),
     },
-    // 代码窗口（2026-11 第二轮反馈）：桌面专属，网页演示里不可用
+    // 代码窗口与外部编辑器（2026-11 第二轮反馈）：桌面专属，网页演示里不可用
     codeWindow: {
       open: async () => desktopOnly('templates'),
       close: async () => undefined,
@@ -444,6 +444,19 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       send: async () => undefined,
       onDown: () => () => undefined,
       onUp: () => () => undefined,
+    },
+    editors: {
+      get: async () => ({ kind: 'builtin', programName: null }),
+      setKind: async () => ({ kind: 'builtin', programName: null }),
+      chooseProgram: async () => ({ kind: 'builtin', programName: null, canceled: true }),
+    },
+    animations: {
+      openExternal: async () => {
+        desktopOnly('templates');
+        return { ok: false, error: 'open-failed' };
+      },
+      syncFile: async () => undefined,
+      onFileChanged: () => () => undefined,
     },
     cache: {
       getThumb: async (stamp, key) => thumbs.get(`${stamp}/${key}`)?.slice() ?? null,

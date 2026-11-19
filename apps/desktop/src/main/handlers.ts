@@ -25,6 +25,7 @@ import type { UpdateService } from './updates/service';
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
 import type { CodeWindowService } from './code-window';
+import type { ExternalEditorService } from './external-editor';
 
 export interface HandlerDeps {
   registrar: ReturnType<typeof createIpcRegistrar>;
@@ -49,8 +50,9 @@ export interface HandlerDeps {
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
   projectPathForTests: string | null;
   testHooks: boolean;
-  /** 代码窗口（2026-11 第二轮反馈） */
+  /** 代码窗口与外部编辑器（2026-11 第二轮反馈） */
   codeWindow: CodeWindowService;
+  externalEditor: ExternalEditorService;
   getMainWindow(): BrowserWindow | null;
 }
 
@@ -71,7 +73,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow, codeWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow, codeWindow, externalEditor }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -215,6 +217,12 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.codeWindow.close, () => codeWindow.close());
   handle(IPC.codeWindow.publish, (_event, message) => codeWindow.publish(message));
   handle(IPC.codeWindow.send, (_event, message) => codeWindow.receive(message));
+  // ---- 外部编辑器与动画文档文件：程序路径只来自主进程的对话框，文件在应用自己的目录里（1.6 第 6 条）----
+  handle(IPC.editors.get, () => externalEditor.info());
+  handle(IPC.editors.setKind, (_event, kind) => externalEditor.setKind(kind));
+  handle(IPC.editors.chooseProgram, () => externalEditor.chooseProgram());
+  handle(IPC.animations.openExternal, (_event, req) => externalEditor.openExternal(req.key, req.text));
+  handle(IPC.animations.syncFile, (_event, req) => externalEditor.syncFile(req.key, req.text));
 
   // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
   handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));

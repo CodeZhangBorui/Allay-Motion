@@ -1,4 +1,5 @@
 import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type ResourceStackSettings } from '@allay/assets';
+import { defaultEditorAppSettings, EditorAppSettingsSchema } from './code-window';
 import { z } from 'zod';
 import { H264ProbeSchema } from './export';
 import { ShortcutOverridesPatchSchema, sanitizeShortcutOverrides, type ShortcutOverrides } from './shortcuts';
@@ -231,6 +232,8 @@ export const SettingsFileSchema = z.object({
   export: ExportAppSettingsSchema.catch(defaultExportAppSettings).default(defaultExportAppSettings),
   /** 工程（6.11），只有主进程读写 */
   project: ProjectAppSettingsSchema.catch(defaultProjectAppSettings).default(defaultProjectAppSettings),
+  /** 打开动画代码用的编辑器（2026-11），只有主进程读写；旧设置文件没有这一节时是应用自带的 */
+  editor: EditorAppSettingsSchema.catch(defaultEditorAppSettings).default(defaultEditorAppSettings),
 });
 export type SettingsFile = z.infer<typeof SettingsFileSchema>;
 
@@ -242,6 +245,7 @@ export function defaultSettingsFile(): SettingsFile {
     resources: defaultResourceSettings(),
     export: defaultExportAppSettings(),
     project: defaultProjectAppSettings(),
+    editor: defaultEditorAppSettings(),
   };
 }
 

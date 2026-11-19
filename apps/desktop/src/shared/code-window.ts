@@ -45,3 +45,39 @@ export type CodeWindowUp = z.infer<typeof CodeWindowUpSchema>;
 
 /** 代码窗口的页面（app://renderer/code.html）；它能调的 IPC 通道见 main/ipc-guard.ts 的 CODE_WINDOW_CHANNELS */
 export const CODE_WINDOW_PAGE = 'code.html';
+
+// ---- 外部编辑器 ----
+
+/** 打开动画代码用什么：应用自带的代码窗口（默认）、系统给 .json 关联的程序、用户指定的程序 */
+export const CodeEditorKindSchema = z.enum(['builtin', 'system', 'custom']);
+export type CodeEditorKind = z.infer<typeof CodeEditorKindSchema>;
+
+/** 只有主进程读写（settings.json 的 editor 节）：程序路径只来自主进程的文件对话框（1.6 第 6 条） */
+export const EditorAppSettingsSchema = z.strictObject({
+  kind: CodeEditorKindSchema,
+  program: z.string().min(1).max(1000).nullable(),
+});
+export type EditorAppSettings = z.infer<typeof EditorAppSettingsSchema>;
+export function defaultEditorAppSettings(): EditorAppSettings {
+  return { kind: 'builtin', program: null };
+}
+
+/** 渲染进程看到的（程序只给文件名，用于显示） */
+export interface EditorInfo {
+  kind: CodeEditorKind;
+  programName: string | null;
+}
+
+/** 动画文档文件的键：工程里动画的标识（user.<hex>.animation），主进程据此决定文件名 */
+export const AnimationFileKeySchema = z.string().regex(/^user\.[0-9a-f]{6}\.animation$/);
+
+export const OpenExternalSchema = z.strictObject({ key: AnimationFileKeySchema, text: z.string().max(MAX_ANIMATION_CHARS) });
+export const SyncFileSchema = OpenExternalSchema;
+
+export type OpenExternalResult = { ok: true } | { ok: false; error: 'no-program' | 'open-failed' | 'io' };
+
+/** 主进程 → 主窗口：外部编辑器改了动画文件 */
+export interface AnimationFileChange {
+  key: string;
+  text: string;
+}

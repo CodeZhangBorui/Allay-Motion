@@ -16,7 +16,7 @@ import {
   VanillaPatchSchema,
 } from './resources';
 import { HostCommandResultSchema } from './host-commands';
-import { CodeWindowDownSchema, CodeWindowUpSchema } from './code-window';
+import { CodeEditorKindSchema, CodeWindowDownSchema, CodeWindowUpSchema, OpenExternalSchema, SyncFileSchema } from './code-window';
 import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
 import { FolderKindSchema } from './folders';
@@ -118,6 +118,11 @@ export const IPC_ARGS = {
   [IPC.codeWindow.close]: z.tuple([]),
   [IPC.codeWindow.publish]: z.tuple([CodeWindowDownSchema]),
   [IPC.codeWindow.send]: z.tuple([CodeWindowUpSchema]),
+  [IPC.editors.get]: z.tuple([]),
+  [IPC.editors.setKind]: z.tuple([CodeEditorKindSchema]),
+  [IPC.editors.chooseProgram]: z.tuple([]),
+  [IPC.animations.openExternal]: z.tuple([OpenExternalSchema]),
+  [IPC.animations.syncFile]: z.tuple([SyncFileSchema]),
   [IPC.presets.list]: z.tuple([]),
   [IPC.presets.save]: z.tuple([SavePresetSchema]),
   [IPC.presets.remove]: z.tuple([PresetIdSchema]),

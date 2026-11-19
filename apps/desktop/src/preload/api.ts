@@ -1,4 +1,4 @@
-import type { CodeWindowDown, CodeWindowUp } from '../shared/code-window';
+import type { AnimationFileChange, CodeEditorKind, CodeWindowDown, CodeWindowUp, EditorInfo, OpenExternalResult } from '../shared/code-window';
 import type {
   ChooseFolderResult,
   ExportFinishResult,
@@ -216,6 +216,18 @@ export interface AllayApi {
     onDown(callback: (message: CodeWindowDown) => void): () => void;
     /** 主窗口收代码窗口的消息 */
     onUp(callback: (message: CodeWindowUp) => void): () => void;
+  };
+  /** 打开动画代码用的编辑器：应用自带 / 系统默认 / 指定程序（程序由主进程的对话框选，界面只看到文件名） */
+  editors: {
+    get(): Promise<EditorInfo>;
+    setKind(kind: CodeEditorKind): Promise<EditorInfo>;
+    chooseProgram(): Promise<EditorInfo & { canceled: boolean }>;
+  };
+  /** 动画文档文件：外部编辑器打开的就是它，改了推回主窗口 */
+  animations: {
+    openExternal(req: { key: string; text: string }): Promise<OpenExternalResult>;
+    syncFile(req: { key: string; text: string }): Promise<void>;
+    onFileChanged(callback: (change: AnimationFileChange) => void): () => void;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

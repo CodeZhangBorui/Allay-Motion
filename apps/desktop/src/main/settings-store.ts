@@ -16,6 +16,7 @@ import {
   type WindowState,
 } from '../shared/settings';
 import type { ResourceStackSettings } from '@allay/assets';
+import type { EditorAppSettings } from '../shared/code-window';
 import type { Logger } from './logger';
 
 // settings.json 的读写（docs/01-product-architecture.md 1.9）：
@@ -157,6 +158,16 @@ export class SettingsStore {
 
   async updateProject(patch: Partial<ProjectAppSettings>): Promise<void> {
     this.current = { ...this.current, project: { ...this.current.project, ...patch } };
+    await this.persist();
+  }
+
+  /** 打开动画代码用的编辑器（2026-11 第二轮反馈）；程序路径只来自主进程的文件对话框 */
+  get editorSettings(): EditorAppSettings {
+    return this.current.editor;
+  }
+
+  async updateEditor(patch: Partial<EditorAppSettings>): Promise<void> {
+    this.current = { ...this.current, editor: { ...this.current.editor, ...patch } };
     await this.persist();
   }
 

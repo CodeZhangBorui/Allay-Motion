@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createLogger, formatLine } from '../../apps/desktop/src/main/logger';
 import { SettingsStore, writeJsonAtomic } from '../../apps/desktop/src/main/settings-store';
 import { restoreBounds } from '../../apps/desktop/src/main/window-state';
+import { defaultEditorAppSettings } from '../../apps/desktop/src/shared/code-window';
 import { defaultExportAppSettings, defaultProjectAppSettings, defaultResourceSettings, defaultUiSettings } from '../../apps/desktop/src/shared/settings';
 
 let dir: string;
@@ -21,7 +22,7 @@ describe('设置读写（1.9）', () => {
   it('没有文件时用默认值', async () => {
     const store = new SettingsStore(join(dir, 'settings.json'), log);
     const s = await store.load();
-    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings(), project: defaultProjectAppSettings() });
+    expect(s).toEqual({ formatVersion: 1, ui: defaultUiSettings(), resources: defaultResourceSettings(), export: defaultExportAppSettings(), project: defaultProjectAppSettings(), editor: defaultEditorAppSettings() });
   });
 
   it('资源栈配置：M1 的设置文件没有 resources 时用默认值；坏掉时只回退这一项', async () => {

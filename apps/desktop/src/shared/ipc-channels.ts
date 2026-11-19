@@ -8,7 +8,7 @@
 // M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
 // 2026-11 反馈在 templates 下加上 readSource、writeSource、createFromAnimation（内嵌代码编辑、自建动画转为模板）；
-// 第二轮反馈加上 codeWindow（第二个窗口，消息经主进程转发）；
+// 第二轮反馈加上 codeWindow（第二个窗口，消息经主进程转发）、editors、animations（外部编辑器与动画文档文件）；
 // MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）；
 // M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）；
 // 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
@@ -145,6 +145,18 @@ export const IPC = {
     /** 主进程 → 主窗口的事件 */
     up: 'codeWindow:up',
   },
+  /** 外部编辑器与动画文档文件（2026-11 第二轮反馈） */
+  editors: {
+    get: 'editors:get',
+    setKind: 'editors:setKind',
+    chooseProgram: 'editors:chooseProgram',
+  },
+  animations: {
+    openExternal: 'animations:openExternal',
+    syncFile: 'animations:syncFile',
+    /** 主进程 → 主窗口的事件：外部编辑器改了动画文件 */
+    fileChanged: 'animations:fileChanged',
+  },
   cache: {
     getThumb: 'cache:getThumb',
     putThumb: 'cache:putThumb',
@@ -240,6 +252,11 @@ export const INVOKE_CHANNELS = [
   IPC.codeWindow.close,
   IPC.codeWindow.publish,
   IPC.codeWindow.send,
+  IPC.editors.get,
+  IPC.editors.setKind,
+  IPC.editors.chooseProgram,
+  IPC.animations.openExternal,
+  IPC.animations.syncFile,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,
