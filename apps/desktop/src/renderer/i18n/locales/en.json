@@ -132,7 +132,8 @@
     "hq": "High-quality preview",
     "hqHint": "Add motion blur to the preview too (slower)",
     "mute": "Mute",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "segmentEnd": "End of “{{name}}”"
   },
   "params": {
     "title": "Properties",
@@ -634,7 +635,11 @@
       "projectOpenAssociated": "Open project from file",
       "templatesInstallAssociated": "Install template from file",
       "onboarding": "First-run setup",
-      "tour": "Editor tour"
+      "tour": "Editor tour",
+      "prevCue": "Go to previous sound",
+      "nextCue": "Go to next sound",
+      "toCut": "Go to cut point",
+      "mute": "Toggle preview mute"
     }
   },
   "editor": {
@@ -818,7 +823,33 @@
     "stages": "Stages",
     "sound": "Sound",
     "cut": "Cut point",
-    "toEnd": "Go to end"
+    "toEnd": "Go to end",
+    "menu": {
+      "setDuration": "Set duration…",
+      "endToPlayhead": "Move end to playhead",
+      "resetDuration": "Reset this duration",
+      "copyDuration": "Copy duration",
+      "pasteDuration": "Paste duration",
+      "toSegmentStart": "Go to stage start",
+      "toSegmentEnd": "Go to stage end",
+      "distribute": "Distribute stages evenly",
+      "resetAll": "Reset all stage durations",
+      "prevCue": "Go to previous sound",
+      "nextCue": "Go to next sound",
+      "mute": "Mute preview",
+      "toCut": "Go to cut point",
+      "seekHere": "Go here (frame {{frame}})",
+      "playHere": "Play from here",
+      "loop": "Loop playback"
+    },
+    "duration": {
+      "title": "Set duration of “{{name}}”",
+      "body": "Enter {{min}}–{{max}} seconds; it snaps to the nearest frame.",
+      "seconds": "Duration (seconds)",
+      "preview": "{{seconds}} s, {{frames}} frames",
+      "invalid": "Enter a number",
+      "apply": "Apply"
+    }
   },
   "audio": {
     "missing": "These sounds aren't in the current resources and are muted: {{list}}",

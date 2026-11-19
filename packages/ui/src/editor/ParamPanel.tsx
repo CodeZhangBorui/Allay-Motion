@@ -20,6 +20,8 @@ import { ScrubNumberField, SliderField } from './ScrubNumberField';
 // 每一行：左标签（次要色，过长截断，悬停显示 hint）+ 右控件；改过的参数在标签左侧有一个琥珀小点，悬停这一行时变成“重置”按钮；
 // 右键菜单：重置、复制值、粘贴值。图案类 enum 占整行（标签和当前项名称在上，小格在下）。
 // 一个分组里全是 duration 时，并排成一组数值框（框内左侧是标签），组标题右侧显示总帧数。
+// 聚焦层（docs/decisions.md“2026-11 反馈：时间线与曲线编辑”）：某个控件（自定义缓动曲线编辑器）浮起时，它在根上加
+// data-focus-layer、在自己那一行加 data-focus-owner；其余各行和组标题（data-dim）降到 35% 不透明度。
 
 export interface ParamGroupDef {
   key: string;
@@ -188,7 +190,7 @@ export const ParamRow = memo(function ParamRow(props: ParamRowProps) {
     const current = pattern && def.type === 'enum' ? enumOptions(def, editor.locale).find((o) => o.value === value)?.label : undefined;
     return (
       <RowMenu {...props} changed={changed}>
-        <ContextMenuTrigger render={<div />} data-testid={`param-row-${def.key}`} data-changed={changed} className="group/row flex flex-col gap-2 py-1.5">
+        <ContextMenuTrigger render={<div />} data-testid={`param-row-${def.key}`} data-changed={changed} data-dim="" className="group/row flex flex-col gap-2 py-1.5">
           {(pattern || changed) && (
             <div className="flex min-w-0 items-center justify-between gap-2">
               {labelEl}
@@ -207,6 +209,7 @@ export const ParamRow = memo(function ParamRow(props: ParamRowProps) {
         render={<div />}
         data-testid={`param-row-${def.key}`}
         data-changed={changed}
+        data-dim=""
         className={cn('group/row grid min-h-row grid-cols-[minmax(72px,30%)_1fr] gap-2.5', tall ? 'items-start py-1' : 'items-center')}
       >
         <div className={cn('flex min-w-0 items-center', tall && 'h-control')}>{labelEl}</div>
@@ -233,7 +236,7 @@ function DurationGroup({ defs, values, defaults, onChange, clipboard, fileNames 
         const snap = (v: number) => Math.min(def.max, Math.max(def.min, Math.round(v * fps) / fps));
         return (
           <RowMenu key={def.key} def={def} value={value} defaultValue={defaultValue} onChange={onChange} clipboard={clipboard} fileNames={fileNames} changed={changed}>
-            <ContextMenuTrigger render={<div />} data-testid={`param-row-${def.key}`} data-changed={changed} className="group/row relative min-w-0">
+            <ContextMenuTrigger render={<div />} data-testid={`param-row-${def.key}`} data-changed={changed} data-dim="" className="group/row relative min-w-0">
               {changed && (
                 <span className="absolute -top-1 -left-1 z-10">
                   <span className="ml-4 inline-flex">
@@ -265,7 +268,7 @@ function DurationGroup({ defs, values, defaults, onChange, clipboard, fileNames 
 export function ParamGroup({ id, title, extra, collapsed, onToggle, children }: { id: string; title: string; extra?: ReactNode; collapsed: boolean; onToggle(collapsed: boolean): void; children: ReactNode }) {
   return (
     <Collapsible open={!collapsed} onOpenChange={(open) => onToggle(!open)} className="border-t border-divider px-3.5 pt-2.5 pb-3">
-      <div className="flex h-6 items-center gap-1.5">
+      <div className="flex h-6 items-center gap-1.5" data-dim="">
         <CollapsibleTrigger data-testid={`param-group-${id}`} className="group flex min-w-0 items-center gap-1.5 rounded-sm text-left font-semibold text-foreground">
           <CaretRight size={ICON.xs - 1} weight={ICON_WEIGHT.active} className="shrink-0 text-fg-subtle transition-transform duration-(--dur-2) group-data-[panel-open]:rotate-90" aria-hidden="true" />
           <span className="truncate">{title}</span>
@@ -286,7 +289,11 @@ export function ParamPanel({ defs, groups = [], hidden = [], values, defaults, o
   const known = new Set(groups.map((g) => g.key));
   const loose = shown.filter((d) => !d.group || !known.has(d.group));
   return (
-    <div className="flex flex-col" data-testid="param-panel">
+    <div
+      className="flex flex-col [&_[data-dim]]:transition-opacity [&_[data-dim]]:duration-(--dur-2) [&[data-focus-layer]_[data-dim]:not([data-focus-owner])]:opacity-35"
+      data-testid="param-panel"
+      data-focus-scope=""
+    >
       {loose.length > 0 && <div className="border-t border-divider px-3.5 py-2">{loose.map(row)}</div>}
       {groups.map((g) => {
         const rows = shown.filter((d) => d.group === g.key);

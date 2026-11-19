@@ -1,7 +1,7 @@
 // 应用的核心命令表：快捷键（6.7）、命令面板（6.4，Ctrl+K）和顶栏菜单都从注册表读，这张表在启动时注册进去（app/core.tsx）。
 // 命令的形状见 app/registry.ts（docs/code-editing-and-mcp-plan.md H2）：带参数的命令声明 input 的 zod schema，
 // 执行一律经 dispatch（先校验参数）。
-import { randomSeed } from '@allay/ui/editor';
+import { nextCue, prevCue, randomSeed } from '@allay/ui/editor';
 import {
   ArrowUUpLeft,
   ArrowUUpRight,
@@ -20,10 +20,14 @@ import {
   MapTrifold,
   Play,
   Repeat,
+  Scissors,
   SidebarSimple,
   SkipBack,
   SkipForward,
+  SpeakerSimpleSlash,
   Stack,
+  CaretDoubleLeft,
+  CaretDoubleRight,
 } from '@phosphor-icons/react';
 import i18next from 'i18next';
 import { z } from 'zod';
@@ -61,6 +65,34 @@ export function stepFrames(n: number): void {
   s.setTime(Math.round((s.time + n / fps) * fps) / fps);
 }
 
+/** 预览的音效 cue（秒）；预览没就绪时为空 */
+function cueTimes(): number[] {
+  return ready() ? usePreviewStore.getState().audioCues.map((c) => c.at) : [];
+}
+
+/** 跳到当前时间之后（dir = 1）或之前（dir = -1）最近的音效；没有就不动 */
+export function seekCue(dir: 1 | -1, from = useTransportStore.getState().time): void {
+  const fps = useProjectStore.getState().output.fps;
+  const t = dir === 1 ? nextCue(cueTimes(), from, fps) : prevCue(cueTimes(), from, fps);
+  if (t === null) return;
+  const s = useTransportStore.getState();
+  s.setPlaying(false);
+  s.setTime(Math.round(t * fps) / fps);
+}
+
+export function toggleMute(): void {
+  const ui = useUiStore.getState();
+  ui.setEditor({ muted: !ui.settings.editor.muted });
+}
+
+export function seekCut(): void {
+  const s = useTransportStore.getState();
+  if (s.cutTime === null) return;
+  const fps = useProjectStore.getState().output.fps;
+  s.setPlaying(false);
+  s.setTime(Math.round(s.cutTime * fps) / fps);
+}
+
 export function rerollSeed(): void {
   const { template } = useProjectStore.getState();
   const def = template?.params.find((p) => p.type === 'seed' && !template.hidden.includes(p.key));
@@ -78,6 +110,11 @@ export const CORE_COMMANDS: AnyCommand[] = [
   { id: 'toStart', titleKey: key('toStart'), shortcut: 'Home', category: 'playback', icon: SkipBack, effect: 'read', run: () => useTransportStore.getState().setTime(0) },
   { id: 'toEnd', titleKey: key('toEnd'), shortcut: 'End', category: 'playback', icon: SkipForward, effect: 'read', run: () => useTransportStore.getState().setTime(useTransportStore.getState().duration) },
   { id: 'loop', titleKey: key('loop'), shortcut: 'L', category: 'playback', icon: Repeat, effect: 'read', run: () => useTransportStore.getState().setLoop(!useTransportStore.getState().loop) },
+  // 时间轴右键菜单里也有这几条（docs/decisions.md“2026-11 反馈：时间线与曲线编辑”）
+  { id: 'prevCue', titleKey: key('prevCue'), category: 'playback', icon: CaretDoubleLeft, effect: 'read', run: () => seekCue(-1), enabled: () => cueTimes().length > 0 },
+  { id: 'nextCue', titleKey: key('nextCue'), category: 'playback', icon: CaretDoubleRight, effect: 'read', run: () => seekCue(1), enabled: () => cueTimes().length > 0 },
+  { id: 'toCut', titleKey: key('toCut'), category: 'playback', icon: Scissors, effect: 'read', run: seekCut, enabled: () => ready() && useTransportStore.getState().cutTime !== null },
+  { id: 'mute', titleKey: key('mute'), shortcut: 'M', category: 'playback', icon: SpeakerSimpleSlash, effect: 'write', run: toggleMute },
   {
     id: 'reroll',
     titleKey: key('reroll'),

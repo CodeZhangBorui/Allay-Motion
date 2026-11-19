@@ -132,7 +132,8 @@
     "hq": "高质量预览",
     "hqHint": "预览也加上运动模糊（更慢）",
     "mute": "静音",
-    "unmute": "取消静音"
+    "unmute": "取消静音",
+    "segmentEnd": "“{{name}}”的结尾"
   },
   "params": {
     "title": "属性",
@@ -634,7 +635,11 @@
       "projectOpenAssociated": "从文件打开工程",
       "templatesInstallAssociated": "从文件安装模板",
       "onboarding": "首次启动引导",
-      "tour": "新手引导"
+      "tour": "新手引导",
+      "prevCue": "跳到上一个音效",
+      "nextCue": "跳到下一个音效",
+      "toCut": "跳到剪辑点",
+      "mute": "预览静音开关"
     }
   },
   "editor": {
@@ -818,7 +823,33 @@
     "stages": "阶段",
     "sound": "音效",
     "cut": "剪辑点",
-    "toEnd": "跳到结尾"
+    "toEnd": "跳到结尾",
+    "menu": {
+      "setDuration": "设置时长…",
+      "endToPlayhead": "段尾移到播放头",
+      "resetDuration": "重置这一段的时长",
+      "copyDuration": "复制时长",
+      "pasteDuration": "粘贴时长",
+      "toSegmentStart": "跳到段首",
+      "toSegmentEnd": "跳到段尾",
+      "distribute": "平均分配各段时长",
+      "resetAll": "重置全部阶段时长",
+      "prevCue": "跳到上一个音效",
+      "nextCue": "跳到下一个音效",
+      "mute": "静音预览",
+      "toCut": "跳到剪辑点",
+      "seekHere": "跳到这里（第 {{frame}} 帧）",
+      "playHere": "从这里播放",
+      "loop": "循环播放"
+    },
+    "duration": {
+      "title": "设置“{{name}}”的时长",
+      "body": "可以填 {{min}}–{{max}} 秒，会吸附到最近的一帧。",
+      "seconds": "时长（秒）",
+      "preview": "{{seconds}} 秒，{{frames}} 帧",
+      "invalid": "请输入一个数字",
+      "apply": "应用"
+    }
   },
   "audio": {
     "missing": "当前的资源里找不到这些音效，已静音：{{list}}",
