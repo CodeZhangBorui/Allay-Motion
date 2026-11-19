@@ -1,3 +1,4 @@
+import type { CodeWindowDown, CodeWindowUp } from '../shared/code-window';
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import { IPC, type InvokeChannel } from '../shared/ipc-channels';
 import type { AllayApi } from './api';
@@ -139,6 +140,14 @@ const api = {
     cancel: invoke(IPC.updates.cancel),
     install: invoke(IPC.updates.install),
     onChanged: subscribe<UpdateState>(IPC.updates.changed),
+  },
+  codeWindow: {
+    open: invoke(IPC.codeWindow.open),
+    close: invoke(IPC.codeWindow.close),
+    publish: invoke(IPC.codeWindow.publish),
+    send: invoke(IPC.codeWindow.send),
+    onDown: subscribe<CodeWindowDown>(IPC.codeWindow.down),
+    onUp: subscribe<CodeWindowUp>(IPC.codeWindow.up),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

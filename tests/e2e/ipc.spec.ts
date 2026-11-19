@@ -191,6 +191,11 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ id: 'user.abc.x', version: '1.0.0', source: 'x'.repeat(1024 * 1024 + 1), baseVersion: 'a' }],
   ],
   'templates.createFromAnimation': [[], [null], ['{}'], [{ text: '' }], [{ text: '{}', path: 'C:\\x' }], [{ text: 'x'.repeat(512 * 1024 + 1) }]],
+  // 代码窗口（第二轮反馈）：主窗口发 codeWindow.send 被拒（只收代码窗口的）
+  'codeWindow.open': [[1], ['C:\\x']],
+  'codeWindow.close': [[1]],
+  'codeWindow.publish': [[], [null], [{ type: 'eval', code: 'x' }], [{ type: 'time', t: 99, playing: false }], [{ type: 'state', text: 'x' }]],
+  'codeWindow.send': [[{ type: 'ready' }], [{ type: 'edit', text: '{}', baseRevision: 0 }]],
   'presets.list': [[1]],
   'presets.save': [
     [],

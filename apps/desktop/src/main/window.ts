@@ -23,6 +23,26 @@ export interface MainWindowOptions {
   onShown?: () => void;
 }
 
+/**
+ * 1.6 第 1 条的 webPreferences，一条都不许放宽。主窗口和代码窗口用同一份（同一个 preload、sandbox、contextIsolation）。
+ */
+export function secureWebPreferences(): Electron.WebPreferences {
+  return {
+    preload: join(__dirname, '../preload/index.js'),
+    contextIsolation: true,
+    sandbox: true,
+    nodeIntegration: false,
+    nodeIntegrationInWorker: false,
+    nodeIntegrationInSubFrames: false,
+    webSecurity: true,
+    // 1.5：最小化时导出照常进行
+    backgroundThrottling: false,
+    spellcheck: false,
+    // 不用 webview
+    webviewTag: false,
+  };
+}
+
 export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
   const { settings, log } = opts;
   const colors = THEME_CHROME_COLORS[opts.theme];
@@ -44,21 +64,7 @@ export function createMainWindow(opts: MainWindowOptions): BrowserWindow {
     // 顶栏据 env(titlebar-area-x) 给红绿灯让出位置（TopBar.tsx）
     titleBarStyle: 'hidden',
     titleBarOverlay: { color: colors.titleBar, symbolColor: colors.titleBarSymbol, height: TITLEBAR_OVERLAY_HEIGHT },
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      // 1.6 第 1 条，一条都不许放宽
-      contextIsolation: true,
-      sandbox: true,
-      nodeIntegration: false,
-      nodeIntegrationInWorker: false,
-      nodeIntegrationInSubFrames: false,
-      webSecurity: true,
-      // 1.5：最小化时导出照常进行
-      backgroundThrottling: false,
-      spellcheck: false,
-      // 不用 webview
-      webviewTag: false,
-    },
+    webPreferences: secureWebPreferences(),
   });
 
   startup.mark('window-created');

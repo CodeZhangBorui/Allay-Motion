@@ -26,6 +26,7 @@ import { HostCommandChannel } from './host-commands';
 import { filesFromArgv, filesFromOpenEvent, OpenFileQueue } from './open-files';
 import { Splash } from './splash';
 import { createMainWindow } from './window';
+import { CodeWindowService } from './code-window';
 import { startup } from './startup-timing';
 import { UpdateService } from './updates/service';
 
@@ -205,7 +206,9 @@ if (!app.requestSingleInstanceLock()) {
         ? new Splash({ origin: devOrigin ?? APP_ORIGIN, ui: settings.ui, mascotDir, log, hiddenForTests })
         : null;
 
-    const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
+    // 代码窗口（2026-11 第二轮反馈）：与主窗口同一份安全设置；IPC 只认这里登记的那个窗口、只放行一个通道（ipc-guard.ts）
+    const codeWindow = new CodeWindowService({ getMainWindow: () => mainWindow, devOrigin, theme: () => settings.ui.theme, log, hiddenForTests });
+    const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, getCodeWindow: () => codeWindow.registered(), devOrigin, log });
     // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
     if (splash) await splash.firstFrame(SPLASH_FIRST_FRAME_WAIT_MS);
     await templatesReady;
@@ -235,6 +238,7 @@ if (!app.requestSingleInstanceLock()) {
       projectPathForTests: testSwitches.projectPath,
       testHooks: testSwitches.testHooks,
       getMainWindow: () => mainWindow,
+      codeWindow,
     });
     // 资源栈：内置层和资源包先打开，原版层在后台离线探测（3.4），结果经 resources:changed 推给渲染进程
     void resources.init();

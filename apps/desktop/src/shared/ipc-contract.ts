@@ -16,6 +16,7 @@ import {
   VanillaPatchSchema,
 } from './resources';
 import { HostCommandResultSchema } from './host-commands';
+import { CodeWindowDownSchema, CodeWindowUpSchema } from './code-window';
 import { ProjectDataSchema, ProjectHandleSchema } from './project';
 import { UiSettingsPatchSchema } from './settings';
 import { FolderKindSchema } from './folders';
@@ -113,6 +114,10 @@ export const IPC_ARGS = {
   [IPC.templates.readSource]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
   [IPC.templates.writeSource]: z.tuple([WriteSourceSchema]),
   [IPC.templates.createFromAnimation]: z.tuple([CreateFromAnimationSchema]),
+  [IPC.codeWindow.open]: z.tuple([]),
+  [IPC.codeWindow.close]: z.tuple([]),
+  [IPC.codeWindow.publish]: z.tuple([CodeWindowDownSchema]),
+  [IPC.codeWindow.send]: z.tuple([CodeWindowUpSchema]),
   [IPC.presets.list]: z.tuple([]),
   [IPC.presets.save]: z.tuple([SavePresetSchema]),
   [IPC.presets.remove]: z.tuple([PresetIdSchema]),

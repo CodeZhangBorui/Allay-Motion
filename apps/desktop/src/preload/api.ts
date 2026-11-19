@@ -1,3 +1,4 @@
+import type { CodeWindowDown, CodeWindowUp } from '../shared/code-window';
 import type {
   ChooseFolderResult,
   ExportFinishResult,
@@ -202,6 +203,19 @@ export interface AllayApi {
     /** 运行下好的安装包并退出应用 */
     install(): Promise<UpdateState>;
     onChanged(callback: (state: UpdateState) => void): () => void;
+  };
+  /** 代码窗口（2026-11 第二轮反馈）。两个窗口用同一个 preload；代码窗口的调用只有 send 和 app.info 会被主进程接受 */
+  codeWindow: {
+    open(): Promise<void>;
+    close(): Promise<void>;
+    /** 主窗口 → 代码窗口 */
+    publish(message: CodeWindowDown): Promise<void>;
+    /** 代码窗口 → 主窗口 */
+    send(message: CodeWindowUp): Promise<void>;
+    /** 代码窗口收主窗口的消息 */
+    onDown(callback: (message: CodeWindowDown) => void): () => void;
+    /** 主窗口收代码窗口的消息 */
+    onUp(callback: (message: CodeWindowUp) => void): () => void;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

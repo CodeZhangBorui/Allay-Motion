@@ -24,6 +24,8 @@ import type { UpdateService } from './updates/service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
+import type { CodeWindowService } from './code-window';
+
 export interface HandlerDeps {
   registrar: ReturnType<typeof createIpcRegistrar>;
   settings: SettingsStore;
@@ -47,6 +49,8 @@ export interface HandlerDeps {
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
   projectPathForTests: string | null;
   testHooks: boolean;
+  /** 代码窗口（2026-11 第二轮反馈） */
+  codeWindow: CodeWindowService;
   getMainWindow(): BrowserWindow | null;
 }
 
@@ -67,7 +71,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow, codeWindow }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -205,6 +209,12 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.templates.readSource, (_event, id, version) => templateDev.readSource({ id, version }));
   handle(IPC.templates.writeSource, (_event, req) => templateDev.writeSource(req));
   handle(IPC.templates.createFromAnimation, (_event, req) => templateDev.createFromAnimation(req.text));
+
+  // ---- 代码窗口（来源：open/close/publish 只认主窗口，send 只认代码窗口，见 ipc-guard.ts）----
+  handle(IPC.codeWindow.open, () => codeWindow.open());
+  handle(IPC.codeWindow.close, () => codeWindow.close());
+  handle(IPC.codeWindow.publish, (_event, message) => codeWindow.publish(message));
+  handle(IPC.codeWindow.send, (_event, message) => codeWindow.receive(message));
 
   // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
   handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));
