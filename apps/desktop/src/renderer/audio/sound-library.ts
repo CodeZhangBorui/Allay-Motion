@@ -11,10 +11,12 @@ import { useResourceStore } from '../stores/resourceStore';
 interface SoundLibraryState {
   stamp: string | null;
   events: SoundLibrary['events'];
+  /** 两种语言的语言文件在不在（中文语言文件还没取回时，中文界面的音效名先用英文） */
+  lang: SoundLibrary['lang'];
   loading: boolean;
 }
 
-export const useSoundLibraryStore = create<SoundLibraryState>(() => ({ stamp: null, events: [], loading: true }));
+export const useSoundLibraryStore = create<SoundLibraryState>(() => ({ stamp: null, events: [], lang: { 'zh-CN': false, en: false }, loading: true }));
 
 let seq = 0;
 export async function refreshSoundLibrary(): Promise<void> {
@@ -22,7 +24,7 @@ export async function refreshSoundLibrary(): Promise<void> {
   useSoundLibraryStore.setState({ loading: true });
   try {
     const lib = await window.allay.resources.soundLibrary();
-    if (mine === seq) useSoundLibraryStore.setState({ stamp: lib.stamp, events: lib.events, loading: false });
+    if (mine === seq) useSoundLibraryStore.setState({ stamp: lib.stamp, events: lib.events, lang: lib.lang, loading: false });
   } catch (error) {
     console.warn('[audio] sound library failed', error);
     if (mine === seq) useSoundLibraryStore.setState({ events: [], loading: false });
@@ -68,5 +70,29 @@ export async function prepareSound(eventId: string): Promise<void> {
   const files = await eventFiles(eventId);
   const states = await soundFileStates(files, false);
   const remote = files.filter((f) => states[f] === 'remote');
-  if (remote.length > 0) await soundFileStates(remote, true);
+  // 中文界面、中文语言文件还没取回：随这次选中一并取回（只在下载缓存的原版层里取，2026-11 反馈）
+  const needLang = i18next.language.startsWith('zh') && !useSoundLibraryStore.getState().lang['zh-CN'];
+  if (remote.length > 0 || needLang) {
+    await soundFileStates(remote, true);
+    if (remote.length === 0) void refreshSoundLibrary();
+  }
+}
+
+/** 导入音效文件（主进程弹对话框）；返回新事件的 ID */
+export async function importSounds(): Promise<string[]> {
+  const r = await window.allay.resources.importSounds().catch(() => null);
+  if (!r || 'canceled' in r) return [];
+  if (!r.ok) {
+    notify('error', i18next.t('audio.importFailed'));
+    return [];
+  }
+  notify('info', i18next.t(r.skipped > 0 ? 'audio.importedSome' : 'audio.imported', { count: r.ids.length, skipped: r.skipped }));
+  // 资源栈的 stamp 变了，库会自动重新取；这里也等一次，让刚导入的立刻能选
+  await refreshSoundLibrary();
+  return r.ids;
+}
+
+export async function removeImportedSound(id: string): Promise<void> {
+  const state = await window.allay.resources.removeImportedSound(id).catch(() => null);
+  if (state) useResourceStore.getState().replace(state);
 }
