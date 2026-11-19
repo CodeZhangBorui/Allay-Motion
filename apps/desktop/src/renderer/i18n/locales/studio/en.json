@@ -131,8 +131,10 @@
       "block": "Block",
       "item": "Item",
       "text": "Text",
-      "rect": "Shape",
-      "group": "Group"
+      "rect": "Rectangle",
+      "group": "Group",
+      "ellipse": "Ellipse",
+      "line": "Line"
     },
     "layers": {
       "title": "Layers",
@@ -195,7 +197,35 @@
       "transform": "Transform",
       "font": "Font",
       "parent": "Parent",
-      "noParent": "None"
+      "noParent": "None",
+      "length": "Length",
+      "thickness": "Thickness",
+      "radius": "Corner radius",
+      "cap": "Ends",
+      "caps": {
+        "round": "Round",
+        "butt": "Flat"
+      },
+      "fill": "Fill",
+      "fills": {
+        "solid": "Solid",
+        "linear": "Linear gradient",
+        "radial": "Radial gradient"
+      },
+      "gradientFrom": "Start color",
+      "gradientTo": "End color",
+      "gradientAngle": "Direction",
+      "stroke": "Stroke",
+      "strokeStyle": "Stroke style",
+      "strokeColor": "Stroke color",
+      "strokeWidth": "Stroke width",
+      "blend": "Blend",
+      "blends": {
+        "normal": "Normal",
+        "add": "Add",
+        "multiply": "Multiply",
+        "screen": "Screen"
+      }
     },
     "propNames": {
       "x": "X",

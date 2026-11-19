@@ -36,7 +36,7 @@ import { useTranslation } from 'react-i18next';
 import { keyIndexAt, keysOf, propValue, setKeyEase } from '../../../shared/animation/edit';
 import { compatibleTypes, paramUsage, readTarget, type BindTarget } from '../../../shared/animation/params';
 import { docDuration, resolveDoc, type ResolvedDoc, type ResolvedLayer } from '../../../shared/animation/resolve';
-import { ANIM_PROPS, isParamRef, type AnimationDoc, type AnimEasing, type AnimParam, type AnimProp, type Layer } from '../../../shared/animation/schema';
+import { ANIM_PROPS, BLEND_MODES, isParamRef, type AnimationDoc, type AnimEasing, type AnimParam, type AnimProp, type Layer } from '../../../shared/animation/schema';
 import { commandEnabled, trigger, useRegistry } from '../../app/registry';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
@@ -330,8 +330,8 @@ function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: Reso
 function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationDoc; layer: Layer; resolvedLayer: ResolvedLayer; duration: number }) {
   const { t } = useTranslation();
   const set = (patch: Record<string, unknown>) => patchLayer(layer.id, patch);
-  const field = (name: 'block' | 'item' | 'text' | 'color' | 'font' | 'size' | 'width' | 'height', value: unknown) => setBindable(doc, { kind: 'field', layer: layer.id, field: name }, value, () => set({ [name]: value }));
-  const bind = (name: 'block' | 'item' | 'text' | 'color' | 'font' | 'size' | 'width' | 'height', label: string) => <BindButton doc={doc} target={{ kind: 'field', layer: layer.id, field: name }} label={`${layer.name} · ${label}`} />;
+  const field = (name: FieldName, value: unknown) => setBindable(doc, { kind: 'field', layer: layer.id, field: name }, value, () => set({ [name]: value }));
+  const bind = (name: FieldName, label: string) => <BindButton doc={doc} target={{ kind: 'field', layer: layer.id, field: name }} label={`${layer.name} · ${label}`} />;
   const r = resolvedLayer;
   return (
     <Group id="content" title={t('anim.props.content')} extra={t(`anim.layerTypes.${layer.type}`)}>
@@ -380,18 +380,19 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
           </Row>
         </>
       )}
-      {r.type === 'rect' && (
-        <>
-          <Row label={t('anim.props.width')} bind={bind('width', t('anim.props.width'))}>
-            <ScrubNumberField value={r.width} min={1} max={8000} step={1} label={t('anim.props.width')} onChange={(v) => field('width', v)} />
-          </Row>
-          <Row label={t('anim.props.height')} bind={bind('height', t('anim.props.height'))}>
-            <ScrubNumberField value={r.height} min={1} max={8000} step={1} label={t('anim.props.height')} onChange={(v) => field('height', v)} />
-          </Row>
-          <Row label={t('anim.props.color')} bind={bind('color', t('anim.props.color'))}>
-            <ColorField value={r.color} onChange={(v) => field('color', v)} label={t('anim.props.color')} />
-          </Row>
-        </>
+      {(r.type === 'rect' || r.type === 'ellipse' || r.type === 'line') && layer.type === r.type && (
+        <ShapeFields layer={layer as ShapeLayer} resolved={r} field={field} bind={bind} set={set} />
+      )}
+      {r.type !== 'block' && r.type !== 'group' && (
+        <Row label={t('anim.props.blend')}>
+          <EnumField
+            value={(layer as { blend?: string }).blend ?? 'normal'}
+            label={t('anim.props.blend')}
+            testId="anim-layer-blend"
+            options={BLEND_MODES.map((m) => ({ value: m, label: t(`anim.props.blends.${m}`) }))}
+            onChange={(v) => set({ blend: v === 'normal' ? undefined : v })}
+          />
+        </Row>
       )}
       <Row label={t('anim.props.parent')}>
         <ParentSelect doc={doc} layer={layer} />
@@ -403,6 +404,94 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
         </div>
       </Row>
     </Group>
+  );
+}
+
+type FieldName = 'block' | 'item' | 'text' | 'color' | 'font' | 'size' | 'width' | 'height' | 'radius';
+type ShapeLayer = Extract<Layer, { type: 'rect' | 'ellipse' | 'line' }>;
+
+/** 形状（矩形、椭圆、线段）的大小、圆角、填充（纯色或渐变）、描边、线端（docs/animation-editor.md 10.12） */
+function ShapeFields({
+  layer,
+  resolved: r,
+  field,
+  bind,
+  set,
+}: {
+  layer: ShapeLayer;
+  resolved: Extract<ResolvedLayer, { type: 'rect' | 'ellipse' | 'line' }>;
+  field(name: FieldName, value: unknown): void;
+  bind(name: FieldName, label: string): ReactNode;
+  set(patch: Record<string, unknown>): void;
+}) {
+  const { t } = useTranslation();
+  const isLine = r.type === 'line';
+  const g = layer.gradient;
+  const stroke = layer.type === 'line' ? undefined : layer.stroke;
+  const wLabel = t(isLine ? 'anim.props.length' : 'anim.props.width');
+  const hLabel = t(isLine ? 'anim.props.thickness' : 'anim.props.height');
+  return (
+    <>
+      <Row label={wLabel} bind={bind('width', wLabel)}>
+        <ScrubNumberField value={r.width} min={1} max={8000} step={1} label={wLabel} testId="anim-shape-width" onChange={(v) => field('width', v)} />
+      </Row>
+      <Row label={hLabel} bind={bind('height', hLabel)}>
+        <ScrubNumberField value={r.height} min={isLine ? 0.5 : 1} max={isLine ? 400 : 8000} step={1} label={hLabel} onChange={(v) => field('height', v)} />
+      </Row>
+      {r.type === 'rect' && (
+        <Row label={t('anim.props.radius')} bind={bind('radius', t('anim.props.radius'))}>
+          <ScrubNumberField value={r.radius ?? 0} min={0} max={4000} step={1} label={t('anim.props.radius')} testId="anim-shape-radius" onChange={(v) => field('radius', v)} />
+        </Row>
+      )}
+      {layer.type === 'line' && (
+        <Row label={t('anim.props.cap')}>
+          <EnumField value={layer.cap} label={t('anim.props.cap')} options={(['round', 'butt'] as const).map((c) => ({ value: c, label: t(`anim.props.caps.${c}`) }))} onChange={(v) => set({ cap: v })} />
+        </Row>
+      )}
+      <Row label={t('anim.props.fill')}>
+        <EnumField
+          value={g ? g.type : 'solid'}
+          label={t('anim.props.fill')}
+          testId="anim-shape-fill"
+          options={(['solid', 'linear', 'radial'] as const).map((f) => ({ value: f, label: t(`anim.props.fills.${f}`) }))}
+          onChange={(v) => set({ gradient: v === 'solid' ? undefined : { type: v, from: g?.from ?? r.color, to: g?.to ?? '#FFFFFF', angle: g?.angle ?? 90 } })}
+        />
+      </Row>
+      {g ? (
+        <>
+          <Row label={t('anim.props.gradientFrom')}>
+            <ColorField value={g.from} onChange={(v) => set({ gradient: { ...g, from: v } })} label={t('anim.props.gradientFrom')} />
+          </Row>
+          <Row label={t('anim.props.gradientTo')}>
+            <ColorField value={g.to} onChange={(v) => set({ gradient: { ...g, to: v } })} label={t('anim.props.gradientTo')} />
+          </Row>
+          {g.type === 'linear' && (
+            <Row label={t('anim.props.gradientAngle')}>
+              <ScrubNumberField value={g.angle} min={-360} max={360} step={1} unit="°" label={t('anim.props.gradientAngle')} onChange={(v) => set({ gradient: { ...g, angle: v } })} />
+            </Row>
+          )}
+        </>
+      ) : (
+        <Row label={t('anim.props.color')} bind={bind('color', t('anim.props.color'))}>
+          <ColorField value={r.color} onChange={(v) => field('color', v)} label={t('anim.props.color')} />
+        </Row>
+      )}
+      {!isLine && (
+        <>
+          <Row label={t('anim.props.stroke')}>
+            <Switch checked={!!stroke} onCheckedChange={(on) => set({ stroke: on ? { color: '#FFFFFF', width: 8 } : undefined })} aria-label={t('anim.props.stroke')} data-testid="anim-shape-stroke" />
+          </Row>
+          {stroke && (
+            <Row label={t('anim.props.strokeStyle')}>
+              <div className="grid grid-cols-[1fr_80px] gap-[5px]">
+                <ColorField value={stroke.color} onChange={(v) => set({ stroke: { ...stroke, color: v } })} label={t('anim.props.strokeColor')} />
+                <ScrubNumberField value={stroke.width} min={0.5} max={400} step={0.5} label={t('anim.props.strokeWidth')} onChange={(v) => set({ stroke: { ...stroke, width: v } })} />
+              </div>
+            </Row>
+          )}
+        </>
+      )}
+    </>
   );
 }
 

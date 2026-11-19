@@ -125,7 +125,19 @@ const LayerBase = {
   path: PathSchema.optional(),
 };
 
-export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'group'] as const;
+export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'ellipse', 'line', 'group'] as const;
+
+// ---- 形状的填充、描边，和混合方式（第三轮）----
+
+/** 渐变填充：linear 沿 angle（度，0 是从左到右、90 是从下到上）由 from 过渡到 to；radial 从中心的 from 到边缘的 to */
+export const GradientSchema = z.strictObject({ type: z.enum(['linear', 'radial']), from: hex, to: hex, angle: finite.min(-360).max(360).default(90) });
+export type Gradient = z.infer<typeof GradientSchema>;
+/** 描边：画在形状里面（不改变外框），width 是设计单位 */
+export const StrokeSchema = z.strictObject({ color: hex, width: finite.min(0.5).max(400) });
+/** 混合方式：在线性、预乘 alpha 的画面上算（docs/animation-editor.md 10.12）。方块和组没有 */
+export const BLEND_MODES = ['normal', 'add', 'multiply', 'screen'] as const;
+const blend = z.enum(BLEND_MODES).optional();
+const shapeFill = { color: bindable(hex).default('#3CB7F4'), gradient: GradientSchema.optional(), stroke: StrokeSchema.optional() };
 export type LayerType = (typeof LAYER_TYPES)[number];
 
 // 内容字段都可以绑定到参数（第 2 版）：方块、物品、文字、颜色、字体、大小
@@ -133,7 +145,7 @@ export const LayerSchema = z.discriminatedUnion('type', [
   /** 方块：边长 size 设计单位的立方体 */
   z.strictObject({ ...LayerBase, type: z.literal('block'), block: bindable(resourceId), size: bindable(finite.min(1).max(4000)).default(160) }),
   /** 物品：高 size 设计单位 */
-  z.strictObject({ ...LayerBase, type: z.literal('item'), item: bindable(resourceId), size: bindable(finite.min(1).max(4000)).default(200) }),
+  z.strictObject({ ...LayerBase, type: z.literal('item'), item: bindable(resourceId), size: bindable(finite.min(1).max(4000)).default(200), blend }),
   /** 文字：size 是一个字体像素对应多少设计单位；font 是 font 参数的值（字体族与样式），不给时用 minecraft:default */
   z.strictObject({
     ...LayerBase,
@@ -144,9 +156,31 @@ export const LayerSchema = z.discriminatedUnion('type', [
     shadow: z.boolean().default(true),
     align: z.enum(['left', 'center', 'right']).default('center'),
     font: bindable(FontDefaultSchema).optional(),
+    blend,
   }),
-  /** 矩形色块 */
-  z.strictObject({ ...LayerBase, type: z.literal('rect'), width: bindable(finite.min(1).max(8000)).default(400), height: bindable(finite.min(1).max(8000)).default(240), color: bindable(hex).default('#3CB7F4') }),
+  /** 矩形色块：radius 是圆角半径（超过短边一半时按一半算） */
+  z.strictObject({
+    ...LayerBase,
+    type: z.literal('rect'),
+    width: bindable(finite.min(1).max(8000)).default(400),
+    height: bindable(finite.min(1).max(8000)).default(240),
+    radius: bindable(finite.min(0).max(4000)).optional(),
+    ...shapeFill,
+    blend,
+  }),
+  /** 椭圆（宽高相等是圆） */
+  z.strictObject({ ...LayerBase, type: z.literal('ellipse'), width: bindable(finite.min(1).max(8000)).default(240), height: bindable(finite.min(1).max(8000)).default(240), ...shapeFill, blend }),
+  /** 线段：沿 x 方向长 width、粗 height，中心在原点；round 时两端是半圆 */
+  z.strictObject({
+    ...LayerBase,
+    type: z.literal('line'),
+    width: bindable(finite.min(1).max(8000)).default(400),
+    height: bindable(finite.min(0.5).max(400)).default(12),
+    color: bindable(hex).default('#FFFFFF'),
+    gradient: GradientSchema.optional(),
+    cap: z.enum(['butt', 'round']).default('round'),
+    blend,
+  }),
   /** 组（空对象）：只有变换，不画任何东西；子图层用 parent 指向它 */
   z.strictObject({ ...LayerBase, type: z.literal('group') }),
 ]);
@@ -308,11 +342,12 @@ export function bindingSites(doc: Pick<AnimationDoc, 'duration' | 'layers' | 'so
       at([...base, 'color'], l.color, 'color');
       at([...base, 'font'], l.font, 'font');
     }
-    if (l.type === 'rect') {
+    if (l.type === 'rect' || l.type === 'ellipse' || l.type === 'line') {
       at([...base, 'color'], l.color, 'color');
       at([...base, 'width'], l.width, 'number');
       at([...base, 'height'], l.height, 'number');
     }
+    if (l.type === 'rect') at([...base, 'radius'], l.radius, 'number');
     if (l.type === 'block' || l.type === 'item' || l.type === 'text') at([...base, 'size'], l.size, 'number');
     for (const [prop, track] of Object.entries(l.props)) {
       if (isParamRef(track)) at([...base, 'props', prop], track, 'number');

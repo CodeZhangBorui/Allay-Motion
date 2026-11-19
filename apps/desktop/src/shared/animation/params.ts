@@ -8,7 +8,7 @@ import { ANIM_PROPS, BINDABLE_TYPES, isKeyed, isParamRef, LAYER_ID_RE, type Anim
 /** 能绑定到参数的地方 */
 export const BindTargetSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('duration') }),
-  z.strictObject({ kind: z.literal('field'), layer: z.string().regex(LAYER_ID_RE), field: z.enum(['block', 'item', 'text', 'color', 'font', 'size', 'width', 'height']) }),
+  z.strictObject({ kind: z.literal('field'), layer: z.string().regex(LAYER_ID_RE), field: z.enum(['block', 'item', 'text', 'color', 'font', 'size', 'width', 'height', 'radius']) }),
   /** 常量属性（没有关键帧的） */
   z.strictObject({ kind: z.literal('prop'), layer: z.string().regex(LAYER_ID_RE), prop: z.enum(ANIM_PROPS) }),
   /** 某个关键帧的值 */
@@ -17,7 +17,7 @@ export const BindTargetSchema = z.discriminatedUnion('kind', [
 ]);
 export type BindTarget = z.infer<typeof BindTargetSchema>;
 
-const FIELD_KIND: Record<string, BindingKind> = { block: 'block', item: 'item', text: 'text', color: 'color', font: 'font', size: 'number', width: 'number', height: 'number' };
+const FIELD_KIND: Record<string, BindingKind> = { block: 'block', item: 'item', text: 'text', color: 'color', font: 'font', size: 'number', width: 'number', height: 'number', radius: 'number' };
 
 export function targetKind(target: BindTarget): BindingKind {
   switch (target.kind) {
@@ -66,7 +66,7 @@ export function writeTarget(doc: AnimationDoc, target: BindTarget, value: unknow
   const layer = next.layers.find((l) => l.id === target.layer);
   if (!layer) return null;
   if (target.kind === 'field') {
-    if (!(target.field in layer) && !(target.field === 'font' && layer.type === 'text')) return null;
+    if (!(target.field in layer) && !(target.field === 'font' && layer.type === 'text') && !(target.field === 'radius' && layer.type === 'rect')) return null;
     (layer as Record<string, unknown>)[target.field] = value;
     return next;
   }

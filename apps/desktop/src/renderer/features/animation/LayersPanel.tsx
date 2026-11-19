@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuItemIc
 import { ScrollArea } from '@allay/ui/components/misc';
 import { ICON } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
-import { Copy, Cube, Eye, EyeSlash, FolderSimple, FolderSimpleMinus, FolderSimplePlus, Headphones, Lock, LockOpen, Plus, Square, Sword, TextT, Trash, type Icon } from '@phosphor-icons/react';
+import { Circle, Copy, Cube, LineSegment, Eye, EyeSlash, FolderSimple, FolderSimpleMinus, FolderSimplePlus, Headphones, Lock, LockOpen, Plus, Square, Sword, TextT, Trash, type Icon } from '@phosphor-icons/react';
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { layerTree, type TreeEntry } from '../../../shared/animation/layers';
@@ -18,7 +18,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { trackPointer } from './pointer';
 import { useAnimationUi } from './uiState';
 
-export const LAYER_ICONS: Record<LayerType, Icon> = { block: Cube, item: Sword, text: TextT, rect: Square, group: FolderSimple };
+export const LAYER_ICONS: Record<LayerType, Icon> = { block: Cube, item: Sword, text: TextT, rect: Square, ellipse: Circle, line: LineSegment, group: FolderSimple };
 
 const ROW_H = 32;
 const INDENT = 14;

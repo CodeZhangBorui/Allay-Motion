@@ -251,6 +251,141 @@ async function createAnimation(ctx, source) {
     return list;
   }
 
+  // ---- 形状（第三轮）：圆角矩形、椭圆、线段；纯色或渐变填充、描边；混合方式（docs/animation-editor.md 10.12）----
+  function boxPath(path, w, h, r) {
+    const x = -w / 2;
+    const y = -h / 2;
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    if (r <= 0) {
+      path.moveTo(x, y);
+      path.lineTo(x + w, y);
+      path.lineTo(x + w, y + h);
+      path.lineTo(x, y + h);
+      path.lineTo(x, y);
+      return path;
+    }
+    const H = Math.PI / 2;
+    path.moveTo(x + r, y);
+    path.lineTo(x + w - r, y);
+    path.absarc(x + w - r, y + r, r, -H, 0, false);
+    path.lineTo(x + w, y + h - r);
+    path.absarc(x + w - r, y + h - r, r, 0, H, false);
+    path.lineTo(x + r, y + h);
+    path.absarc(x + r, y + h - r, r, H, 2 * H, false);
+    path.lineTo(x, y + r);
+    path.absarc(x + r, y + r, r, 2 * H, 3 * H, false);
+    return path;
+  }
+  /** 形状的轮廓，inset 是往里缩多少（描边的内圈）；缩没了返回 null */
+  function outline(def, inset, Ctor) {
+    const w = def.width - 2 * inset;
+    const h = def.height - 2 * inset;
+    if (w <= 0 || h <= 0) return null;
+    const p = new Ctor();
+    if (def.type === 'ellipse') p.absellipse(0, 0, w / 2, h / 2, 0, Math.PI * 2, false, 0);
+    else if (def.type === 'line') boxPath(p, w, h, def.cap === 'round' ? h / 2 : 0);
+    else boxPath(p, w, h, (def.radius || 0) - inset);
+    return p;
+  }
+  /** ShapeGeometry 的 uv 是顶点坐标，换成外框里的 0–1（渐变贴图按外框铺） */
+  function boxUv(geometry, w, h) {
+    const pos = geometry.attributes.position;
+    const uv = geometry.attributes.uv;
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / w + 0.5, pos.getY(i) / h + 0.5);
+    uv.needsUpdate = true;
+  }
+  const hexBytes = (hex) => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+  /** 渐变贴图（sRGB，64×64，按外框铺；线性插值在贴图里做） */
+  function gradientTexture(g, w, h) {
+    const N = 64;
+    const data = new Uint8Array(N * N * 4);
+    const a = hexBytes(g.from);
+    const b = hexBytes(g.to);
+    const ang = g.angle * DEG;
+    const dx = Math.cos(ang);
+    const dy = Math.sin(ang);
+    const half = Math.abs((w / 2) * dx) + Math.abs((h / 2) * dy) || 1;
+    for (let j = 0; j < N; j++)
+      for (let i = 0; i < N; i++) {
+        const x = ((i + 0.5) / N - 0.5) * w;
+        const y = ((j + 0.5) / N - 0.5) * h;
+        let f = g.type === 'radial' ? Math.hypot(x / (w / 2), y / (h / 2)) : ((x * dx + y * dy) / half + 1) / 2;
+        f = Math.min(1, Math.max(0, f));
+        const o = (j * N + i) * 4;
+        for (let c = 0; c < 3; c++) data[o + c] = Math.round(a[c] + (b[c] - a[c]) * f);
+        data[o + 3] = 255;
+      }
+    const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.needsUpdate = true;
+    disposables.push(tex);
+    return tex;
+  }
+  /**
+   * 混合方式。画面缓冲是线性、预乘 alpha 的，所以材质改成输出预乘的颜色（premultipliedAlpha），颜色按：
+   * 相加 src + dst；相乘 src·dst + dst·(1 − a)；滤色 src·(1 − dst) + dst。alpha 一律按普通叠加（a + dst·(1 − a)）。
+   */
+  function applyBlend(material, mode) {
+    if (!mode || mode === 'normal') return;
+    material.premultipliedAlpha = true;
+    material.blending = THREE.CustomBlending;
+    material.blendEquation = THREE.AddEquation;
+    material.blendEquationAlpha = THREE.AddEquation;
+    material.blendSrcAlpha = THREE.OneFactor;
+    material.blendDstAlpha = THREE.OneMinusSrcAlphaFactor;
+    if (mode === 'add') {
+      material.blendSrc = THREE.OneFactor;
+      material.blendDst = THREE.OneFactor;
+    } else if (mode === 'multiply') {
+      material.blendSrc = THREE.DstColorFactor;
+      material.blendDst = THREE.OneMinusSrcAlphaFactor;
+    } else {
+      material.blendSrc = THREE.OneMinusDstColorFactor;
+      material.blendDst = THREE.OneFactor;
+    }
+    material.needsUpdate = true;
+  }
+  function blendObject(object, mode) {
+    if (!mode || mode === 'normal') return;
+    object.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) applyBlend(m, mode);
+    });
+  }
+  /** 形状：填充一个网格，有描边时再一个（环形，画在填充上面） */
+  function shapeMeshes(def, index, holder) {
+    const mats = [];
+    const add = (shape, color, gradient, order) => {
+      const geometry = new THREE.ShapeGeometry(shape, 16);
+      const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(gradient ? '#FFFFFF' : color), transparent: true, depthWrite: false });
+      if (gradient) {
+        boxUv(geometry, def.width, def.height);
+        material.map = gradientTexture(gradient, def.width, def.height);
+      }
+      applyBlend(material, def.blend);
+      disposables.push(geometry, material);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.renderOrder = order;
+      holder.add(mesh);
+      mats.push(material);
+    };
+    const stroke = def.type === 'line' ? null : def.stroke;
+    add(outline(def, 0, THREE.Shape), def.color, def.gradient, index);
+    if (stroke) {
+      const ring = outline(def, 0, THREE.Shape);
+      const inner = outline(def, stroke.width, THREE.Path);
+      if (inner) ring.holes.push(inner);
+      add(ring, stroke.color, null, index + 0.5);
+    }
+    return (o) => {
+      for (const m of mats) m.opacity = o;
+    };
+  }
+
   /** 每一份的画法：apply(可见, 不透明度, 矩阵) */
   async function drawsOf(def, index, copies) {
     if (def.type === 'group') return { draws: copies.map(() => ({ apply: () => undefined })), commit: () => undefined, unit: 1 };
@@ -303,24 +438,18 @@ async function createAnimation(ctx, source) {
       if (def.type === 'item') {
         const obj = (await ctx.resources.item(def.item)).single();
         const mats = ownMaterials(obj);
+        for (const m of mats) applyBlend(m.material, def.blend);
         holder.add(obj);
         setOpacity = (o) => {
           for (const m of mats) m.material.opacity = m.base * o;
         };
       } else if (def.type === 'text') {
         const text = ctx.text.create({ text: def.text, size: def.size, color: def.color, shadow: def.shadow, align: def.align, ...(def.font ? { font: def.font } : {}) });
+        blendObject(text.object, def.blend);
         holder.add(text.object);
         setOpacity = (o) => text.setOpacity(o);
       } else {
-        const geometry = new THREE.PlaneGeometry(def.width, def.height);
-        const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(def.color), transparent: true, depthWrite: false });
-        disposables.push(geometry, material);
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.renderOrder = index;
-        holder.add(mesh);
-        setOpacity = (o) => {
-          material.opacity = o;
-        };
+        setOpacity = shapeMeshes(def, index, holder);
       }
       holder.matrixAutoUpdate = false;
       scene.add(holder);

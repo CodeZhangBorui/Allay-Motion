@@ -34,6 +34,16 @@ async function docJson(page: Page): Promise<DocJson> {
 
 const hash = (page: Page, t: number) => page.evaluate((x) => window.__allayTest!.previewHash(x), t);
 
+/** EnumField：分段控件时直接点那一项，放不下时是下拉 */
+async function pickEnum(page: Page, testId: string, name: RegExp): Promise<void> {
+  const el = page.getByTestId(testId);
+  if ((await el.getByText(name).count()) > 0 && (await el.getAttribute('role')) !== 'combobox') await el.getByText(name).click();
+  else {
+    await el.click();
+    await page.getByRole('option', { name }).click();
+  }
+}
+
 async function newAnimation(page: Page): Promise<void> {
   await ready(page);
   await dispatch(page, 'animNew', { name: 'R3' });
@@ -398,4 +408,36 @@ test('T-ANIM-28 路径动画：在检查器里打开路径，画面沿路径走�
   expect((await layer()).props.progress).toBeUndefined();
   await ready(page);
   expect(await hash(page, 1)).toBe(before);
+});
+
+test('T-ANIM-29 形状：加一个椭圆，改成径向渐变、加描边、换混合方式，每一步画面都变', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  await ready(page);
+  const before = await hash(page, 1);
+  await page.getByTestId('anim-add-layer').click();
+  await page.getByTestId('anim-add-ellipse').click();
+  type L = { type: string; gradient?: { type: string }; stroke?: unknown; blend?: string };
+  const last = async () => (await docJson(page)).layers.at(-1) as L;
+  await expect.poll(async () => (await last()).type).toBe('ellipse');
+  await ready(page);
+  const plain = await hash(page, 1);
+  expect(plain).not.toBe(before);
+  await pickEnum(page, 'anim-shape-fill', /径向渐变|Radial gradient/);
+  await expect.poll(async () => (await last()).gradient?.type).toBe('radial');
+  await ready(page);
+  const grad = await hash(page, 1);
+  expect(grad).not.toBe(plain);
+  await page.getByTestId('anim-shape-stroke').click();
+  await expect.poll(async () => (await last()).stroke).toBeTruthy();
+  await ready(page);
+  const stroked = await hash(page, 1);
+  expect(stroked).not.toBe(grad);
+  await pickEnum(page, 'anim-layer-blend', /相加|^Add$/);
+  await expect.poll(async () => (await last()).blend).toBe('add');
+  await ready(page);
+  expect(await hash(page, 1)).not.toBe(stroked);
 });

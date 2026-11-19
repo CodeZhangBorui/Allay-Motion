@@ -38,6 +38,10 @@ export function defaultLayer(type: LayerType, id: string): Layer {
       return LayerSchema.parse({ id, name, type, text: t('anim.defaultText'), size: 8, props: {} });
     case 'rect':
       return LayerSchema.parse({ id, name, type, width: 400, height: 240, props: {} });
+    case 'ellipse':
+      return LayerSchema.parse({ id, name, type, width: 240, height: 240, props: {} });
+    case 'line':
+      return LayerSchema.parse({ id, name, type, width: 400, height: 12, props: {} });
     case 'group':
       return LayerSchema.parse({ id, name, type, props: {} });
   }

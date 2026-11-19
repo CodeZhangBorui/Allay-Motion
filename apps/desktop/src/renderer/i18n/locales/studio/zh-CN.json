@@ -131,8 +131,10 @@
       "block": "方块",
       "item": "物品",
       "text": "文字",
-      "rect": "色块",
-      "group": "组"
+      "rect": "矩形",
+      "group": "组",
+      "ellipse": "椭圆",
+      "line": "线段"
     },
     "layers": {
       "title": "图层",
@@ -195,7 +197,35 @@
       "transform": "变换",
       "font": "字体",
       "parent": "父级",
-      "noParent": "无"
+      "noParent": "无",
+      "length": "长度",
+      "thickness": "粗细",
+      "radius": "圆角",
+      "cap": "线端",
+      "caps": {
+        "round": "圆头",
+        "butt": "平头"
+      },
+      "fill": "填充",
+      "fills": {
+        "solid": "纯色",
+        "linear": "线性渐变",
+        "radial": "径向渐变"
+      },
+      "gradientFrom": "起始颜色",
+      "gradientTo": "结束颜色",
+      "gradientAngle": "渐变方向",
+      "stroke": "描边",
+      "strokeStyle": "描边样式",
+      "strokeColor": "描边颜色",
+      "strokeWidth": "描边粗细",
+      "blend": "混合",
+      "blends": {
+        "normal": "正常",
+        "add": "相加",
+        "multiply": "正片叠底",
+        "screen": "滤色"
+      }
     },
     "propNames": {
       "x": "X",
