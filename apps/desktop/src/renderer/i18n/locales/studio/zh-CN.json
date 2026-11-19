@@ -1,0 +1,158 @@
+{
+  "devMode": {
+    "menu": "开发模式",
+    "indicator": "开发模式",
+    "indicatorHint": "开发模式已打开。点这里打开左栏的“开发”页；在“视图”菜单里关掉。",
+    "commands": {
+      "toggle": "开关开发模式"
+    },
+    "panel": {
+      "title": "开发",
+      "intro": "写模板、改模板代码的地方。内置模板只读，复制成自己的模板以后才能改。",
+      "current": "当前模板",
+      "kinds": {
+        "animation": "自建动画",
+        "user": "我的模板 · 可编辑",
+        "builtin": "内置 · 只读",
+        "none": "—"
+      },
+      "kindHints": {
+        "animation": "这是在动画编辑器里做的动画，它的代码由动画文档生成。改动画请用动画工作区或“动画代码”面板。",
+        "user": "改这个模板的文件（应用里的代码编辑器或外部编辑器都行），保存后预览自动重新载入。",
+        "builtin": "内置模板不能直接改。先复制成自己的模板，再打开代码或文件夹。",
+        "none": "还没有选中模板。"
+      },
+      "copy": "复制为我的模板",
+      "openFolder": "打开模板文件夹",
+      "tools": "工具",
+      "noTools": "没有装代码编辑器模块（可选模块）。可以用外部编辑器改模板文件夹里的文件，保存后预览自动更新。",
+      "diagnostics": "诊断",
+      "noDiagnostics": "上一次重新载入没有问题。",
+      "animation": "动画",
+      "animationHint": "从零做一段动画：在时间轴上放方块、物品、文字和色块，打关键帧、选缓动，随时可以切到代码。"
+    },
+    "settings": {
+      "title": "开发",
+      "description": "给写模板的人用的功能。关着时界面和平时一样。",
+      "switchHint": "打开后左栏多一个“开发”页，状态栏左侧有“开发模式”字样，代码编辑器等可选模块随之启用。也可以在“视图”菜单里开关。",
+      "whereTitle": "打开以后在哪里",
+      "where1": "视图菜单 → 开发模式：随时开关。",
+      "where2": "左栏的“开发”页：当前模板能做什么（复制内置模板、打开文件夹、打开代码编辑器），以及热重载的诊断。",
+      "where3": "状态栏：“开发模式”字样（点它跳到“开发”页），当前是自己的模板时还有监视提示。",
+      "where4": "文件菜单 → 新建动画：动画编辑器不需要开发模式，开发模式下它的代码面板用内嵌的代码编辑器。",
+      "modulesTitle": "可选模块",
+      "modulesHint": "可以整块拆掉的功能。开发模式打开时默认启用，可以单独关掉。",
+      "noModules": "这个版本没有带可选模块。",
+      "moduleHint": "随开发模式启用"
+    }
+  },
+  "anim": {
+    "defaultName": "新动画",
+    "defaultText": "文字",
+    "converted": "“{{name}}”已转为模板，在模板库的“我的模板”里。",
+    "commands": {
+      "new": "新建动画",
+      "get": "读取动画文档",
+      "setText": "替换动画文档",
+      "addLayer": "添加图层",
+      "removeLayer": "删除图层",
+      "setKeyframe": "设置关键帧",
+      "removeKeyframe": "删除关键帧",
+      "moveKeyframe": "移动关键帧",
+      "convert": "转为模板",
+      "toggleCode": "动画代码"
+    },
+    "history": {
+      "new": "新建动画",
+      "code": "编辑动画代码",
+      "addLayer": "添加图层",
+      "removeLayer": "删除图层",
+      "keyframe": "修改关键帧"
+    },
+    "errors": {
+      "invalidEdit": "这个修改不合规，没有生效：{{reason}}",
+      "convert": "没能转为模板：{{reason}}"
+    },
+    "layerTypes": {
+      "block": "方块",
+      "item": "物品",
+      "text": "文字",
+      "rect": "色块"
+    },
+    "layers": {
+      "title": "图层",
+      "add": "添加图层",
+      "up": "上移",
+      "down": "下移",
+      "remove": "删除图层",
+      "empty": "还没有图层。点右上角的 + 添加方块、物品、文字或色块。"
+    },
+    "props": {
+      "title": "动画",
+      "document": "整段动画",
+      "name": "名称",
+      "category": "类别",
+      "duration": "时长",
+      "cutTime": "剪辑点",
+      "camera": "相机",
+      "cameras": {
+        "ortho": "平面",
+        "perspective": "透视"
+      },
+      "fov": "视角",
+      "asTemplate": "转为模板",
+      "asTemplateHint": "生成一个普通的模板（manifest、代码和这份动画），出现在模板库的“我的模板”里，可以导出成模板包分享。原动画不受影响。",
+      "content": "内容",
+      "size": "大小",
+      "fontSize": "字号",
+      "color": "颜色",
+      "shadow": "阴影",
+      "align": "对齐",
+      "aligns": {
+        "left": "左",
+        "center": "中",
+        "right": "右"
+      },
+      "width": "宽",
+      "height": "高",
+      "visible": "出现",
+      "from": "从",
+      "to": "到",
+      "addKey": "在当前时刻给“{{prop}}”加关键帧",
+      "removeKey": "删除“{{prop}}”在当前时刻的关键帧",
+      "keyframe": "关键帧",
+      "keyTime": "时刻",
+      "keyValue": "数值",
+      "hold": "保持",
+      "ease": "缓动",
+      "easeHint": "缓动作用在这个关键帧到下一个关键帧之间；“保持”表示数值不变，到下一个关键帧再跳过去。",
+      "backToDocument": "← 整段动画",
+      "transform": "变换"
+    },
+    "propNames": {
+      "x": "X",
+      "y": "Y",
+      "z": "Z",
+      "rotX": "旋转 X",
+      "rotY": "旋转 Y",
+      "rotZ": "旋转 Z",
+      "scale": "缩放",
+      "opacity": "不透明度"
+    },
+    "timeline": {
+      "region": "动画时间轴",
+      "hint": "拖关键帧改时刻 · 点菱形选中 · 展开图层看各属性",
+      "expand": "展开“{{name}}”",
+      "collapse": "收起“{{name}}”",
+      "keyAt": "{{t}} 秒处的关键帧",
+      "propKeyAt": "“{{prop}}”在 {{t}} 秒处的关键帧"
+    },
+    "code": {
+      "title": "动画代码",
+      "editorHint": "改完停一下就生效 · Ctrl+S 立即生效",
+      "plainHint": "改完停一下就生效",
+      "close": "关闭动画代码",
+      "invalid": "代码有问题，预览保持上一份能用的版本："
+    }
+  }
+}

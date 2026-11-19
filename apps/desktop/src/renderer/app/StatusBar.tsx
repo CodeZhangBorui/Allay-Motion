@@ -3,6 +3,7 @@ import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { CheckCircle, CircleNotch, Export, WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DevModeIndicator } from '../features/dev/devMode';
 import { DevWatchStatus } from '../features/preview/DevWatchStatus';
 import { usePreviewStore } from '../stores/previewStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -53,6 +54,7 @@ export function StatusBar() {
         {status.icon}
         {status.text}
       </span>
+      <DevModeIndicator />
       {assets && <span className="truncate">{assets}</span>}
       <DevWatchStatus />
       <span className="flex-1" />

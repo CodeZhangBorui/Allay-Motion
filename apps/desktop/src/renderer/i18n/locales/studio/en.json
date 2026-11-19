@@ -1,0 +1,158 @@
+{
+  "devMode": {
+    "menu": "Developer mode",
+    "indicator": "Developer mode",
+    "indicatorHint": "Developer mode is on. Click to open the Developer tab in the left panel; turn it off from the View menu.",
+    "commands": {
+      "toggle": "Toggle developer mode"
+    },
+    "panel": {
+      "title": "Developer",
+      "intro": "Where you write and edit template code. Built-in templates are read-only; duplicate one into your own templates to edit it.",
+      "current": "Current template",
+      "kinds": {
+        "animation": "Custom animation",
+        "user": "My template · editable",
+        "builtin": "Built-in · read-only",
+        "none": "—"
+      },
+      "kindHints": {
+        "animation": "This animation was made in the animation editor; its code is generated from the animation document. Edit it in the animation workspace or the Animation code panel.",
+        "user": "Edit this template's files (in the built-in code editor or an external one). The preview reloads when you save.",
+        "builtin": "Built-in templates can't be edited directly. Duplicate it into your templates first, then open its code or folder.",
+        "none": "No template is selected."
+      },
+      "copy": "Duplicate as my template",
+      "openFolder": "Open template folder",
+      "tools": "Tools",
+      "noTools": "The code editor module (optional) isn't installed. Edit the files in the template folder with an external editor; the preview updates when you save.",
+      "diagnostics": "Diagnostics",
+      "noDiagnostics": "The last reload had no problems.",
+      "animation": "Animation",
+      "animationHint": "Make an animation from scratch: place blocks, items, text and shapes on a timeline, set keyframes and easing, and switch to code at any time."
+    },
+    "settings": {
+      "title": "Developer",
+      "description": "Features for template authors. When off, the app looks the same as usual.",
+      "switchHint": "Adds a Developer tab to the left panel and a “Developer mode” label to the status bar, and turns on optional modules such as the code editor. You can also toggle it from the View menu.",
+      "whereTitle": "Where to find it",
+      "where1": "View menu → Developer mode: turn it on or off at any time.",
+      "where2": "The Developer tab in the left panel: what you can do with the current template (duplicate a built-in one, open its folder, open the code editor) and hot-reload diagnostics.",
+      "where3": "Status bar: the “Developer mode” label (click it to jump to the Developer tab), plus the watch status when the current template is your own.",
+      "where4": "File menu → New animation: the animation editor doesn't need developer mode. In developer mode its code panel uses the built-in code editor.",
+      "modulesTitle": "Optional modules",
+      "modulesHint": "Features that can be removed as a whole. On by default when developer mode is on; you can turn each off.",
+      "noModules": "This build has no optional modules.",
+      "moduleHint": "Turns on with developer mode"
+    }
+  },
+  "anim": {
+    "defaultName": "New animation",
+    "defaultText": "Text",
+    "converted": "“{{name}}” is now a template, under My templates in the library.",
+    "commands": {
+      "new": "New animation",
+      "get": "Read animation document",
+      "setText": "Replace animation document",
+      "addLayer": "Add layer",
+      "removeLayer": "Delete layer",
+      "setKeyframe": "Set keyframe",
+      "removeKeyframe": "Delete keyframe",
+      "moveKeyframe": "Move keyframe",
+      "convert": "Convert to template",
+      "toggleCode": "Animation code"
+    },
+    "history": {
+      "new": "New animation",
+      "code": "Edit animation code",
+      "addLayer": "Add layer",
+      "removeLayer": "Delete layer",
+      "keyframe": "Edit keyframe"
+    },
+    "errors": {
+      "invalidEdit": "That change isn't valid and wasn't applied: {{reason}}",
+      "convert": "Couldn't convert to a template: {{reason}}"
+    },
+    "layerTypes": {
+      "block": "Block",
+      "item": "Item",
+      "text": "Text",
+      "rect": "Shape"
+    },
+    "layers": {
+      "title": "Layers",
+      "add": "Add layer",
+      "up": "Move up",
+      "down": "Move down",
+      "remove": "Delete layer",
+      "empty": "No layers yet. Click + at the top right to add a block, item, text or shape."
+    },
+    "props": {
+      "title": "Animation",
+      "document": "Whole animation",
+      "name": "Name",
+      "category": "Category",
+      "duration": "Duration",
+      "cutTime": "Cut point",
+      "camera": "Camera",
+      "cameras": {
+        "ortho": "Flat",
+        "perspective": "Perspective"
+      },
+      "fov": "Field of view",
+      "asTemplate": "Convert to template",
+      "asTemplateHint": "Creates a regular template (manifest, code and this animation) under My templates in the library, which you can export as a package to share. The animation itself is unchanged.",
+      "content": "Content",
+      "size": "Size",
+      "fontSize": "Font size",
+      "color": "Color",
+      "shadow": "Shadow",
+      "align": "Align",
+      "aligns": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      },
+      "width": "Width",
+      "height": "Height",
+      "visible": "Visible",
+      "from": "From",
+      "to": "To",
+      "addKey": "Add a keyframe for “{{prop}}” at the current time",
+      "removeKey": "Delete the keyframe for “{{prop}}” at the current time",
+      "keyframe": "Keyframe",
+      "keyTime": "Time",
+      "keyValue": "Value",
+      "hold": "Hold",
+      "ease": "Easing",
+      "easeHint": "Easing applies from this keyframe to the next one. Hold keeps the value until the next keyframe, then jumps.",
+      "backToDocument": "← Whole animation",
+      "transform": "Transform"
+    },
+    "propNames": {
+      "x": "X",
+      "y": "Y",
+      "z": "Z",
+      "rotX": "Rotation X",
+      "rotY": "Rotation Y",
+      "rotZ": "Rotation Z",
+      "scale": "Scale",
+      "opacity": "Opacity"
+    },
+    "timeline": {
+      "region": "Animation timeline",
+      "hint": "Drag keyframes to retime · Click a diamond to select · Expand a layer to see its properties",
+      "expand": "Expand “{{name}}”",
+      "collapse": "Collapse “{{name}}”",
+      "keyAt": "Keyframe at {{t}} s",
+      "propKeyAt": "“{{prop}}” keyframe at {{t}} s"
+    },
+    "code": {
+      "title": "Animation code",
+      "editorHint": "Applies when you pause typing · Ctrl+S applies now",
+      "plainHint": "Applies when you pause typing",
+      "close": "Close animation code",
+      "invalid": "The code has a problem; the preview keeps the last working version:"
+    }
+  }
+}
