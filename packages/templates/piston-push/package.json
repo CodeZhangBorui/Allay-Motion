@@ -1,0 +1,16 @@
+{
+  "name": "@allay/template-piston-push",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "008 活塞合拢（allay.builtin.piston-push），由 pnpm templates:build 打成 .allaytpl",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@types/three": "0.187.0",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@allay/template-like-reminder",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "081 点赞提醒（allay.builtin.like-reminder），由 pnpm templates:build 打成 .allaytpl",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@types/three": "0.187.0",
+    "typescript": "~6.0.3"
+  }
+}
