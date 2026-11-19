@@ -152,6 +152,27 @@ export const LAYER_COMMANDS: AnyCommand[] = [
     output: z.boolean(),
     run: ({ layer, from, to }) => apply((doc) => setLayerInterval(doc, layer, from, to, docDuration(doc))),
   }),
+  defineCommand({
+    id: 'animSetRepeat',
+    titleKey: 'anim.commands.setRepeat',
+    effect: 'write',
+    undoLabelKey: 'anim.history.layer',
+    hideInPalette: true,
+    enabled: isAnimationActive,
+    input: z.strictObject({ layer: LayerId, repeat: z.unknown() }),
+    output: z.boolean(),
+    run: ({ layer, repeat }) =>
+      apply((doc) => {
+        // 复制器的字段由文档 schema 校验（replaceDoc 里）：这里只放进去或去掉
+        const i = doc.layers.findIndex((l) => l.id === layer);
+        if (i < 0) return null;
+        const next = structuredClone(doc);
+        const l = next.layers[i]! as Record<string, unknown>;
+        if (repeat === null || repeat === undefined) delete l.repeat;
+        else l.repeat = JSON.parse(JSON.stringify(repeat)) as unknown;
+        return next;
+      }),
+  }),
   // ---- 作用于选中的图层、带快捷键 ----
   defineCommand({
     id: 'animDuplicateSelection',

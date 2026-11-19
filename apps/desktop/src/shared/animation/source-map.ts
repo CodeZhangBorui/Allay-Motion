@@ -124,6 +124,12 @@ export function liveMarks(doc: ResolvedDoc, text: string, t: number, spans = loc
     const ls = spans.get(`layers.${li}`);
     if (!ls) return;
     marks.push({ kind: 'layer', line: lineOf(text, ls.start), endLine: lineOf(text, ls.start), label: layer.name });
+    // 复制器（第三轮）：可见时标出整个 repeat，说明写份数和错开
+    const rs = layer.repeat ? spans.get(`layers.${li}.repeat`) : undefined;
+    if (rs && layer.repeat) {
+      const n = layer.repeat.mode === 'grid' ? layer.repeat.cols * layer.repeat.rows : layer.repeat.count;
+      marks.push({ kind: 'param', line: lineOf(text, rs.start), endLine: lineOf(text, rs.end), label: `${layer.name} · repeat ×${n}${layer.repeat.stagger > 0 ? ` · +${layer.repeat.stagger}s` : ''}` });
+    }
     for (const [prop, track] of Object.entries(layer.props)) {
       if (track === undefined || typeof track === 'number') continue;
       const keys = track.keys;

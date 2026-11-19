@@ -109,7 +109,8 @@
       "setLayerInterval": "Change when a layer is visible",
       "setParent": "Set parent",
       "ungroup": "Ungroup",
-      "ungroupSelection": "Ungroup"
+      "ungroupSelection": "Ungroup",
+      "setRepeat": "Set replicator"
     },
     "history": {
       "new": "New animation",
@@ -301,6 +302,50 @@
       "region": "Layers on the canvas: click to select, drag to move, drag a corner to scale, drag the dot above to rotate",
       "scale": "Scale",
       "rotate": "Rotate"
+    },
+    "repeat": {
+      "title": "Replicator",
+      "on": "Replicate",
+      "copies": "{{count}} copies",
+      "mode": "Layout",
+      "modes": {
+        "grid": "Grid",
+        "linear": "Line",
+        "radial": "Circle"
+      },
+      "grid": "Grid",
+      "cols": "Cols",
+      "rows": "Rows",
+      "count": "Copies",
+      "spacing": "Spacing",
+      "step": "Step per copy",
+      "radius": "Radius",
+      "arc": "Arc",
+      "orient": "Face outward",
+      "stagger": "Stagger",
+      "order": "Order",
+      "orders": {
+        "index": "In order",
+        "reverse": "Reverse",
+        "center": "From center",
+        "random": "Random"
+      },
+      "seed": "Seed",
+      "jitter": "Random offset",
+      "jitterAmount": "Offset amount",
+      "rot": "Rot",
+      "scale": "Scale",
+      "blocks": "Block list",
+      "arrangement": "Arrangement",
+      "arrangements": {
+        "random": "Random",
+        "columns": "Columns",
+        "rows": "Rows",
+        "diagonal": "Diagonal",
+        "checker": "Checker",
+        "rings": "Rings"
+      },
+      "hint": "Each copy plays this layer’s own animation, starting later by its place in the order. Random offsets, random order and random arrangement all come from the seed, so the same seed gives the same result."
     }
   }
 }

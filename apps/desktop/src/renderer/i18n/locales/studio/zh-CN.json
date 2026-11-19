@@ -109,7 +109,8 @@
       "setLayerInterval": "修改图层的出现时间",
       "setParent": "设置父级",
       "ungroup": "解组",
-      "ungroupSelection": "解组"
+      "ungroupSelection": "解组",
+      "setRepeat": "设置复制器"
     },
     "history": {
       "new": "新建动画",
@@ -301,6 +302,50 @@
       "region": "画面上的图层：点选、拖动移动、拖角缩放、拖上方的圆点旋转",
       "scale": "缩放",
       "rotate": "旋转"
+    },
+    "repeat": {
+      "title": "复制器",
+      "on": "复制",
+      "copies": "{{count}} 份",
+      "mode": "方式",
+      "modes": {
+        "grid": "网格",
+        "linear": "一条线",
+        "radial": "一圈"
+      },
+      "grid": "网格",
+      "cols": "列",
+      "rows": "行",
+      "count": "份数",
+      "spacing": "间距",
+      "step": "每份的位移",
+      "radius": "半径",
+      "arc": "展开角度",
+      "orient": "朝外转",
+      "stagger": "依次晚开始",
+      "order": "先后",
+      "orders": {
+        "index": "按顺序",
+        "reverse": "倒序",
+        "center": "从中心向外",
+        "random": "随机"
+      },
+      "seed": "种子",
+      "jitter": "随机偏移",
+      "jitterAmount": "偏移幅度",
+      "rot": "旋转",
+      "scale": "缩放",
+      "blocks": "方块列表",
+      "arrangement": "方块排列",
+      "arrangements": {
+        "random": "随机",
+        "columns": "按列",
+        "rows": "按行",
+        "diagonal": "斜向",
+        "checker": "棋盘",
+        "rings": "同心环"
+      },
+      "hint": "每一份播放这个图层自己的动画，按“先后”排的名次依次晚开始。随机偏移、随机先后和随机排列都由种子决定，同一个种子每次一样。"
     }
   }
 }

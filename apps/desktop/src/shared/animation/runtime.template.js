@@ -125,48 +125,185 @@ async function createAnimation(ctx, source) {
     return mats;
   }
 
-  const layers = [];
-  for (let index = 0; index < doc.layers.length; index++) {
-    const def = doc.layers[index];
-    const tracks = {};
-    for (const p of PROPS) tracks[p] = compileTrack(def.props ? def.props[p] : undefined, DEFAULTS[p]);
-    const layer = {
-      def,
-      tracks,
-      from: typeof def.from === 'number' ? def.from : 0,
-      to: typeof def.to === 'number' ? def.to : Infinity,
-      unit: 1,
-      apply: null,
-      parent: -1,
-      /** 世界变换（不含图层自己的大小）、可见、不透明度：子图层从这里接着算 */
-      world: new THREE.Matrix4(),
-      visible: false,
-      opacity: 1,
-      solo: def.solo === true,
+  /**
+   * 方块排列（第三轮复制器）：网格的每一格放方块列表里的第几项。与模板 block-wipe / block-fall 的 arrangement.ts 规则相同
+   * （T-ANIM-26 核对），这里不能 import，只好再写一份。
+   */
+  function arrangeCells(arrangement, entries, cols, rows, rng) {
+    const count = cols * rows;
+    const out = new Array(count).fill(0);
+    const n = entries.length;
+    if (arrangement === 'random') {
+      const total = entries.reduce((a, e) => a + e.weight, 0);
+      for (let i = 0; i < count; i++) {
+        let x = rng.next() * total;
+        let k = n - 1;
+        for (let j = 0; j < n; j++) {
+          x -= entries[j].weight;
+          if (x < 0) {
+            k = j;
+            break;
+          }
+        }
+        out[i] = Math.max(0, k);
+      }
+      return out;
+    }
+    if (n <= 1) return out;
+    if (arrangement === 'checker') {
+      const shift = Math.floor(n / 2);
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) out[r * cols + c] = (c + r * shift) % n;
+      return out;
+    }
+    const total = entries.reduce((a, e) => a + e.weight, 0);
+    const bandEntry = (band) => {
+      if (!(total > 0)) return 0;
+      let x = (band + 0.5) % total;
+      for (let j = 0; j < n; j++) {
+        x -= entries[j].weight;
+        if (x < 0) return j;
+      }
+      return n - 1;
     };
-    const holder = new THREE.Object3D();
-    holder.renderOrder = index;
-    if (def.type === 'group') {
-      // 组：只有变换，不画任何东西
-      layer.apply = () => undefined;
-    } else if (def.type === 'block') {
-      const inst = (await ctx.resources.block(def.block)).instanced(1);
-      holder.add(inst.object);
-      layer.unit = def.size;
-      layer.apply = (visible, opacity) => {
-        inst.object.visible = visible;
-        inst.setMatrix(0, matrix);
-        inst.setOpacity(0, opacity);
-        inst.commit();
+    const cc = (cols - 1) / 2;
+    const rc = (rows - 1) / 2;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        let band;
+        if (arrangement === 'columns') band = c;
+        else if (arrangement === 'rows') band = r;
+        else if (arrangement === 'diagonal') band = c + r;
+        else band = Math.floor(Math.hypot(c - cc, r - rc) + 1e-9);
+        out[r * cols + c] = bandEntry(band);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 一个图层的每一份：相对图层自己的偏移矩阵、晚开始的秒数、方块列表里的第几项。没有复制器时只有一份（单位矩阵、0、0）。
+   * 随机都来自 ctx.random('repeat:<id>:<seed>')，按固定的顺序取，同一份文档每次结果相同。
+   */
+  function copiesOf(def) {
+    const rep = def.repeat;
+    if (!rep) return [{ offset: new THREE.Matrix4(), delay: 0, block: 0 }];
+    const rng = ctx.random(`repeat:${def.id}:${rep.seed}`);
+    const cols = rep.mode === 'grid' ? rep.cols : rep.count;
+    const rows = rep.mode === 'grid' ? rep.rows : 1;
+    const n = cols * rows;
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      let x;
+      let y;
+      let rot = 0;
+      let dist;
+      if (rep.mode === 'grid') {
+        x = (c - (cols - 1) / 2) * rep.spacing.x;
+        y = ((rows - 1) / 2 - r) * rep.spacing.y;
+        dist = Math.hypot(c - (cols - 1) / 2, r - (rows - 1) / 2);
+      } else if (rep.mode === 'linear') {
+        x = i * rep.spacing.x;
+        y = i * rep.spacing.y;
+        dist = Math.abs(i - (n - 1) / 2);
+      } else {
+        // 一圈：整圈时均匀分 n 份；不到整圈时首尾都放一份
+        const step = rep.arc >= 360 ? rep.arc / n : n > 1 ? rep.arc / (n - 1) : 0;
+        const a = (90 - i * step) * DEG;
+        x = Math.cos(a) * rep.radius;
+        y = Math.sin(a) * rep.radius;
+        rot = rep.orient ? -i * step : 0;
+        dist = i;
+      }
+      let s = 1;
+      if (rep.jitter) {
+        x += (rng.next() * 2 - 1) * rep.jitter.x;
+        y += (rng.next() * 2 - 1) * rep.jitter.y;
+        rot += (rng.next() * 2 - 1) * rep.jitter.rot;
+        s *= 1 + (rng.next() * 2 - 1) * rep.jitter.scale;
+      }
+      const offset = new THREE.Matrix4().compose(new THREE.Vector3(x, y, 0), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rot * DEG), new THREE.Vector3(s, s, s));
+      list.push({ offset, delay: 0, block: 0, dist, i });
+    }
+    // 名次：按序号、倒序、离中心由近到远（同样远的同一名次）、随机
+    let ranks;
+    if (rep.order === 'reverse') ranks = list.map((_, i) => n - 1 - i);
+    else if (rep.order === 'center') {
+      const levels = [...new Set(list.map((p) => Math.round(p.dist * 1000) / 1000))].sort((a, b) => a - b);
+      ranks = list.map((p) => levels.indexOf(Math.round(p.dist * 1000) / 1000));
+    } else if (rep.order === 'random') {
+      const idx = list.map((_, i) => i);
+      for (let i = idx.length - 1; i > 0; i--) {
+        const j = Math.floor(rng.next() * (i + 1));
+        const tmp = idx[i];
+        idx[i] = idx[j];
+        idx[j] = tmp;
+      }
+      ranks = new Array(n);
+      idx.forEach((v, rank) => (ranks[v] = rank));
+    } else ranks = list.map((_, i) => i);
+    for (let i = 0; i < n; i++) list[i].delay = ranks[i] * rep.stagger;
+    if (def.type === 'block' && rep.blocks) {
+      const cells = arrangeCells(rep.arrangement || 'random', rep.blocks, cols, rows, rng);
+      for (let i = 0; i < n; i++) list[i].block = cells[i];
+    }
+    return list;
+  }
+
+  /** 每一份的画法：apply(可见, 不透明度, 矩阵) */
+  async function drawsOf(def, index, copies) {
+    if (def.type === 'group') return { draws: copies.map(() => ({ apply: () => undefined })), commit: () => undefined, unit: 1 };
+    if (def.type === 'block') {
+      const ids = def.repeat && def.repeat.blocks ? def.repeat.blocks.map((b) => b.id) : [def.block];
+      // 同一种方块的各份共用一组实例
+      const groups = new Map();
+      copies.forEach((c, i) => {
+        const id = ids[c.block] || ids[0];
+        if (!groups.has(id)) groups.set(id, []);
+        groups.get(id).push(i);
+      });
+      const draws = new Array(copies.length);
+      const insts = [];
+      for (const [id, members] of groups) {
+        const inst = (await ctx.resources.block(id)).instanced(members.length);
+        const holder = new THREE.Object3D();
+        holder.renderOrder = index;
+        holder.add(inst.object);
+        scene.add(holder);
+        // 这一组里有没有可见的份：没有时整组不画（commit 时写到 object.visible）
+        const group = { inst, any: false };
+        insts.push(group);
+        members.forEach((copy, k) => {
+          draws[copy] = {
+            apply: (visible, opacity, m) => {
+              group.any = group.any || visible;
+              // 一份不可见时把它缩成一个点（实例没有单独的可见开关）
+              if (visible) inst.setMatrix(k, m);
+              else inst.setMatrix(k, zero);
+              inst.setOpacity(k, visible ? opacity : 0);
+            },
+          };
+        });
+      }
+      const commit = () => {
+        for (const g of insts) {
+          g.inst.object.visible = g.any;
+          g.any = false;
+          g.inst.commit();
+        }
       };
-      scene.add(holder);
-    } else {
+      return { draws, commit, unit: def.size };
+    }
+    const draws = [];
+    for (let i = 0; i < copies.length; i++) {
+      const holder = new THREE.Object3D();
+      holder.renderOrder = index;
       let setOpacity;
       if (def.type === 'item') {
         const obj = (await ctx.resources.item(def.item)).single();
         const mats = ownMaterials(obj);
         holder.add(obj);
-        layer.unit = def.size;
         setOpacity = (o) => {
           for (const m of mats) m.material.opacity = m.base * o;
         };
@@ -187,14 +324,42 @@ async function createAnimation(ctx, source) {
       }
       holder.matrixAutoUpdate = false;
       scene.add(holder);
-      layer.apply = (visible, opacity) => {
-        holder.visible = visible;
-        holder.matrix.copy(matrix);
-        holder.matrixWorldNeedsUpdate = true;
-        setOpacity(opacity);
-      };
+      draws.push({
+        apply: (visible, opacity, m) => {
+          holder.visible = visible;
+          holder.matrix.copy(m);
+          holder.matrixWorldNeedsUpdate = true;
+          setOpacity(opacity);
+        },
+      });
     }
-    layers.push(layer);
+    return { draws, commit: () => undefined, unit: def.type === 'item' ? def.size : 1 };
+  }
+
+  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  const layers = [];
+  for (let index = 0; index < doc.layers.length; index++) {
+    const def = doc.layers[index];
+    const tracks = {};
+    for (const p of PROPS) tracks[p] = compileTrack(def.props ? def.props[p] : undefined, DEFAULTS[p]);
+    const copies = copiesOf(def);
+    const built = await drawsOf(def, index, copies);
+    layers.push({
+      def,
+      tracks,
+      copies,
+      draws: built.draws,
+      commit: built.commit,
+      unit: built.unit,
+      from: typeof def.from === 'number' ? def.from : 0,
+      to: typeof def.to === 'number' ? def.to : Infinity,
+      parent: -1,
+      /** 世界变换（不含图层自己的大小、不含复制器的偏移）、可见、不透明度：子图层从这里接着算 */
+      world: new THREE.Matrix4(),
+      visible: false,
+      opacity: 1,
+      solo: def.solo === true,
+    });
   }
 
   // 父子层级：父级先算。按依赖排一个顺序（schema 已经保证没有环、父级存在）
@@ -223,29 +388,49 @@ async function createAnimation(ctx, source) {
     ctx.audio.cue(s.sound, s.at, opts);
   }
 
+  const local = new THREE.Matrix4();
+  const copyM = new THREE.Matrix4();
+  /** 图层自己在 tt 时刻的局部变换（不含大小）写进 out */
+  function localAt(l, tt, out) {
+    const tr = l.tracks;
+    const s = sample(tr.scale, tt);
+    position.set(sample(tr.x, tt), sample(tr.y, tt), sample(tr.z, tt));
+    euler.set(sample(tr.rotX, tt) * DEG, sample(tr.rotY, tt) * DEG, sample(tr.rotZ, tt) * DEG, 'YXZ');
+    quaternion.setFromEuler(euler);
+    scaleV.set(s, s, s);
+    return out.compose(position, quaternion, scaleV);
+  }
+
   return {
     duration,
     cutTime: doc.cutTime === undefined ? null : doc.cutTime,
     update(t) {
       for (let k = 0; k < order.length; k++) {
         const l = layers[order[k]];
-        const tr = l.tracks;
         const parent = l.parent >= 0 ? layers[l.parent] : null;
-        // 不透明度沿父级相乘；父级不可见（隐藏、在可见区间外）时子图层也不可见
-        const opacity = Math.min(1, Math.max(0, sample(tr.opacity, t))) * (parent ? parent.opacity : 1);
-        const inside = t >= l.from && t < l.to && l.def.hidden !== true && (parent ? parent.visible : true);
-        l.visible = inside;
-        l.opacity = opacity;
-        const s = sample(tr.scale, t);
-        position.set(sample(tr.x, t), sample(tr.y, t), sample(tr.z, t));
-        euler.set(sample(tr.rotX, t) * DEG, sample(tr.rotY, t) * DEG, sample(tr.rotZ, t) * DEG, 'YXZ');
-        quaternion.setFromEuler(euler);
-        scaleV.set(s, s, s);
-        l.world.compose(position, quaternion, scaleV);
+        const parentOpacity = parent ? parent.opacity : 1;
+        const parentVisible = parent ? parent.visible : true;
+        // 子图层接在图层本身（第 0 份、不晚开始、不加复制器偏移）的变换后面
+        localAt(l, t, l.world);
         if (parent) l.world.premultiply(parent.world);
+        l.opacity = Math.min(1, Math.max(0, sample(l.tracks.opacity, t))) * parentOpacity;
+        l.visible = t >= l.from && t < l.to && l.def.hidden !== true && parentVisible;
+        const shown = !anySolo || l.solo;
         unitM.makeScale(l.unit, l.unit, l.unit);
-        matrix.multiplyMatrices(l.world, unitM);
-        l.apply(inside && opacity > 0 && (!anySolo || l.solo), opacity);
+        for (let i = 0; i < l.copies.length; i++) {
+          const c = l.copies[i];
+          // 每一份晚 delay 秒播放图层自己的动画；它的可见区间也跟着晚
+          const tt = t - c.delay;
+          const opacity = Math.min(1, Math.max(0, sample(l.tracks.opacity, tt))) * parentOpacity;
+          const inside = tt >= l.from && tt < l.to && l.def.hidden !== true && parentVisible;
+          localAt(l, tt, local);
+          // 世界 = 父级 · 复制器偏移 · 图层自己 · 大小
+          copyM.multiplyMatrices(c.offset, local);
+          if (parent) copyM.premultiply(parent.world);
+          matrix.multiplyMatrices(copyM, unitM);
+          l.draws[i].apply(inside && opacity > 0 && shown, opacity, matrix);
+        }
+        l.commit();
       }
     },
     dispose() {

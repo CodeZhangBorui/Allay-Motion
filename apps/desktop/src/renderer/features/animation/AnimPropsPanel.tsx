@@ -47,6 +47,7 @@ import { easeEval } from './easeEval';
 import { editDoc } from './source';
 import { useAnimationUi } from './uiState';
 import { useCodeWindow } from './codeWindow';
+import { RepeatSection } from './RepeatSection';
 
 const PROP_META: Record<AnimProp, { step: number; unit?: string; min?: number; max?: number }> = {
   x: { step: 1 },
@@ -646,6 +647,7 @@ export function AnimPropsPanel() {
                 ))}
               </Group>
               <KeyframeSettings doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
+              <RepeatSection layer={layer} />
             </div>
           </>
         ) : (

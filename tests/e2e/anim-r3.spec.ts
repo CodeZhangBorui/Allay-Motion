@@ -333,3 +333,27 @@ test('T-ANIM-25 预览里直接变换：点画面选中方块，拖动移动（�
   await page.mouse.click(ob.x + 10, ob.y + 10);
   await expect(page.getByTestId('anim-stage-outline')).toHaveCount(0);
 });
+
+test('T-ANIM-27 复制器：在检查器里打开，画面变成一组；换成一圈；关掉回到一份', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  await page.getByTestId('anim-layer').first().click();
+  await ready(page);
+  const single = await hash(page, 1);
+  await page.getByTestId('anim-repeat-on').click();
+  await expect.poll(async () => ((await docJson(page)).layers[0] as { repeat?: { mode: string } }).repeat?.mode).toBe('grid');
+  await ready(page);
+  const grid = await hash(page, 1);
+  expect(grid).not.toBe(single);
+  await page.getByTestId('anim-repeat-mode').getByText(/一圈|Circle/).click();
+  await expect.poll(async () => ((await docJson(page)).layers[0] as { repeat?: { mode: string } }).repeat?.mode).toBe('radial');
+  await ready(page);
+  expect(await hash(page, 1)).not.toBe(grid);
+  await page.getByTestId('anim-repeat-on').click();
+  await expect.poll(async () => ((await docJson(page)).layers[0] as { repeat?: unknown }).repeat).toBeUndefined();
+  await ready(page);
+  expect(await hash(page, 1)).toBe(single);
+});

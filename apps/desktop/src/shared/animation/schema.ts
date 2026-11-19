@@ -63,6 +63,45 @@ const PropsSchema = z
 
 export const LAYER_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
+// ---- 复制器（第三轮）----
+
+/** 方块排列（同方块擦除、方块坠落模板的“方块排列”参数，docs/decisions.md“方块排列顺序”） */
+export const ARRANGEMENT_NAMES = ['random', 'columns', 'rows', 'diagonal', 'checker', 'rings'] as const;
+export const REPEAT_MODES = ['grid', 'linear', 'radial'] as const;
+export const REPEAT_ORDERS = ['index', 'reverse', 'center', 'random'] as const;
+export const MAX_COPIES = 256;
+
+/**
+ * 复制器：把这个图层复制成一组（网格、一条线、一圈），每一份按序号错开 stagger 秒播放这个图层自己的动画。
+ * 随机（抖动、random 顺序、random 方块排列）都来自 ctx.random('repeat:<图层 id>:<seed>')，画面只取决于 t（硬性规则 2）。
+ * blocks + arrangement 只对方块图层有效：每一份放方块列表里的哪一种，规则同模板的“方块排列”。
+ */
+export const RepeatSchema = z
+  .strictObject({
+    mode: z.enum(REPEAT_MODES),
+    /** 一条线、一圈的份数 */
+    count: z.int().min(1).max(MAX_COPIES).default(8),
+    /** 网格的列数、行数 */
+    cols: z.int().min(1).max(64).default(4),
+    rows: z.int().min(1).max(64).default(3),
+    /** 网格的格距；一条线时是每一份相对上一份的位移（设计单位） */
+    spacing: z.strictObject({ x: finite.min(-4000).max(4000), y: finite.min(-4000).max(4000) }).default({ x: 200, y: 200 }),
+    /** 一圈的半径、展开的角度（度，360 是整圈）、每一份是否朝外转 */
+    radius: finite.min(0).max(4000).default(300),
+    arc: finite.min(1).max(360).default(360),
+    orient: z.boolean().default(true),
+    /** 每一份比上一份晚多少秒开始（按 order 排的名次） */
+    stagger: finite.min(0).max(5).default(0),
+    order: z.enum(REPEAT_ORDERS).default('index'),
+    seed: z.int().min(0).max(2 ** 31 - 1).default(1),
+    /** 每一份的随机偏移的幅度：位置（设计单位）、旋转（度）、缩放（比例，0.2 是 ±20%） */
+    jitter: z.strictObject({ x: finite.min(0).max(4000), y: finite.min(0).max(4000), rot: finite.min(0).max(180), scale: finite.min(0).max(1) }).optional(),
+    blocks: z.array(z.strictObject({ id: resourceId, weight: finite.min(0).max(1000) })).min(1).max(16).optional(),
+    arrangement: z.enum(ARRANGEMENT_NAMES).optional(),
+  })
+  .refine((r) => r.mode !== 'grid' || r.cols * r.rows <= MAX_COPIES, { message: `a grid may have at most ${MAX_COPIES} copies`, path: ['cols'] });
+export type Repeat = z.infer<typeof RepeatSchema>;
+
 const LayerBase = {
   id: z.string().regex(LAYER_ID_RE, 'id must be lower-case letters, digits and dashes'),
   name: z.string().trim().min(1).max(60),
@@ -78,6 +117,8 @@ const LayerBase = {
   solo: z.boolean().optional(),
   /** 锁定：界面上不能选中拖动、不能改（画面不受影响） */
   locked: z.boolean().optional(),
+  /** 复制器（第三轮）：组图层不能复制 */
+  repeat: RepeatSchema.optional(),
 };
 
 export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'group'] as const;
@@ -188,6 +229,10 @@ const AnimationDocShape = z
     const duration = isParamRef(doc.duration) ? (durationParam?.type === 'duration' ? durationParam.default : null) : doc.duration;
     if (doc.category === 'transition' && doc.cutTime === null) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'a transition needs a cutTime' });
     if (doc.cutTime !== null && duration !== null && doc.cutTime > duration) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'cutTime must not exceed duration' });
+    doc.layers.forEach((l, i) => {
+      if (l.repeat && l.type === 'group') ctx.addIssue({ code: 'custom', path: ['layers', i, 'repeat'], message: 'a group cannot be repeated' });
+      if (l.repeat?.blocks && l.type !== 'block') ctx.addIssue({ code: 'custom', path: ['layers', i, 'repeat', 'blocks'], message: 'only block layers can use a block list' });
+    });
     const seen = new Set<string>();
     doc.layers.forEach((l, i) => {
       if (seen.has(l.id)) ctx.addIssue({ code: 'custom', path: ['layers', i, 'id'], message: `duplicate layer id "${l.id}"` });
