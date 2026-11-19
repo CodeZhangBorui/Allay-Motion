@@ -1,6 +1,9 @@
 // pnpm test:engine：内置模板的验收测试（docs/04-templates.md 4.11 的 T-TPL-3、T-TPL-4、T-TPL-5）。
 // 资源是测试脚本生成的纯色假资源栈（fake-resources.ts），不含任何原版贴图。窗口不显示、不抢焦点。
 //
+// 模板多了以后可以只跑一部分（tests/engine/shard.ts）：ALLAY_TPL_SHARD="i/n" 分片，ALLAY_TPL_ONLY="名字,名字" 指定模板。
+// 分片只决定跑哪些模板，每个模板的检查不变；n 份合起来是全部。
+//
 // T-TPL-5 的基准图在 tests/fixtures/baselines/<模板 id>/ 下，由 `pnpm templates:baselines` 重新生成（同一份测试，
 // 设 ALLAY_UPDATE_BASELINES=1 时写入而不是比较）。基准图在真实显卡上生成；软件渲染时判定放宽到 4/255（4.11）。
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -11,6 +14,7 @@ import { decodePng, encodePng } from '../../scripts/mascot-bake/png';
 import { TemplateManifestSchema, type FrameQuality, type TemplateManifest } from '../../packages/template-sdk/src/index';
 import type { Harness } from './harness/harness';
 import { prng, randomParamSets } from './random-params';
+import { selectionFromEnv, selectTemplateIds } from './shard';
 import { isSoftwareRenderer } from './software';
 
 const ROOT = resolve(import.meta.dirname, '../..');
@@ -20,7 +24,10 @@ const UPDATE = process.env.ALLAY_UPDATE_BASELINES === '1';
 
 let app: ElectronApplication;
 let page: Page;
+/** 这一次要跑的内置模板（全部，或 ALLAY_TPL_SHARD / ALLAY_TPL_ONLY 挑出的那部分） */
 let builtins: Record<string, TemplateManifest> = {};
+/** 内置模板的总数（不受挑选影响） */
+let builtinCount = 0;
 
 test.beforeAll(async () => {
   const env: Record<string, string> = {};
@@ -29,7 +36,10 @@ test.beforeAll(async () => {
   page = await app.firstWindow();
   await page.waitForFunction(() => window.harnessReady === true);
   const raw = await call('builtins');
-  builtins = Object.fromEntries(Object.entries(raw).map(([id, m]) => [id, TemplateManifestSchema.parse(m)]));
+  builtinCount = Object.keys(raw).length;
+  const selected = selectTemplateIds(Object.keys(raw), selectionFromEnv(process.env));
+  builtins = Object.fromEntries(selected.map((id) => [id, TemplateManifestSchema.parse(raw[id])]));
+  console.log(`[templates] ${selected.length} of ${builtinCount} built-in templates selected`);
 });
 
 test.afterAll(async () => {
@@ -72,7 +82,8 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
   // WARP 上同样的工作量慢二三十倍
   test.setTimeout(rules.software ? 3_600_000 : 600_000);
   test.info().annotations.push({ type: 'renderer', description: rules.gpu });
-  expect(Object.keys(builtins).length).toBeGreaterThan(0);
+  // 分片时这一份可以是空的（模板比份数少），但内置模板本身不能一个都没有
+  expect(builtinCount).toBeGreaterThan(0);
   for (const [id, manifest] of Object.entries(builtins)) {
     for (const a of ASPECTS) {
       const r = await call('tplCheck', id, { width: a.width, height: a.height, fps: 60 }, STANDARD, {}, true);
