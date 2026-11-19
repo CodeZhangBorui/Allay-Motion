@@ -485,8 +485,10 @@ export declare namespace THREE {
     updateProjectionMatrix(): void;
   }
 
-  /** 只作类型用：模板不需要自己建顶点属性 */
-  interface BufferAttribute {
+  type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array;
+
+  /** 从几何体里取出来的属性（getAttribute、getIndex 的结果）：只读着用 */
+  interface GeometryAttribute {
     readonly count: number;
     readonly itemSize: number;
     needsUpdate: boolean;
@@ -497,12 +499,42 @@ export declare namespace THREE {
     setXYZ(index: number, x: number, y: number, z: number): this;
   }
 
+  /** 顶点属性：自己建几何体时用（位置 3 个一组、uv 2 个一组、颜色 3 或 4 个一组）。改了 array 之后把 needsUpdate 设为 true */
+  class BufferAttribute {
+    constructor(array: TypedArray, itemSize: number, normalized?: boolean);
+    array: TypedArray;
+    readonly count: number;
+    readonly itemSize: number;
+    needsUpdate: boolean;
+    getX(index: number): number;
+    getY(index: number): number;
+    getZ(index: number): number;
+    getW(index: number): number;
+    setX(index: number, x: number): this;
+    setY(index: number, y: number): this;
+    setXY(index: number, x: number, y: number): this;
+    setXYZ(index: number, x: number, y: number, z: number): this;
+    setXYZW(index: number, x: number, y: number, z: number, w: number): this;
+  }
+
+  /** 每个实例一份的属性（InstancedMesh 的矩阵和颜色，或自己写的实例化着色器的输入） */
+  class InstancedBufferAttribute extends BufferAttribute {
+    constructor(array: TypedArray, itemSize: number, normalized?: boolean, meshPerAttribute?: number);
+    readonly isInstancedBufferAttribute: boolean;
+  }
+
   class BufferGeometry {
     constructor();
     readonly isBufferGeometry: boolean;
     groups: Array<{ start: number; count: number; materialIndex?: number | undefined }>;
-    getAttribute(name: string): BufferAttribute | undefined;
-    getIndex(): BufferAttribute | null;
+    getAttribute(name: string): GeometryAttribute | undefined;
+    setAttribute(name: string, attribute: BufferAttribute): this;
+    getIndex(): GeometryAttribute | null;
+    /** 三角形的顶点序号；传数组时 three 自己选 16 位或 32 位 */
+    setIndex(index: BufferAttribute | number[] | null): this;
+    setDrawRange(start: number, count: number): void;
+    computeBoundingBox(): void;
+    computeBoundingSphere(): void;
     translate(x: number, y: number, z: number): this;
     scale(x: number, y: number, z: number): this;
     rotateX(angle: number): this;
@@ -590,6 +622,20 @@ export declare namespace THREE {
     readonly isMesh: boolean;
     geometry: BufferGeometry;
     material: Material | Material[];
+  }
+
+  /**
+   * 同一个几何体画很多份（一次绘制）。每帧用 setMatrixAt、setColorAt 改完后，
+   * 把 instanceMatrix.needsUpdate（以及 instanceColor.needsUpdate）设为 true。方块用 ctx.resources.block().instanced() 更省事
+   */
+  class InstancedMesh extends Mesh {
+    constructor(geometry: BufferGeometry | undefined, material: Material | Material[] | undefined, count: number);
+    readonly isInstancedMesh: boolean;
+    count: number;
+    instanceMatrix: InstancedBufferAttribute;
+    instanceColor: InstancedBufferAttribute | null;
+    setMatrixAt(index: number, matrix: Matrix4): void;
+    setColorAt(index: number, color: Color): void;
   }
 
   class Texture {
