@@ -276,3 +276,60 @@ test('T-ANIM-23 图层：多选、成组（子图层缩进）、复制、重命�
   await page.mouse.up();
   await expect.poll(async () => (await docJson(page)).layers.some((l) => l.to !== undefined && l.to < 1.6)).toBe(true);
 });
+
+test('T-ANIM-25 预览里直接变换：点画面选中方块，拖动移动（靠近中线时吸附并画参考线），拖角缩放，拖上方手柄旋转', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  // 停在方块已经落定的时刻
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  const overlay = page.getByTestId('anim-stage-overlay');
+  await expect(overlay).toBeVisible();
+  const ob = (await overlay.boundingBox())!;
+  const cx = ob.x + ob.width / 2;
+  const cy = ob.y + ob.height / 2;
+  // 点画面中央（方块在中心）：选中
+  await page.mouse.click(cx, cy);
+  await expect(page.locator('[data-testid="anim-stage-outline"][data-layer="block-1"]')).toBeVisible();
+  // 拖着往右上挪一段：x、y 变成常量
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + ob.width * 0.2, cy - ob.height * 0.1, { steps: 8 });
+  await page.mouse.up();
+  const props = async () => (await docJson(page)).layers[0]!.props as Record<string, unknown>;
+  await expect.poll(async () => (await props()).x as number).toBeGreaterThan(200);
+  // y 有关键帧：在 t = 1 落了一个关键帧
+  const y = (await props()).y as { keys: { t: number }[] };
+  expect(y.keys.some((k) => Math.abs(k.t - 1) < 1e-6)).toBe(true);
+  // 拖回到离中线几个像素的地方：吸附到 x = 0，画出参考线
+  const now = (await page.locator('[data-testid="anim-stage-outline"][data-layer="block-1"]').boundingBox())!;
+  const bx = now.x + now.width / 2;
+  const by = now.y + now.height / 2;
+  await page.mouse.move(bx, by);
+  await page.mouse.down();
+  await page.mouse.move(cx + 3, by, { steps: 10 });
+  // 竖着的参考线宽 0（SVG 的 line），按“在页面上”判断
+  await expect(page.getByTestId('anim-stage-guide').first()).toBeAttached();
+  await page.mouse.up();
+  await expect.poll(async () => (await props()).x).toBe(0);
+  // 缩放：拖一个角往外
+  const handle = page.getByTestId('anim-stage-scale').nth(1);
+  const hb = (await handle.boundingBox())!;
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2 + 60, hb.y + hb.height / 2 - 60, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await props()).scale as number).toBeGreaterThan(1.2);
+  // 旋转：拖上方的圆点往右
+  const rot = page.getByTestId('anim-stage-rotate');
+  const rb = (await rot.boundingBox())!;
+  await page.mouse.move(rb.x + rb.width / 2, rb.y + rb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rb.x + rb.width / 2 + 80, rb.y + rb.height / 2 + 40, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.abs(((await props()).rotZ as number | undefined) ?? 0)).toBeGreaterThan(10);
+  // 点空白处取消选择
+  await page.mouse.click(ob.x + 10, ob.y + 10);
+  await expect(page.getByTestId('anim-stage-outline')).toHaveCount(0);
+});

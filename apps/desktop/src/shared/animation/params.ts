@@ -1,7 +1,7 @@
 // 暴露为参数与音效轨的文档操作（docs/animation-editor.md 10.1、10.2）。纯函数，界面和类型化命令共用。
 // 绑定的目标按“图层 id + 字段”寻址（不是数组下标）：图层排序、增删后照样指得对。
 import { z } from 'zod';
-import { keyIndexAt } from './edit';
+import { keyIndexAt, setValueAt } from './edit';
 import { resolveDoc } from './resolve';
 import { ANIM_PROPS, BINDABLE_TYPES, isKeyed, isParamRef, LAYER_ID_RE, type AnimationDoc, type AnimParam, type AnimParamType, type AnimProp, type AnimSound, type BindingKind } from './schema';
 
@@ -246,4 +246,30 @@ export function previewDoc(doc: AnimationDoc) {
 
 export function isAnimProp(x: string): x is AnimProp {
   return (ANIM_PROPS as readonly string[]).includes(x);
+}
+
+/**
+ * 在 t 时刻把图层的几个属性设成这些值（预览里拖动、缩放、旋转用）：绑定到参数的常量或关键帧值改参数的默认值，
+ * 有关键帧的自动落关键帧（同检查器），常量直接改。一次返回一份新文档（一步撤销）。
+ */
+export function setPropValues(doc: AnimationDoc, layerId: string, values: Partial<Record<AnimProp, number>>, t: number): AnimationDoc | null {
+  let next = structuredClone(doc);
+  const layer = next.layers.find((l) => l.id === layerId);
+  if (!layer) return null;
+  for (const [prop, value] of Object.entries(values) as [AnimProp, number][]) {
+    if (!Number.isFinite(value)) continue;
+    const track = layer.props[prop];
+    if (isParamRef(track)) {
+      next = updateParam(next, track.$param, { default: value } as never) ?? next;
+      continue;
+    }
+    const i = keyIndexAt(track, t);
+    if (i >= 0 && isKeyed(track) && isParamRef(track.keys[i]!.v)) {
+      next = updateParam(next, (track.keys[i]!.v as { $param: string }).$param, { default: value } as never) ?? next;
+      continue;
+    }
+    const l = next.layers.find((x) => x.id === layerId)!;
+    l.props[prop] = setValueAt(l.props[prop], t, value);
+  }
+  return next;
 }

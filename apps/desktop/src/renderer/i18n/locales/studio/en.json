@@ -296,6 +296,11 @@
       "speedHint": "Speed: change in value per second, view only",
       "separate": "Separate axes",
       "separateHint": "Each curve uses its own vertical range (so a small-range property is not flattened next to a large one); the readout follows the last clicked curve"
+    },
+    "stage": {
+      "region": "Layers on the canvas: click to select, drag to move, drag a corner to scale, drag the dot above to rotate",
+      "scale": "Scale",
+      "rotate": "Rotate"
     }
   }
 }
