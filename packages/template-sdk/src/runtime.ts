@@ -116,6 +116,23 @@ export interface ItemHandle {
   single(): THREE.Object3D;
 }
 
+/**
+ * 文字的字体和样式，也就是 font 参数的值（4.4）。family 的写法见 manifest 的 isFontFamily：
+ * minecraft:default、minecraft:uniform、minecraft:alt、minecraft:illageralt 等资源栈里的字体，allay:fallback（内置像素字体），
+ * user:<哈希>（用户导入的字体文件）。样式与游戏的文字样式对应：粗体（向右重描一次）、斜体（错切）、下划线、删除线、
+ * 阴影（右下偏移、颜色 × 1/4），描边（发光墨囊告示牌的八方向描边；有描边时不画阴影）。
+ */
+export interface FontStyle {
+  family: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  shadow?: boolean;
+  /** 描边颜色 #RRGGBB；null 或不给为不描边 */
+  outline?: string | null;
+}
+
 export interface TextOptions {
   text: string;
   /** 一个字体像素对应多少设计单位 */
@@ -126,6 +143,19 @@ export interface TextOptions {
   align?: 'left' | 'center' | 'right';
   /** 设计单位；超过时按空格（中日韩字符逐字）换行 */
   maxWidth?: number;
+  /**
+   * 字体：字体族 ID，或者整个 font 参数的值。给对象时，对象里写了的样式优先于下面几个同名字段（用户在参数里选的为准）。
+   * 不给时用 minecraft:default。资源栈里没有这个字体时退回 minecraft:default，缺的字形再退回内置像素字体。
+   * 只有出现在 font 参数里（含默认值）和 minecraft:default、allay:fallback 的字体会在 setup 之前载入；
+   * 代码里临时写的其他字体族 ID 当作没载入，退回 minecraft:default 并记一条警告。
+   */
+  font?: string | FontStyle;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  /** 描边颜色 #RRGGBB */
+  outline?: string | null;
 }
 
 /** 文字对象。原点：水平方向按 align（左边、中点、右边），垂直方向在整段文字的中线 */

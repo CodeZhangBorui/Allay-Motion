@@ -135,6 +135,30 @@ const DurationParam = z.looseObject({ ...base, type: z.literal('duration'), defa
 const AngleParam = z.looseObject({ ...base, type: z.literal('angle'), default: finite, snap: z.number().positive().max(360).optional() });
 const SeedParam = z.looseObject({ ...base, type: z.literal('seed'), default: z.int() });
 
+/**
+ * 字体族的写法（font 参数的 family）：
+ * - 资源栈里的字体 ID，如 minecraft:default（游戏默认字体）、minecraft:uniform（Unifont）、minecraft:alt（标准银河字母）、
+ *   minecraft:illageralt（灾厄村民文字），以及资源包自己加的字体；
+ * - allay:fallback：应用内置的开放许可像素字体；
+ * - user:<32 位十六进制>：用户导入的字体文件（内容哈希，文件在应用数据目录里，由主进程读取）。
+ */
+export const USER_FONT_RE = /^user:[0-9a-f]{32}$/;
+export function isFontFamily(value: string): boolean {
+  return USER_FONT_RE.test(value) || isResourceId(value);
+}
+const fontFamily = z.string().max(256).refine(isFontFamily, 'must be a font id like minecraft:default, allay:fallback or user:<hash>');
+/** font 参数的默认值：只给 family 也行，样式缺省为关、描边为 null */
+export const FontDefaultSchema = z.strictObject({
+  family: fontFamily,
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  strikethrough: z.boolean().optional(),
+  shadow: z.boolean().optional(),
+  outline: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'outline must be #RRGGBB').nullable().optional(),
+});
+const FontParam = z.looseObject({ ...base, type: z.literal('font'), default: FontDefaultSchema });
+
 export const ParamDefSchema = z.discriminatedUnion('type', [
   NumberParam,
   IntegerParam,
@@ -151,14 +175,15 @@ export const ParamDefSchema = z.discriminatedUnion('type', [
   DurationParam,
   AngleParam,
   SeedParam,
+  FontParam,
 ]);
 export type ParamDef = z.infer<typeof ParamDefSchema>;
 export type ParamType = ParamDef['type'];
 export type ParamDefOf<T extends ParamType> = Extract<ParamDef, { type: T }>;
 
-/** 15 种参数类型（4.4） */
+/** 16 种参数类型（4.4；font 是 2026-11 加的） */
 export const PARAM_TYPES = [
-  'number', 'integer', 'boolean', 'enum', 'color', 'text', 'block', 'blockList', 'item', 'texture', 'sound', 'easing', 'duration', 'angle', 'seed',
+  'number', 'integer', 'boolean', 'enum', 'color', 'text', 'block', 'blockList', 'item', 'texture', 'sound', 'easing', 'duration', 'angle', 'seed', 'font',
 ] as const satisfies readonly ParamType[];
 
 // ---- manifest（4.3）----

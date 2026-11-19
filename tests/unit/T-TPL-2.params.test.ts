@@ -145,12 +145,30 @@ const CASES: Record<ParamType, Case> = {
     wrongType: ['42', null, Number.NaN, true],
     valid: [0, 42, 2_147_483_647],
   },
+  font: {
+    def: def({ key: 'f', type: 'font', default: { family: 'minecraft:default', shadow: true } }),
+    // 默认值补全成完整对象：样式缺省为关、描边为 null
+    expectedDefault: { family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null },
+    // 逐个字段清洗：坏的字段取默认值的那一项，描边颜色统一大写
+    outOfRange: [
+      [{ family: 'C:/fonts/x.ttf', bold: true }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, bold: true }],
+      [{ family: 'minecraft:uniform', outline: '#ff0000' }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, family: 'minecraft:uniform', outline: '#FF0000' }],
+      [{ family: 'user:0123456789abcdef0123456789abcdef', shadow: 'yes', outline: 'red' }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, family: 'user:0123456789abcdef0123456789abcdef' }],
+      [{ family: 'user:../../x', italic: true, extra: 1 }, { ...{ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null }, italic: true }],
+    ],
+    wrongType: ['minecraft:default', null, 3, true, [], [{ family: 'minecraft:alt' }]],
+    valid: [
+      { family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: true, outline: null },
+      { family: 'allay:fallback', bold: true, italic: true, underline: true, strikethrough: true, shadow: false, outline: '#1D1D21' },
+      { family: 'mypack:custom', bold: false, italic: false, underline: false, strikethrough: false, shadow: false, outline: null },
+    ],
+  },
 };
 
 describe('T-TPL-2 参数类型的校验与清洗', () => {
-  it('15 种参数类型都有用例', () => {
+  it('16 种参数类型都有用例', () => {
     expect(Object.keys(CASES).sort()).toEqual([...PARAM_TYPES].sort());
-    expect(PARAM_TYPES).toHaveLength(15);
+    expect(PARAM_TYPES).toHaveLength(16);
   });
 
   for (const [type, c] of Object.entries(CASES)) {

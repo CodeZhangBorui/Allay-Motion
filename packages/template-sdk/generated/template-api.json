@@ -387,6 +387,60 @@
         }
       ]
     },
+    "FontStyle": {
+      "doc": "文字的字体和样式，也就是 font 参数的值（4.4）。family 的写法见 manifest 的 isFontFamily：\nminecraft:default、minecraft:uniform、minecraft:alt、minecraft:illageralt 等资源栈里的字体，allay:fallback（内置像素字体），\nuser:<哈希>（用户导入的字体文件）。样式与游戏的文字样式对应：粗体（向右重描一次）、斜体（错切）、下划线、删除线、\n阴影（右下偏移、颜色 × 1/4），描边（发光墨囊告示牌的八方向描边；有描边时不画阴影）。",
+      "members": [
+        {
+          "name": "family",
+          "kind": "property",
+          "optional": false,
+          "signature": "family: string;",
+          "doc": ""
+        },
+        {
+          "name": "bold",
+          "kind": "property",
+          "optional": true,
+          "signature": "bold?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "italic",
+          "kind": "property",
+          "optional": true,
+          "signature": "italic?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "underline",
+          "kind": "property",
+          "optional": true,
+          "signature": "underline?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "strikethrough",
+          "kind": "property",
+          "optional": true,
+          "signature": "strikethrough?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "shadow",
+          "kind": "property",
+          "optional": true,
+          "signature": "shadow?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "outline",
+          "kind": "property",
+          "optional": true,
+          "signature": "outline?: string | null;",
+          "doc": "描边颜色 #RRGGBB；null 或不给为不描边"
+        }
+      ]
+    },
     "TextOptions": {
       "doc": "",
       "members": [
@@ -431,6 +485,48 @@
           "optional": true,
           "signature": "maxWidth?: number;",
           "doc": "设计单位；超过时按空格（中日韩字符逐字）换行"
+        },
+        {
+          "name": "font",
+          "kind": "property",
+          "optional": true,
+          "signature": "font?: string | FontStyle;",
+          "doc": "字体：字体族 ID，或者整个 font 参数的值。给对象时，对象里写了的样式优先于下面几个同名字段（用户在参数里选的为准）。\n不给时用 minecraft:default。资源栈里没有这个字体时退回 minecraft:default，缺的字形再退回内置像素字体。\n只有出现在 font 参数里（含默认值）和 minecraft:default、allay:fallback 的字体会在 setup 之前载入；\n代码里临时写的其他字体族 ID 当作没载入，退回 minecraft:default 并记一条警告。"
+        },
+        {
+          "name": "bold",
+          "kind": "property",
+          "optional": true,
+          "signature": "bold?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "italic",
+          "kind": "property",
+          "optional": true,
+          "signature": "italic?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "underline",
+          "kind": "property",
+          "optional": true,
+          "signature": "underline?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "strikethrough",
+          "kind": "property",
+          "optional": true,
+          "signature": "strikethrough?: boolean;",
+          "doc": ""
+        },
+        {
+          "name": "outline",
+          "kind": "property",
+          "optional": true,
+          "signature": "outline?: string | null;",
+          "doc": "描边颜色 #RRGGBB"
         }
       ]
     },
