@@ -189,6 +189,17 @@ export const PARAM_TYPES = [
 // ---- manifest（4.3）----
 
 const GroupSchema = z.strictObject({ key: z.string().min(1).max(64), label: LocalizedStringSchema, collapsed: z.boolean().optional() });
+/**
+ * 模板自带的预设（2026-11 反馈：方块排列顺序）：界面的预设菜单里排在用户预设前面，套用方式与用户预设相同
+ * （缺的补默认值，多的丢弃，4.7）。key 在模板内唯一，params 只能引用本模板声明的参数。
+ */
+export const PRESET_KEY_RE = /^[a-z0-9][a-z0-9-]*$/;
+export const ManifestPresetSchema = z.strictObject({
+  key: z.string().max(64).regex(PRESET_KEY_RE, 'preset key must match ^[a-z0-9][a-z0-9-]*$'),
+  name: LocalizedStringSchema,
+  params: z.record(ParamKeySchema, ParamValueJson),
+});
+export type ManifestPreset = z.infer<typeof ManifestPresetSchema>;
 const OutputSchema = z.strictObject({ width: z.int().min(16).max(8192), height: z.int().min(16).max(8192), fps: z.int().min(1).max(240) });
 
 const ManifestShape = z.looseObject({
@@ -212,6 +223,7 @@ const ManifestShape = z.looseObject({
     })
     .optional(),
   defaultOutput: OutputSchema.optional(),
+  presets: z.array(ManifestPresetSchema).max(32).optional(),
   minAppVersion: VersionSchema.optional(),
 });
 
@@ -273,6 +285,16 @@ export const TemplateManifestSchema = ManifestShape.superRefine((m, ctx) => {
     if (m.params === undefined) ctx.addIssue({ code: 'custom', path: ['params'], message: 'a script template must declare params' });
     if (m.overrides !== undefined) ctx.addIssue({ code: 'custom', path: ['overrides'], message: 'overrides are only for derived templates' });
   }
+  const presetKeys = new Set<string>();
+  m.presets?.forEach((p, i) => {
+    if (presetKeys.has(p.key)) ctx.addIssue({ code: 'custom', path: ['presets', i, 'key'], message: `duplicate preset key "${p.key}"` });
+    presetKeys.add(p.key);
+    // 派生模板的参数来自基模板，这里查不到，只查脚本模板
+    if (m.extends) return;
+    for (const k of Object.keys(p.params)) {
+      if (!keys.has(k)) ctx.addIssue({ code: 'custom', path: ['presets', i, 'params', k], message: `preset refers to unknown param "${k}"` });
+    }
+  });
   m.timeline?.segments.forEach((s, i) => {
     if (keys.get(s.param)?.type !== 'duration') ctx.addIssue({ code: 'custom', path: ['timeline', 'segments', i, 'param'], message: `"${s.param}" is not a duration param` });
   });
