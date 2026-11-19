@@ -21,13 +21,30 @@
       "key": "blocks",
       "type": "blockList",
       "label": { "zh-CN": "方块", "en": "Blocks" },
-      "hint": { "zh-CN": "按权重随机分配到每个格子", "en": "Assigned to cells at random by weight" },
+      "hint": { "zh-CN": "按“方块排列”分配到每个格子；拖动左侧把手调整顺序", "en": "Placed into cells by Arrangement; drag the handle to reorder" },
       "group": "blocks",
       "default": [
         { "id": "minecraft:stone", "weight": 3 },
         { "id": "minecraft:cobblestone", "weight": 1 }
       ],
-      "max": 8
+      "max": 16
+    },
+    {
+      "key": "arrangement",
+      "type": "enum",
+      "label": { "zh-CN": "方块排列", "en": "Arrangement" },
+      "hint": { "zh-CN": "哪个格子放哪种方块。条带和同心环按方块列表的顺序循环，权重是条带的宽度；棋盘忽略权重", "en": "Which block goes in which cell. Stripes and rings cycle through the list in order, with weight as the band width; the checkerboard ignores weights" },
+      "group": "blocks",
+      "default": "random",
+      "ui": "pattern",
+      "options": [
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.67, 0, 1, 0.33, 0.33, 1, 0.67, 0, 1, 0.33, 0, 0.67, 0, 0.67, 0.33, 1] },
+        { "value": "columns", "label": { "zh-CN": "按列依次", "en": "By column" }, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] },
+        { "value": "rows", "label": { "zh-CN": "按行依次", "en": "By row" }, "pattern": [0, 0, 0, 0, 0.33, 0.33, 0.33, 0.33, 0.67, 0.67, 0.67, 0.67, 1, 1, 1, 1] },
+        { "value": "diagonal", "label": { "zh-CN": "斜向依次", "en": "Diagonal" }, "pattern": [0, 0.33, 0.67, 1, 0.33, 0.67, 1, 0, 0.67, 1, 0, 0.33, 1, 0, 0.33, 0.67] },
+        { "value": "checker", "label": { "zh-CN": "棋盘交替", "en": "Checkerboard" }, "pattern": [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0] },
+        { "value": "rings", "label": { "zh-CN": "同心环", "en": "Rings" }, "pattern": [1, 0.5, 0.5, 1, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 1, 0.5, 0.5, 1] }
+      ]
     },
     { "key": "cols", "type": "integer", "label": { "zh-CN": "列数", "en": "Columns" }, "group": "blocks", "default": 10, "min": 4, "max": 32, "ui": "slider" },
     {

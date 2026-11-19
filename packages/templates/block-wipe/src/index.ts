@@ -2,6 +2,7 @@
 // 只用公开的模板接口：THREE 和所有辅助函数都从 ctx 拿，只从 template-sdk 做类型导入（4.9）。
 // 构建时由 scripts/build-templates.ts 用 esbuild 打成不含 import 的单文件 ESM。
 import type { BlockInstances, ParamValue, SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
+import { arrangeCells, toArrangement } from './arrangement';
 
 type Pattern = 'leftToRight' | 'rightToLeft' | 'topToBottom' | 'bottomToTop' | 'centerOut' | 'edgesIn' | 'diagonal' | 'random' | 'noise';
 
@@ -109,25 +110,16 @@ const template: TemplateModule = {
     else if (outPattern === 'reverse') uOut = uIn.map((u) => 1 - u);
     else uOut = orderValues(ctx, outPattern as Pattern, px, py, jitter, 'out');
 
-    // 每个格子按权重随机分配一种方块；每种方块一组实例
+    // 每个格子放哪种方块由“方块排列”决定（默认按权重随机，arrangement.ts）；每种方块一组实例
     const entries = blockList(params.blocks);
-    const totalWeight = entries.reduce((a, e) => a + e.weight, 0);
-    const pick = ctx.random('blocks');
     const kinds = [...new Set(entries.map((e) => e.id))];
+    const entryKind = entries.map((e) => kinds.indexOf(e.id));
+    const arranged = arrangeCells(toArrangement(params.arrangement), entries, cols, rows, ctx.random('blocks'));
     const cellKind = new Uint8Array(count);
     const kindCount = new Array<number>(kinds.length).fill(0);
     const cellIndex = new Uint32Array(count);
     for (let i = 0; i < count; i++) {
-      let x = pick.next() * totalWeight;
-      let id = entries[entries.length - 1]!.id;
-      for (const e of entries) {
-        x -= e.weight;
-        if (x < 0) {
-          id = e.id;
-          break;
-        }
-      }
-      const k = kinds.indexOf(id);
+      const k = entryKind[arranged[i]!]!;
       cellKind[i] = k;
       cellIndex[i] = kindCount[k]!;
       kindCount[k] = kindCount[k]! + 1;

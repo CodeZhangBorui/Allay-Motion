@@ -2,6 +2,7 @@
 // 只用公开的模板接口：THREE 和所有辅助函数都从 ctx 拿，只从 template-sdk 做类型导入（4.9）。
 // 下落、回弹、散落全部是时间的闭式函数（局部进度的函数），不做逐帧积分（2.9）。
 import type { BlockInstances, ParamValue, SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
+import { arrangeCells, toArrangement } from './arrangement';
 
 interface BlockEntry {
   id: string;
@@ -139,25 +140,16 @@ const template: TemplateModule = {
     }
     normalize(startOut);
 
-    // 每个格子按权重随机分配一种方块；每种方块一组实例（同 T1）
+    // 每个格子放哪种方块由“方块排列”决定（默认按权重随机，arrangement.ts）；每种方块一组实例（同 T1）
     const entries = blockList(params.blocks);
-    const totalWeight = entries.reduce((a, e) => a + e.weight, 0);
-    const pick = ctx.random('blocks');
     const kinds = [...new Set(entries.map((e) => e.id))];
+    const entryKind = entries.map((e) => kinds.indexOf(e.id));
+    const arranged = arrangeCells(toArrangement(params.arrangement), entries, cols, rows, ctx.random('blocks'));
     const cellKind = new Uint8Array(count);
     const kindCount = new Array<number>(kinds.length).fill(0);
     const cellIndex = new Uint32Array(count);
     for (let i = 0; i < count; i++) {
-      let x = pick.next() * totalWeight;
-      let id = entries[entries.length - 1]!.id;
-      for (const e of entries) {
-        x -= e.weight;
-        if (x < 0) {
-          id = e.id;
-          break;
-        }
-      }
-      const k = kinds.indexOf(id);
+      const k = entryKind[arranged[i]!]!;
       cellKind[i] = k;
       cellIndex[i] = kindCount[k]!;
       kindCount[k] = kindCount[k]! + 1;
