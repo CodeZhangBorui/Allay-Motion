@@ -110,7 +110,8 @@
       "setParent": "设置父级",
       "ungroup": "解组",
       "ungroupSelection": "解组",
-      "setRepeat": "设置复制器"
+      "setRepeat": "设置复制器",
+      "setPath": "设置路径"
     },
     "history": {
       "new": "新建动画",
@@ -204,7 +205,8 @@
       "rotY": "旋转 Y",
       "rotZ": "旋转 Z",
       "scale": "缩放",
-      "opacity": "不透明度"
+      "opacity": "不透明度",
+      "progress": "进度"
     },
     "timeline": {
       "region": "动画时间轴",
@@ -301,7 +303,9 @@
     "stage": {
       "region": "画面上的图层：点选、拖动移动、拖角缩放、拖上方的圆点旋转",
       "scale": "缩放",
-      "rotate": "旋转"
+      "rotate": "旋转",
+      "pathPoint": "路径上的点",
+      "pathHandle": "路径手柄"
     },
     "repeat": {
       "title": "复制器",
@@ -346,6 +350,16 @@
         "rings": "同心环"
       },
       "hint": "每一份播放这个图层自己的动画，按“先后”排的名次依次晚开始。随机偏移、随机先后和随机排列都由种子决定，同一个种子每次一样。"
+    },
+    "path": {
+      "title": "路径",
+      "on": "沿路径走",
+      "closed": "首尾相接",
+      "orient": "自动朝向",
+      "addPoint": "加一个点",
+      "removePoint": "删最后一个点",
+      "points": "{{count}} 个点",
+      "hint": "打开后“进度”在整段里从 0 走到 1，按路径长度匀速；X、Y 是相对路径的偏移。在预览里拖点和手柄改路径，按住 Alt 从点上拖出手柄。"
     }
   }
 }

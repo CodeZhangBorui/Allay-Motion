@@ -62,8 +62,8 @@ function resolveAnimation(doc, values) {
 async function createAnimation(ctx, source) {
   const { THREE, scene } = ctx;
   const doc = resolveAnimation(source, ctx.params || {});
-  const PROPS = ['x', 'y', 'z', 'rotX', 'rotY', 'rotZ', 'scale', 'opacity'];
-  const DEFAULTS = { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0, scale: 1, opacity: 1 };
+  const PROPS = ['x', 'y', 'z', 'rotX', 'rotY', 'rotZ', 'scale', 'opacity', 'progress'];
+  const DEFAULTS = { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0, scale: 1, opacity: 1, progress: 0 };
   const DEG = Math.PI / 180;
   const duration = doc.duration;
 
@@ -336,6 +336,65 @@ async function createAnimation(ctx, source) {
     return { draws, commit: () => undefined, unit: def.type === 'item' ? def.size : 1 };
   }
 
+  // ---- 路径动画（第三轮）：与 shared/animation/path.ts 规则相同（T-ANIM-28 核对）----
+  const PATH_STEPS = 32;
+  const cubicAt = (a, b, c, d, u) => {
+    const v = 1 - u;
+    return { x: v * v * v * a.x + 3 * v * v * u * b.x + 3 * v * u * u * c.x + u * u * u * d.x, y: v * v * v * a.y + 3 * v * v * u * b.y + 3 * v * u * u * c.y + u * u * u * d.y };
+  };
+  const pathSegment = (path, i) => {
+    const n = path.points.length;
+    const a = path.points[i];
+    const b = path.points[(i + 1) % n];
+    return [a, { x: a.x + (a.out ? a.out.x : 0), y: a.y + (a.out ? a.out.y : 0) }, { x: b.x + (b.in ? b.in.x : 0), y: b.y + (b.in ? b.in.y : 0) }, b];
+  };
+  function pathTable(path) {
+    const count = path.closed ? path.points.length : path.points.length - 1;
+    const lengths = [0];
+    const seg = [0];
+    const us = [0];
+    let prev = path.points[0];
+    let total = 0;
+    for (let i = 0; i < count; i++) {
+      const [a, b, c, d] = pathSegment(path, i);
+      for (let k = 1; k <= PATH_STEPS; k++) {
+        const p = cubicAt(a, b, c, d, k / PATH_STEPS);
+        total += Math.hypot(p.x - prev.x, p.y - prev.y);
+        lengths.push(total);
+        seg.push(i);
+        us.push(k / PATH_STEPS);
+        prev = p;
+      }
+    }
+    return { path, lengths, seg, u: us, total, out: { x: 0, y: 0, angle: 0 } };
+  }
+  /** progress 处的位置和切线方向（度），写进 table.out（不分配） */
+  function pathAt(table, progress) {
+    const target = Math.min(1, Math.max(0, progress)) * table.total;
+    const L = table.lengths;
+    let lo = 0;
+    let hi = L.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (L[mid] < target) lo = mid + 1;
+      else hi = mid;
+    }
+    const j = Math.max(1, lo);
+    const span = L[j] - L[j - 1] || 1;
+    const f = (target - L[j - 1]) / span;
+    const s = table.seg[j];
+    const u0 = table.seg[j - 1] === s ? table.u[j - 1] : 0;
+    const u = u0 + (table.u[j] - u0) * f;
+    const [a, b, c, d] = pathSegment(table.path, s);
+    const p = cubicAt(a, b, c, d, u);
+    const q = cubicAt(a, b, c, d, Math.min(1, u + 1e-3));
+    const r = cubicAt(a, b, c, d, Math.max(0, u - 1e-3));
+    table.out.x = p.x;
+    table.out.y = p.y;
+    table.out.angle = (Math.atan2(q.y - r.y, q.x - r.x) * 180) / Math.PI;
+    return table.out;
+  }
+
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   const layers = [];
   for (let index = 0; index < doc.layers.length; index++) {
@@ -359,6 +418,7 @@ async function createAnimation(ctx, source) {
       visible: false,
       opacity: 1,
       solo: def.solo === true,
+      path: def.path ? pathTable(def.path) : null,
     });
   }
 
@@ -394,8 +454,18 @@ async function createAnimation(ctx, source) {
   function localAt(l, tt, out) {
     const tr = l.tracks;
     const s = sample(tr.scale, tt);
-    position.set(sample(tr.x, tt), sample(tr.y, tt), sample(tr.z, tt));
-    euler.set(sample(tr.rotX, tt) * DEG, sample(tr.rotY, tt) * DEG, sample(tr.rotZ, tt) * DEG, 'YXZ');
+    let px = 0;
+    let py = 0;
+    let pa = 0;
+    if (l.path) {
+      // 路径：位置是路径上的点加上 x、y 的偏移；自动朝向时 rotZ 加上切线方向
+      const at = pathAt(l.path, sample(tr.progress, tt));
+      px = at.x;
+      py = at.y;
+      if (l.def.path.orient) pa = at.angle;
+    }
+    position.set(sample(tr.x, tt) + px, sample(tr.y, tt) + py, sample(tr.z, tt));
+    euler.set(sample(tr.rotX, tt) * DEG, sample(tr.rotY, tt) * DEG, (sample(tr.rotZ, tt) + pa) * DEG, 'YXZ');
     quaternion.setFromEuler(euler);
     scaleV.set(s, s, s);
     return out.compose(position, quaternion, scaleV);

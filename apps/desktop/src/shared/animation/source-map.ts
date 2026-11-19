@@ -130,6 +130,11 @@ export function liveMarks(doc: ResolvedDoc, text: string, t: number, spans = loc
       const n = layer.repeat.mode === 'grid' ? layer.repeat.cols * layer.repeat.rows : layer.repeat.count;
       marks.push({ kind: 'param', line: lineOf(text, rs.start), endLine: lineOf(text, rs.end), label: `${layer.name} · repeat ×${n}${layer.repeat.stagger > 0 ? ` · +${layer.repeat.stagger}s` : ''}` });
     }
+    // 路径（第三轮）：可见时标出整个 path
+    const ps = layer.path ? spans.get(`layers.${li}.path`) : undefined;
+    if (ps && layer.path) {
+      marks.push({ kind: 'param', line: lineOf(text, ps.start), endLine: lineOf(text, ps.end), label: `${layer.name} · path ×${layer.path.points.length}${layer.path.closed ? ' · closed' : ''}${layer.path.orient ? ' · orient' : ''}` });
+    }
     for (const [prop, track] of Object.entries(layer.props)) {
       if (track === undefined || typeof track === 'number') continue;
       const keys = track.keys;

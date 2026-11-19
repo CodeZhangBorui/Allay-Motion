@@ -8,6 +8,7 @@
 import type { EaseEval } from './edit';
 import { propValue } from './edit';
 import type { ResolvedDoc, ResolvedLayer } from './resolve';
+import { pathAt, pathTable } from './path';
 
 /** 平面仿射：x' = a·x + c·y + e，y' = b·x + d·y + f */
 export interface Affine {
@@ -55,6 +56,10 @@ export interface LayerFrame {
   locked: boolean;
   /** 在 doc.layers 里的位置（画的顺序） */
   index: number;
+  /** 这一刻的 x、y（有路径时是相对路径的偏移） */
+  offset: { x: number; y: number };
+  /** 路径在这一刻贡献的位置和朝向（没有路径时是 0）：预览里移动、旋转时要先减掉 */
+  onPath: { x: number; y: number; angle: number };
 }
 
 /** 边长 1 的立方体按 rotX / rotY 转过之后（YXZ 顺序，同 Worker 里的 Euler）在画面上的半宽、半高 */
@@ -109,7 +114,9 @@ export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval): LayerF
     const pi = l.parent !== undefined ? byId.get(l.parent) : undefined;
     const parentFrame = pi !== undefined && depth < 64 ? visit(pi, depth + 1) : null;
     const v = (p: Parameters<typeof propValue>[1]) => propValue(l, p, t, ease);
-    const world = multiply(parentFrame ? parentFrame.world : IDENTITY, trs(v('x'), v('y'), v('rotZ'), v('scale')));
+    // 路径：位置是路径上的点加上 x、y；自动朝向时 rotZ 加上切线方向（同 Worker）
+    const on = l.path ? pathAt(l.path, pathTable(l.path), v('progress')) : null;
+    const world = multiply(parentFrame ? parentFrame.world : IDENTITY, trs(v('x') + (on?.x ?? 0), v('y') + (on?.y ?? 0), v('rotZ') + (on && l.path?.orient ? on.angle : 0), v('scale')));
     const { hw, hh } = layerExtent(l, v('rotX'), v('rotY'));
     const inside = t >= (l.from ?? 0) && t < (l.to ?? Infinity) && l.hidden !== true;
     const frame: LayerFrame = {
@@ -121,6 +128,8 @@ export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval): LayerF
       visible: inside && (parentFrame ? parentFrame.visible : true),
       locked: l.locked === true,
       index: i,
+      offset: { x: v('x'), y: v('y') },
+      onPath: on ? { x: on.x, y: on.y, angle: l.path?.orient ? on.angle : 0 } : { x: 0, y: 0, angle: 0 },
     };
     out[i] = frame;
     return frame;

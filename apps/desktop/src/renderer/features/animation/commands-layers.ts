@@ -173,6 +173,32 @@ export const LAYER_COMMANDS: AnyCommand[] = [
         return next;
       }),
   }),
+  defineCommand({
+    id: 'animSetPath',
+    titleKey: 'anim.commands.setPath',
+    effect: 'write',
+    undoLabelKey: 'anim.history.layer',
+    hideInPalette: true,
+    enabled: isAnimationActive,
+    // path 是 null 时去掉路径；progress 给了就同时把 progress 属性换成它（打开路径时让它从 0 走到 1）
+    input: z.strictObject({ layer: LayerId, path: z.unknown(), progress: z.unknown().optional() }),
+    output: z.boolean(),
+    run: ({ layer, path, progress }) =>
+      apply((doc) => {
+        const i = doc.layers.findIndex((l) => l.id === layer);
+        if (i < 0) return null;
+        const next = structuredClone(doc);
+        const l = next.layers[i]! as Record<string, unknown> & { props: Record<string, unknown> };
+        if (path === null || path === undefined) {
+          delete l.path;
+          delete l.props.progress;
+        } else {
+          l.path = JSON.parse(JSON.stringify(path)) as unknown;
+          if (progress !== undefined) l.props.progress = JSON.parse(JSON.stringify(progress)) as unknown;
+        }
+        return next;
+      }),
+  }),
   // ---- 作用于选中的图层、带快捷键 ----
   defineCommand({
     id: 'animDuplicateSelection',

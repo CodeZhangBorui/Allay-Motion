@@ -4,6 +4,7 @@
 // 文件、进程、线程边界都用这里的 zod schema 校验。
 import { EASING_NAMES, FontDefaultSchema, isResourceId, LocalizedStringSchema, PARAM_KEY_RE } from '@allay/template-sdk';
 import { z } from 'zod';
+import { PathSchema } from './path';
 
 export const ANIMATION_KIND = 'allay-animation';
 /**
@@ -53,9 +54,10 @@ export type KeyedTrack = Extract<Track, { keys: unknown }>;
 export const isKeyed = <T extends { keys: readonly unknown[] }>(track: number | ParamRef | T | undefined): track is T => typeof track === 'object' && track !== null && 'keys' in track;
 
 /** 每个图层都有的可动画属性：位置（设计单位，原点在画面中心，+y 向上）、旋转（度）、缩放、不透明度 */
-export const ANIM_PROPS = ['x', 'y', 'z', 'rotX', 'rotY', 'rotZ', 'scale', 'opacity'] as const;
+/** progress（第三轮）：沿路径走到哪里（0–1），只在图层有路径时有意义 */
+export const ANIM_PROPS = ['x', 'y', 'z', 'rotX', 'rotY', 'rotZ', 'scale', 'opacity', 'progress'] as const;
 export type AnimProp = (typeof ANIM_PROPS)[number];
-export const PROP_DEFAULTS: Record<AnimProp, number> = { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0, scale: 1, opacity: 1 };
+export const PROP_DEFAULTS: Record<AnimProp, number> = { x: 0, y: 0, z: 0, rotX: 0, rotY: 0, rotZ: 0, scale: 1, opacity: 1, progress: 0 };
 
 const PropsSchema = z
   .strictObject(Object.fromEntries(ANIM_PROPS.map((p) => [p, TrackSchema.optional()])) as Record<AnimProp, z.ZodOptional<typeof TrackSchema>>)
@@ -119,6 +121,8 @@ const LayerBase = {
   locked: z.boolean().optional(),
   /** 复制器（第三轮）：组图层不能复制 */
   repeat: RepeatSchema.optional(),
+  /** 路径动画（第三轮）：位置沿这条路径走（progress 属性是走到哪里），x、y 是相对路径的偏移 */
+  path: PathSchema.optional(),
 };
 
 export const LAYER_TYPES = ['block', 'item', 'text', 'rect', 'group'] as const;

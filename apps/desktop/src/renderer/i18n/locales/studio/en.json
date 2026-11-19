@@ -110,7 +110,8 @@
       "setParent": "Set parent",
       "ungroup": "Ungroup",
       "ungroupSelection": "Ungroup",
-      "setRepeat": "Set replicator"
+      "setRepeat": "Set replicator",
+      "setPath": "Set path"
     },
     "history": {
       "new": "New animation",
@@ -204,7 +205,8 @@
       "rotY": "Rotation Y",
       "rotZ": "Rotation Z",
       "scale": "Scale",
-      "opacity": "Opacity"
+      "opacity": "Opacity",
+      "progress": "Progress"
     },
     "timeline": {
       "region": "Animation timeline",
@@ -301,7 +303,9 @@
     "stage": {
       "region": "Layers on the canvas: click to select, drag to move, drag a corner to scale, drag the dot above to rotate",
       "scale": "Scale",
-      "rotate": "Rotate"
+      "rotate": "Rotate",
+      "pathPoint": "Path point",
+      "pathHandle": "Path handle"
     },
     "repeat": {
       "title": "Replicator",
@@ -346,6 +350,16 @@
         "rings": "Rings"
       },
       "hint": "Each copy plays this layer’s own animation, starting later by its place in the order. Random offsets, random order and random arrangement all come from the seed, so the same seed gives the same result."
+    },
+    "path": {
+      "title": "Path",
+      "on": "Follow path",
+      "closed": "Closed",
+      "orient": "Orient to path",
+      "addPoint": "Add point",
+      "removePoint": "Remove last point",
+      "points": "{{count}} points",
+      "hint": "Turning it on animates Progress from 0 to 1 over the whole clip, at constant speed along the path; X and Y become offsets from the path. Drag points and handles in the preview; hold Alt and drag from a point to pull out handles."
     }
   }
 }

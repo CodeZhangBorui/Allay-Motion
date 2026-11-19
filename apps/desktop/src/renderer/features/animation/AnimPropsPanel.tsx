@@ -48,6 +48,7 @@ import { editDoc } from './source';
 import { useAnimationUi } from './uiState';
 import { useCodeWindow } from './codeWindow';
 import { RepeatSection } from './RepeatSection';
+import { PathSection } from './PathSection';
 
 const PROP_META: Record<AnimProp, { step: number; unit?: string; min?: number; max?: number }> = {
   x: { step: 1 },
@@ -58,6 +59,7 @@ const PROP_META: Record<AnimProp, { step: number; unit?: string; min?: number; m
   rotZ: { step: 1, unit: '°' },
   scale: { step: 0.01, min: 0, max: 20 },
   opacity: { step: 0.01, min: 0, max: 1 },
+  progress: { step: 0.001, min: 0, max: 1 },
 };
 
 function Row({ label, children, testId, lead, bind }: { label: string; children: ReactNode; testId?: string; lead?: ReactNode; bind?: ReactNode }) {
@@ -642,12 +644,14 @@ export function AnimPropsPanel() {
             <div {...(layer.locked ? { inert: true } : {})} className={cn(layer.locked && 'opacity-60')} data-testid="anim-layer-editor">
               <LayerContent doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
               <Group id="transform" title={t('anim.props.transform')}>
-                {ANIM_PROPS.map((p) => (
+                {/* progress 只在图层有路径时有意义 */}
+                {ANIM_PROPS.filter((p) => p !== 'progress' || layer.path).map((p) => (
                   <PropRow key={p} doc={doc} layer={layer} resolvedLayer={resolvedLayer} prop={p} />
                 ))}
               </Group>
               <KeyframeSettings doc={doc} layer={layer} resolvedLayer={resolvedLayer} duration={resolved.duration} />
               <RepeatSection layer={layer} />
+              {layer.type !== 'group' && <PathSection doc={doc} layer={layer} />}
             </div>
           </>
         ) : (

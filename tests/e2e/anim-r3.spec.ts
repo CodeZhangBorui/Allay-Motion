@@ -357,3 +357,45 @@ test('T-ANIM-27 复制器：在检查器里打开，画面变成一组；换成�
   await ready(page);
   expect(await hash(page, 1)).toBe(single);
 });
+
+test('T-ANIM-28 路径动画：在检查器里打开路径，画面沿路径走；在预览里拖路径上的点改路径；撤销回到原样', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  await page.getByTestId('anim-layer').first().click();
+  await ready(page);
+  const before = await hash(page, 1);
+  type L = { path?: { points: { x: number; y: number }[] }; props: Record<string, unknown> };
+  const layer = async () => (await docJson(page)).layers[0] as L;
+  await page.getByTestId('anim-path-on').click();
+  await expect.poll(async () => (await layer()).path?.points.length).toBe(3);
+  // progress 从 0 走到 1
+  expect((await layer()).props.progress).toMatchObject({ keys: [{ v: 0 }, { v: 1 }] });
+  await ready(page);
+  expect(await hash(page, 1)).not.toBe(before);
+  // 预览里画出路径和三个点
+  await expect(page.getByTestId('anim-stage-path')).toBeAttached();
+  await expect(page.getByTestId('anim-stage-path-point')).toHaveCount(3);
+  // 拖第一个点往下：路径的第一个点 y 变小
+  const pt = (await page.getByTestId('anim-stage-path-point').first().boundingBox())!;
+  await page.mouse.move(pt.x + pt.width / 2, pt.y + pt.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(pt.x + pt.width / 2, pt.y + pt.height / 2 + 60, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await layer()).path!.points[0]!.y).toBeLessThan(-50);
+  // 加一个点
+  await page.getByTestId('anim-path-add').click();
+  await expect.poll(async () => (await layer()).path?.points.length).toBe(4);
+  // 一次拖动一步撤销：撤销两次回到刚打开时的路径
+  await dispatch(page, 'undo');
+  await dispatch(page, 'undo');
+  await expect.poll(async () => (await layer()).path!.points[0]!.y).toBe(0);
+  // 关掉路径：progress 一起去掉，画面回到原样
+  await page.getByTestId('anim-path-on').click();
+  await expect.poll(async () => (await layer()).path).toBeUndefined();
+  expect((await layer()).props.progress).toBeUndefined();
+  await ready(page);
+  expect(await hash(page, 1)).toBe(before);
+});

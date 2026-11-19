@@ -33,6 +33,7 @@ const COLORS: Record<AnimProp, string> = {
   rotZ: 'var(--danger)',
   scale: 'var(--warning)',
   opacity: 'var(--fg-muted)',
+  progress: 'var(--stage-hold)',
 };
 
 interface Curve {
