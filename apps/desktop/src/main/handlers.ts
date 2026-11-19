@@ -132,7 +132,6 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.soundLibrary, () => resources.soundLibrary());
   handle(IPC.resources.soundFiles, (_event, files, fetch) => resources.soundFiles(files, fetch));
   handle(IPC.resources.fontProviders, (_event, id) => resources.fontProviders(id));
-  handle(IPC.resources.fallbackFont, () => resources.fallbackFontTables());
   handle(IPC.resources.unihexTables, (_event, file, overrides) => resources.unihexTables(file, overrides));
 
   // ---- fonts：用户导入的字体（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）----

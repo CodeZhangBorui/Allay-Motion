@@ -254,7 +254,6 @@ export function AboutPage() {
       <SettingsSection title={t('settings.thirdParty')} testId="about-third-party">
         <ul className="flex flex-col gap-1 text-xs text-fg-muted">
           <li>{t('settings.licenses.ffmpeg')}</li>
-          <li>{t('settings.licenses.ark')}</li>
           <li>{t('settings.licenses.plex')}</li>
           <li>{t('settings.licenses.noto')}</li>
           <li>{t('settings.licenses.phosphor')}</li>

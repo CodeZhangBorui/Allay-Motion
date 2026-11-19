@@ -85,7 +85,6 @@ export const IPC_ARGS = {
   [IPC.resources.soundLibrary]: z.tuple([]),
   [IPC.resources.soundFiles]: z.tuple([SoundFileNamesSchema, z.boolean()]),
   [IPC.resources.fontProviders]: z.tuple([ResourceIdSchema]),
-  [IPC.resources.fallbackFont]: z.tuple([]),
   [IPC.resources.unihexTables]: z.tuple([ResourcePathSchema, UnihexOverridesSchema]),
   [IPC.resources.detectMinecraft]: z.tuple([]),
   [IPC.resources.setVanilla]: z.tuple([VanillaPatchSchema]),

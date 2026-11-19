@@ -7,7 +7,6 @@ import type {
   FfmpegInfo,
   H264Probe,
 } from '../shared/export';
-import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
 import type { HostCommandRequest, HostCommandResult } from '../shared/host-commands';
 import type {
@@ -108,8 +107,6 @@ export interface AllayApi {
     soundFiles(files: string[], fetch: boolean): Promise<SoundFilesResult>;
     list(prefix: string): Promise<string[]>;
     fontProviders(fontId: string): Promise<FontProvidersResult | null>;
-    /** 兜底像素字体 */
-    fallbackFont(): Promise<BitmapFontTables | null>;
     /** unihex 提供器的字形表（Unifont）：file 是 fontProviders 给的 zip 路径 */
     unihexTables(file: string, overrides: UnihexOverrideInfo[]): Promise<UnihexTablesInfo | null>;
     /** 重新离线探测本机游戏和下载缓存 */

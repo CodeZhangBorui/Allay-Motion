@@ -91,7 +91,6 @@ if (!app.requestSingleInstanceLock()) {
   const resources = new ResourceService({
     userDataDir: userData,
     builtinDir: join(bundledResources, 'builtin-pack'),
-    fallbackFontFile: join(bundledResources, 'fonts', 'ark-pixel', 'ark-pixel-12px-proportional-zh_hans.bdf'),
     settings,
     log,
     // 测试用 ALLAY_E2E_GAME_APPDATA 代替 %APPDATA%（只在未打包时生效），不碰这台机器上真装的游戏

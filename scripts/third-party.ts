@@ -11,7 +11,6 @@
 // - Electron（Chromium 的许可全文在安装目录的 LICENSES.chromium.html，太大，这里只指过去）；
 // - FFmpeg（LGPLv3，独立进程；许可全文是 ffmpeg/<平台>/LICENSE.txt，写明构建来源、版本和取得源码的方式；
 //   Windows 用 FFmpeg-Builds 的构建，macOS 用本项目从官方源码编译的，两份的来源都记在清单里）；
-// - 方舟像素字体（OFL-1.1，原样分发）。
 //
 // 用法：tsx scripts/third-party.ts           重新生成提交的 JSON
 //       tsx scripts/third-party.ts --check   只比对，不一致时退出码 1
@@ -140,16 +139,6 @@ export function collectThirdParty(root: string = ROOT): ThirdPartyFile {
     homepage: 'https://ffmpeg.org',
     text: null,
     seeFile: `resources/ffmpeg/${FFMPEG_BUILD.platform}/LICENSE.txt`,
-  });
-  entries.push({
-    name: 'Ark Pixel Font',
-    version: '2026.11.10',
-    license: 'OFL-1.1',
-    kind: 'font',
-    author: 'TakWolf',
-    homepage: 'https://github.com/TakWolf/ark-pixel-font',
-    text: readFileSync(join(root, 'resources/fonts/ark-pixel/OFL.txt'), 'utf8').replace(/\r\n?/g, '\n').trim(),
-    seeFile: 'resources/fonts/ark-pixel/OFL.txt',
   });
   return {
     formatVersion: 1,

@@ -120,7 +120,6 @@ describe('T-FNT-3 主进程读出 unihex 字形表', () => {
     const svc = new ResourceService({
       userDataDir: userData,
       builtinDir: join(dir, 'no-builtin'),
-      fallbackFontFile: join(dir, 'none.bdf'),
       settings,
       log,
       gameEnv: { platform: 'win32', appData: join(dir, 'appdata'), home: join(dir, 'appdata') },

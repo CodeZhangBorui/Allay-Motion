@@ -65,7 +65,6 @@ const api = {
     soundFiles: invoke(IPC.resources.soundFiles),
     list: invoke(IPC.resources.list),
     fontProviders: invoke(IPC.resources.fontProviders),
-    fallbackFont: invoke(IPC.resources.fallbackFont),
     unihexTables: invoke(IPC.resources.unihexTables),
     detectMinecraft: invoke(IPC.resources.detectMinecraft),
     setVanilla: invoke(IPC.resources.setVanilla),

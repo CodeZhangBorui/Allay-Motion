@@ -157,7 +157,7 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       fonts: {
         families: [
           ...GAME_FONTS.map((id): FontFamilyOption => ({ id, label: t(`editor.font.families.${id.slice('minecraft:'.length)}`), group: 'game', hint: t('editor.font.gameHint') })),
-          { id: 'allay:fallback', label: t('editor.font.families.fallback'), group: 'builtin', hint: t('editor.font.builtinHint') },
+          { id: 'system:sans', label: t('editor.font.families.system'), group: 'builtin', hint: t('editor.font.builtinHint') },
           ...userFonts.map((f): FontFamilyOption => ({ id: f.id, label: f.name, group: 'user' })),
         ],
         importFont,

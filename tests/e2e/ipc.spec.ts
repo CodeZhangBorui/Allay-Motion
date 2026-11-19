@@ -118,7 +118,6 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.soundVariants': [[], [42], [null], ['../x'], ['C:\\x'], ['no-namespace'], ['Minecraft:Block.Stone'], ['x'.repeat(300)]],
   'resources.list': [[42], ['../'], ['C:\\'], [null]],
   'resources.fontProviders': [[], [42], ['x'.repeat(600)]],
-  'resources.fallbackFont': [[1]],
   'resources.unihexTables': [[], ['assets/minecraft/font/unifont.zip'], ['../x.zip', []], ['C:\\x.zip', []], ['assets/minecraft/font/unifont.zip', [{ from: -1, to: 1, left: 0, right: 1 }]], ['assets/minecraft/font/unifont.zip', 'all']],
   'resources.detectMinecraft': [[1], ['C:\\Games']],
   'resources.setVanilla': [[], [null], [{ consent: 'yes' }], [{ dir: 'C:\\Games' }], [{ enabled: true }, 'x']],

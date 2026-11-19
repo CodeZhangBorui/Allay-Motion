@@ -47,7 +47,6 @@ async function makeService(opts: { game?: boolean; downloader?: VanillaDownloade
   const svc = new ResourceService({
     userDataDir: userData,
     builtinDir: join(dir, 'no-builtin'),
-    fallbackFontFile: join(import.meta.dirname, '../../resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf'),
     settings,
     log,
     gameEnv: { platform: 'win32', appData, home: appData },
@@ -163,7 +162,6 @@ describe('ResourceService', () => {
     const again = new ResourceService({
       userDataDir: join(dir, 'userData'),
       builtinDir: join(dir, 'no-builtin'),
-      fallbackFontFile: join(dir, 'none.bdf'),
       settings,
       log,
       gameEnv: { platform: 'win32', appData: join(dir, 'appdata'), home: dir },
@@ -174,11 +172,10 @@ describe('ResourceService', () => {
     const s = again.state();
     expect(s.brokenPacks).toEqual([expect.objectContaining({ name: 'gone', problem: 'missing' })]);
     expect(s.layers.map((l) => l.kind)).toEqual(['builtin']);
-    expect(await again.fallbackFontTables()).toBeNull();
     again.close();
   });
 
-  it('字体：资源栈里的 default.json（reference 展开）；兜底字体是方舟像素字体', async () => {
+  it('字体：资源栈里的 default.json（reference 展开）', async () => {
     const { svc } = await makeService();
     const folder = join(dir, 'font-pack');
     writeFiles(folder, {
@@ -194,8 +191,6 @@ describe('ResourceService', () => {
     // hex_file 不是 zip：记为无效的 unihex
     expect(f?.skipped).toContain('unihex(invalid)');
     expect(await svc.fontProviders('minecraft:nope')).toBeNull();
-    const fallback = await svc.fallbackFontTables();
-    expect(fallback?.codepoints.length).toBeGreaterThan(20_000);
     svc.close();
   });
 

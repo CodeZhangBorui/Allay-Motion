@@ -1,7 +1,7 @@
 // 主进程的资源栈服务（docs/03-assets.md 3.2–3.5、01-product-architecture.md 1.8 的 resources 命名空间）。
 // 持有各层、按设置组装资源栈、算 resourceStamp，栈一变就通知渲染进程。不依赖 Electron：对话框由调用方传入。
 import { randomUUID } from 'node:crypto';
-import { readFile, rm, stat } from 'node:fs/promises';
+import { rm, stat } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 import {
   buildStack,
@@ -10,7 +10,6 @@ import {
   layersWith,
   listMerged,
   mergeSoundDefinitions,
-  parseBdf,
   parseFontJson,
   parseResourceId,
   parseSoundsJson,
@@ -21,7 +20,6 @@ import {
   soundsJsonPath,
   textureIdToPath,
   textureMetaPath,
-  type BitmapFontTables,
   type ResourceLayer,
   type ResourceStackSettings,
   type SoundDefinitions,
@@ -58,8 +56,6 @@ export interface ResourceServiceOptions {
   userDataDir: string;
   /** 内置层的目录（v1 没有自制素材，通常不存在，见 decisions.md M2a） */
   builtinDir: string;
-  /** 兜底像素字体（BDF）的路径 */
-  fallbackFontFile: string;
   settings: SettingsStore;
   log: Logger;
   gameEnv: CandidateEnv;
@@ -101,7 +97,6 @@ export class ResourceService {
   private downloadAbort: AbortController | null = null;
   private lastProgress = 0;
   private progressTimer: ReturnType<typeof setTimeout> | null = null;
-  private fallbackFont: Promise<BitmapFontTables | null> | null = null;
   /** 改栈的操作串行执行，避免交错 */
   private queue: Promise<unknown> = Promise.resolve();
 
@@ -681,18 +676,6 @@ export class ResourceService {
       this.opts.log.info('resources', 'sound objects fetched on demand', { count: Object.values(states).filter((s) => s === 'local').length });
     }
     return failed ? { ok: false, error: failed, states } : { ok: true, states };
-  }
-
-  /** 兜底像素字体（不随资源栈变），第一次用到时解析 */
-  fallbackFontTables(): Promise<BitmapFontTables | null> {
-    this.fallbackFont ??= readFile(this.opts.fallbackFontFile, 'utf8').then(
-      (text) => parseBdf(text),
-      (error: unknown) => {
-        this.opts.log.warn('resources', 'fallback font unavailable', { error });
-        return null;
-      },
-    );
-    return this.fallbackFont;
   }
 
   close(): void {

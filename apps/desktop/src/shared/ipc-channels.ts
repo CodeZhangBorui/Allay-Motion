@@ -12,7 +12,7 @@
 // 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
 // 界面增强加上 folders：默认文件夹的查询、选择、清除（docs/decisions.md 界面增强）；
 // 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）；
-// 2026-11 字体加上 resources.unihexTables 和 fonts：用户导入字体的列表、导入、删除、读取（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）。
+// 2026-11 字体加上 resources.unihexTables 和 fonts（同时删掉 resources.fallbackFont：内置像素字体删了）：用户导入字体的列表、导入、删除、读取（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）。
 
 export const IPC = {
   app: {
@@ -56,7 +56,6 @@ export const IPC = {
     soundFiles: 'resources:soundFiles',
     list: 'resources:list',
     fontProviders: 'resources:fontProviders',
-    fallbackFont: 'resources:fallbackFont',
     unihexTables: 'resources:unihexTables',
     detectMinecraft: 'resources:detectMinecraft',
     setVanilla: 'resources:setVanilla',
@@ -176,7 +175,6 @@ export const INVOKE_CHANNELS = [
   IPC.resources.soundFiles,
   IPC.resources.list,
   IPC.resources.fontProviders,
-  IPC.resources.fallbackFont,
   IPC.resources.unihexTables,
   IPC.resources.detectMinecraft,
   IPC.resources.setVanilla,

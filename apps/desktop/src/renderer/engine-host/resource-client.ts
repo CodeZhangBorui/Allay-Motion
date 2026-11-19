@@ -3,7 +3,6 @@
 // Worker 自己不能读任何东西。解码结果按 resourceStamp 缓存；资源栈一变就清空。
 import { decodePng, type DecodedImage } from '@allay/assets';
 import {
-  FALLBACK_FONT_ID,
   MAX_TEXTURE_SIZE,
   type BitmapFontPayload,
   type FontPayload,
@@ -29,7 +28,6 @@ export function decodeImage(png: Uint8Array): Promise<DecodedImage> {
 
 let cacheStamp = '';
 const cache = new Map<string, Promise<ResourcePayload | null>>();
-let fallbackFont: Promise<BitmapFontPayload | null> | null = null;
 /** 用户导入的字体按内容哈希命名，不随资源栈变 */
 const userFonts = new Map<string, Promise<BitmapFontPayload | VectorFontPayload | null>>();
 
@@ -135,11 +133,6 @@ async function loadUserFont(id: string): Promise<BitmapFontPayload | VectorFontP
   return { kind: 'bdf', ascent: f.ascent, descent: f.descent, codepoints: f.codepoints, metrics: f.metrics, offsets: f.offsets, bits: f.bits };
 }
 
-async function loadFallbackFont(): Promise<BitmapFontPayload | null> {
-  const t = await window.allay.resources.fallbackFont();
-  return t ? { kind: 'bdf', ascent: t.ascent, descent: t.descent, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits } : null;
-}
-
 /**
  * 引擎的 resolveResource（只有资源栈，没有模板自带的图片：缩略图用）。
  * 每次返回一份新的副本：载荷会被零拷贝转移给 Worker，转移后原对象就不能用了。
@@ -169,11 +162,7 @@ export function loadStamp(assets: AssetSource | null): string {
 
 async function resolveWith(kind: ResourceKind, id: string, assets: AssetSource | null): Promise<ResourcePayload | null> {
   let p: Promise<ResourcePayload | null>;
-  if (kind === 'font' && id === FALLBACK_FONT_ID) {
-    // 兜底字体不随资源栈变
-    fallbackFont ??= loadFallbackFont().catch(() => null);
-    p = fallbackFont;
-  } else if (kind === 'font' && USER_FONT_RE.test(id)) {
+  if (kind === 'font' && USER_FONT_RE.test(id)) {
     let entry = userFonts.get(id);
     if (!entry) {
       entry = loadUserFont(id).catch(() => null);
