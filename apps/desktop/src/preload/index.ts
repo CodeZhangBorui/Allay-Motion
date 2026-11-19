@@ -114,6 +114,8 @@ const api = {
     readSource: invoke(IPC.templates.readSource),
     writeSource: invoke(IPC.templates.writeSource),
     createFromAnimation: invoke(IPC.templates.createFromAnimation),
+    readAnimation: invoke(IPC.templates.readAnimation),
+    updateFromAnimation: invoke(IPC.templates.updateFromAnimation),
     onChanged: subscribe<TemplateDevChange>(IPC.templates.changed),
   },
   presets: {

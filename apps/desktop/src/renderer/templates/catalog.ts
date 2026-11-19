@@ -30,6 +30,8 @@ export interface AnimationPayload {
   text: string;
   doc: AnimationDoc;
   issues: readonly { message: string; path: string; line?: number; column?: number }[];
+  /** 从哪个用户模板重新打开的（第三轮，第 10 项）：有它时可以“更新原模板”。不存进工程文件 */
+  origin?: { id: string; version: string };
 }
 
 /** 旗舰模板，应用启动时默认选它 */

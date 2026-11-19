@@ -37,6 +37,7 @@ import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '..
 import type { UpdateState } from '../shared/updates';
 import type {
   CreateFromAnimationResult,
+  ReadAnimationResult,
   ReadSourceResult,
   WriteSourceRequest,
   WriteSourceResult,
@@ -188,6 +189,8 @@ export interface AllayApi {
     writeSource(req: WriteSourceRequest): Promise<WriteSourceResult>;
     /** 把动画文档转成一个新的用户模板（manifest.json、template.js、animation.json） */
     createFromAnimation(req: { text: string }): Promise<CreateFromAnimationResult>;
+    readAnimation(id: string, version: string): Promise<ReadAnimationResult>;
+    updateFromAnimation(req: { id: string; version: string; text: string }): Promise<CreateFromAnimationResult>;
     /** 用户模板文件夹在应用之外被改动（应用自己的写入不触发）；返回取消订阅的函数 */
     onChanged(callback: (change: TemplateDevChange) => void): () => void;
   };

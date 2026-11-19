@@ -273,6 +273,33 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
     expect(await svc.readAsset({ id: r.entry.id, version: '1.0.0' }, 'image-pic.png')).not.toBeNull();
   });
 
+  it('T-ANIM-33 转出来的模板可以重新打开：读 animation.json（template.js 被外部改过时 inSync 为 false），用改过的动画更新原模板（id、版本不变）', async () => {
+    const { AnimationDocSchema, newAnimationDoc, serializeAnimation } = await import('../../apps/desktop/src/shared/animation/schema');
+    expect(await dev.readAnimation({ id: 'allay.builtin.block-wipe', version: '1.0.0' })).toMatchObject({ ok: false, error: 'not-user' });
+    const doc = newAnimationDoc('Round Trip');
+    const r = await dev.createFromAnimation(serializeAnimation(doc));
+    if (!r.ok) throw new Error(r.error);
+    const ref = { id: r.entry.id, version: r.entry.version };
+    const read = await dev.readAnimation(ref);
+    expect(read).toEqual({ ok: true, text: serializeAnimation(doc), inSync: true });
+    // 在外部改 template.js：inSync 为 false
+    const dir = svc.userTemplateDir(ref.id, ref.version)!;
+    writeFileSync(join(dir, 'template.js'), readFileSync(join(dir, 'template.js'), 'utf8') + '\n// edited\n');
+    expect(await dev.readAnimation(ref)).toMatchObject({ ok: true, inSync: false });
+    // 更新：名称和图层变了，id、版本不变；三个文件都重写，template.js 又和文档一致
+    const next = AnimationDocSchema.parse({ ...doc, name: 'Round Trip 2', layers: [...doc.layers, { id: 'r', name: 'R', type: 'rect', props: {} }] });
+    const u = await dev.updateFromAnimation({ ...ref, text: serializeAnimation(next) });
+    if (!u.ok) throw new Error(u.error);
+    expect(u.entry).toMatchObject({ id: ref.id, version: ref.version, source: 'user' });
+    expect(u.entry.manifest.name).toBe('Round Trip 2');
+    expect(await dev.readAnimation(ref)).toEqual({ ok: true, text: serializeAnimation(next), inSync: true });
+    expect(await analyzeTemplateCode((await svc.read(ref.id, ref.version))!.code)).toEqual([]);
+    // 不合法的文档、不是用户模板：拒绝，文件不动
+    expect(await dev.updateFromAnimation({ ...ref, text: '{ not json' })).toMatchObject({ ok: false, error: 'invalid' });
+    expect(await dev.updateFromAnimation({ id: 'allay.builtin.block-wipe', version: '1.0.0', text: serializeAnimation(next) })).toMatchObject({ ok: false, error: 'invalid' });
+    expect((await dev.readAnimation(ref)) as { text: string }).toMatchObject({ text: serializeAnimation(next) });
+  });
+
   it('复制出来的每个内置模板，按写进去的 jsconfig 做 checkJs：除了已知的一处都没有错误', async () => {
     const options = { ...ts.convertCompilerOptionsFromJson(TEMPLATE_JSCONFIG.compilerOptions, base).options, allowJs: true, noEmit: true };
     // 已知的例外：T3 的源码里有 `tex.image as { width?: number; height?: number }`，打包时类型断言被去掉了，

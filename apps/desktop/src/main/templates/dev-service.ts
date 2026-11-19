@@ -2,13 +2,13 @@
 // 监视用户模板目录并通知界面、把内置模板复制成可编辑的用户模板、往模板文件夹写类型定义和 jsconfig.json、
 // 在系统文件管理器里打开模板文件夹。界面接线（热重载、错误浮层、命令）在 MD-b。
 import { randomBytes } from 'node:crypto';
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { animationTemplateFiles } from '../../shared/animation/compile';
-import { parseAnimation } from '../../shared/animation/schema';
+import { ANIMATION_FILE_NAME, animationTemplateFiles } from '../../shared/animation/compile';
+import { MAX_ANIMATION_CHARS, parseAnimation, type AnimationDoc } from '../../shared/animation/schema';
 import { analyzeTemplateCode, TemplateCodeError } from '../../shared/template-code';
 import { TEMPLATE_API_DTS_NAME, TEMPLATE_JSCONFIG_NAME, templateJsconfigText } from '../../shared/template-dev';
-import type { CreateFromAnimationResult, ReadSourceResult, TemplateDevChange, TemplateDevResult, WriteSourceRequest, WriteSourceResult } from '../../shared/templates';
+import type { CreateFromAnimationResult, ReadAnimationResult, ReadSourceResult, UpdateFromAnimationRequest, TemplateDevChange, TemplateDevResult, WriteSourceRequest, WriteSourceResult } from '../../shared/templates';
 import type { Logger } from '../logger';
 import { hashTemplateDir, type TemplateWatcher } from './dev-watcher';
 import { readImageFile, type TemplateService } from './service';
@@ -179,19 +179,8 @@ export class TemplateDevService {
   async createFromAnimation(text: string, resolveFile: (ref: string) => string | null = () => null): Promise<CreateFromAnimationResult> {
     const parsed = parseAnimation(text);
     if (!parsed.ok) return { ok: false, error: 'invalid', detail: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ').slice(0, 2000) };
-    // 图片图层的本机图片（file: 引用只在这次运行有效）：读出来复制进模板的 assets/，文档里换成 asset: 引用（同派生模板，4.7）
-    const assets: { name: string; bytes: Uint8Array }[] = [];
-    for (const l of parsed.doc.layers) {
-      if (l.type !== 'image' || typeof l.image !== 'string') continue;
-      const m = /^file:([0-9a-fA-F-]{36})$/.exec(l.image);
-      if (!m) continue;
-      const path = resolveFile(m[1]!);
-      const image = path ? await readImageFile(path) : null;
-      if (!image) return { ok: false, error: 'invalid', detail: `layer "${l.name}": the image cannot be read` };
-      const name = `image-${l.id}.${image.ext}`;
-      assets.push({ name, bytes: image.bytes });
-      l.image = `asset:${name}`;
-    }
+    const assets = await this.collectImages(parsed.doc, resolveFile);
+    if (!Array.isArray(assets)) return assets;
     const slug = parsed.doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'animation';
     const ref = { id: `user.${randomBytes(3).toString('hex')}.${slug}`, version: '1.0.0' };
     const files = animationTemplateFiles(parsed.doc, ref);
@@ -207,7 +196,71 @@ export class TemplateDevService {
     return created;
   }
 
+  /**
+   * 读用户模板里的 animation.json（第三轮：转出来的模板可以重新打开继续编辑）。主进程只读、只校验大小和格式；
+   * inSync：template.js 是不是还和从这份文档生成的一样
+   */
+  async readAnimation(req: { id: string; version: string }): Promise<ReadAnimationResult> {
+    const dir = await this.userDir(req.id, req.version);
+    if (!dir.ok) return { ok: false, error: dir.error === 'not-user' ? 'not-user' : 'not-found' };
+    const [text, code] = await Promise.all([readFile(join(dir.path, ANIMATION_FILE_NAME), 'utf8').catch(() => null), readFile(join(dir.path, 'template.js'), 'utf8').catch(() => null)]);
+    if (text === null) return { ok: false, error: 'not-found' };
+    if (text.length > MAX_ANIMATION_CHARS) return { ok: false, error: 'invalid', detail: 'animation.json is too large' };
+    const parsed = parseAnimation(text);
+    if (!parsed.ok) return { ok: false, error: 'invalid', detail: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ').slice(0, 2000) };
+    const expected = animationTemplateFiles(parsed.doc, { id: req.id, version: req.version })['template.js'];
+    return { ok: true, text, inSync: code === expected };
+  }
+
+  /**
+   * 用编辑过的动画更新原来那个用户模板（第三轮）：id 和版本不变，重写 manifest.json、template.js、animation.json，
+   * 本机图片复制进 assets/。不包在 ownWrite 里：监视服务照常发现改动，模板库刷新、正在用它的预览热重载
+   */
+  async updateFromAnimation(req: UpdateFromAnimationRequest, resolveFile: (ref: string) => string | null = () => null): Promise<CreateFromAnimationResult> {
+    const dir = await this.userDir(req.id, req.version);
+    if (!dir.ok) return { ok: false, error: 'invalid', detail: 'not a user template' };
+    const parsed = parseAnimation(req.text);
+    if (!parsed.ok) return { ok: false, error: 'invalid', detail: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ').slice(0, 2000) };
+    const assets = await this.collectImages(parsed.doc, resolveFile);
+    if (!Array.isArray(assets)) return assets;
+    const files = animationTemplateFiles(parsed.doc, { id: req.id, version: req.version });
+    try {
+      await analyzeTemplateCode(files['template.js']);
+    } catch (error) {
+      return { ok: false, error: 'invalid', detail: error instanceof Error ? error.message.slice(0, 2000) : 'invalid code' };
+    }
+    try {
+      if (assets.length > 0) {
+        await mkdir(join(dir.path, 'assets'), { recursive: true });
+        for (const a of assets) await writeFile(join(dir.path, 'assets', a.name), a.bytes);
+      }
+      for (const [name, text] of Object.entries(files)) await writeFileAtomic(join(dir.path, name), text);
+    } catch (error) {
+      this.opts.log.warn('templates', 'update from animation failed', { id: req.id, error: String(error) });
+      return { ok: false, error: 'io' };
+    }
+    const entry = await this.opts.templates.refreshUser(req.id, req.version);
+    return entry ? { ok: true, entry } : { ok: false, error: 'invalid', detail: 'the updated template could not be read' };
+  }
+
   // ---- 内部 ----
+
+  /** 图片图层的本机图片（file: 引用只在这次运行有效）：读出来，文档里换成 asset: 引用（同派生模板，4.7）。读不出的整个拒绝 */
+  private async collectImages(doc: AnimationDoc, resolveFile: (ref: string) => string | null): Promise<{ name: string; bytes: Uint8Array }[] | { ok: false; error: 'invalid'; detail: string }> {
+    const assets: { name: string; bytes: Uint8Array }[] = [];
+    for (const l of doc.layers) {
+      if (l.type !== 'image' || typeof l.image !== 'string') continue;
+      const m = /^file:([0-9a-fA-F-]{36})$/.exec(l.image);
+      if (!m) continue;
+      const path = resolveFile(m[1]!);
+      const image = path ? await readImageFile(path) : null;
+      if (!image) return { ok: false, error: 'invalid', detail: `layer "${l.name}": the image cannot be read` };
+      const name = `image-${l.id}.${image.ext}`;
+      assets.push({ name, bytes: image.bytes });
+      l.image = `asset:${name}`;
+    }
+    return assets;
+  }
 
   /** 用户模板的文件夹：必须是已知的用户模板，真实路径在用户模板目录之内 */
   private async userDir(id: string, version: string): Promise<{ ok: true; path: string } | { ok: false; error: 'not-user' | 'outside' }> {

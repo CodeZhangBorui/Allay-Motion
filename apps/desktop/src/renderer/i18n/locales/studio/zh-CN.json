@@ -111,7 +111,10 @@
       "ungroup": "解组",
       "ungroupSelection": "解组",
       "setRepeat": "设置复制器",
-      "setPath": "设置路径"
+      "setPath": "设置路径",
+      "editTemplate": "在动画编辑器里打开",
+      "updateTemplate": "更新原模板",
+      "convertNew": "另存为新模板"
     },
     "history": {
       "new": "新建动画",
@@ -125,7 +128,9 @@
     },
     "errors": {
       "invalidEdit": "这个修改不合规，没有生效：{{reason}}",
-      "convert": "没能转为模板：{{reason}}"
+      "convert": "没能转为模板：{{reason}}",
+      "noAnimationFile": "这个模板里没有 animation.json，不是由动画转出来的。",
+      "readAnimation": "没能读出这个模板的动画：{{reason}}"
     },
     "layerTypes": {
       "block": "方块",
@@ -240,7 +245,8 @@
       "imageHint": "可以选原版贴图、GUI 精灵，或导入本机图片（PNG、JPEG、WebP）。九宫格让面板、按钮拉伸时边框不变形，边框按贴图像素算。",
       "chars": "逐字动画",
       "charsNoRepeat": "先关掉复制器才能用逐字动画",
-      "charsHint": "每个字各自播放这个图层的动画，一个比一个晚。位置、旋转、缩放都以每个字自己的中心为准。"
+      "charsHint": "每个字各自播放这个图层的动画，一个比一个晚。位置、旋转、缩放都以每个字自己的中心为准。",
+      "fromTemplateHint": "这份动画是从模板“{{name}}”打开的：“更新原模板”改写那个模板（预设和工程照常能用），“另存为新模板”另做一个。"
     },
     "propNames": {
       "x": "X",
@@ -405,6 +411,12 @@
       "removePoint": "删最后一个点",
       "points": "{{count}} 个点",
       "hint": "打开后“进度”在整段里从 0 走到 1，按路径长度匀速；X、Y 是相对路径的偏移。在预览里拖点和手柄改路径，按住 Alt 从点上拖出手柄。"
+    },
+    "updated": "模板“{{name}}”已更新。",
+    "edited": {
+      "title": "模板代码在外面改过",
+      "body": "这个模板的 template.js 和它的动画文档对不上（多半在外部编辑器里改过）。在动画编辑器里打开后，“更新原模板”会用动画重新生成代码，覆盖那些改动。",
+      "confirm": "仍然打开"
     }
   }
 }

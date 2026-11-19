@@ -30,7 +30,7 @@ import {
 } from '@allay/ui/editor';
 import { ICON } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
-import { Code, Diamond, LinkSimple, LinkBreak, Lock, Plus, Trash, TreeStructure } from '@phosphor-icons/react';
+import { ArrowsClockwise, Code, Diamond, LinkSimple, LinkBreak, Lock, Plus, Trash, TreeStructure } from '@phosphor-icons/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@allay/ui/components/select';
 import { descendants } from '../../../shared/animation/layers';
 import { useMemo, useState, type ReactNode } from 'react';
@@ -41,6 +41,7 @@ import { docDuration, resolveDoc, type ResolvedDoc, type ResolvedLayer } from '.
 import { ANIM_PROPS, BLEND_MODES, isParamRef, REPEAT_ORDERS, type AnimationDoc, type AnimEasing, type AnimParam, type AnimProp, type Layer } from '../../../shared/animation/schema';
 import { commandEnabled, trigger, useRegistry } from '../../app/registry';
 import { useProjectStore } from '../../stores/projectStore';
+import { useTemplateStore } from '../../stores/templateStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { localized } from '../../templates/catalog';
 import { EditorServicesProvider } from '../params/editorServices';
@@ -259,9 +260,11 @@ function ParamsSection({ doc }: { doc: AnimationDoc }) {
 }
 
 function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: ResolvedDoc }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const fps = useProjectStore((s) => s.output.fps);
   const convert = useRegistry((s) => s.commands.animConvertToTemplate);
+  const origin = useProjectStore((s) => s.template?.animation?.origin);
+  const originName = useTemplateStore((s) => (origin ? s.entries.find((e) => e.id === origin.id && e.version === origin.version)?.manifest.name : undefined));
   const issues = useProjectStore((s) => s.template?.animation?.issues.length ?? 0);
   const duration = resolved.duration;
   return (
@@ -322,11 +325,19 @@ function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: Reso
       </Group>
       <ParamsSection doc={doc} />
       <Group id="template" title={t('anim.props.asTemplate')}>
-        <p className="pb-2 text-xs leading-snug text-fg-subtle">{t('anim.props.asTemplateHint')}</p>
-        <Button variant="secondary" disabled={!convert || !commandEnabled(convert) || issues > 0} onClick={() => trigger('animConvertToTemplate')} data-testid="anim-convert">
-          <TreeStructure size={ICON.sm} />
-          {t('anim.commands.convert')}
-        </Button>
+        <p className="pb-2 text-xs leading-snug text-fg-subtle">{origin ? t('anim.props.fromTemplateHint', { name: originName ? localized(originName, i18n.language) : origin.id }) : t('anim.props.asTemplateHint')}</p>
+        <div className="flex flex-wrap gap-[5px]">
+          {origin && (
+            <Button variant="secondary" disabled={issues > 0} onClick={() => trigger('animUpdateTemplate')} data-testid="anim-update-template">
+              <ArrowsClockwise size={ICON.sm} />
+              {t('anim.commands.updateTemplate')}
+            </Button>
+          )}
+          <Button variant="secondary" disabled={!convert || !commandEnabled(convert) || issues > 0} onClick={() => trigger('animConvertToTemplate')} data-testid="anim-convert">
+            <TreeStructure size={ICON.sm} />
+            {t(origin ? 'anim.commands.convertNew' : 'anim.commands.convert')}
+          </Button>
+        </div>
       </Group>
     </>
   );

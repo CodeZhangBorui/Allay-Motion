@@ -111,7 +111,10 @@
       "ungroup": "Ungroup",
       "ungroupSelection": "Ungroup",
       "setRepeat": "Set replicator",
-      "setPath": "Set path"
+      "setPath": "Set path",
+      "editTemplate": "Open in animation editor",
+      "updateTemplate": "Update original template",
+      "convertNew": "Save as new template"
     },
     "history": {
       "new": "New animation",
@@ -125,7 +128,9 @@
     },
     "errors": {
       "invalidEdit": "That change isn't valid and wasn't applied: {{reason}}",
-      "convert": "Couldn't convert to a template: {{reason}}"
+      "convert": "Couldn't convert to a template: {{reason}}",
+      "noAnimationFile": "This template has no animation.json; it wasn't made from an animation.",
+      "readAnimation": "Couldn't read this template's animation: {{reason}}"
     },
     "layerTypes": {
       "block": "Block",
@@ -240,7 +245,8 @@
       "imageHint": "Pick a vanilla texture or GUI sprite, or import a picture from this computer (PNG, JPEG, WebP). Nine-slice keeps the border of panels and buttons sharp when stretched; borders are in texture pixels.",
       "chars": "Per character",
       "charsNoRepeat": "Turn off the replicator to animate per character",
-      "charsHint": "Each character plays this layer's animation on its own, one after another. Position, rotation and scale are around each character's own center."
+      "charsHint": "Each character plays this layer's animation on its own, one after another. Position, rotation and scale are around each character's own center.",
+      "fromTemplateHint": "This animation was opened from the template “{{name}}”. “Update original template” rewrites that template (its presets and projects keep working); “Save as new template” makes another one."
     },
     "propNames": {
       "x": "X",
@@ -405,6 +411,12 @@
       "removePoint": "Remove last point",
       "points": "{{count}} points",
       "hint": "Turning it on animates Progress from 0 to 1 over the whole clip, at constant speed along the path; X and Y become offsets from the path. Drag points and handles in the preview; hold Alt and drag from a point to pull out handles."
+    },
+    "updated": "Template “{{name}}” updated.",
+    "edited": {
+      "title": "Template code was changed elsewhere",
+      "body": "This template's template.js no longer matches its animation document (it was probably edited in an external editor). After opening it in the animation editor, “Update original template” regenerates the code from the animation and overwrites those changes.",
+      "confirm": "Open anyway"
     }
   }
 }

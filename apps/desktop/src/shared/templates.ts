@@ -194,3 +194,17 @@ export const CreateFromAnimationSchema = z.strictObject({
 });
 
 export type CreateFromAnimationResult = { ok: true; entry: TemplateEntry } | { ok: false; error: 'invalid' | 'io'; detail?: string };
+
+/**
+ * templates.readAnimation 的结果（第三轮）：用户模板里的 animation.json 原文。inSync 表示 template.js 还是从它生成的那份
+ * （在外部编辑器里改过 template.js 时为 false：重新打开编辑再更新会覆盖那些改动）
+ */
+export type ReadAnimationResult = { ok: true; text: string; inSync: boolean } | { ok: false; error: 'not-found' | 'not-user' | 'invalid'; detail?: string };
+
+/** templates.updateFromAnimation 的入参：要更新的用户模板，和动画文档的原文（主进程自己解析、校验、生成代码） */
+export const UpdateFromAnimationSchema = z.strictObject({
+  id: TemplateIdArgSchema,
+  version: TemplateVersionArgSchema,
+  text: z.string().min(1).max(512 * 1024),
+});
+export type UpdateFromAnimationRequest = z.infer<typeof UpdateFromAnimationSchema>;

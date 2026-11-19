@@ -57,6 +57,7 @@ export function DevPanel() {
         <p className="text-xs leading-snug text-fg-subtle">{t(`devMode.panel.kindHints.${kind}`)}</p>
         <CommandButton id="copyBuiltinTemplate" icon={Copy} label={t('devMode.panel.copy')} />
         <CommandButton id="openTemplateFolder" icon={FolderUser} label={t('devMode.panel.openFolder')} />
+        <CommandButton id="animEditTemplate" icon={FilmSlate} label={t('anim.commands.editTemplate')} />
       </Section>
       <Section title={t('devMode.panel.tools')} testId="dev-tools">
         {tools.length === 0 ? (

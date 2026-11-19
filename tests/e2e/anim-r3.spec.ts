@@ -502,3 +502,42 @@ test('T-ANIM-31 逐字动画：给文字图层打开逐字，画面变；复制�
   await ready(page);
   expect(await hash(page, 0.5)).toBe(before);
 });
+
+test('T-ANIM-33 转出来的模板重新打开继续编辑：“在动画编辑器里打开”（开发页、命令面板），改完“更新原模板”，模板库里还是同一个模板、画面是改过的', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  const ref = (await dispatch(page, 'animConvertToTemplate')) as { id: string; version: string };
+  expect(await page.evaluate((r) => window.__allayTest!.selectTemplate(r.id, r.version), ref)).toBe(true);
+  await ready(page);
+  const before = await hash(page, 1);
+  // 开发页“在动画编辑器里打开”（命令面板里同一条命令）
+  const opening = dispatch(page, 'animEditTemplate');
+  // 刚才的动画没保存：先问要不要放弃
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: /放弃|Discard/ }).click();
+  expect(await opening).toBe(true);
+  await expect(page.getByTestId('anim-timeline')).toBeVisible();
+  await ready(page);
+  expect(await hash(page, 1)).toBe(before);
+  // 改：加一个矩形，更新原模板
+  await dispatch(page, 'animAddLayer', { type: 'rect' });
+  await ready(page);
+  const edited = await hash(page, 1);
+  expect(edited).not.toBe(before);
+  // 检查器的“整段动画”里（没选图层时）有“更新原模板”；这里经同一条命令
+  expect(await dispatch(page, 'animUpdateTemplate')).toBe(true);
+  await expect.poll(async () => (await page.evaluate((r) => window.allay.templates.readAnimation(r.id, r.version), ref)) as { ok: boolean; text?: string }).toMatchObject({ ok: true });
+  const read = (await page.evaluate((r) => window.allay.templates.readAnimation(r.id, r.version), ref)) as { ok: true; text: string; inSync: boolean };
+  expect(read.inSync).toBe(true);
+  expect((JSON.parse(read.text) as { layers: { type: string }[] }).layers.map((l) => l.type)).toContain('rect');
+  // 模板库里还是同一个 id 和版本，选中它画面是改过的
+  const entries = await page.evaluate(() => window.__allayTest!.templates());
+  expect(entries.filter((e) => e.id === ref.id)).toHaveLength(1);
+  expect(await page.evaluate((r) => window.__allayTest!.selectTemplate(r.id, r.version), ref)).toBe(true);
+  await ready(page);
+  await expect.poll(async () => hash(page, 1)).toBe(edited);
+});

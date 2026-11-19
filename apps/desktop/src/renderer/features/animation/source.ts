@@ -23,10 +23,10 @@ const DRAFT_CODE = draftTemplateCode();
  * 从一份合法的文档建模板来源。编辑时的预览模板（第 9 项）：代码对每份文档都一样，文档在隐藏参数 DOC_PARAM 里
  * （projectStore 按 animation.doc 填）；manifest 只取决于文档的名称、分类和参数表
  */
-export function sourceFromDoc(ref: { id: string; version: string }, doc: AnimationDoc, text = serializeAnimation(doc), issues: AnimationPayload['issues'] = []): TemplateSource {
+export function sourceFromDoc(ref: { id: string; version: string }, doc: AnimationDoc, text = serializeAnimation(doc), issues: AnimationPayload['issues'] = [], origin?: AnimationPayload['origin']): TemplateSource {
   const manifest = draftManifest(doc, ref);
   const docParam = manifest.params!.find((p) => p.key === DOC_PARAM)!;
-  return { ref, manifest, params: [docParam], hidden: [DOC_PARAM], code: DRAFT_CODE, assets: null, animation: { text, doc, issues } };
+  return { ref, manifest, params: [docParam], hidden: [DOC_PARAM], code: DRAFT_CODE, assets: null, animation: { text, doc, issues, ...(origin ? { origin } : {}) } };
 }
 
 /** 提交一份新的模板来源：manifest 没变时只改参数（预览走 setParams），变了才重新装载 */
@@ -59,7 +59,7 @@ export function editDoc(mutate: (doc: AnimationDoc) => void): boolean {
     notify('error', i18next.t('anim.errors.invalidEdit', { reason: parsed.error.issues[0]?.message ?? '' }));
     return false;
   }
-  const next = sourceFromDoc(cur.source.ref, parsed.data);
+  const next = sourceFromDoc(cur.source.ref, parsed.data, undefined, undefined, cur.origin);
   if (next.animation!.text === cur.text) return true;
   commitSource(cur.source, next);
   return true;
@@ -81,7 +81,7 @@ export function setAnimationText(text: string): AnimationPayload['issues'] {
   const cur = currentAnimation();
   if (!cur || text === cur.text) return cur?.issues ?? [];
   const parsed = parseAnimation(text);
-  const next = parsed.ok ? sourceFromDoc(cur.source.ref, parsed.doc, text) : { ...cur.source, animation: { text, doc: cur.doc, issues: parsed.issues } };
+  const next = parsed.ok ? sourceFromDoc(cur.source.ref, parsed.doc, text, [], cur.origin) : { ...cur.source, animation: { ...cur.source.animation!, text, issues: parsed.issues } };
   commitSource(cur.source, next);
   return parsed.ok ? [] : parsed.issues;
 }

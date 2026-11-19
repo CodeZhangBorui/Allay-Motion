@@ -348,6 +348,12 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
         desktopOnly('templates');
         return { ok: false, error: 'io', detail: 'web demo' };
       },
+      // 重新打开转出来的模板、更新原模板（第三轮）：网页演示没有用户模板
+      readAnimation: async () => ({ ok: false, error: 'not-user' }),
+      updateFromAnimation: async () => {
+        desktopOnly('templates');
+        return { ok: false, error: 'io', detail: 'web demo' };
+      },
       onChanged: () => () => undefined,
     },
     presets: {

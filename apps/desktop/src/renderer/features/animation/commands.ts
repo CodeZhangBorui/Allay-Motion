@@ -1,10 +1,10 @@
 // 动画工作区的类型化命令（docs/code-editing-and-mcp-plan.md H2；docs/animation-editor.md 第 6 节）。
 // 界面按钮、命令面板、将来内置的 agent 或 MCP 调的是同一套命令：入参、返回值都有 zod schema，write 命令进撤销历史。
 // 这里不做 MCP（H-MCP 未批准），只把命令层准备好。
-import { AppWindow, ArrowSquareOut, Code, FilmSlate, Plus, Stack, TreeStructure } from '@phosphor-icons/react';
+import { AppWindow, ArrowSquareOut, ArrowsClockwise, Code, FilmSlate, Plus, Stack, TreeStructure } from '@phosphor-icons/react';
 import i18next from 'i18next';
 import { z } from 'zod';
-import { AnimEasingSchema, ANIM_PROPS, isKeyed, LAYER_TYPES, LayerSchema, newAnimationDoc, type Layer, type LayerType } from '../../../shared/animation/schema';
+import { AnimEasingSchema, ANIM_PROPS, isKeyed, LAYER_TYPES, LayerSchema, newAnimationDoc, parseAnimation, type Layer, type LayerType } from '../../../shared/animation/schema';
 import { docDuration, resolveDoc } from '../../../shared/animation/resolve';
 import { keyIndexAt, moveKey, propValue, removeKey, setKeyEase, setValueAt } from '../../../shared/animation/edit';
 import { defineCommand, type AnyCommand } from '../../app/registry';
@@ -14,6 +14,7 @@ import { useTemplateStore } from '../../stores/templateStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { easeEval } from './easeEval';
 import { confirmDiscard } from '../project/actions';
+import { askConfirm } from '../project/confirm';
 import { previewEngine } from '../preview/previewEngine';
 import { currentAnimation, draftRef, editDoc, isAnimationActive, nextLayerId, replaceDoc, setAnimationText, sourceFromDoc } from './source';
 import { removeLayer } from '../../../shared/animation/layers';
@@ -250,6 +251,35 @@ export const ANIMATION_COMMANDS: AnyCommand[] = [
     run: () => convertToTemplate(),
   }),
   defineCommand({
+    id: 'animEditTemplate',
+    titleKey: 'anim.commands.editTemplate',
+    category: 'templates',
+    icon: FilmSlate,
+    effect: 'write',
+    // 用户模板（不传时是当前模板）里有 animation.json 才能打开
+    input: z.strictObject({ id: z.string().min(1).max(128), version: z.string().min(1).max(64) }).optional(),
+    // 可用条件看当前模板（菜单、命令面板里）；传了 ref 时 run 自己检查
+    enabled: () => {
+      const tpl = useProjectStore.getState().template;
+      return !!tpl && !tpl.animation && useTemplateStore.getState().entries.some((e) => e.id === tpl.ref.id && e.version === tpl.ref.version && e.source === 'user' && e.kind === 'script');
+    },
+    output: z.boolean(),
+    run: (input) => editTemplateAnimation(input ?? useProjectStore.getState().template!.ref),
+  }),
+  defineCommand({
+    id: 'animUpdateTemplate',
+    titleKey: 'anim.commands.updateTemplate',
+    category: 'templates',
+    icon: ArrowsClockwise,
+    effect: 'write',
+    enabled: () => {
+      const cur = currentAnimation();
+      return !!cur && cur.issues.length === 0 && !!cur.origin;
+    },
+    output: z.boolean(),
+    run: () => updateOriginTemplate(),
+  }),
+  defineCommand({
     id: 'animEditCode',
     titleKey: 'anim.commands.editCode',
     category: 'view',
@@ -287,6 +317,42 @@ export const ANIMATION_COMMANDS: AnyCommand[] = [
     run: () => useAnimationUi.getState().setCodeOpen(!useAnimationUi.getState().codeOpen),
   }),
 ];
+
+/**
+ * 重新打开转出来的模板继续编辑（第 10 项）：读模板里的 animation.json，新开一个动画（等于新建工程），记下它来自哪个模板。
+ * template.js 在外部被改过（和 animation.json 生成的不一样）时先问：之后“更新原模板”会覆盖那些改动
+ */
+export async function editTemplateAnimation(ref: { id: string; version: string }): Promise<boolean> {
+  const r = await window.allay.templates.readAnimation(ref.id, ref.version);
+  if (!r.ok) {
+    notify('error', t(r.error === 'not-found' ? 'anim.errors.noAnimationFile' : 'anim.errors.readAnimation', { reason: r.detail ?? r.error }));
+    return false;
+  }
+  if (!r.inSync && !(await askConfirm({ title: t('anim.edited.title'), body: t('anim.edited.body'), confirm: t('anim.edited.confirm') }))) return false;
+  const parsed = parseAnimation(r.text);
+  if (!parsed.ok) return false;
+  if (!(await confirmDiscard())) return false;
+  useProjectStore.getState().reset({ template: sourceFromDoc(draftRef(), parsed.doc, r.text, [], ref), name: null, handle: null, locale: i18next.language });
+  clearHistory();
+  useTransportStore.getState().setTime(0);
+  useAnimationUi.getState().select({ layer: parsed.doc.layers[0]?.id ?? null, key: null });
+  previewEngine.retry();
+  return true;
+}
+
+/** 用编辑过的动画更新原来那个用户模板（id、版本不变；用到它的预设、工程照常能用） */
+export async function updateOriginTemplate(): Promise<boolean> {
+  const cur = currentAnimation();
+  if (!cur?.origin || cur.issues.length > 0) return false;
+  const r = await window.allay.templates.updateFromAnimation({ id: cur.origin.id, version: cur.origin.version, text: cur.text });
+  if (!r.ok) {
+    notify('error', t('anim.errors.convert', { reason: r.detail ?? r.error }));
+    return false;
+  }
+  await useTemplateStore.getState().refresh();
+  notify('info', t('anim.updated', { name: cur.doc.name }));
+  return true;
+}
 
 /** 手动转为模板（docs/animation-editor.md 第 7 节）：主进程生成一个标准的用户模板目录，模板库里就有了 */
 export async function convertToTemplate(): Promise<{ id: string; version: string } | null> {

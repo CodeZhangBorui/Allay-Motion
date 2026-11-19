@@ -105,6 +105,9 @@ export const IPC = {
     readSource: 'templates:readSource',
     writeSource: 'templates:writeSource',
     createFromAnimation: 'templates:createFromAnimation',
+    /** 第三轮：读用户模板里的 animation.json（重新打开继续编辑）、用动画更新这个模板 */
+    readAnimation: 'templates:readAnimation',
+    updateFromAnimation: 'templates:updateFromAnimation',
     /** 主进程 → 渲染进程的事件：用户模板文件夹在应用之外被改动 */
     changed: 'templates:changed',
   },
@@ -255,6 +258,8 @@ export const INVOKE_CHANNELS = [
   IPC.templates.readSource,
   IPC.templates.writeSource,
   IPC.templates.createFromAnimation,
+  IPC.templates.readAnimation,
+  IPC.templates.updateFromAnimation,
   IPC.presets.list,
   IPC.presets.save,
   IPC.presets.remove,
