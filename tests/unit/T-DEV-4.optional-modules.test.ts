@@ -65,10 +65,17 @@ describe('T-DEV-4 可选模块的目录可以为空或被删掉', () => {
     expect(ws).toMatch(/^\s*- packages\/optional\/\*\s*$/m);
   });
 
-  it('现在 packages/optional 里没有任何模块（只有说明）', () => {
+  it('packages/optional 里每个模块都按约定：自己的 package.json（@allay/optional-<目录名>）和 src/index.ts（2026-11 起有 code-editor）', () => {
     const dir = join(ROOT, 'packages/optional');
-    const entries = existsSync(dir) ? readdirSync(dir) : [];
-    expect(entries.filter((e) => e !== 'README.md')).toEqual([]);
+    const entries = existsSync(dir) ? readdirSync(dir).filter((e) => e !== 'README.md') : [];
+    for (const name of entries) {
+      expect(name).toMatch(/^[a-z][a-z0-9-]{0,31}$/);
+      const pkg = JSON.parse(readFileSync(join(dir, name, 'package.json'), 'utf8')) as { name: string; dependencies?: Record<string, string> };
+      expect(pkg.name).toBe(`@allay/optional-${name}`);
+      expect(existsSync(join(dir, name, 'src/index.ts'))).toBe(true);
+      // 主程序的包只能依赖 host-api
+      expect(Object.keys(pkg.dependencies ?? {}).filter((d) => d.startsWith('@allay/'))).toEqual(['@allay/host-api'].filter((d) => d in (pkg.dependencies ?? {})));
+    }
   });
 
   it('主程序的构建、类型检查、测试配置里没有点名可选模块', () => {
