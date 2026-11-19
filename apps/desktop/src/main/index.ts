@@ -2,6 +2,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { app, dialog, session, shell, type BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels';
+import { prefetchSoundEvents } from '../shared/template-sounds';
 import { handleAppProtocol, registerAppScheme } from './app-protocol';
 import { FileGrants } from './file-grants';
 import { registerHandlers } from './handlers';
@@ -106,6 +107,11 @@ if (!app.requestSingleInstanceLock()) {
     }),
     onChanged: (state) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.resources.changed, state);
+    },
+    // 下载原版资源时一并取回的音效：基础表加上内置模板 manifest 里的默认音效（用户装的模板不参与）
+    prefetchSounds: async () => {
+      await templatesReady;
+      return prefetchSoundEvents(templates.list().filter((t) => t.source === 'builtin').map((t) => t.manifest));
     },
   });
   // 用户导入的字体：复制在 userData/fonts 下（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）

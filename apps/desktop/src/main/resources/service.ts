@@ -97,6 +97,12 @@ export interface ResourceServiceOptions {
   gameEnv: CandidateEnv;
   downloader: VanillaDownloader;
   onChanged(state: ResourceState): void;
+  /**
+   * 下载原版资源时一并取回哪些音效事件。不给时只取基础表 SOUND_EVENTS；应用里给的是
+   * “基础表 ∪ 内置模板 manifest 里的默认音效和预设音效”（shared/template-sounds.ts）。
+   * 只决定同一次用户触发的下载里取哪些对象：不新增联网的时机，对象仍只经 download.ts 从白名单主机取。
+   */
+  prefetchSounds?(): Promise<readonly string[]> | readonly string[];
 }
 
 /** 资源索引里中文语言文件的键（虚拟路径是 assets/ 加上它） */
@@ -526,8 +532,9 @@ export class ResourceService {
       // 同一次下载里取回音效事件用到的对象（decisions.md M6b）：之后不再按需联网
       step('sounds', 'sounds-list');
       // 中文语言文件一并取回：音效的中文名从它的字幕推出（2026-11 反馈）
-      const sounds = await this.opts.downloader.fetchSoundObjects(cached, SOUND_EVENTS, { signal: abort.signal, onProgress, extraKeys: [ZH_LANG_KEY] });
-      this.opts.log.info('resources', 'vanilla downloaded', { version: cached.versionId, soundObjects: sounds.fetched, soundsMissing: sounds.missing.slice(0, 20) });
+      const soundIds = await this.prefetchSoundIds();
+      const sounds = await this.opts.downloader.fetchSoundObjects(cached, soundIds, { signal: abort.signal, onProgress, extraKeys: [ZH_LANG_KEY] });
+      this.opts.log.info('resources', 'vanilla downloaded', { version: cached.versionId, soundEvents: soundIds.length, soundObjects: sounds.fetched, soundsMissing: sounds.missing.slice(0, 20) });
       step('finalize', 'stack');
       await this.serial(async () => {
         this.cachedList = [cached, ...this.cachedList.filter((c) => c.versionId !== cached.versionId)].sort((a, b) => Date.parse(b.releaseTime) - Date.parse(a.releaseTime));
@@ -1075,6 +1082,20 @@ export class ResourceService {
    * 只在用户试听、选中某个音效，或在导出前确认取回时由渲染进程调用；不做后台批量下载（decisions.md M6b）。
    * 取的时候顺带取回还没取的中文语言文件（一个对象，同一主机、同样校验），让音效名能显示中文。
    */
+  /** 下载时一并取回的音效事件：基础表总在里面；调用方给的清单取不到（抛错、不是字符串数组）时退回基础表，不让下载失败 */
+  private async prefetchSoundIds(): Promise<readonly string[]> {
+    if (!this.opts.prefetchSounds) return SOUND_EVENTS;
+    try {
+      const extra = await this.opts.prefetchSounds();
+      const out = new Set<string>(SOUND_EVENTS);
+      for (const id of extra) if (typeof id === 'string') out.add(id);
+      return [...out];
+    } catch (error) {
+      this.opts.log.warn('resources', 'prefetch sound list failed; using the base list', { error });
+      return SOUND_EVENTS;
+    }
+  }
+
   async soundFiles(files: readonly string[], fetch: boolean): Promise<SoundFilesResult> {
     const states: Record<string, SoundFileState> = {};
     let failed: DownloadErrorKind | null = null;

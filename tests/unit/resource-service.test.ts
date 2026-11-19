@@ -45,7 +45,7 @@ function fakeDownloader(impl: Partial<VanillaDownloader> = {}): VanillaDownloade
   } as VanillaDownloader;
 }
 
-async function makeService(opts: { game?: boolean; downloader?: VanillaDownloader } = {}) {
+async function makeService(opts: { game?: boolean; downloader?: VanillaDownloader; prefetchSounds?: () => Promise<readonly string[]> | readonly string[] } = {}) {
   const appData = join(dir, 'appdata');
   if (opts.game) makeFakeMinecraft(join(appData, '.minecraft'), [{ id: '1.21.1', type: 'release', releaseTime: '2024-08-08T00:00:00+00:00', jar: true, assetIndex: '17' }], '#00ff00');
   const userData = join(dir, 'userData');
@@ -60,6 +60,7 @@ async function makeService(opts: { game?: boolean; downloader?: VanillaDownloade
     gameEnv: { platform: 'win32', appData, home: appData },
     downloader: opts.downloader ?? fakeDownloader(),
     onChanged: (s) => states.push(s),
+    ...(opts.prefetchSounds ? { prefetchSounds: opts.prefetchSounds } : {}),
   });
   await svc.init();
   await svc.detectMinecraft();
@@ -309,6 +310,43 @@ describe('ResourceService', () => {
     await svc.setEnabled(id, false);
     expect((await svc.soundLibrary()).events).toEqual([]);
     svc.close();
+  });
+
+  it('下载时一并取回的音效 = 基础表 ∪ 调用方给的清单（内置模板的默认音效）；清单取不到时退回基础表，下载照常完成', async () => {
+    const fetches: string[][] = [];
+    const appData = join(dir, 'prefetch-game');
+    makeFakeMinecraft(appData, [{ id: '26.3', type: 'release', releaseTime: '2026-09-15T00:00:00+00:00', jar: true }], '#ffff00');
+    const cached: CachedVanilla = {
+      source: 'downloaded',
+      gameDir: appData,
+      versionId: '26.3',
+      releaseTime: '2026-09-15T00:00:00+00:00',
+      jarPath: join(appData, 'versions', '26.3', '26.3.jar'),
+      assetIndexPath: null,
+      objectsDir: join(appData, 'objects'),
+    };
+    const downloader = () =>
+      fakeDownloader({
+        findCached: async () => cached,
+        downloadLatest: async () => cached,
+        fetchSoundObjects: async (_install, ids) => {
+          fetches.push([...ids]);
+          return { fetched: 0, missing: [] };
+        },
+      });
+    // 模板里的默认音效排在基础表后面；和基础表重复的不重复取
+    const a = await makeService({ downloader: downloader(), prefetchSounds: async () => ['minecraft:block.chest.open', 'minecraft:ui.button.click', 'minecraft:block.bell.use'] });
+    expect(await a.svc.downloadVanilla()).toEqual({ ok: true });
+    expect(fetches[0]).toEqual([...SOUND_EVENTS, 'minecraft:block.chest.open', 'minecraft:block.bell.use']);
+    // 清单抛错：只取基础表，不让下载失败
+    const b = await makeService({
+      downloader: downloader(),
+      prefetchSounds: () => {
+        throw new Error('templates not ready');
+      },
+    });
+    expect(await b.svc.downloadVanilla()).toEqual({ ok: true });
+    expect(fetches[1]).toEqual([...SOUND_EVENTS]);
   });
 
   it('M6b 下载缓存的原版层：还没取回的音效是 remote，只有 soundFiles(…, true) 才经 fetchObject 取回；取不到时报错误类型、状态不变', async () => {
