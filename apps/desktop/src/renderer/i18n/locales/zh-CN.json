@@ -325,7 +325,7 @@
     "noRelease": "这个目录里没有找到带客户端的正式版 Minecraft Java 版。",
     "download": {
       "button": "下载原版资源（约 45 MB，来自 Mojang 官方服务器）",
-      "note": "会联网连接 Mojang 的官方服务器（piston-meta.mojang.com、piston-data.mojang.com、resources.download.minecraft.net），下载最新正式版的 Minecraft Java 版客户端 jar，以及内置模板常用的几十个声音文件（估计不到 2 MB），保存在本机的应用数据目录里，只用来读取其中的贴图和音效。之后你试听或选中其他音效、或在导出前确认取回时，才会再从 resources.download.minecraft.net 取回那个音效的文件。不会发送任何个人信息，不会自动更新，不会在后台批量下载。",
+      "note": "会联网连接 Mojang 的官方服务器（piston-meta.mojang.com、piston-data.mojang.com、resources.download.minecraft.net），下载最新正式版的 Minecraft Java 版客户端 jar，以及内置模板默认用到的声音文件（估计 3 MB 左右），保存在本机的应用数据目录里，只用来读取其中的贴图和音效。之后你试听或选中其他音效、或在导出前确认取回时，才会再从 resources.download.minecraft.net 取回那个音效的文件。不会发送任何个人信息，不会自动更新，不会在后台批量下载。",
       "progress": "下载进度",
       "cancel": "取消下载",
       "errors": {

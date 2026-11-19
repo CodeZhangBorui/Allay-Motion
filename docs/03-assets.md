@@ -149,6 +149,7 @@ Mojang 的模型和方块状态 JSON 不能随包分发，所以应用自带一�
 | `minecraft:entity.generic.explode` | 爆炸 |
 | `allay:whoosh` | 飞掠（本项目自有的 ID） |
 
+- 上表是基础表（`SOUND_EVENTS`）。“下载原版资源”时一并取回的是它加上全部内置模板 manifest 里的默认音效和预设音效（2026-11，`docs/decisions.md`“内置模板扩到 100 个”）；其余音效仍然只在试听、选中或导出前确认时取回。
 - 支持 `.ogg` 和 `.wav`。解码在渲染进程用 `decodeAudioData`。
 - **来源与分类（2026-11 反馈）**：选择器里每个事件标明来源——原版、被资源包改过（改了 `sounds.json` 的定义或替换了文件）、资源包新增、用户导入，悬停显示相关资源包。分类按事件 ID 路径的第一段（`block`、`entity`、`music`…）；认不出时看第一个变体的文件路径（`mypack:music/boss` 归“音乐”），再不行归“其他”。导入的 `.ogg`、`.wav` 存在 `userData/imported-sounds/`，按资源包结构摆放，命名空间是本应用自有的 `allay_user`。
 - **显示名**：运行时从资源栈的语言文件推出（jar 里的 `en_us.json`、资源索引里的 `zh_cn.json`，资源包可以覆盖），不随仓库分发任何翻译表。有字幕（`sounds.json` 的 `subtitle`）就用字幕，共用字幕时括注方块、实体或物品名；没有字幕的音乐、唱片、环境音用生物群系名或唱片名，几种没有字幕的方块动作（摔落、脚步等）用“方块名（动作）”。推不出时显示 ID。规则在 `packages/assets/src/sound-names.ts`。

@@ -259,6 +259,8 @@
 **声音**
 
 - [ ] 音效 ID 用原版事件名；每个音效是一个可以置空的 `sound` 参数；`ctx.audio.cue` 只在 `setup` 里调用。
+- [ ] 默认音效可以是任何原版事件，写成带命名空间的事件 ID（`minecraft:block.chest.open`）。模板开箱要有声音：该响的地方给默认音效，不留空。写进 manifest（默认值和自带预设）的音效会在“下载原版资源”时一并取回，不用改任何公共的表。
+- [ ] 每个默认音效和预设里的音效，都对照本机游戏文件核对过事件 ID 存在（资源索引里的 `sounds.json`），核对结果写进模板文档。挑体积小的：一个事件的全部变体都会被取回，环境音、长音效（几百 KB）只在确实需要时用。
 - [ ] 音效时刻对得上画面（放置对落位、点击对按下）；同一种声音一次最多 12 个 cue，多了按时刻均匀抽样（同 block-wipe）。
 - [ ] 画面里有位置的声音（方块、爆炸、箭）带 `position`；界面音不带（`decisions.md`“素材与音效”）。
 
@@ -380,13 +382,13 @@
 | `pnpm-lock.yaml`、`pnpm-workspace.yaml` | `packages/templates/*` 每个目录是一个 workspace 包，新加一个模板就要在锁文件里加一段 | 一次建好 94 个目录的骨架：`package.json`、`tsconfig.json`、一个只有 `export {}` 的 `src/index.ts`，然后更新一次锁文件。没有 `manifest.json` 的目录构建脚本本来就会跳过。`_lib` 自己也是一个 workspace 包（它要解析到 template-sdk 的类型），`pnpm-workspace.yaml` 不用改 | 不用。批次只是往已有目录里加 `manifest.json`、换掉 `src/index.ts` |
 | `tests/unit/template-dev.test.ts:274` | `expect(builtins).toHaveLength(6)` | 改成和 `templateDirs().length` 比 | 不用 |
 | `tests/unit/T-DEV-3.template-api.test.ts:102` | `index.ts` 的个数写死 6 | 改成“有 `manifest.json` 的目录数” | 不用 |
-| `tests/engine/templates.spec.ts`（T-TPL-3、4、5） | 遍历全部内置模板，超时按 6 个定的（600 秒、1800 秒；软件渲染慢二三十倍） | 加分片：`ALLAY_TPL_SHARD="i/n"` 只跑第 i / n 份，`ALLAY_TPL_ONLY="名字,名字"` 只跑指定模板（`tests/engine/shard.ts`）。**不减少每个模板的检查量**。CI 的工作流（`.github/workflows/ci.yml`）第 0 批没有改：现在只有六个模板，一个作业跑得完；模板多起来、接近超时的时候再拆成并行的几个作业 | 不用 |
+| `tests/engine/templates.spec.ts`（T-TPL-3、4、5） | 遍历全部内置模板，超时按 6 个定的（600 秒、1800 秒；软件渲染慢二三十倍） | 加分片：`ALLAY_TPL_SHARD="i/n"` 只跑第 i / n 份，`ALLAY_TPL_ONLY="名字,名字"` 只跑指定模板（`tests/engine/shard.ts`）。**不减少每个模板的检查量**。CI（`.github/workflows/ci.yml`）分 4 份：第 1 份随 `pnpm check` 在 `check` 作业里跑，第 2–4 份在 `templates` 作业里并行跑（`pnpm test:engine:templates`）。模板多到某一份接近超时的时候加份数，三处一起改，有单元测试核对 | 不用 |
 | `tests/e2e/export.spec.ts` | 写死的六个 id 各导出一次 1080p60 | 不扩到 100 个。标题改成“代表性模板”，名单不动 | 不用 |
 | `tests/fixtures/baselines/` | 每个模板一个目录；`ASSETS_PROVENANCE.json` 已经用 `tests/fixtures/baselines/**` 覆盖 | 不用改 | 各批只加自己的目录 |
 | `scripts/gen-template-baselines.ts` | 原来只能全部重新生成 | `pnpm templates:baselines <名字…>` 只重新生成指定模板的基准图，免得一个批次动别人的 | 不用 |
 | `eslint.config.js` | `deps/templates` 规则只允许类型导入 template-sdk；相对路径原来一律放行（“只能导入本目录”靠的是约定） | 加一条：往上两层的相对导入只能去 `_lib`。构建脚本按解析后的路径再拦一次 | 不用 |
 | `packages/assets/data/*.json` | 112 个方块、42 个物品 | P2：一次加完 | 不用 |
-| `packages/assets/src/sounds.ts` 的 `SOUND_EVENTS` | “下载原版资源时一并取回”的 11 个音效事件；`tests/unit/M6b.audio.test.ts` 要求内置模板 `sound` 参数的默认值都在这张表里 | 第 0 批没有改，**要主控决定**：把目录用到的音效事件一次加进表里（下载时多取一些文件），还是新模板的默认音效只用表里的、其余留空。决定之前，新模板的 `sound` 默认值只能用表里的或 `null`（`docs/templates/batch-0.md`） | 不用（由主控改） |
+| `packages/assets/src/sounds.ts` 的 `SOUND_EVENTS` | 原来“下载原版资源时一并取回”的就是这张 11 个事件的表，`tests/unit/M6b.audio.test.ts` 要求内置模板的默认音效都在表里 | 主控决定（2026-11-20）：一并取回的清单改成“基础表 ∪ 全部内置模板 manifest 里 `sound` 参数的默认值和自带预设里的音效值”，运行时从 manifest 推出来（`apps/desktop/src/shared/template-sounds.ts`），不提交生成文件。测试改成：默认音效是带命名空间的合法事件 ID 且在清单里。基础表不用再加 | 不用。批次只在自己的 manifest 里写默认音效 |
 | `packages/template-sdk`、`packages/engine`、`pnpm templates:api` 的产物 | — | P3（以及赶得上的 P5、P6）；重新生成 `template-api.d.ts` 和 `docs/template-authoring.md` | 不用 |
 | `docs/04-templates.md` | 4.10 只写了六个 | 4.9 改一句（`_lib`）；4.10 末尾加一句“其余模板见 `docs/templates/` 和本文” | 不用 |
 | `docs/decisions.md` | 所有会话都往里写 | 加一节说明模板批次的记录放在 `docs/templates/batch-<批号>.md` | 不用 |
