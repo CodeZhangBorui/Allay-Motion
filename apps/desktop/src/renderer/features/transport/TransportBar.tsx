@@ -150,6 +150,7 @@ export function TimelinePanel() {
           scrub: t('transport.scrub'),
           cut: t('transport.cut'),
           boundary: (a, b) => t('transport.boundary', { left: a, right: b }),
+          end: (name) => t('transport.segmentEnd', { name }),
           stages: t('timeline.stages'),
           sound: t('timeline.sound'),
           cutTrack: t('timeline.cut'),

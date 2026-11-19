@@ -132,7 +132,8 @@
     "hq": "高质量预览",
     "hqHint": "预览也加上运动模糊（更慢）",
     "mute": "静音",
-    "unmute": "取消静音"
+    "unmute": "取消静音",
+    "segmentEnd": "“{{name}}”的结尾"
   },
   "params": {
     "title": "属性",

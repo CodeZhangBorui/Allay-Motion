@@ -5,18 +5,20 @@ import { ICON, ICON_WEIGHT } from '../lib/icons';
 
 // Transport 的多轨时间轴（6.4）：左侧轨道名列，右侧每条轨道是一条凹槽圆角条。
 // - 帧刻度（等宽数字）；
-// - 阶段轨：按 timeline.segments 画出进入/停留/退出的圆角色块（名称与时长），段与段之间的分界线可以拖动
-//   （改左边那一段的 duration 参数，受它的 min/max 限制，4.3）；
+// - 阶段轨：按 timeline.segments 画出进入/停留/退出的圆角色块（名称与时长），每一段的右边缘（段尾）都可以拖动
+//   （改这一段的 duration 参数，受它的 min/max 限制，4.3）。段与段之间的分界线就是左边那一段的段尾；
+//   最后一段的段尾就是终点，拖它改的是最后一段的时长（总时长随之变）；
 // - 音效轨：按模板的 audioCues 画竖条（只读）；没有 cue 时整条置灰；
 // - 剪辑点轨：琥珀菱形加帧号；没有剪辑点（叠加层模板）时不显示这一轨；
 // - 播放头：1.5 px 强调色竖线贯穿各轨，顶部是带当前帧号的小牌；整个轨道区可按下拖动（键盘：左右键逐帧、Shift 十帧、Home/End）。
-// 一次拖动（分界线）只算一次连续操作：onGesture('start') … onGesture('end')。
+// 一次拖动（段尾）只算一次连续操作：onGesture('start') … onGesture('end')。
 //
 // 拖动的做法（docs/decisions.md“时间轴拖动”）：
 // - 按下时 setPointerCapture，并在 window 上听同一个 pointerId 的 move/up/cancel：被拖元素即使重渲染也不会丢掉这次拖动；
 // - 位置一律按“按下时的起点 + 总位移”算（不累加增量），吸附到帧；
 // - pointermove 只记下最新的 clientX，每个动画帧最多算一次、提交一次（松手时立即按松手的位置算最后一次）；
-// - 拖分界线时比例尺（秒/像素）和整条时间轴的布局都冻结在按下时，分界线始终在指针下；改了时长之后、引擎报回新时长之前，
+// - 拖段尾时比例尺（秒/像素）和整条时间轴的布局都冻结在按下时，段尾始终在指针下（拖最后一段把总时长拉长到超出
+//   冻结的布局时，布局改按各段之和，整段始终可见，段尾停在轨道右端）；改了时长之后、引擎报回新时长之前，
 //   色段按各段之和布局，不会因为“各段之和 ≠ 时长”被短暂卸载（那会让分界线丢掉指针捕获和键盘焦点）。
 
 export interface TimelineSegment {
@@ -38,7 +40,7 @@ export interface TimelineTrackProps {
   /** 音效 cue 的时间（秒）；空数组表示这个模板没有音效 */
   cues: readonly number[];
   disabled?: boolean;
-  labels: { scrub: string; cut: string; boundary(left: string, right: string): string; stages: string; sound: string; cutTrack: string };
+  labels: { scrub: string; cut: string; boundary(left: string, right: string): string; end(name: string): string; stages: string; sound: string; cutTrack: string };
   formatTime(t: number): string;
   onSeek(t: number): void;
   onSeekStart?(): void;
@@ -140,7 +142,7 @@ export function TimelineTrack(props: TimelineTrackProps) {
   const { duration, time, fps, segments, cutTime, cues, disabled, labels, formatTime, onSeek, onSeekStart, onSegmentChange, onGesture } = props;
   const lanesRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
-  /** 正在拖的分界线：它的值和按下时冻结的总时长（整条时间轴按它布局，分界线才会停在指针下） */
+  /** 正在拖的段尾：它的值和按下时冻结的总时长（整条时间轴按它布局，段尾才会停在指针下） */
   const [boundaryView, setBoundaryView] = useState<{ index: number; value: number; view: number } | null>(null);
   /** 改了分界线、引擎还没报回新时长：期望的各段之和（这段时间色段按它布局，不卸载） */
   const [settling, setSettling] = useState<number | null>(null);
@@ -157,8 +159,17 @@ export function TimelineTrack(props: TimelineTrackProps) {
   const segmentSum = shownSegments.reduce((a, s) => a + s.duration, 0);
   const isSettling = settling !== null && Math.abs(segmentSum - settling) < 1e-6;
   const showSegments = boundaryView !== null || isSettling || segmentsMatch(segments, duration);
-  /** 布局用的总时长：拖分界线时冻结在按下时，等引擎报回新时长时用各段之和，其余时候就是时长 */
-  const view = boundaryView ? boundaryView.view : isSettling ? segmentSum : duration;
+  /**
+   * 布局用的总时长：拖段尾时冻结在按下时（拖最后一段、各段之和超出冻结值时用各段之和，最后一段不被裁掉），
+   * 等引擎报回新时长时用各段之和，其余时候就是时长
+   */
+  const view = boundaryView
+    ? boundaryView.index === segments.length - 1
+      ? Math.max(boundaryView.view, segmentSum)
+      : boundaryView.view
+    : isSettling
+      ? segmentSum
+      : duration;
   const frameCount = Math.max(1, Math.round(duration * fps) + 1);
   const lastFrame = frameCount - 1;
   const frame = Math.min(lastFrame, Math.round(time * fps));
@@ -267,7 +278,7 @@ export function TimelineTrack(props: TimelineTrackProps) {
     onSeekStart?.();
   };
 
-  // ---- 分界线 ----
+  // ---- 段尾（每一段的右边缘；前一段的段尾就是两段的分界线）----
   let acc = 0;
   const bounds = shownSegments.map((s) => (acc += s.duration));
   const boundaryTo = (d: BoundaryDrag, clientX: number) => {
@@ -440,14 +451,15 @@ export function TimelineTrack(props: TimelineTrackProps) {
           onPointerDown={onTrackDown}
           onKeyDown={onTrackKey}
         />
-        {/* 分界线（最后一段的右端就是终点，不能拖）：命中区落在阶段轨上 */}
+        {/* 段尾：每一段一个（最后一段的段尾就是终点，拖它改最后一段的时长），命中区落在阶段轨上 */}
         {showSegments &&
-          shownSegments.slice(0, -1).map((s, i) => (
+          shownSegments.map((s, i) => (
             <div
               key={`b-${s.key}`}
               role="slider"
               tabIndex={disabled ? -1 : 0}
-              aria-label={labels.boundary(s.label, shownSegments[i + 1]!.label)}
+              aria-label={i < shownSegments.length - 1 ? labels.boundary(s.label, shownSegments[i + 1]!.label) : labels.end(s.label)}
+              data-edge={i}
               aria-valuemin={s.min}
               aria-valuemax={s.max}
               aria-valuenow={s.duration}

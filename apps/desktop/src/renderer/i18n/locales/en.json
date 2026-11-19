@@ -132,7 +132,8 @@
     "hq": "High-quality preview",
     "hqHint": "Add motion blur to the preview too (slower)",
     "mute": "Mute",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "segmentEnd": "End of “{{name}}”"
   },
   "params": {
     "title": "Properties",
