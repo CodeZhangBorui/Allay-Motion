@@ -1845,3 +1845,99 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - 设置补丁复用桌面端的 `applyUiPatch`。仿真器默认跳过首次启动和新手引导，直接进入演示工程；帮助菜单仍可重新打开引导。
 - 本机验证通过：`pnpm install --frozen-lockfile --offline`、`pnpm typecheck`、`pnpm lint`、`pnpm check:provenance`、`pnpm check:licenses`、`pnpm website:build`；来源检查和体素模型相关单元测试共 40 项通过；官网 Playwright/Electron 测试 18 项全部通过（包含此前未运行的最新 T-WEB-19）。测试使用不显示的离屏窗口，临时目录放在 E 盘。
 - 完整仓库 `pnpm check` 以合入后 GitHub Actions 的结果为准，本机没有重复跑桌面应用的全套引擎、导出和端到端检查。本次合并不配置网站托管、不部署官网、不创建发版标签。
+
+
+## 2026-11 反馈：素材与音效（分支 claude/assets-sounds-c4ec65）
+
+用户 2026-11-15 反馈清单的第 4、8、9、11 条（经主控拆分转达）。规则写进了 `docs/03-assets.md` 3.8、3.12。
+
+### 多个原版来源（第 4 条）
+
+- 原因：原来的原版层是二选一（`chooseVanillaSource`）。用户选了“使用本机的 1.21.11”之后，下载的 26.3 就从资源栈里消失了。
+- 现在设置里多了 `resources.vanillaSources`（从下往上的来源列表）。每个来源一层，层 id 为 `vanilla:local:<游戏目录哈希>:<版本>` 或 `vanilla:dl:<版本>`。最上面启用的是“生效的原版基底”（`vanillaBase()`），层信息里标 `base`，界面徽标写“基底”。
+- 旧设置（只有 `consent` 和 `enabled`）第一次探测后按旧规则迁移成一条来源。`vanilla.consent` 保留，仍表示“问过、同意过使用原版素材”。`setVanilla({ consent: true })` 在列表为空时按旧规则加一条。`setVanilla({ enabled })` 对全部来源生效。旧的层 id `vanilla` 仍被 `setEnabled`、`removeLayer` 接受，作用于全部来源，旧的测试和调用方不用改。
+- 删掉最后一个原版来源等于不再使用原版素材（`consent = false`），首次发现的对话框不会再弹。
+- 原版层之间可以拖动排序。资源包仍整体在原版之上（M2b 的决定不变）：`reorder` 按 id 把资源包和原版来源分开排，混在一起的顺序会被拆开。
+- 下载完成、选游戏目录、在版本列表里加入，都把那一版放到原版最上面，成为新的基底。
+- **`service.ts` 的改动**（方便和字体会话合并）：
+  - 原版部分整段重写：字段 `vanillaLayers` 和 `localVersions`，方法 `detectVanilla`、`migrateVanilla`、`applyVanilla`、`putVanillaOnTop`、`addVanillaSource`、`versions`、`fetchRemoteVersions`；
+  - `state()`、`rebuild()` 改了；
+  - 音效库一段（`soundDefinitionsWithOrigin`、`lang`、`soundLibrary`、`soundFiles`）改了；
+  - 新增本机资源包、导入音效两段；
+  - 字体相关的方法（`fontProviders`、`fallbackFontTables`）没有动。
+
+### 版本检索（第 4 条）
+
+- 版本有三处来源：本机候选游戏目录的 `versions/`（现在列出全部带 jar 的版本，包括快照）、下载缓存（新的 `listCached()`）、Mojang 版本清单。规则见 3.12。
+- **联网边界不变**：取版本清单（`listRemoteVersions`）和下载指定版本（`downloadLatest({ versionId })`）都在 `download.ts` 里，走同一个白名单、同样不带请求头、同样拒绝重定向，只在用户点“获取版本列表”“下载”时调用。
+  - 版本清单是 M2a 下载流程本来就会取的第一个文件，所以这算沿用已批准的例外，不是新增联网。
+  - 下载“指定版本”比原来的“最新正式版”多了一种选择，取什么、存哪里、怎么校验都相同。
+- jar 根目录的 `version.json` 现在也收进索引（只用来读 `pack_version`），对外的 `has`、`list` 仍只暴露 `assets/`。
+- 对照表（`FORMAT_TABLE`，到 1.21.8）**按公开资料凭记忆整理，没有联网逐条复核**。它只在 jar 里读不到格式号时用，较新的版本一律以 jar 为准。
+
+### 本机 Minecraft 的资源包文件夹（第 4 条）
+
+- 能可靠认出的位置见 3.12 的表。原 M2a 的说法是“其他启动器不自动探测”，这里对资源包文件夹放宽了：只读、只看固定的相对路径和各启动器自己的元数据文件，认不出就不列。原版 jar 的探测仍只认官方结构（Prism 的 jar 在 `libraries/` 里，这次没做）。
+- Modrinth App 新版把实例的游戏版本存在 SQLite 里，不引入数据库依赖，读不到就写“版本未知”。
+- 资源包新增一种来源 `linked`：本机 zip 原地只读引用，不复制。复制一份几百 MB 的高清包不划算，用户在游戏里更新了包，这里也跟着变。安全上沿用 zip 的全部校验（不安全的条目名整个拒绝、解压炸弹限制）。主进程只接受上一次 `localPacks()` 返回过的路径。
+- 本机这台机器上 `%APPDATA%` 下有 `ModrinthApp`、`PCL`，但没有官方的 `.minecraft`。没有在真实启动器目录上看过界面，只跑了夹具测试。
+
+### 音效来源与分类（第 8、11 条）
+
+- `mergeSoundDefinitions` 记下每个事件由哪些层定义（`definedBy`，replace 之后重置）和字幕键（`subtitle`，与游戏相同：跟着创建或替换这个事件的那一层走）。
+- 来源判定（`SoundLibraryEvent.origin`）：
+  - 导入层定义的是 `imported`；
+  - 原版层定义过的：有资源包改定义、或任何变体的文件由资源包胜出，是 `overridden`，否则是 `vanilla`；
+  - 原版没有、资源包有的是 `added`。
+  - `packs` 列出相关资源包的名字，最上面的在前。选择器里分别显示铅笔、加号、文件图标，悬停写明资源包名。没用琥珀色：设计规范规定琥珀只表示“改过的参数”。
+- 分类不再按“命名空间 · 第一段”，改按事件 ID 第一段的别名表（`dig`、`step` 归方块，`records` 归唱片……），认不出时看第一个变体的文件路径。这样资源包新增的 `mypack:bossfight`（文件在 `music/`）会出现在“音乐”分组。
+- **导入音效**：`.ogg`、`.wav`，单个不超过 32 MB，最多 500 个。复制到 `userData/imported-sounds/`，摆成资源包的结构，作为资源栈最上面一层（id `imported`）。资源栈弹层、顶栏、状态栏、工程的 `resourceHint`、`hasAssets` 都不算这一层。选择器里可以删除。
+
+### 音效的中文名（第 11 条）
+
+- 名字从资源栈的语言文件推出（`deriveSoundName`），仓库里没有任何从 Wiki 或游戏抄来的翻译表。游戏内字幕的中文就是 zh.minecraft.wiki“声音事件”表里用的那套文本，所以叫法与 Wiki 一致。没有字幕的几类名称，用的是本应用自己写的几个词（摔落、脚步、敲击、创造模式、主菜单等，两种语言），不是 Wiki 的文本。
+- `zh_cn.json` 只在资源索引里（jar 里只有 `en_us.json`）：
+  - 下载缓存的原版层在“下载原版资源”时一并取回（`extraKeys`，同一主机、同样校验）；
+  - 之前已经下载过的，在用户试听或选中音效时随音效一起取回（M6b 的按需规则，不新增触发点）；
+  - 本机游戏的原版层直接读本地对象。
+  - 中文语言文件还没取回时，中文界面先显示英文名。
+- **覆盖率**（`scripts/smoke-sound-names.ts`，只读本机 `D:\Minecraft\.minecraft`）：
+
+  | 版本 | 事件总数 | 推出中文名 | 推不出（显示 ID） |
+  |---|---|---|---|
+  | 1.21.1 | 1613 | 1560 | 53 |
+  | 26.3 | 1991 | 1957 | 34 |
+
+  推不出的多是没有字幕的事件，例如 `ui.toast.*`、`entity.bat.loop`、`ambient.underwater.*`，以及若干方块的 `fall`（方块名在语言文件里没有对应键）。`ui.toast.*`、`ui.button.click` 等常用事件仍有界面自带的译名。这部分**不需要 Wiki 的内容**；如果要补齐，可以给剩下的几十个事件写本应用自己的名字，或接受显示 ID。
+
+### 空间音效（第 9 条）
+
+- 开关在音效参数区（含音效参数的那一组末尾）。存在编辑器偏好 `spatialAudio` 里，保存工程时写进 `.allay` 的 `audio.spatial`，打开工程时恢复（旧工程按关闭处理）。改开关不算工程“已修改”。
+- **原版规则**：
+  - 衰减：游戏的 `SoundEngine` 播放带位置的声音时调 `Channel.linearAttenuation(max(音量, 1) × attenuation_distance)`。它设 OpenAL 的 `AL_LINEAR_DISTANCE`，参考距离 0、滚降 1、最大距离为上面那个值。按 OpenAL 1.1 规范的线性距离模型，增益 = 1 − min(d, 最大距离) / 最大距离。`sounds.json` 的 `attenuation_distance` 缺省 16（Minecraft Wiki 英文版“Sounds.json”页的字段说明）。
+  - 定位：OpenAL 只给单声道缓冲区做空间化，立体声文件（原版的音乐、唱片多为立体声）照常播放。
+  - **出处是对游戏代码和 OpenAL 规范的记忆，这次没有联网复核**。
+- **实现**：`apps/desktop/src/renderer/audio/schedule.ts` 的 `spatialFactors`，预览的实时播放和导出的离线混音都经 `scheduleCues` 调它，是同一份算法。距离衰减照上面的公式。左右定位用声源方向在听者右轴上的分量（sin 方位角 · cos 仰角）作为 `StereoPannerNode` 的声像，加在模板给的 `pan` 上再钳制。
+  - **与原版的偏差**：OpenAL Soft 在立体声输出上的实际声像曲线（默认不开 HRTF 时）和 Web Audio 的等功率声像不完全相同。这里取方向分量是近似，没有逐样本对比过游戏。上下方向只影响距离，不影响声像。
+- **模板接口**（`packages/template-sdk`，只加音效相关的可选字段）：
+  - `ctx.audio.cue` 的选项多了 `position?: { x, y, z }`，是声源相对听者的位置，单位格，+x 右、+y 上、-z 前。
+  - `AudioCue` 多了可选的 `spatial`；变体多了可选的 `attenuation`。
+  - 引擎只校验 `position` 是有限数并原样带给宿主，不读相机：舞台相机离 z = 0 平面有几十到上百格远（正交相机在 4 倍舞台宽处），按真实相机算会全部衰减成静音。所以画面怎么对应到格由模板决定。
+  - `pnpm templates:api` 的产物已重新生成。字体会话也改了 `runtime.ts`，合并后要再生成一次。
+- **内置模板**（单独一个提交，和模板会话冲突时可以整体丢掉）：方块擦除、方块坠落的抽样 cue 带上那块方块的位置：舞台半宽当作 8 格，听者在画面前 6 格。打开开关后，画面中心的方块大约 0.63 倍音量、正中；边缘大约 0.38 倍、声像约 ±0.8。抽样到的时刻和以前完全相同。别的模板的音效（提示框、物品飞掠）是界面音，原版里也不定位，没有加。
+
+### 测试
+
+- 新增 `tests/unit/T-AST-MV.multi-vanilla.test.ts`（T-AST-MV-1…5、T-AST-VER-1/2、T-AST-LP-1/2）和 `tests/unit/T-SND.sounds-2026-11.test.ts`（T-AST-VER-3、T-SND-1…3）。
+- `tests/engine/m6b.spec.ts` 加了 T-SND-4（cue 的 `position` 写进 `spatial`，非法时装载失败）。
+- `tests/e2e/ipc.spec.ts` 的畸形参数表补了 8 个新的 IPC 方法。
+- 改了旧测试的期望：音效库的条目多了字段，`soundVariants` 多了 `attenuation`。
+- 本机跑过：`pnpm typecheck`、对改动文件的 eslint、`vitest run` 全部单元测试。只有 T-ALY 烘焙一项没过：本机 `pnpm install --ignore-scripts` 没装 Electron 二进制，与改动无关。
+- 没跑：test:engine（T-SND-4）、e2e（含 IPC 表）、test:export、`pnpm check`，以 GitHub Actions 为准。
+
+### 没验证的
+
+- 没有起应用看界面：资源栈弹层的新按钮、版本列表和本机资源包两个对话框、选择器的来源标记和分类、空间音效开关，都只过了类型检查和 lint。
+- 空间音效没在耳机上听过，导出的音频没在剪辑软件里听过。
+- 没在真实的 Prism、CurseForge、Modrinth、PCL 目录上试过本机资源包的探测，只有夹具。
+- “获取版本列表”和“下载指定版本”没有对真实的 Mojang 服务器跑过，测试用的是替身。
