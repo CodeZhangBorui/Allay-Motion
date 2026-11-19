@@ -28,7 +28,7 @@ export function RepeatSection({ layer }: { layer: Layer }) {
   return (
     <ParamGroup id="anim-repeat" title={t('anim.repeat.title')} collapsed={collapsed} onToggle={setCollapsed} extra={r ? t('anim.repeat.copies', { count: copies }) : undefined}>
       <Row label={t('anim.repeat.on')}>
-        <Switch checked={!!r} onCheckedChange={(on) => set(on ? {} : null)} aria-label={t('anim.repeat.on')} data-testid="anim-repeat-on" />
+        <Switch checked={!!r} disabled={!r && layer.type === 'text' && !!layer.chars} onCheckedChange={(on) => set(on ? {} : null)} aria-label={t('anim.repeat.on')} data-testid="anim-repeat-on" />
       </Row>
       {r && (
         <>

@@ -184,7 +184,88 @@ async function createAnimation(ctx, source) {
    * 一个图层的每一份：相对图层自己的偏移矩阵、晚开始的秒数、方块列表里的第几项。没有复制器时只有一份（单位矩阵、0、0）。
    * 随机都来自 ctx.random('repeat:<id>:<seed>')，按固定的顺序取，同一份文档每次结果相同。
    */
+  /** 名次：按序号、倒序、离中心由近到远（同样远的同一名次）、随机；每一份晚 名次 × stagger 秒 */
+  function rankCopies(list, order, stagger, rng) {
+    const n = list.length;
+    let ranks;
+    if (order === 'reverse') ranks = list.map((_, i) => n - 1 - i);
+    else if (order === 'center') {
+      const levels = [...new Set(list.map((p) => Math.round(p.dist * 1000) / 1000))].sort((a, b) => a - b);
+      ranks = list.map((p) => levels.indexOf(Math.round(p.dist * 1000) / 1000));
+    } else if (order === 'random') {
+      const idx = list.map((_, i) => i);
+      for (let i = idx.length - 1; i > 0; i--) {
+        const j = Math.floor(rng.next() * (i + 1));
+        const tmp = idx[i];
+        idx[i] = idx[j];
+        idx[j] = tmp;
+      }
+      ranks = new Array(n);
+      idx.forEach((v, rank) => (ranks[v] = rank));
+    } else ranks = list.map((_, i) => i);
+    for (let i = 0; i < n; i++) list[i].delay = ranks[i] * stagger;
+  }
+
+  function disposeObject(object) {
+    object.traverse((o) => {
+      if (!o.isMesh) return;
+      o.geometry.dispose();
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (m.map) m.map.dispose();
+        m.dispose();
+      }
+    });
+  }
+  const textOptions = (def, text) => ({ text, size: def.size, color: def.color, shadow: def.shadow, align: 'center', ...(def.font ? { font: def.font } : {}) });
+
+  /**
+   * 逐字动画（第三轮）：每个字（空格除外）一份，摆在它在整段文字里的位置，按名次错开播放图层自己的动画。
+   * 字宽用 ctx.text.create 量（量完就释放）：一个字的宽 w、两个字之间的间隔 = 宽("aa") − 2·宽("a")、
+   * 空格的步长 = 宽("a a") − 宽("aa")、行距 = 高("a\na") − 高("a")。与整段排出来的位置可能差半个字体像素。最多 256 个字
+   */
+  function charCopies(def) {
+    const cache = new Map();
+    const measure = (text) => {
+      let m = cache.get(text);
+      if (!m) {
+        const o = ctx.text.create(textOptions(def, text));
+        m = { w: o.width, h: o.height };
+        disposeObject(o.object);
+        cache.set(text, m);
+      }
+      return m;
+    };
+    const lines = def.text.split('\n').map((l) => Array.from(l));
+    const probe = lines.flat().find((c) => c.trim() !== '');
+    if (!probe) return [];
+    const wp = measure(probe).w;
+    const gap = measure(probe + probe).w - 2 * wp;
+    const spaceStep = measure(probe + ' ' + probe).w - measure(probe + probe).w;
+    const lineStep = lines.length > 1 ? measure(probe + '\n' + probe).h - measure(probe).h : 0;
+    const list = [];
+    lines.forEach((chars, li) => {
+      const steps = chars.map((c) => (c.trim() === '' ? spaceStep : measure(c).w + gap));
+      const width = steps.reduce((a, b) => a + b, 0) - (chars.length > 0 && chars[chars.length - 1].trim() !== '' ? gap : 0);
+      const left = def.align === 'left' ? 0 : def.align === 'right' ? -width : -width / 2;
+      const y = ((lines.length - 1) / 2 - li) * lineStep;
+      let x = left;
+      chars.forEach((c, k) => {
+        if (c.trim() !== '' && list.length < MAX_CHARS) {
+          const offset = new THREE.Matrix4().makeTranslation(x + measure(c).w / 2, y, 0);
+          list.push({ offset, delay: 0, block: 0, dist: 0, i: list.length, char: c });
+        }
+        x += steps[k];
+      });
+    });
+    const n = list.length;
+    for (const c of list) c.dist = Math.abs(c.i - (n - 1) / 2);
+    rankCopies(list, def.chars.order, def.chars.stagger, ctx.random(`chars:${def.id}:${def.chars.seed}`));
+    return list;
+  }
+  const MAX_CHARS = 256;
+
   function copiesOf(def) {
+    if (def.type === 'text' && def.chars) return charCopies(def);
     const rep = def.repeat;
     if (!rep) return [{ offset: new THREE.Matrix4(), delay: 0, block: 0 }];
     const rng = ctx.random(`repeat:${def.id}:${rep.seed}`);
@@ -226,24 +307,7 @@ async function createAnimation(ctx, source) {
       const offset = new THREE.Matrix4().compose(new THREE.Vector3(x, y, 0), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), rot * DEG), new THREE.Vector3(s, s, s));
       list.push({ offset, delay: 0, block: 0, dist, i });
     }
-    // 名次：按序号、倒序、离中心由近到远（同样远的同一名次）、随机
-    let ranks;
-    if (rep.order === 'reverse') ranks = list.map((_, i) => n - 1 - i);
-    else if (rep.order === 'center') {
-      const levels = [...new Set(list.map((p) => Math.round(p.dist * 1000) / 1000))].sort((a, b) => a - b);
-      ranks = list.map((p) => levels.indexOf(Math.round(p.dist * 1000) / 1000));
-    } else if (rep.order === 'random') {
-      const idx = list.map((_, i) => i);
-      for (let i = idx.length - 1; i > 0; i--) {
-        const j = Math.floor(rng.next() * (i + 1));
-        const tmp = idx[i];
-        idx[i] = idx[j];
-        idx[j] = tmp;
-      }
-      ranks = new Array(n);
-      idx.forEach((v, rank) => (ranks[v] = rank));
-    } else ranks = list.map((_, i) => i);
-    for (let i = 0; i < n; i++) list[i].delay = ranks[i] * rep.stagger;
+    rankCopies(list, rep.order, rep.stagger, rng);
     if (def.type === 'block' && rep.blocks) {
       const cells = arrangeCells(rep.arrangement || 'random', rep.blocks, cols, rows, rng);
       for (let i = 0; i < n; i++) list[i].block = cells[i];
@@ -444,7 +508,8 @@ async function createAnimation(ctx, source) {
           for (const m of mats) m.material.opacity = m.base * o;
         };
       } else if (def.type === 'text') {
-        const text = ctx.text.create({ text: def.text, size: def.size, color: def.color, shadow: def.shadow, align: def.align, ...(def.font ? { font: def.font } : {}) });
+        // 逐字时每一份是一个字（居中放在它的位置上）
+        const text = copies[i].char !== undefined ? ctx.text.create(textOptions(def, copies[i].char)) : ctx.text.create({ ...textOptions(def, def.text), align: def.align });
         blendObject(text.object, def.blend);
         holder.add(text.object);
         setOpacity = (o) => text.setOpacity(o);

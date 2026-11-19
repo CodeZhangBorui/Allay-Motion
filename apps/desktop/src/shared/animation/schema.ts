@@ -161,6 +161,8 @@ export const LayerSchema = z.discriminatedUnion('type', [
     align: z.enum(['left', 'center', 'right']).default('center'),
     font: bindable(FontDefaultSchema).optional(),
     blend,
+    /** 逐字动画（第三轮）：每个字一份，按名次晚 stagger 秒播放这个图层自己的动画（随机名次来自 ctx.random('chars:<id>:<seed>')）；不能和复制器同时用 */
+    chars: z.strictObject({ stagger: finite.min(0).max(5).default(0.05), order: z.enum(REPEAT_ORDERS).default('index'), seed: z.int().min(0).max(2 ** 31 - 1).default(1) }).optional(),
   }),
   /** 矩形色块：radius 是圆角半径（超过短边一半时按一半算） */
   z.strictObject({
@@ -288,6 +290,7 @@ const AnimationDocShape = z
     if (doc.category === 'transition' && doc.cutTime === null) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'a transition needs a cutTime' });
     if (doc.cutTime !== null && duration !== null && doc.cutTime > duration) ctx.addIssue({ code: 'custom', path: ['cutTime'], message: 'cutTime must not exceed duration' });
     doc.layers.forEach((l, i) => {
+      if (l.repeat && l.type === 'text' && l.chars) ctx.addIssue({ code: 'custom', path: ['layers', i, 'chars'], message: 'per-character animation cannot be combined with a replicator' });
       if (l.repeat && l.type === 'group') ctx.addIssue({ code: 'custom', path: ['layers', i, 'repeat'], message: 'a group cannot be repeated' });
       if (l.repeat?.blocks && l.type !== 'block') ctx.addIssue({ code: 'custom', path: ['layers', i, 'repeat', 'blocks'], message: 'only block layers can use a block list' });
     });

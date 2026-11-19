@@ -237,7 +237,10 @@
         "bottom": "Bottom"
       },
       "pixelSize": "Pixel size",
-      "imageHint": "Pick a vanilla texture or GUI sprite, or import a picture from this computer (PNG, JPEG, WebP). Nine-slice keeps the border of panels and buttons sharp when stretched; borders are in texture pixels."
+      "imageHint": "Pick a vanilla texture or GUI sprite, or import a picture from this computer (PNG, JPEG, WebP). Nine-slice keeps the border of panels and buttons sharp when stretched; borders are in texture pixels.",
+      "chars": "Per character",
+      "charsNoRepeat": "Turn off the replicator to animate per character",
+      "charsHint": "Each character plays this layer's animation on its own, one after another. Position, rotation and scale are around each character's own center."
     },
     "propNames": {
       "x": "X",

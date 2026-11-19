@@ -50,7 +50,7 @@ export async function runAnimation(doc: AnimationDoc, params: Record<string, unk
     return v;
   };
   const tracked = (kind: Drawn['kind'], what: string, object: Object3D, opacity: () => number) => {
-    drawn.push({ kind, what, matrix: () => worldOf(object), visible: () => object.visible && (object.parent ? object.parent.visible : true), opacity });
+    drawn.push({ kind, what, matrix: () => worldOf(object), visible: () => object.visible && object.parent !== null && object.parent.visible, opacity });
   };
   const ctx = {
     THREE,

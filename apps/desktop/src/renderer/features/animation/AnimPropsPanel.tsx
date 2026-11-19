@@ -20,6 +20,7 @@ import {
   ItemPicker,
   ParamGroup,
   ScrubNumberField,
+  SeedField,
   SoundField,
   SpatialAudioRow,
   TextField,
@@ -37,7 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { keyIndexAt, keysOf, propValue, setKeyEase } from '../../../shared/animation/edit';
 import { compatibleTypes, paramUsage, readTarget, type BindTarget } from '../../../shared/animation/params';
 import { docDuration, resolveDoc, type ResolvedDoc, type ResolvedLayer } from '../../../shared/animation/resolve';
-import { ANIM_PROPS, BLEND_MODES, isParamRef, type AnimationDoc, type AnimEasing, type AnimParam, type AnimProp, type Layer } from '../../../shared/animation/schema';
+import { ANIM_PROPS, BLEND_MODES, isParamRef, REPEAT_ORDERS, type AnimationDoc, type AnimEasing, type AnimParam, type AnimProp, type Layer } from '../../../shared/animation/schema';
 import { commandEnabled, trigger, useRegistry } from '../../app/registry';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
@@ -382,6 +383,7 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
           <Row label={t('anim.props.align')}>
             <EnumField value={r.align} label={t('anim.props.align')} options={(['left', 'center', 'right'] as const).map((a) => ({ value: a, label: t(`anim.props.aligns.${a}`) }))} onChange={(v) => set({ align: v })} />
           </Row>
+          {layer.type === 'text' && <CharsFields layer={layer} set={set} />}
         </>
       )}
       {(r.type === 'rect' || r.type === 'ellipse' || r.type === 'line') && layer.type === r.type && (
@@ -409,6 +411,43 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
         </div>
       </Row>
     </Group>
+  );
+}
+
+/** 逐字动画（docs/animation-editor.md 10.14）：开关、每个字晚多少秒、名次、种子。和复制器不能同时开 */
+function CharsFields({ layer, set }: { layer: Extract<Layer, { type: 'text' }>; set(patch: Record<string, unknown>): void }) {
+  const { t } = useTranslation();
+  const c = layer.chars;
+  const patch = (p: Partial<NonNullable<typeof c>>) => set({ chars: { stagger: 0.05, order: 'index', seed: 1, ...c, ...p } });
+  return (
+    <>
+      <Row label={t('anim.props.chars')}>
+        <Switch
+          checked={!!c}
+          disabled={!c && !!layer.repeat}
+          onCheckedChange={(on) => (on ? patch({}) : set({ chars: undefined }))}
+          aria-label={t('anim.props.chars')}
+          title={!c && layer.repeat ? t('anim.props.charsNoRepeat') : undefined}
+          data-testid="anim-text-chars"
+        />
+      </Row>
+      {c && (
+        <>
+          <Row label={t('anim.repeat.stagger')}>
+            <ScrubNumberField value={c.stagger} min={0} max={5} step={0.01} minDecimals={2} unit="s" label={t('anim.repeat.stagger')} testId="anim-chars-stagger" onChange={(v) => patch({ stagger: v })} />
+          </Row>
+          <Row label={t('anim.repeat.order')}>
+            <EnumField value={c.order} label={t('anim.repeat.order')} testId="anim-chars-order" options={REPEAT_ORDERS.map((o) => ({ value: o, label: t(`anim.repeat.orders.${o}`) }))} onChange={(v) => patch({ order: v as NonNullable<typeof c>['order'] })} />
+          </Row>
+          {c.order === 'random' && (
+            <Row label={t('anim.repeat.seed')}>
+              <SeedField value={c.seed} onChange={(v) => patch({ seed: v })} label={t('anim.repeat.seed')} />
+            </Row>
+          )}
+          <p className="pt-1 text-xs leading-snug text-fg-subtle">{t('anim.props.charsHint')}</p>
+        </>
+      )}
+    </>
   );
 }
 

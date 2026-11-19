@@ -474,3 +474,31 @@ test('T-ANIM-30 图片图层：加一个，空的时候不画；代码里写上�
   await ready(page);
   expect(await hash(page, 1)).not.toBe(drawn);
 });
+
+test('T-ANIM-31 逐字动画：给文字图层打开逐字，画面变；复制器的开关这时不能打开；关掉回到原样', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  await dispatch(page, 'animAddLayer', { type: 'text' });
+  type L = { type: string; chars?: { stagger: number } };
+  const last = async () => (await docJson(page)).layers.at(-1) as L;
+  await expect.poll(async () => (await last()).type).toBe('text');
+  // 给文字一个从下往上的动画，逐字时每个字错开
+  const text = ((await dispatch(page, 'animGet')) as { text: string }).text;
+  const doc = JSON.parse(text) as { layers: { props: Record<string, unknown> }[] };
+  doc.layers.at(-1)!.props.y = { keys: [{ t: 0, v: -200 }, { t: 1, v: 0 }] };
+  expect(((await dispatch(page, 'animSetText', { text: JSON.stringify(doc, null, 2) })) as { ok: boolean }).ok).toBe(true);
+  await page.evaluate(() => window.__allayTest!.setTime(0.5));
+  await ready(page);
+  const before = await hash(page, 0.5);
+  await page.getByTestId('anim-text-chars').click();
+  await expect.poll(async () => (await last()).chars?.stagger).toBe(0.05);
+  await expect(page.getByTestId('anim-repeat-on')).toBeDisabled();
+  await ready(page);
+  expect(await hash(page, 0.5)).not.toBe(before);
+  await page.getByTestId('anim-text-chars').click();
+  await expect.poll(async () => (await last()).chars).toBeUndefined();
+  await ready(page);
+  expect(await hash(page, 0.5)).toBe(before);
+});
