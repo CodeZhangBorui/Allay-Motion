@@ -390,6 +390,7 @@
 | `packages/assets/data/*.json` | 112 个方块、42 个物品 | P2：一次加完 | 不用 |
 | `packages/assets/src/sounds.ts` 的 `SOUND_EVENTS` | 原来“下载原版资源时一并取回”的就是这张 11 个事件的表，`tests/unit/M6b.audio.test.ts` 要求内置模板的默认音效都在表里 | 主控决定（2026-11-20）：一并取回的清单改成“基础表 ∪ 全部内置模板 manifest 里 `sound` 参数的默认值和自带预设里的音效值”，运行时从 manifest 推出来（`apps/desktop/src/shared/template-sounds.ts`），不提交生成文件。测试改成：默认音效是带命名空间的合法事件 ID 且在清单里。基础表不用再加 | 不用。批次只在自己的 manifest 里写默认音效 |
 | `packages/template-sdk`、`packages/engine`、`pnpm templates:api` 的产物 | — | P3（以及赶得上的 P5、P6）；重新生成 `template-api.d.ts` 和 `docs/template-authoring.md` | 不用 |
+| `scripts/template-api/three-surface.d.ts`（`ctx.THREE` 的类型面） | 手写的最小类型面，内置模板的源码按它做类型检查（T-DEV-3）；没列的 three 成员运行时有、但类型检查过不了 | 2026-11-20 补了自建几何体和实例化要用的成员（`BufferAttribute`、`InstancedBufferAttribute`、`setAttribute`、`setIndex`、`InstancedMesh` 等）。还缺什么告诉主控，改完要重新生成 `pnpm templates:api` 的产物 | 不用（由主控改） |
 | `docs/04-templates.md` | 4.10 只写了六个 | 4.9 改一句（`_lib`）；4.10 末尾加一句“其余模板见 `docs/templates/` 和本文” | 不用 |
 | `docs/decisions.md` | 所有会话都往里写 | 加一节说明模板批次的记录放在 `docs/templates/batch-<批号>.md` | 不用 |
 | 本文 | — | — | 批次不改。完成情况由主控在验收后更新 |
