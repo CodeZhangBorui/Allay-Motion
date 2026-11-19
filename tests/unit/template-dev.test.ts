@@ -13,6 +13,7 @@ import type { TemplateService } from '../../apps/desktop/src/main/templates/serv
 import { TEMPLATE_JSCONFIG, templateJsconfigText } from '../../apps/desktop/src/shared/template-dev';
 import type { TemplateDevChange } from '../../apps/desktop/src/shared/templates';
 import { analyzeTemplateCode } from '../../apps/desktop/src/shared/template-code';
+import { templateDirs } from '../../scripts/build-templates';
 import { BASE_CODE, baseManifest, buildBuiltins, log, makeService } from './helpers/template-fixtures';
 
 const DEBOUNCE = 60;
@@ -271,7 +272,9 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
       ],
     };
     const builtins = svc.list().filter((x) => x.source === 'builtin');
-    expect(builtins).toHaveLength(6);
+    // 和 packages/templates 下有 manifest 的目录一一对应（数量不写死，模板会越来越多）
+    expect(builtins).toHaveLength(templateDirs().length);
+    expect(builtins.length).toBeGreaterThanOrEqual(6);
     for (const e of builtins) {
       const r = await dev.copyBuiltin({ id: e.id, version: e.version });
       if (!r.ok) throw new Error(r.error);

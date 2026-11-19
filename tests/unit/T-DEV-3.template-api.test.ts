@@ -5,6 +5,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import { templateDirs } from '../../scripts/build-templates';
 import { EXAMPLE_DIR, generateAll, OUTPUTS } from '../../scripts/gen-template-api';
 import { TEMPLATE_JSCONFIG } from '../../apps/desktop/src/shared/template-dev';
 import { analyzeTemplateCode } from '../../apps/desktop/src/shared/template-code';
@@ -93,13 +94,12 @@ describe('T-DEV-3 模板接口的类型定义与编写指南', () => {
     expect(api.easings).toContain('cubicInOut');
   });
 
-  it('用生成的 d.ts 对六个内置模板打包前的源码做类型检查（与 tsconfig.base 一样严格），通过', () => {
-    const dir = join(ROOT, 'packages/templates');
-    const sources = readdirSync(dir, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && existsSync(join(dir, d.name, 'manifest.json')))
-      .flatMap((d) => readdirSync(join(dir, d.name, 'src')).map((f) => join(dir, d.name, 'src', f)))
-      .filter((f) => f.endsWith('.ts'));
-    expect(sources.filter((f) => f.endsWith('index.ts'))).toHaveLength(6);
+  it('用生成的 d.ts 对每个内置模板打包前的源码做类型检查（与 tsconfig.base 一样严格），通过', () => {
+    // 有 manifest 的目录才是模板：_lib 和还没填内容的骨架目录不算。模板导入的 _lib 文件由类型检查顺着导入带进来
+    const dirs = templateDirs();
+    const sources = dirs.flatMap((d) => readdirSync(join(d, 'src')).map((f) => join(d, 'src', f))).filter((f) => f.endsWith('.ts'));
+    expect(dirs.length).toBeGreaterThanOrEqual(6);
+    expect(sources.filter((f) => f.endsWith('index.ts'))).toHaveLength(dirs.length);
     // 模板源码的 @allay/template-sdk 指向生成的 d.ts；types 为空，看不到 @types/three
     const diagnostics = typecheck(sources, { ...STRICT, paths: { '@allay/template-sdk': [DTS_MODULE] } });
     expect(diagnostics).toEqual([]);
