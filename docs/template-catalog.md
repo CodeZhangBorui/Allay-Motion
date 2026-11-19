@@ -262,6 +262,13 @@
 - [ ] 音效时刻对得上画面（放置对落位、点击对按下）；同一种声音一次最多 12 个 cue，多了按时刻均匀抽样（同 block-wipe）。
 - [ ] 画面里有位置的声音（方块、爆炸、箭）带 `position`；界面音不带（`decisions.md`“素材与音效”）。
 
+**对照游戏文件核对**（把开头“数值都是凭记忆写的”落到流程上）
+
+- [ ] 用到的每个贴图路径、音效事件 ID、字体 ID，实现时都对照本机游戏文件的清单核对过：贴图看客户端 jar 里的 `assets/minecraft/textures/`，音效看资源索引里的 `sounds.json`，字体看 jar 里的 `assets/minecraft/font/`。只读清单，不把任何游戏文件复制进仓库。
+- [ ] 核对结果写进该模板的文档：对照的是哪个游戏版本，每个 ID 在不在；某个版本没有的写明，并说明模板在那个版本上怎么表现（用可选贴图退回旧路径，或换一种画法）。
+- [ ] 界面坐标、颜色、刻数：能上网查到公开资料的要查，在依据表里标“经搜索确认”并写出处；查不到的标“凭记忆”。不许把没核对过的写成核对过的。
+- [ ] 方块和物品只用目录里有的 ID（`packages/assets/data/`，第 0 批已对照游戏文件扩充）；目录里没有而又需要的，告诉主控，不自己加。
+
 **没有原版素材、素材版本不对时**
 
 - [ ] 模板文档里列出用到的每个贴图 ID、音效 ID、字体。
@@ -306,9 +313,9 @@
 
 | 编号 | 能力 | 最小改动 | 没有它就做不了的 | 有了更好的 | 是否改公开接口 |
 |---|---|---|---|---|---|
-| P1 | 内置模板之间共享代码 | `scripts/build-templates.ts` 允许导入 `packages/templates/_lib/` 下的文件（esbuild 照样打进单文件，产物里仍然没有 import）；`eslint.config.js` 的 `deps/templates` 规则放行这个目录；`04` 4.9 改一句。`_lib` 里放：时间余量、界面像素布局、闭式粒子、带贴图的长方体、按钮和面板的拼法 | 5（都是因为 P4） | 全部 94 个：现在的做法是每个目录各放一份相同的副本（`arrangement.ts` 就是两份） | 不改。运行时接口不变，用户模板不受影响，硬性规则 5 仍然成立（内置模板用的还是公开接口，只是源码可以复用） |
-| P3 | 可选贴图 | `ctx.resources.texture(id, { optional: true })`：没有时返回 `null`、不记警告。模板按“新路径 → 旧路径”依次试 | 0 | 约 30 个界面类：1.20.2 之前界面贴图在几张大图集里（`gui/icons`、`gui/widgets`、`gui/bars`），没有这个接口就只能支持 1.20.2 之后的素材，而且试旧路径会触发警告、过不了 `T-TPL-3` | 改：加一个可选参数。`template-api.d.ts` 和编写指南重新生成 |
-| P2 | 方块和物品目录扩充 | `packages/assets/data/blocks.json`、`items.json`、`names.json` 加条目。现在物品只有 42 个、方块 112 个，目录外的 ID 会给占位图加警告 | 2（080 要钟，032 要标靶） | 约 20 个带 `item` 参数的：物品选择器里能选的太少。建议一次加到约 200 个物品（全部唱片、工具、食物、药水瓶、刷怪蛋、钟、地图、鞘翅、三叉戟、盾牌）和约 60 个方块（标靶、幽匿、蓝冰、南瓜灯、红石灯、各种木板和原木） | 不改接口，只加数据。名字仍从运行时的语言文件来，不抄翻译表（`names.json` 现在怎么填的要先看一眼） |
+| P1（已做） | 内置模板之间共享代码 | `scripts/build-templates.ts` 允许导入 `packages/templates/_lib/` 下的文件（esbuild 照样打进单文件，产物里仍然没有 import）；`eslint.config.js` 的 `deps/templates` 规则放行这个目录；`04` 4.9 改一句。`_lib` 里先放了时间余量、界面像素布局、闭式粒子的基础；带贴图的长方体（P4）、按钮和面板的拼法等到有模板要用时再加 | 5（都是因为 P4） | 全部 94 个：现在的做法是每个目录各放一份相同的副本（`arrangement.ts` 就是两份） | 不改。运行时接口不变，用户模板不受影响，硬性规则 5 仍然成立（内置模板用的还是公开接口，只是源码可以复用） |
+| P3（已做） | 可选贴图 | `ctx.resources.texture(id, { optional: true })`：没有时返回 `null`、不记警告。模板按“新路径 → 旧路径”依次试 | 0 | 约 30 个界面类：1.20.2 之前界面贴图在几张大图集里（`gui/icons`、`gui/widgets`、`gui/bars`），没有这个接口就只能支持 1.20.2 之后的素材，而且试旧路径会触发警告、过不了 `T-TPL-3` | 改：加一个可选参数。`template-api.d.ts` 和编写指南重新生成 |
+| P2（已做：方块 278 个、物品 249 个，见 `03` 3.7） | 方块和物品目录扩充 | `packages/assets/data/blocks.json`、`items.json`、`names.json` 加条目。原来物品只有 42 个、方块 112 个，目录外的 ID 会给占位图加警告。药水、刷怪蛋、皮革护甲（要叠层染色）和盾牌（只有模型）没有收，要用的模板自己取贴图来画 | 2（080 要钟，032 要标靶） | 约 20 个带 `item` 参数的：物品选择器里能选的太少。建议一次加到约 200 个物品（全部唱片、工具、食物、药水瓶、刷怪蛋、钟、地图、鞘翅、三叉戟、盾牌）和约 60 个方块（标靶、幽匿、蓝冰、南瓜灯、红石灯、各种木板和原木） | 不改接口，只加数据。名字仍从运行时的语言文件来，不抄翻译表（`names.json` 现在怎么填的要先看一眼） |
 | P6 | 一段文字里多种颜色 | `ctx.text.create` 的 `text` 接受分段数组 `{ text, color?, bold?, italic?, obfuscated? }[]`。乱码字（§k）按 `floor(t × 20)` 和种子换字形 | 0 | 6 个（040、041、045、050，以及 054、055 的局部着色）。没有时每种颜色建一个文字对象、按 `width` 自己拼，能做但换行处理不了 | 改：`TextOptions` 加一种写法 |
 | P4 | 带贴图的长方体模型 | 放在 `_lib` 里（依赖 P1）：给出部件表（原点、尺寸、贴图坐标、轴心、父子关系），返回一组可以按部件转动的 `THREE.Group`；贴图坐标照游戏的箱体展开方式。先写玩家（宽、细两种，带外层）、箱子、潜影盒、苦力怕、蝙蝠 | 5（009 的苦力怕、021、030、086、098），另有 `item-stinger` 的增强 | — | 不改。部件尺寸是我们自己写的数（悦灵模型是先例，`decisions.md` M5a）；合规上的顾虑见 5.1 |
 | P5 | 取字形的像素 | `ctx.text.rasterize(opts)`：返回 `{ width, height, data }`（每个字体像素一个 0 / 1），和 `text.create` 用同一套排版 | 1（073） | 以后的“文字溶解成像素”之类 | 改：加一个方法 |
@@ -370,15 +377,16 @@
 | 公共文件 | 现状 | 第 0 批怎么改 | 之后各批还要不要碰 |
 |---|---|---|---|
 | 模板注册 | 没有注册表：`scripts/build-templates.ts` 扫描 `packages/templates/` 下有 `manifest.json` 的目录 | 只加“跳过 `_` 开头的目录”和 P1 的导入规则 | 不用 |
-| `pnpm-lock.yaml`、`pnpm-workspace.yaml` | `packages/templates/*` 每个目录是一个 workspace 包，新加一个模板就要在锁文件里加一段 | 一次建好 94 个目录的骨架：`package.json`、`tsconfig.json`、一个只有 `export {}` 的 `src/index.ts`，然后更新一次锁文件。没有 `manifest.json` 的目录构建脚本本来就会跳过。`pnpm-workspace.yaml` 加一行排除 `_lib` | 不用。批次只是往已有目录里加 `manifest.json`、换掉 `src/index.ts` |
+| `pnpm-lock.yaml`、`pnpm-workspace.yaml` | `packages/templates/*` 每个目录是一个 workspace 包，新加一个模板就要在锁文件里加一段 | 一次建好 94 个目录的骨架：`package.json`、`tsconfig.json`、一个只有 `export {}` 的 `src/index.ts`，然后更新一次锁文件。没有 `manifest.json` 的目录构建脚本本来就会跳过。`_lib` 自己也是一个 workspace 包（它要解析到 template-sdk 的类型），`pnpm-workspace.yaml` 不用改 | 不用。批次只是往已有目录里加 `manifest.json`、换掉 `src/index.ts` |
 | `tests/unit/template-dev.test.ts:274` | `expect(builtins).toHaveLength(6)` | 改成和 `templateDirs().length` 比 | 不用 |
 | `tests/unit/T-DEV-3.template-api.test.ts:102` | `index.ts` 的个数写死 6 | 改成“有 `manifest.json` 的目录数” | 不用 |
-| `tests/engine/templates.spec.ts`（T-TPL-3、4、5） | 遍历全部内置模板，超时按 6 个定的（600 秒、1800 秒；软件渲染慢二三十倍） | 加分片：按环境变量只跑第 i / n 份；CI 里拆成并行的几个作业。**不减少每个模板的检查量** | 不用 |
+| `tests/engine/templates.spec.ts`（T-TPL-3、4、5） | 遍历全部内置模板，超时按 6 个定的（600 秒、1800 秒；软件渲染慢二三十倍） | 加分片：`ALLAY_TPL_SHARD="i/n"` 只跑第 i / n 份，`ALLAY_TPL_ONLY="名字,名字"` 只跑指定模板（`tests/engine/shard.ts`）。**不减少每个模板的检查量**。CI 的工作流（`.github/workflows/ci.yml`）第 0 批没有改：现在只有六个模板，一个作业跑得完；模板多起来、接近超时的时候再拆成并行的几个作业 | 不用 |
 | `tests/e2e/export.spec.ts` | 写死的六个 id 各导出一次 1080p60 | 不扩到 100 个。标题改成“代表性模板”，名单不动 | 不用 |
 | `tests/fixtures/baselines/` | 每个模板一个目录；`ASSETS_PROVENANCE.json` 已经用 `tests/fixtures/baselines/**` 覆盖 | 不用改 | 各批只加自己的目录 |
-| `scripts/gen-template-baselines.ts` | 没看它是否支持只生成指定模板 | 加一个按 id 过滤的参数，免得一个批次重新生成别人的基准图 | 不用 |
-| `eslint.config.js` | `deps/templates` 规则只允许类型导入 template-sdk | 放行 `_lib` | 不用 |
+| `scripts/gen-template-baselines.ts` | 原来只能全部重新生成 | `pnpm templates:baselines <名字…>` 只重新生成指定模板的基准图，免得一个批次动别人的 | 不用 |
+| `eslint.config.js` | `deps/templates` 规则只允许类型导入 template-sdk；相对路径原来一律放行（“只能导入本目录”靠的是约定） | 加一条：往上两层的相对导入只能去 `_lib`。构建脚本按解析后的路径再拦一次 | 不用 |
 | `packages/assets/data/*.json` | 112 个方块、42 个物品 | P2：一次加完 | 不用 |
+| `packages/assets/src/sounds.ts` 的 `SOUND_EVENTS` | “下载原版资源时一并取回”的 11 个音效事件；`tests/unit/M6b.audio.test.ts` 要求内置模板 `sound` 参数的默认值都在这张表里 | 第 0 批没有改，**要主控决定**：把目录用到的音效事件一次加进表里（下载时多取一些文件），还是新模板的默认音效只用表里的、其余留空。决定之前，新模板的 `sound` 默认值只能用表里的或 `null`（`docs/templates/batch-0.md`） | 不用（由主控改） |
 | `packages/template-sdk`、`packages/engine`、`pnpm templates:api` 的产物 | — | P3（以及赶得上的 P5、P6）；重新生成 `template-api.d.ts` 和 `docs/template-authoring.md` | 不用 |
 | `docs/04-templates.md` | 4.10 只写了六个 | 4.9 改一句（`_lib`）；4.10 末尾加一句“其余模板见 `docs/templates/` 和本文” | 不用 |
 | `docs/decisions.md` | 所有会话都往里写 | 加一节说明模板批次的记录放在 `docs/templates/batch-<批号>.md` | 不用 |
@@ -386,7 +394,9 @@
 | 模板库界面（`GalleryPanel.tsx`） | 只有“转场 / 叠加”两个标签加搜索 | 按 `tags` 加一层分组筛选，补“标题”标签。这是界面改动，和第 0 批分开，单独一个会话 | 不用 |
 | `apps/website` | 写死了几个模板名 | 不动 | 不用 |
 
-没有核实的两点，第 0 批开工时先确认：只有占位 `src/index.ts`、没有 `manifest.json` 的骨架目录，能不能过 `pnpm typecheck` 和 lint；`_lib` 目录不带 `package.json` 时 workspace 的通配会不会报错。骨架方案走不通的话，退路是各批次都不提交锁文件，由主控在每批合入时统一更新一次。
+**第 0 批的结论（2026-11-19）**：骨架方案走得通，已经照做。只有 `package.json`、`tsconfig.json` 和占位 `src/index.ts`、没有 `manifest.json` 的目录能过 `pnpm typecheck` 和 lint，构建脚本和所有按目录遍历的测试都跳过它们；94 个骨架目录已建好，锁文件更新了一次。`_lib` 没有按原计划“不带 `package.json`”来做：它的源码要解析到 template-sdk 的类型，所以也做成了一个 workspace 包（`@allay/template-lib`），workspace 的通配因此不需要排除它。细节和没验证的部分见 `docs/templates/batch-0.md`。
+
+各批次因此不需要碰锁文件：实现一个模板就是在已有的目录里加 `manifest.json`、换掉占位的 `src/index.ts`。骨架的 `package.json` 里 `description` 写的是目录的编号和中文名，改名时一起改。
 
 ### 4.4 同一个目录里并行的注意事项
 
@@ -405,12 +415,14 @@
 | 事项 | 风险 | 本文的默认做法 | 要用户决定的 |
 |---|---|---|---|
 | 视频平台的标志和图形 | 订阅按钮的红色播放键、铃铛图标、拇指图标是别家的商标或界面设计 | 080、081、084 不带任何平台图形；用游戏的按钮、钟、心代替；账号图标由用户自己提供图片；模板名和参数标签里不出现平台的名字 | 是否接受“订阅”“点赞”这两个通用词出现在默认文字里（本文默认接受） |
-| Minecraft 和 Mojang 的标志 | 标志贴图在用户的游戏文件里，画出来的是用户的视频内容；但做成“一键带官方标志的片头”更容易让视频看起来像官方的。现有的 loading-screen `javaSplash` 已经在画 Mojang Studios 的标志 | 035、036 默认不显示 `gui/title/minecraft`，标题位置放用户自己的文字或图片 | 是否提供“显示游戏标志”的开关；已有的 `javaSplash` 要不要照这个口径调整 |
-| 游戏模型的部件数据 | P4 的部件尺寸和贴图坐标是照游戏的模型凭记忆写的，算不算“Mojang 的模型”有含糊之处（`09` 9.2 的“素材”包括模型） | 照悦灵模型的先例做（`decisions.md` M5a，用户决定），数据是自己写的，不复制游戏的模型文件 | 这个先例是否适用于其他生物和玩家模型。不同意的话第 9 批的 5 个模板和 `item-stinger` 的增强都要换做法或拿掉 |
+| Minecraft 和 Mojang 的标志 | 标志贴图在用户的游戏文件里，画出来的是用户的视频内容；但做成“一键带官方标志的片头”更容易让视频看起来像官方的。现有的 loading-screen `javaSplash` 已经在画 Mojang Studios 的标志 | 035、036 默认不显示 `gui/title/minecraft`，标题位置放用户自己的文字或图片 | 是否提供“显示游戏标志”的开关；已有的 `javaSplash` 要不要照这个口径调整。**用户 2026-11-19 决定**：模板可以像应用其他地方一样用原版素材，所以 035、036 可以提供“显示游戏标志”的开关（用 `gui/title/minecraft` 等原版贴图），默认关闭、显示用户自己的文字或图片；`javaSplash` 不用改 |
+| 游戏模型的部件数据 | P4 的部件尺寸和贴图坐标是照游戏的模型凭记忆写的，算不算“Mojang 的模型”有含糊之处（`09` 9.2 的“素材”包括模型） | 照悦灵模型的先例做（`decisions.md` M5a，用户决定），数据是自己写的，不复制游戏的模型文件 | 这个先例是否适用于其他生物和玩家模型。**用户 2026-11-19 决定**：适用。第 9 批的模型类模板照常做，部件数据自己写，不复制游戏的模型文件 |
 | 界面版式的数值 | 界面类模板的坐标、颜色、刻数来自对反编译代码的记忆 | 只写数值，不引用代码；每条在模板文档里标出处的可靠程度（同 `04` 的 T4、T6） | 无新的决定，沿用 2026-11 反馈时的批准 |
 | 玩家皮肤 | 按玩家名联网取皮肤会违反硬性规则 10 | 皮肤只用游戏文件里的默认皮肤，或用户自己导入的图片 | 无 |
 | 唱片和音乐 | 053 的默认曲名如果写真实的曲目和作者，像是在替用户声明用了那首音乐 | 默认文字用占位的“曲名 - 作者” | 无 |
 | “还原”的口径 | 本文的依据都没有对照过游戏 | 实现时逐条核对；核对不了的如实标注 | 是否要求每批至少由人在游戏里对照一次再算通过（建议要，工作量在用户这边） |
+
+用户 2026-11-19 对本节的答复（经主控转达的原话）：“Yes, same as Allay and you are allowed to use Vanilla Minecraft assets like other places.” 主控的解读写在上表对应的两行里。原版素材仍然只在运行时取自用户下载的游戏文件，仓库和安装包里不放任何 Mojang 文件（硬性规则 1 不变）。表里其余要用户决定的事项，以及 5.2 和“每批是否要人在游戏里对照”，用户还没有答复，继续按默认做法。
 
 ### 5.2 没有原版素材时的体验
 

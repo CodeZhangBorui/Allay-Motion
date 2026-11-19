@@ -448,6 +448,10 @@ packages/templates/_lib/
 | `sound` / `outSound` / `challengeSound` | sound | `minecraft:ui.toast.in` / `minecraft:ui.toast.out` / `minecraft:ui.toast.challenge_complete` | — |
 | `volume` | number | 0.8 | 0–1 |
 
+### 其余内置模板
+
+内置模板计划做到 100 个（`docs/template-catalog.md`）。上面六个之外的不在这里逐个写：每个模板的画面、参数表、依据和没做的写在 `docs/templates/<名字>.md`，各批次的决定和偏差写在 `docs/templates/batch-<批号>.md`。4.3–4.9 的规则对它们同样适用。
+
 ## 4.11 验收测试
 
 | 编号 | 内容 | 判定 |
