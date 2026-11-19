@@ -29,6 +29,8 @@ import { LAYER_ICONS } from './LayersPanel';
 import { currentAnimation, replaceDoc } from './source';
 import { trackPointer } from './pointer';
 import { useAnimationUi } from './uiState';
+import { markerLabel } from './commands-timeline';
+import { moveMarker, setWorkArea } from '../../../shared/animation/markers';
 
 export const NAME_W = 168;
 const ROW_H = 24;
@@ -143,9 +145,16 @@ export function AnimTimeline() {
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, [durationNow, view]);
+  // 工作区（第 11 项）：预览在这一段里循环播放；离开动画工作区时清掉
+  const workArea = doc?.workArea;
+  useEffect(() => {
+    useTransportStore.getState().setRange(workArea ? { from: workArea.from, to: workArea.to } : null);
+  }, [workArea]);
+  useEffect(() => () => useTransportStore.getState().setRange(null), []);
   if (!doc || !resolved) return null;
   const duration = resolved.duration;
   const range = viewRange(zoom, duration);
+  const markers = doc.markers ?? [];
   const span = range.end - range.start;
   /** 时刻在轨道上的位置（可见范围里的比例） */
   const fx = (tt: number) => fracOf(range, tt);
@@ -162,7 +171,8 @@ export function AnimTimeline() {
 
   /** 吸附点：播放头、没选中的关键帧、音效、剪辑点、两端 */
   const snapPoints = (exclude: readonly KeyRef[]): number[] => {
-    const pts = [0, duration, useTransportStore.getState().time, ...resolved.sounds.map((s) => s.at)];
+    const pts = [0, duration, useTransportStore.getState().time, ...resolved.sounds.map((s) => s.at), ...markers.map((m) => m.t)];
+    if (doc.workArea) pts.push(doc.workArea.from, doc.workArea.to);
     if (resolved.cutTime !== null) pts.push(resolved.cutTime);
     for (const l of resolved.layers) for (const p of ANIM_PROPS) for (const k of keysOf(l.props[p])) if (!exclude.some((r) => r.layer === l.id && r.prop === p && Math.abs(r.t - k.t) < KEY_EPSILON)) pts.push(k.t);
     return pts;
@@ -334,6 +344,64 @@ export function AnimTimeline() {
     trigger('animMoveKeys', { keys, dt });
   };
 
+  // ---- 标记点、工作区（第 11 项） ----
+  /** 拖标记改时刻（吸附同关键帧），点一下跳过去 */
+  const dragMarker = (id: string, at: number) => (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const cur = currentAnimation();
+    if (!cur) return;
+    const base = cur.doc;
+    const x0 = e.clientX;
+    let started = false;
+    trackPointer(e, {
+      move: (ev) => {
+        if (!started && Math.abs(ev.clientX - x0) < 3) return;
+        if (!started) {
+          beginGesture();
+          started = true;
+        }
+        let to = frame(at + ((ev.clientX - x0) / laneWidth()) * span);
+        if (useAnimationUi.getState().snap && !ev.altKey) to = snapTime(to, snapPoints([]).filter((p) => Math.abs(p - at) > KEY_EPSILON), snapTol());
+        const next = moveMarker(base, id, to);
+        if (next) replaceDoc(next);
+      },
+      up: () => {
+        if (started) endGesture();
+        else {
+          useTransportStore.getState().setPlaying(false);
+          useTransportStore.getState().setTime(at);
+        }
+      },
+    });
+  };
+  /** 拖工作区的一端 */
+  const dragWorkArea = (side: 'from' | 'to', at: number) => (e: ReactPointerEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const cur = currentAnimation();
+    if (!cur) return;
+    const base = cur.doc;
+    const x0 = e.clientX;
+    let started = false;
+    trackPointer(e, {
+      move: (ev) => {
+        if (!started && Math.abs(ev.clientX - x0) < 2) return;
+        if (!started) {
+          beginGesture();
+          started = true;
+        }
+        let to = frame(at + ((ev.clientX - x0) / laneWidth()) * span);
+        if (useAnimationUi.getState().snap && !ev.altKey) to = snapTime(to, snapPoints([]).filter((p) => Math.abs(p - at) > KEY_EPSILON), snapTol());
+        const next = setWorkArea(base, duration, side === 'from' ? to : undefined, side === 'to' ? to : undefined);
+        if (next) replaceDoc(next);
+      },
+      up: () => {
+        if (started) endGesture();
+      },
+    });
+  };
+
   // ---- 音效轨 ----
   const dragSound = (id: string, at: number) => (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
@@ -471,6 +539,35 @@ export function AnimTimeline() {
                   {tickLabel(s, fps)}
                 </span>
               ))}
+              {doc.workArea && (
+                <span
+                  className="absolute top-0 h-1.5 rounded-sm bg-primary/45"
+                  style={{ left: `${Math.max(0, fx(doc.workArea.from)) * 100}%`, width: `${Math.max(0, Math.min(1, fx(doc.workArea.to)) - Math.max(0, fx(doc.workArea.from))) * 100}%` }}
+                  data-testid="anim-work-area"
+                  title={t('anim.timeline.workArea')}
+                >
+                  <span role="slider" aria-label={t('anim.commands.workAreaStart')} aria-valuenow={doc.workArea.from} tabIndex={-1} className="absolute -top-0.5 -left-1 h-2.5 w-2 cursor-ew-resize rounded-[2px] bg-primary" onPointerDown={dragWorkArea('from', doc.workArea.from)} data-testid="anim-work-area-from" />
+                  <span role="slider" aria-label={t('anim.commands.workAreaEnd')} aria-valuenow={doc.workArea.to} tabIndex={-1} className="absolute -top-0.5 -right-1 h-2.5 w-2 cursor-ew-resize rounded-[2px] bg-primary" onPointerDown={dragWorkArea('to', doc.workArea.to)} data-testid="anim-work-area-to" />
+                </span>
+              )}
+              {markers.map((m, i) =>
+                fx(m.t) < 0 || fx(m.t) > 1 ? null : (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-label={t('anim.markers.at', { name: markerLabel(m.label, i), t: m.t })}
+                    title={markerLabel(m.label, i)}
+                    className="absolute top-0 z-[2] h-full w-2.5 -translate-x-1/2 cursor-ew-resize"
+                    style={{ left: `${fx(m.t) * 100}%` }}
+                    data-testid="anim-marker"
+                    data-marker={m.id}
+                    onPointerDown={dragMarker(m.id, m.t)}
+                  >
+                    <span className="absolute top-0 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[5px] border-t-[7px] border-x-transparent border-t-warning" />
+                    <span className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2 bg-warning/60" />
+                  </button>
+                ),
+              )}
               {resolved.cutTime !== null && fx(resolved.cutTime) >= 0 && fx(resolved.cutTime) <= 1 && <span className="absolute top-0 h-full w-0.5 bg-mark" style={{ left: `${fx(resolved.cutTime) * 100}%` }} title={t('transport.cut')} />}
               {showScale && (
                 <span className="absolute bottom-0 h-1.5 rounded-sm bg-primary-soft" style={{ left: `${fx(minT) * 100}%`, width: `${(fx(maxT) - fx(minT)) * 100}%` }} data-testid="anim-selection-span">

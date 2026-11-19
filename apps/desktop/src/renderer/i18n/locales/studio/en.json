@@ -114,7 +114,15 @@
       "setPath": "Set path",
       "editTemplate": "Open in animation editor",
       "updateTemplate": "Update original template",
-      "convertNew": "Save as new template"
+      "convertNew": "Save as new template",
+      "addMarker": "Add marker at playhead",
+      "moveMarker": "Move marker",
+      "renameMarker": "Rename marker",
+      "removeMarker": "Delete marker",
+      "setWorkArea": "Set work area",
+      "workAreaStart": "Start work area at playhead",
+      "workAreaEnd": "End work area at playhead",
+      "clearWorkArea": "Clear work area"
     },
     "history": {
       "new": "New animation",
@@ -124,7 +132,9 @@
       "keyframe": "Edit keyframe",
       "params": "Edit parameters",
       "sound": "Edit sound",
-      "layer": "Edit layer"
+      "layer": "Edit layer",
+      "marker": "Marker",
+      "workArea": "Work area"
     },
     "errors": {
       "invalidEdit": "That change isn't valid and wasn't applied: {{reason}}",
@@ -276,7 +286,8 @@
       "zoomOut": "Zoom out",
       "zoomFit": "Show whole clip",
       "zoomHint": "Zoom in (Ctrl + wheel zooms at the pointer, Shift + wheel scrolls sideways)",
-      "scroll": "Scroll the timeline"
+      "scroll": "Scroll the timeline",
+      "workArea": "Work area: the preview loops within this range (export is not affected)"
     },
     "code": {
       "title": "Animation code",
@@ -422,6 +433,10 @@
       "title": "Template code was changed elsewhere",
       "body": "This template's template.js no longer matches its animation document (it was probably edited in an external editor). After opening it in the animation editor, “Update original template” regenerates the code from the animation and overwrites those changes.",
       "confirm": "Open anyway"
+    },
+    "markers": {
+      "unnamed": "Marker {{n}}",
+      "at": "{{name}} ({{t}} s)"
     }
   }
 }

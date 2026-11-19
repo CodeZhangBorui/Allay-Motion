@@ -114,7 +114,15 @@
       "setPath": "设置路径",
       "editTemplate": "在动画编辑器里打开",
       "updateTemplate": "更新原模板",
-      "convertNew": "另存为新模板"
+      "convertNew": "另存为新模板",
+      "addMarker": "在播放头处加标记",
+      "moveMarker": "移动标记",
+      "renameMarker": "重命名标记",
+      "removeMarker": "删除标记",
+      "setWorkArea": "设置工作区",
+      "workAreaStart": "工作区从播放头开始",
+      "workAreaEnd": "工作区到播放头结束",
+      "clearWorkArea": "清除工作区"
     },
     "history": {
       "new": "新建动画",
@@ -124,7 +132,9 @@
       "keyframe": "修改关键帧",
       "params": "修改参数",
       "sound": "修改音效",
-      "layer": "修改图层"
+      "layer": "修改图层",
+      "marker": "标记",
+      "workArea": "工作区"
     },
     "errors": {
       "invalidEdit": "这个修改不合规，没有生效：{{reason}}",
@@ -276,7 +286,8 @@
       "zoomOut": "缩小",
       "zoomFit": "显示整段",
       "zoomHint": "放大（Ctrl + 滚轮在指针处缩放，Shift + 滚轮左右滚动）",
-      "scroll": "左右滚动时间轴"
+      "scroll": "左右滚动时间轴",
+      "workArea": "工作区：预览在这一段里循环播放（不影响导出）"
     },
     "code": {
       "title": "动画代码",
@@ -422,6 +433,10 @@
       "title": "模板代码在外面改过",
       "body": "这个模板的 template.js 和它的动画文档对不上（多半在外部编辑器里改过）。在动画编辑器里打开后，“更新原模板”会用动画重新生成代码，覆盖那些改动。",
       "confirm": "仍然打开"
+    },
+    "markers": {
+      "unnamed": "标记 {{n}}",
+      "at": "{{name}}（{{t}} 秒）"
     }
   }
 }

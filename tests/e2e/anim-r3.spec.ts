@@ -577,3 +577,50 @@ test('T-ANIM-35 时间轴缩放：放大按钮、Ctrl+滚轮在指针处放大�
   await expect(page.getByTestId('anim-zoom-bar')).toHaveCount(0);
   await expect.poll(async () => Math.round((await keyX(1)) - (await keyX(0)))).toBe(Math.round(gap0));
 });
+
+test('T-ANIM-36 标记点和工作区：Shift+M 加标记、拖动改时刻、点击跳过去；B / N 设工作区，播放在工作区里循环', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  type D = { markers?: { id: string; t: number }[]; workArea?: { from: number; to: number } };
+  const d = async () => (await docJson(page)) as unknown as D;
+  // 播放头放到 0.5 秒，Shift+M
+  await page.evaluate(() => window.__allayTest!.setTime(0.5));
+  await page.getByTestId('anim-timeline').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Shift+M');
+  await expect.poll(async () => (await d()).markers?.map((m) => m.t)).toEqual([0.5]);
+  await expect(page.getByTestId('anim-marker')).toHaveCount(1);
+  // 拖标记往右
+  const mk = (await page.getByTestId('anim-marker').boundingBox())!;
+  await page.mouse.move(mk.x + mk.width / 2, mk.y + mk.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(mk.x + mk.width / 2 + 60, mk.y + mk.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => (await d()).markers![0]!.t).toBeGreaterThan(0.6);
+  const mt = (await d()).markers![0]!.t;
+  // 点一下标记：播放头跳过去
+  await page.evaluate(() => window.__allayTest!.setTime(0));
+  await page.getByTestId('anim-marker').click();
+  await expect.poll(async () => (await page.evaluate(() => window.__allayTest!.transport())).time).toBeCloseTo(mt, 5);
+  // 工作区：0.25 秒按 B，1 秒按 N
+  await page.evaluate(() => window.__allayTest!.setTime(0.25));
+  await page.keyboard.press('B');
+  await page.evaluate(() => window.__allayTest!.setTime(1));
+  await page.keyboard.press('N');
+  await expect.poll(async () => (await d()).workArea).toEqual({ from: 0.25, to: 1 });
+  await expect(page.getByTestId('anim-work-area')).toBeVisible();
+  // 播放一会儿：时间一直在工作区里
+  await page.evaluate(() => window.__allayTest!.setTime(0.3));
+  await page.getByTestId('transport-play').click();
+  const seen: number[] = [];
+  for (let i = 0; i < 25; i++) {
+    seen.push((await page.evaluate(() => window.__allayTest!.transport())).time);
+    await page.waitForTimeout(60);
+  }
+  await page.getByTestId('transport-play').click();
+  expect(Math.min(...seen)).toBeGreaterThanOrEqual(0.25 - 1e-6);
+  expect(Math.max(...seen)).toBeLessThanOrEqual(1 + 1e-6);
+  // 绕回过（播放超过 0.75 秒）
+  expect(seen.some((t, i) => i > 0 && t < seen[i - 1]!)).toBe(true);
+});

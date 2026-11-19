@@ -40,7 +40,17 @@ export function usePlayback() {
     const tick = (now: number) => {
       const s = useTransportStore.getState();
       if (last !== null && s.duration > 0) {
+        // 有工作区（动画编辑器，第三轮）时在这一段里循环：从范围外开始播时先跳到范围开头
+        const r = s.range && s.loop ? { from: Math.max(0, s.range.from), to: Math.min(s.duration, s.range.to) } : null;
         let next = s.time + (now - last) / 1000;
+        if (r && r.to > r.from) {
+          if (s.time < r.from - 1e-6 || s.time > r.to + 1e-6) next = r.from;
+          else if (next >= r.to) next = r.from + ((next - r.from) % (r.to - r.from));
+          s.setTime(next);
+          last = now;
+          raf = requestAnimationFrame(tick);
+          return;
+        }
         if (next >= s.duration) {
           if (s.loop) next = next % s.duration;
           else {

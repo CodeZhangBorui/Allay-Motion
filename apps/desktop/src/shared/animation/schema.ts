@@ -275,8 +275,23 @@ const AnimationDocShape = z
     sounds: z.array(AnimSoundSchema).max(64).default([]),
     /** 暴露给模板用户的参数（第 2 版） */
     params: z.array(AnimParamSchema).max(MAX_PARAMS).default([]),
+    /** 时间轴的标记点（第三轮，只是编辑用：吸附、跳转；画面不用） */
+    markers: z
+      .array(z.strictObject({ id: z.string().regex(LAYER_ID_RE, 'id must be lower-case letters, digits and dashes'), t: finite.min(0).max(30), label: z.string().max(60).optional() }))
+      .max(64)
+      .optional(),
+    /** 工作区范围（第三轮，只是编辑用：预览在这一段里循环播放；画面、导出不受影响） */
+    workArea: z
+      .strictObject({ from: finite.min(0).max(30), to: finite.min(0).max(30) })
+      .refine((w) => w.to > w.from, { message: 'workArea.to must be after workArea.from' })
+      .optional(),
   })
   .superRefine((doc, ctx) => {
+    const markerIds = new Set<string>();
+    (doc.markers ?? []).forEach((m, i) => {
+      if (markerIds.has(m.id)) ctx.addIssue({ code: 'custom', path: ['markers', i, 'id'], message: `duplicate marker id "${m.id}"` });
+      markerIds.add(m.id);
+    });
     const params = new Map<string, AnimParam>();
     doc.params.forEach((p, i) => {
       if (params.has(p.key)) ctx.addIssue({ code: 'custom', path: ['params', i, 'key'], message: `duplicate param key "${p.key}"` });
