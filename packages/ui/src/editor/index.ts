@@ -2,6 +2,7 @@
 export * from './context';
 export * from './palettes';
 export * from './easing';
+export * from './timelineOps';
 export { ScrubNumberField, SliderField, decimalsOf, type ScrubNumberFieldProps } from './ScrubNumberField';
 export { ColorField, type ColorFieldProps } from './ColorField';
 export { EasingField, type EasingFieldProps } from './EasingField';
@@ -11,6 +12,6 @@ export { BlockPicker, ItemPicker, ResourcePickerPopover, ResourceThumb, entryNam
 export { SoundField, useSoundName } from './SoundPicker';
 export { ParamGroup, ParamPanel, ParamRow, isVisible, type ParamGroupDef, type ParamPanelProps } from './ParamPanel';
 export { TemplateCard, type TemplateCardProps } from './TemplateCard';
-export { TimelineTrack, segmentsMatch, timelineFrameLabel, type TimelineSegment, type TimelineTrackProps } from './TimelineTrack';
+export { TimelineTrack, segmentsMatch, timelineFrameLabel, type TimelineLane, type TimelineMenuTarget, type TimelineSegment, type TimelineTrackProps } from './TimelineTrack';
 export { PREVIEW_INSET, PreviewViewport, type PreviewBackground, type PreviewViewportProps } from './PreviewViewport';
 export { ResourceStackList, type ResourceStackListProps, type StackRow } from './ResourceStackList';

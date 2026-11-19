@@ -1,6 +1,7 @@
 import { FilmStrip, Scissors, SpeakerSimpleHigh } from '@phosphor-icons/react';
 import { cn } from 'cn';
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '../components/ui/context-menu';
 import { ICON, ICON_WEIGHT } from '../lib/icons';
 
 // Transport 的多轨时间轴（6.4）：左侧轨道名列，右侧每条轨道是一条凹槽圆角条。
@@ -12,6 +13,7 @@ import { ICON, ICON_WEIGHT } from '../lib/icons';
 // - 剪辑点轨：琥珀菱形加帧号；没有剪辑点（叠加层模板）时不显示这一轨；
 // - 播放头：1.5 px 强调色竖线贯穿各轨，顶部是带当前帧号的小牌；整个轨道区可按下拖动（键盘：左右键逐帧、Shift 十帧、Home/End）。
 // 一次拖动（段尾）只算一次连续操作：onGesture('start') … onGesture('end')。
+// - 右键菜单：内容由宿主按点中的对象给（renderMenu，见 TimelineMenuTarget）；键盘上的菜单键、Shift+F10 也能打开。
 //
 // 拖动的做法（docs/decisions.md“时间轴拖动”）：
 // - 按下时 setPointerCapture，并在 window 上听同一个 pointerId 的 move/up/cancel：被拖元素即使重渲染也不会丢掉这次拖动；
@@ -46,6 +48,21 @@ export interface TimelineTrackProps {
   onSeekStart?(): void;
   onSegmentChange(key: string, duration: number): void;
   onGesture(phase: 'start' | 'end'): void;
+  /** 右键菜单的条目（ContextMenuItem 等）；不给时没有右键菜单 */
+  renderMenu?(target: TimelineMenuTarget): ReactNode;
+}
+
+export type TimelineLane = 'ruler' | 'stages' | 'sound' | 'cut';
+
+/** 右键点中的对象 */
+export interface TimelineMenuTarget {
+  lane: TimelineLane;
+  /** 右键处的时间（吸附到帧，限制在 0–时长）；用键盘打开时是播放头的时间 */
+  time: number;
+  /** 阶段轨上点中的段（序号）；点在段尾把手上时是那一段 */
+  segment: number | null;
+  /** 点在段尾把手上（或键盘焦点在段尾把手上） */
+  edge: boolean;
 }
 
 const SEGMENT_COLORS = ['var(--stage-enter)', 'var(--stage-hold)', 'var(--stage-exit)', 'var(--cue)', 'var(--amethyst)'];
@@ -139,8 +156,14 @@ function TrackName({ icon, children, muted, row }: { icon: ReactNode; children: 
 }
 
 export function TimelineTrack(props: TimelineTrackProps) {
-  const { duration, time, fps, segments, cutTime, cues, disabled, labels, formatTime, onSeek, onSeekStart, onSegmentChange, onGesture } = props;
+  const { duration, time, fps, segments, cutTime, cues, disabled, labels, formatTime, onSeek, onSeekStart, onSegmentChange, onGesture, renderMenu } = props;
   const lanesRef = useRef<HTMLDivElement>(null);
+  const stagesRef = useRef<HTMLDivElement>(null);
+  const cuesRef = useRef<HTMLDivElement>(null);
+  const cutRef = useRef<HTMLDivElement>(null);
+  const [menuTarget, setMenuTarget] = useState<TimelineMenuTarget | null>(null);
+  /** 菜单键或 Shift+F10 按下后的那一次 contextmenu 来自键盘：按焦点而不是指针位置找对象 */
+  const keyboardMenu = useRef(false);
   const [width, setWidth] = useState(0);
   /** 正在拖的段尾：它的值和按下时冻结的总时长（整条时间轴按它布局，段尾才会停在指针下） */
   const [boundaryView, setBoundaryView] = useState<{ index: number; value: number; view: number } | null>(null);
@@ -212,6 +235,21 @@ export function TimelineTrack(props: TimelineTrackProps) {
     window.clearTimeout(settleTimer.current);
     settleTimer.current = window.setTimeout(() => setSettling(null), SETTLE_MS);
   };
+
+  // 各段时长从别处改了（右键菜单、设置时长、属性面板、撤销）：引擎报回新时长之前同样按各段之和布局，不闪掉色段
+  // （只在同一组段之间：换了模板、段的组成变了时不算，那时照 4.3 等引擎）
+  const propSum = segments.reduce((a, s) => a + s.duration, 0);
+  const segKeys = segments.map((s) => s.key).join('|');
+  const prevProps = useRef({ sum: propSum, keys: segKeys });
+  useLayoutEffect(() => {
+    const prev = prevProps.current;
+    if (Math.abs(propSum - prev.sum) < 1e-9 && segKeys === prev.keys) return;
+    prevProps.current = { sum: propSum, keys: segKeys };
+    if (segKeys !== prev.keys || boundaryRef.current || segments.length === 0 || Math.abs(propSum - duration) < 1e-6) return;
+    setSettling(propSum);
+    window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => setSettling(null), SETTLE_MS);
+  }, [propSum, segKeys, duration, segments.length]);
 
   // ---- 播放头（拖动擦洗）----
   const scrubTime = (d: ScrubDrag, clientX: number) => {
@@ -354,6 +392,53 @@ export function TimelineTrack(props: TimelineTrackProps) {
     onSegmentChange(seg.key, value);
   };
 
+  // ---- 右键菜单：按点中的轨道和位置（或键盘焦点）找对象 ----
+  const segmentAt = (t: number): number | null => {
+    if (!showSegments || shownSegments.length === 0) return null;
+    const i = bounds.findIndex((b) => t < b - 1e-9);
+    return i >= 0 ? i : t <= bounds[bounds.length - 1]! + 1e-9 ? shownSegments.length - 1 : null;
+  };
+  const laneAt = (clientY: number): TimelineLane => {
+    const hit = (el: HTMLElement | null) => {
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return clientY >= r.top && clientY <= r.bottom;
+    };
+    if (hit(stagesRef.current)) return 'stages';
+    if (hit(cuesRef.current)) return 'sound';
+    if (hit(cutRef.current)) return 'cut';
+    return 'ruler';
+  };
+  const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) keyboardMenu.current = true;
+  };
+  const onContextMenu = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const fromKeyboard = keyboardMenu.current;
+    keyboardMenu.current = false;
+    if (!renderMenu || disabled || duration <= 0 || boundaryRef.current || scrubRef.current) {
+      // 不打开菜单（Base UI 的处理器在这之后才跑：拦下它，否则菜单处于打开状态却没有内容）
+      e.preventDefault();
+      (e as unknown as { preventBaseUIHandler?: () => void }).preventBaseUIHandler?.();
+      setMenuTarget(null);
+      return;
+    }
+    const edgeEl = (fromKeyboard ? document.activeElement : (e.target as Element | null))?.closest?.('[data-edge]');
+    const edge = edgeEl ? Number(edgeEl.getAttribute('data-edge')) : null;
+    if (edge !== null && Number.isInteger(edge) && edge < shownSegments.length) {
+      setMenuTarget({ lane: 'stages', time: Math.min(duration, snap(bounds[edge]!)), segment: edge, edge: true });
+      return;
+    }
+    if (fromKeyboard) {
+      setMenuTarget({ lane: 'stages', time, segment: segmentAt(time), edge: false });
+      return;
+    }
+    const rect = lanesRef.current!.getBoundingClientRect();
+    const x = rect.width > 0 ? Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)) : 0;
+    const t = Math.min(duration, snap(x * view));
+    const lane = laneAt(e.clientY);
+    setMenuTarget({ lane, time: t, segment: lane === 'stages' ? segmentAt(t) : null, edge: false });
+  };
+
   // ---- 刻度：标签步长让标签之间至少隔 LABEL_SPACING（按布局用的总时长）----
   const pxPerFrame = viewLastFrame > 0 ? width / viewLastFrame : 0;
   const labelStep = LABEL_STEPS.find((s) => s * pxPerFrame >= LABEL_SPACING) ?? Math.max(1, viewLastFrame);
@@ -366,119 +451,129 @@ export function TimelineTrack(props: TimelineTrackProps) {
   const rows = ['24px', '40px', '30px', ...(hasCut ? ['30px'] : [])].join(' ');
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[124px_1fr] gap-y-1 pr-3 pb-3 select-none" style={{ gridTemplateRows: rows }} data-testid="timeline">
-      {/* 轨道区（右列）：刻度、各轨和覆盖其上的拖动层、播放头都以它为坐标 */}
-      <div ref={lanesRef} className="group/track relative col-start-2 row-span-full row-start-1 min-w-0">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-6 num text-2xs text-fg-subtle" aria-hidden="true">
-          {ticks.map(({ f, label }) =>
-            label ? (
-              <span key={f} className="absolute top-0.5 -translate-x-1/2" style={{ left: pct(f / fps) }}>
-                {f}
-              </span>
-            ) : (
-              <span key={f} className="absolute bottom-0 h-[5px] w-px bg-control-hi" style={{ left: pct(f / fps) }} />
-            ),
-          )}
-        </div>
-      </div>
-
-      <TrackName row={2} icon={<FilmStrip size={ICON.sm} weight={ICON_WEIGHT.active} />}>{labels.stages}</TrackName>
-      {/* 拖分界线时布局冻结，各段之和可能超出轨道：超出的部分裁掉 */}
-      <div className="relative col-start-2 row-start-2 overflow-hidden rounded-lg bg-well">
-        {showSegments &&
-          shownSegments.map((s, i) => {
-            const first = i === 0;
-            const last = i === shownSegments.length - 1;
-            // 窄的色块（停留）只居中显示名称；再窄就什么都不写
-            const px = view > 0 ? (s.duration / view) * width : 0;
-            const narrow = px < 110;
-            return (
-              <div
-                key={s.key}
-                data-testid={`timeline-segment-${s.key}`}
-                title={s.label}
-                className={cn('pointer-events-none absolute inset-y-[3px] flex min-w-0 items-center gap-2 overflow-hidden rounded-md font-medium text-stage-foreground', narrow ? 'justify-center px-2' : 'px-3')}
-                style={{
-                  left: first ? 0 : `calc(${pct(bounds[i]! - s.duration)} + 1px)`,
-                  width: `calc(${pct(s.duration)} - ${first || last ? 1 : 2}px)`,
-                  background: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
-                }}
-              >
-                <span className="absolute inset-y-[9px] left-1 w-[3px] rounded-full bg-stage-foreground/55" />
-                <span className="absolute inset-y-[9px] right-1 w-[3px] rounded-full bg-stage-foreground/55" />
-                {px >= 36 && <span className="truncate">{s.label}</span>}
-                {!narrow && <span className="shrink-0 num font-normal opacity-75">{s.duration.toFixed(2)} s</span>}
-              </div>
-            );
-          })}
-      </div>
-
-      <TrackName row={3} icon={<SpeakerSimpleHigh size={ICON.sm} weight={ICON_WEIGHT.active} />} muted={cues.length === 0}>
-        {labels.sound}
-      </TrackName>
-      <div className={cn('relative col-start-2 row-start-3 rounded-lg bg-well', cues.length === 0 && 'opacity-50')} data-testid="timeline-cues">
-        {cues.map((c, i) => (
-          <span key={i} className="pointer-events-none absolute inset-y-[9px] w-[3px] -translate-x-1/2 rounded-full bg-cue" style={{ left: pct(c) }} />
-        ))}
-      </div>
-
-      {hasCut && (
-        <>
-          <TrackName row={4} icon={<Scissors size={ICON.sm} weight={ICON_WEIGHT.active} />}>{labels.cutTrack}</TrackName>
-          <div className="relative col-start-2 row-start-4 rounded-lg bg-well">
-            <div className="pointer-events-none absolute top-[9px] flex items-center" style={{ left: pct(cutTime) }} title={labels.cut} data-testid="timeline-cut">
-              <span className="block size-[11px] -translate-x-1/2 rotate-45 rounded-[2px] bg-mark" />
-              <span className="ml-1.5 num text-xs text-mark">{cutFrame}</span>
-              <span className="sr-only">{labels.cut}</span>
-            </div>
+    <ContextMenu>
+      <ContextMenuTrigger
+        render={<div />}
+        className="grid min-h-0 flex-1 grid-cols-[124px_1fr] gap-y-1 pr-3 pb-3 select-none"
+        style={{ gridTemplateRows: rows }}
+        data-testid="timeline"
+        onContextMenu={onContextMenu}
+        onKeyDown={onMenuKey}
+      >
+        {/* 轨道区（右列）：刻度、各轨和覆盖其上的拖动层、播放头都以它为坐标 */}
+        <div ref={lanesRef} className="group/track relative col-start-2 row-span-full row-start-1 min-w-0">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-6 num text-2xs text-fg-subtle" aria-hidden="true">
+            {ticks.map(({ f, label }) =>
+              label ? (
+                <span key={f} className="absolute top-0.5 -translate-x-1/2" style={{ left: pct(f / fps) }}>
+                  {f}
+                </span>
+              ) : (
+                <span key={f} className="absolute bottom-0 h-[5px] w-px bg-control-hi" style={{ left: pct(f / fps) }} />
+              ),
+            )}
           </div>
-        </>
-      )}
-
-      {/* 拖动层与播放头：覆盖轨道区（刻度以下所有轨） */}
-      <div className="pointer-events-none relative col-start-2 row-span-full row-start-1">
-        <div
-          data-testid="transport-track"
-          role="slider"
-          tabIndex={disabled ? -1 : 0}
-          aria-label={labels.scrub}
-          aria-valuemin={0}
-          aria-valuemax={lastFrame}
-          aria-valuenow={frame}
-          aria-valuetext={formatTime(time)}
-          aria-disabled={disabled}
-          className="pointer-events-auto absolute inset-0 cursor-pointer touch-none rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)"
-          onPointerDown={onTrackDown}
-          onKeyDown={onTrackKey}
-        />
-        {/* 段尾：每一段一个（最后一段的段尾就是终点，拖它改最后一段的时长），命中区落在阶段轨上 */}
-        {showSegments &&
-          shownSegments.map((s, i) => (
-            <div
-              key={`b-${s.key}`}
-              role="slider"
-              tabIndex={disabled ? -1 : 0}
-              aria-label={i < shownSegments.length - 1 ? labels.boundary(s.label, shownSegments[i + 1]!.label) : labels.end(s.label)}
-              data-edge={i}
-              aria-valuemin={s.min}
-              aria-valuemax={s.max}
-              aria-valuenow={s.duration}
-              aria-valuetext={`${s.duration.toFixed(2)} s`}
-              data-testid={`timeline-boundary-${i}`}
-              className="pointer-events-auto absolute top-7 z-10 h-10 w-3 -translate-x-1/2 cursor-ew-resize touch-none rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-(--ring)"
-              style={{ left: pct(bounds[i]!) }}
-              onPointerDown={onBoundaryDown(i)}
-              onKeyDown={onBoundaryKey(i)}
-            />
-          ))}
-        <div className="absolute inset-y-0 z-20 w-0" style={{ left: pct(time) }} data-testid="timeline-playhead">
-          <span className="absolute top-[22px] bottom-0 -left-[0.75px] w-[1.5px] bg-primary" />
-          <span data-testid="timeline-playhead-frame" className="absolute top-0.5 left-0 -translate-x-1/2 rounded-[5px] bg-primary px-1.5 py-0.5 num text-2xs font-medium text-primary-foreground">
-            {frame}
-          </span>
         </div>
-      </div>
-    </div>
+
+        <TrackName row={2} icon={<FilmStrip size={ICON.sm} weight={ICON_WEIGHT.active} />}>{labels.stages}</TrackName>
+        {/* 拖分界线时布局冻结，各段之和可能超出轨道：超出的部分裁掉 */}
+        <div ref={stagesRef} className="relative col-start-2 row-start-2 overflow-hidden rounded-lg bg-well" data-testid="timeline-stages">
+          {showSegments &&
+            shownSegments.map((s, i) => {
+              const first = i === 0;
+              const last = i === shownSegments.length - 1;
+              // 窄的色块（停留）只居中显示名称；再窄就什么都不写
+              const px = view > 0 ? (s.duration / view) * width : 0;
+              const narrow = px < 110;
+              return (
+                <div
+                  key={s.key}
+                  data-testid={`timeline-segment-${s.key}`}
+                  title={s.label}
+                  className={cn('pointer-events-none absolute inset-y-[3px] flex min-w-0 items-center gap-2 overflow-hidden rounded-md font-medium text-stage-foreground', narrow ? 'justify-center px-2' : 'px-3')}
+                  style={{
+                    left: first ? 0 : `calc(${pct(bounds[i]! - s.duration)} + 1px)`,
+                    width: `calc(${pct(s.duration)} - ${first || last ? 1 : 2}px)`,
+                    background: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+                  }}
+                >
+                  <span className="absolute inset-y-[9px] left-1 w-[3px] rounded-full bg-stage-foreground/55" />
+                  <span className="absolute inset-y-[9px] right-1 w-[3px] rounded-full bg-stage-foreground/55" />
+                  {px >= 36 && <span className="truncate">{s.label}</span>}
+                  {!narrow && <span className="shrink-0 num font-normal opacity-75">{s.duration.toFixed(2)} s</span>}
+                </div>
+              );
+            })}
+        </div>
+
+        <TrackName row={3} icon={<SpeakerSimpleHigh size={ICON.sm} weight={ICON_WEIGHT.active} />} muted={cues.length === 0}>
+          {labels.sound}
+        </TrackName>
+        <div ref={cuesRef} className={cn('relative col-start-2 row-start-3 rounded-lg bg-well', cues.length === 0 && 'opacity-50')} data-testid="timeline-cues">
+          {cues.map((c, i) => (
+            <span key={i} className="pointer-events-none absolute inset-y-[9px] w-[3px] -translate-x-1/2 rounded-full bg-cue" style={{ left: pct(c) }} />
+          ))}
+        </div>
+
+        {hasCut && (
+          <>
+            <TrackName row={4} icon={<Scissors size={ICON.sm} weight={ICON_WEIGHT.active} />}>{labels.cutTrack}</TrackName>
+            <div ref={cutRef} className="relative col-start-2 row-start-4 rounded-lg bg-well" data-testid="timeline-cut-lane">
+              <div className="pointer-events-none absolute top-[9px] flex items-center" style={{ left: pct(cutTime) }} title={labels.cut} data-testid="timeline-cut">
+                <span className="block size-[11px] -translate-x-1/2 rotate-45 rounded-[2px] bg-mark" />
+                <span className="ml-1.5 num text-xs text-mark">{cutFrame}</span>
+                <span className="sr-only">{labels.cut}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 拖动层与播放头：覆盖轨道区（刻度以下所有轨） */}
+        <div className="pointer-events-none relative col-start-2 row-span-full row-start-1">
+          <div
+            data-testid="transport-track"
+            role="slider"
+            tabIndex={disabled ? -1 : 0}
+            aria-label={labels.scrub}
+            aria-valuemin={0}
+            aria-valuemax={lastFrame}
+            aria-valuenow={frame}
+            aria-valuetext={formatTime(time)}
+            aria-disabled={disabled}
+            className="pointer-events-auto absolute inset-0 cursor-pointer touch-none rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--ring)"
+            onPointerDown={onTrackDown}
+            onKeyDown={onTrackKey}
+          />
+          {/* 段尾：每一段一个（最后一段的段尾就是终点，拖它改最后一段的时长），命中区落在阶段轨上 */}
+          {showSegments &&
+            shownSegments.map((s, i) => (
+              <div
+                key={`b-${s.key}`}
+                role="slider"
+                tabIndex={disabled ? -1 : 0}
+                aria-label={i < shownSegments.length - 1 ? labels.boundary(s.label, shownSegments[i + 1]!.label) : labels.end(s.label)}
+                data-edge={i}
+                aria-valuemin={s.min}
+                aria-valuemax={s.max}
+                aria-valuenow={s.duration}
+                aria-valuetext={`${s.duration.toFixed(2)} s`}
+                data-testid={`timeline-boundary-${i}`}
+                className="pointer-events-auto absolute top-7 z-10 h-10 w-3 -translate-x-1/2 cursor-ew-resize touch-none rounded-sm outline-none focus-visible:outline-2 focus-visible:outline-(--ring)"
+                style={{ left: pct(bounds[i]!) }}
+                onPointerDown={onBoundaryDown(i)}
+                onKeyDown={onBoundaryKey(i)}
+              />
+            ))}
+          <div className="absolute inset-y-0 z-20 w-0" style={{ left: pct(time) }} data-testid="timeline-playhead">
+            <span className="absolute top-[22px] bottom-0 -left-[0.75px] w-[1.5px] bg-primary" />
+            <span data-testid="timeline-playhead-frame" className="absolute top-0.5 left-0 -translate-x-1/2 rounded-[5px] bg-primary px-1.5 py-0.5 num text-2xs font-medium text-primary-foreground">
+              {frame}
+            </span>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      {menuTarget && renderMenu && <ContextMenuContent data-testid="timeline-menu">{renderMenu(menuTarget)}</ContextMenuContent>}
+    </ContextMenu>
   );
 }
 
