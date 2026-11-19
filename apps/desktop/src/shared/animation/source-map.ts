@@ -3,7 +3,7 @@
 // 不需要在 Worker 里埋运行时探针（画面仍是时间的纯函数，硬性规则 2）。
 // 文本位置来自一个记录位置的 JSON 解析（用户自己排版的文本也能定位），不依赖 serializeAnimation 的格式。
 import type { ResolvedDoc } from './resolve';
-import { isKeyed, offsetToLineColumn } from './schema';
+import { bindingSites, isKeyed, offsetToLineColumn, type AnimationDoc } from './schema';
 
 export interface JsonSpan {
   /** 值开始、结束的偏移（结束不含） */
@@ -94,7 +94,7 @@ export function locateJson(text: string): Map<string, JsonSpan> | null {
   }
 }
 
-export type LiveMarkKind = 'layer' | 'segment' | 'hold' | 'edge';
+export type LiveMarkKind = 'layer' | 'segment' | 'hold' | 'edge' | 'param';
 
 /** 一处“这一刻在生效”的代码：从 line 到 endLine（含），带说明 */
 export interface LiveMark {
@@ -113,9 +113,10 @@ const easeLabel = (e: unknown): string => (e === undefined ? 'linear' : Array.is
  * t 时刻在生效的代码：每个可见图层的开头一行；每条有关键帧的属性所处的区间（前后两个关键帧，标出缓动）；
  * 在第一个关键帧之前或最后一个之后时标出那个关键帧（edge）。常量属性不标。
  */
-export function liveMarks(doc: ResolvedDoc, text: string, t: number, spans = locateJson(text)): LiveMark[] {
+export function liveMarks(doc: ResolvedDoc, text: string, t: number, spans = locateJson(text), raw?: AnimationDoc): LiveMark[] {
   if (!spans) return [];
   const marks: LiveMark[] = [];
+  if (raw) marks.push(...bindingMarks(raw, doc, text, t, spans));
   doc.layers.forEach((layer, li) => {
     const from = layer.from ?? 0;
     const to = layer.to ?? Infinity;
@@ -197,4 +198,53 @@ export function timeAtOffset(doc: ResolvedDoc, text: string, offset: number, spa
     if (p.length === 1 && p[0] === 'duration') return doc.duration;
   }
   return null;
+}
+
+/** 值的简短写法（实时预览的说明里用） */
+function short(v: unknown): string {
+  if (typeof v === 'number') return String(Math.round(v * 1000) / 1000);
+  if (typeof v === 'string') return v.length > 32 ? `${v.slice(0, 31)}…` : v;
+  if (typeof v === 'object' && v !== null && 'family' in v) return String((v as { family: unknown }).family);
+  return JSON.stringify(v) ?? '';
+}
+
+/**
+ * 这一刻在生效的参数绑定（第三轮第 12 项）：可见图层里绑定到参数的值、整段时长、音效。每处绑定标两段：
+ * 用到参数的那个值，和参数表里这个参数的定义；说明里写“图层 · 字段 ← 参数键 = 取值”。
+ * 关键帧的值只在它所在的区间（前后两个关键帧之一）正在生效时标。
+ */
+export function bindingMarks(raw: AnimationDoc, resolved: ResolvedDoc, text: string, t: number, spans: Map<string, JsonSpan>): LiveMark[] {
+  const out: LiveMark[] = [];
+  const paramLine = new Map<string, { line: number; endLine: number }>();
+  raw.params.forEach((p, i) => {
+    const s = spans.get(`params.${i}`);
+    if (s) paramLine.set(p.key, { line: lineOf(text, s.start), endLine: lineOf(text, s.end) });
+  });
+  for (const site of bindingSites(raw)) {
+    const [head, li, , prop, , ki] = site.path;
+    let where: string;
+    if (head === 'layers' && typeof li === 'number') {
+      const layer = resolved.layers[li];
+      if (!layer) continue;
+      if (t < (layer.from ?? 0) || t >= (layer.to ?? Infinity)) continue;
+      if (typeof ki === 'number' && typeof prop === 'string') {
+        // 关键帧的值：只在它两侧的区间生效时标
+        const keys = (layer.props as Record<string, { keys?: { t: number }[] } | number | undefined>)[prop];
+        const list = typeof keys === 'object' && keys !== null && Array.isArray(keys.keys) ? keys.keys : [];
+        const prev = list[ki - 1]?.t ?? -Infinity;
+        const next = list[ki + 1]?.t ?? Infinity;
+        if (t < prev || t > next) continue;
+      }
+      where = `${layer.name} · ${site.path.slice(2).filter((x) => typeof x === 'string' && x !== 'props' && x !== 'keys' && x !== 'v').join('.')}`;
+    } else if (head === 'sounds' && typeof li === 'number') where = `sound ${li + 1}`;
+    else where = String(head);
+    const span = spans.get(site.path.join('.'));
+    if (!span) continue;
+    const value = resolved.params.find((p) => p.key === site.value.$param)?.default;
+    const label = `${where} ← ${site.value.$param} = ${short(value)}`;
+    out.push({ kind: 'param', line: lineOf(text, span.start), endLine: lineOf(text, span.end), label });
+    const def = paramLine.get(site.value.$param);
+    if (def) out.push({ kind: 'param', line: def.line, endLine: def.endLine, label });
+  }
+  return out;
 }

@@ -43,6 +43,8 @@ const theme = EditorView.theme({
   '.cm-live-hold': { backgroundColor: 'color-mix(in srgb, var(--mark) 18%, transparent)' },
   '.cm-live-edge': { backgroundColor: 'color-mix(in srgb, var(--primary-soft) 55%, transparent)' },
   '.cm-live-layer': { backgroundColor: 'color-mix(in srgb, var(--control) 70%, transparent)' },
+  // 绑定到参数的值和参数的定义：标记色（琥珀，界面里“改过的参数”也是它）
+  '.cm-live-param': { backgroundColor: 'color-mix(in srgb, var(--mark) 16%, transparent)' },
   '.cm-gutterElement.cm-live-gutter': { color: 'var(--primary-text)', boxShadow: 'inset -2px 0 0 var(--primary)' },
 });
 
@@ -56,7 +58,7 @@ const liveGutter = new (class extends GutterMarker {
 function buildMarks(state: EditorState, marks: readonly CodeViewMark[]): { lines: DecorationSet; gutter: ReturnType<typeof RangeSetBuilder.prototype.finish> } {
   const perLine = new Map<number, string>();
   // 先放图层，再放区间：同一行有两种时区间优先
-  const rank: Record<CodeViewMark['kind'], number> = { layer: 0, edge: 1, hold: 2, segment: 3 };
+  const rank: Record<CodeViewMark['kind'], number> = { layer: 0, param: 1, edge: 2, hold: 3, segment: 4 };
   for (const m of [...marks].sort((a, b) => rank[a.kind] - rank[b.kind])) {
     for (let l = Math.max(1, m.line); l <= Math.min(state.doc.lines, m.endLine); l++) perLine.set(l, m.kind);
   }
@@ -196,7 +198,8 @@ export function createEditor(container: HTMLElement, options: CodeViewOptions, e
     },
     setMarks(marks, reveal) {
       const effects: StateEffect<unknown>[] = [setMarksEffect.of(marks)];
-      const first = marks.find((m) => m.kind !== 'layer') ?? marks[0];
+      // 滚到关键帧区间优先，其次是参数绑定、图层
+      const first = marks.find((m) => m.kind === 'segment' || m.kind === 'hold' || m.kind === 'edge') ?? marks.find((m) => m.kind === 'param') ?? marks[0];
       if (reveal && first && first.line <= view.state.doc.lines) effects.push(EditorView.scrollIntoView(view.state.doc.line(first.line).from, { y: 'center' }));
       view.dispatch({ effects });
     },

@@ -50,3 +50,40 @@ describe('T-ANIM-6 实时预览的映射', () => {
     expect(timeAtOffset(view, text, 0)).toBeNull();
   });
 });
+
+describe('T-ANIM-6 实时预览覆盖参数绑定（第三轮第 12 项）', () => {
+  const bound = AnimationDocSchema.parse({
+    ...newAnimationDoc('B', 'Block'),
+    params: [
+      { key: 'mainBlock', label: 'Block', type: 'block', default: 'minecraft:gold_block' },
+      { key: 'endY', label: 'End', type: 'number', default: 50, min: -500, max: 500 },
+    ],
+    layers: [
+      { id: 'b', name: 'B', type: 'block', block: { $param: 'mainBlock' }, from: 0, to: 1.5, props: { y: { keys: [{ t: 0, v: 0 }, { t: 1, v: { $param: 'endY' } }, { t: 2, v: 0 }] } } },
+    ],
+  });
+  const btext = serializeAnimation(bound);
+  const bview = resolveDoc(bound);
+
+  it('可见图层里的绑定标出用到参数的值和参数的定义，说明写出参数的取值', () => {
+    const marks = liveMarks(bview, btext, 0.5, undefined, bound).filter((m) => m.kind === 'param');
+    const labels = marks.map((m) => m.label);
+    expect(labels).toContain('B · block ← mainBlock = minecraft:gold_block');
+    expect(labels).toContain('B · y ← endY = 50');
+    // 每处绑定两段：值所在的行、参数定义所在的行
+    const blockLine = btext.slice(0, btext.indexOf('"block": {')).split('\n').length;
+    expect(marks.some((m) => m.line === blockLine)).toBe(true);
+    const defLine = btext.slice(0, btext.indexOf('"key": "mainBlock"')).split('\n').length;
+    expect(marks.some((m) => m.line <= defLine && m.endLine >= defLine)).toBe(true);
+  });
+
+  it('关键帧的值只在它两侧的区间生效时标；图层不可见时整层的绑定都不标', () => {
+    expect(liveMarks(bview, btext, 1.2, undefined, bound).some((m) => m.label.includes('endY'))).toBe(true);
+    expect(liveMarks(bview, btext, 1.7, undefined, bound).some((m) => m.kind === 'param')).toBe(false);
+  });
+
+  it('不给原样文档时不标绑定（旧的调用方不变）', () => {
+    expect(liveMarks(bview, btext, 0.5).some((m) => m.kind === 'param')).toBe(false);
+  });
+});
+

@@ -127,7 +127,8 @@ export interface CodeViewOptions {
 
 /** 代码视图里标出的一段（实时预览：这一刻在生效的代码），行从 1 开始，endLine 含 */
 export interface CodeViewMark {
-  kind: 'layer' | 'segment' | 'hold' | 'edge';
+  /** param：绑定到参数的值和参数的定义（2026-11 第三轮，只加） */
+  kind: 'layer' | 'segment' | 'hold' | 'edge' | 'param';
   line: number;
   endLine: number;
   label: string;

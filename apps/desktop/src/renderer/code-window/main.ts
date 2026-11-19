@@ -8,7 +8,7 @@ import i18next from 'i18next';
 import '../app.css';
 import { CodeWindowDownSchema, type CodeWindowDown } from '../../shared/code-window';
 import { liveMarks, timeAtOffset } from '../../shared/animation/source-map';
-import { parseAnimation } from '../../shared/animation/schema';
+import { parseAnimation, type AnimationDoc } from '../../shared/animation/schema';
 import { resolveDoc, type ResolvedDoc } from '../../shared/animation/resolve';
 import { applyThemeToDocument } from '../app/useThemeSync';
 import { discoveredModules } from '../app/optionalModules';
@@ -106,6 +106,8 @@ async function bootstrap(): Promise<void> {
   let liveOn = false;
   /** 解析过参数（默认值）的文档：实时预览的映射按它算 */
   let doc: ResolvedDoc | null = null;
+  /** 原样的文档（带参数绑定）：实时预览要标出绑定 */
+  let rawDoc: AnimationDoc | null = null;
   let lastT = -1;
   let ready = false;
 
@@ -120,6 +122,7 @@ async function bootstrap(): Promise<void> {
   };
   const reparse = (text: string) => {
     const r = parseAnimation(text);
+    rawDoc = r.ok ? r.doc : null;
     doc = r.ok ? resolveDoc(r.doc) : null;
   };
   const relabel = () => {
@@ -134,9 +137,10 @@ async function bootstrap(): Promise<void> {
       liveLabel.classList.add('hidden');
       return;
     }
-    const marks = liveMarks(doc, shown, t);
+    const marks = liveMarks(doc, shown, t, undefined, rawDoc ?? undefined);
     handle.setMarks(marks, reveal);
-    const main = marks.find((m) => m.kind !== 'layer');
+    // 底部的说明：优先写关键帧区间，没有时写参数绑定
+    const main = marks.find((m) => m.kind === 'segment' || m.kind === 'hold' || m.kind === 'edge') ?? marks.find((m) => m.kind === 'param');
     liveLabel.textContent = main ? main.label : '';
     liveLabel.classList.toggle('hidden', !main);
     liveLabel.classList.toggle('flex', !!main);
