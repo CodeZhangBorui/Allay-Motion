@@ -1845,3 +1845,45 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - 设置补丁复用桌面端的 `applyUiPatch`。仿真器默认跳过首次启动和新手引导，直接进入演示工程；帮助菜单仍可重新打开引导。
 - 本机验证通过：`pnpm install --frozen-lockfile --offline`、`pnpm typecheck`、`pnpm lint`、`pnpm check:provenance`、`pnpm check:licenses`、`pnpm website:build`；来源检查和体素模型相关单元测试共 40 项通过；官网 Playwright/Electron 测试 18 项全部通过（包含此前未运行的最新 T-WEB-19）。测试使用不显示的离屏窗口，临时目录放在 E 盘。
 - 完整仓库 `pnpm check` 以合入后 GitHub Actions 的结果为准，本机没有重复跑桌面应用的全套引擎、导出和端到端检查。本次合并不配置网站托管、不部署官网、不创建发版标签。
+
+## 2026-11 反馈：原版动画还原与字体（分支 claude/mc-templates-fonts-b499da）
+
+用户 2026-11-15 的反馈清单里“还原原版加载动画、提示和效果”“允许改字体”两条，由主控拆给本分支。用户已经批准：原版素材（含字体）在运行时从下载的 jar 里取用，不进仓库；开发时可以上网查资料、参考别人的实现。
+
+### 开发环境的限制（影响下面所有“依据”）
+
+- 这次开发所在的环境网络不通：`pnpm install` 拉不到依赖包，Mojang 的 jar 下载不了，网页抓取被拦，只有网络搜索的摘要能用。所以**没有拿到任何一份原版游戏文件来对照**，也**没有看任何录屏**。
+- 各变体的数值来自两处，`04-templates.md` 的 T4、T6 两节逐条标了是哪一处：一是实现者对反编译游戏代码（`LoadingOverlay`、`LevelLoadingScreen`、`ReceivingLevelScreen`、`LoadingScreenRenderer`、`ToastManager`、`AdvancementToast`、`RecipeToast`、`SystemToast`、`GuiAchievement`、`UnihexProvider`、`BakedGlyph`、`Font` 的效果线和八方向描边）的记忆，标“凭记忆”；二是网络搜索查到的 Minecraft Wiki 摘要，标“经搜索摘要确认”。**没有逐像素、逐帧和游戏画面对照过**，这一步留给用户试用时做。
+- 没有引用任何第三方代码，没有新增依赖，没有新增二进制素材（`ASSETS_PROVENANCE.json` 不变）。
+
+### 字体
+
+- **新参数类型 `font`**（template-sdk，第 16 种）：值是 `{ family, bold, italic, underline, strikethrough, shadow, outline }`。清洗时逐个字段检查，坏的字段取默认值的那一项，而不是整个回到默认：用户换了字体、样式里有一项坏了不至于全丢。
+- **`ctx.text.create` 多了 `font` 和几个样式字段**。传 `font` 参数的值时，对象里的样式优先于同一次调用里的 `shadow` 等字段：用户在参数里选的为准。
+- **字体族**：资源栈里的任意字体 ID（游戏的 `minecraft:default`、`uniform`、`alt`、`illageralt`，以及资源包自己的字体），`allay:fallback`（方舟像素字体），`user:<哈希>`（导入的字体）。资源栈里没有、或这个字体一个字形都没有时退回 `minecraft:default` 并记一条警告；缺的字形再退回方舟像素字体。游戏里缺字形画的是方框，这里退回是为了用户的中文标题不至于变成一排方框。
+- **只预载 font 参数里出现的字体**：`text.create` 是同步的，字体必须在 `setup` 之前载好。引擎按 manifest 的 font 参数（当前值和默认值）加上默认字体、兜底字体预载，最多 32 个。模板代码里临时写的其他字体族当作没载入。
+- **样式的画法照游戏**：粗体是向右偏一个“阴影偏移”重描一次、前进宽度加同样的量；斜体是把字形四边形的顶边右移 1 − 0.25 × 上沿、底边右移 1 − 0.25 × 下沿（相对行顶，换算成相对基线是 −0.75 − 0.25 × y），整行一个错切四边形；阴影偏移 1 个字体像素（Unifont 0.5），颜色取正文各通道的 1/4（`(c & 0xFCFCFC) >> 2`）；下划线在基线下 1–2、删除线在基线上 2.5–3.5，从字形左边 1 像素画到前进宽度末尾；描边是八个方向各偏一个阴影偏移、描边颜色，有描边时不画阴影（发光告示牌 `drawInBatch8xOutline` 的做法）。
+- **栅格化改成子像素**：为了表示 Unifont 的半像素（字形画一半大小、阴影和粗体偏 0.5），一个字体像素栅格成 2 × 2 个子像素。阴影、描边直接画进同一张贴图，颜色也烘进去，不再是“正文一张白色贴图加一个阴影网格”。原来阴影颜色是线性空间里乘 0.25 的近似，现在按游戏取整，**带阴影的文字颜色会和旧基准图差几个单位**。
+- **Unifont 的读取**：`hex_file` 指向资源栈里的 zip，主进程在内存里用 `yauzl.fromBuffer` 解开（不写盘），条目名不安全时整个拒绝，最多 64 个 .hex、每个 32 MB。解析成和 BDF 一样的定长表（度量单位是 Unifont 像素，`oversample = 2`），按（stamp、文件、覆盖）缓存，经新的 IPC `resources.unihexTables` 交给渲染进程。码位按 .hex 在 zip 里的顺序先出现的胜出。空字形（全是 0、没有覆盖）宽 0、前进 1 像素。
+- **矢量字体**（用户导入的 TTF/OTF/WOFF/WOFF2）：Worker 里用 `FontFace` 从字节载入（不经网络，CSP 不用放宽），`OffscreenCanvas` 的 2D 上下文按输出分辨率栅格化（一个 em = 10 个字体像素），线性过滤。同一台机器上预览和导出一致；预览分辨率比导出低时抗锯齿边缘会略有不同，这和其他矢量内容一样。粗体、斜体交给 CSS 的字重、字形（字体里没有就由浏览器合成），不是游戏的重描和错切。
+- **用户导入字体**：主进程的对话框选文件（扩展名白名单 ttf、otf、woff、woff2、bdf，≤ 32 MB）→ 复制成 `userData/fonts/` 下的临时文件 → 对副本按文件头认格式（`00 01 00 00`/`true`、`OTTO`、`wOFF`、`wOF2`、BDF 的 `STARTFONT`，BDF 还要能解析）→ 按 sha256 改名、写 `index.json`。字体族 ID 是 `user:<sha256 前 32 位>`，读文件时主进程按 ID 在这个目录里找，ID 的格式由正则限定（01 1.6 第 6 条：渲染进程拿不到路径）。新 IPC 命名空间 `fonts`：`list`、`import`、`remove`、`read`，全部有 zod 校验，T-ARC-6 的畸形参数表已补。
+- **工程里的登记**：工程文件的 params 里存的是 `user:<哈希>`，内容寻址，同一台机器上打开工程就能找到字体。**换一台机器时字体文件不会跟着工程走**，那边会显示“找不到导入的字体”并退回默认字体。把字体文件打进工程（或在打开时提示缺字体、让用户重新导入）没有做，留作后续。
+- **属性面板**：新组件 `packages/ui/src/editor/FontField.tsx`：字体族下拉（游戏字体、内置字体、导入的字体，末尾“导入字体…”），一排样式开关，打开描边时出现描边颜色。字体名不用该字体预览（09 9.3：应用自己的界面不用游戏字体）。`ParamPanel.tsx` 只加了 `font` 的一个分支和“高行”判断。
+- **`service.ts` 的改动只有两处**：`fontProviders()` 的结果多了 unihex 提供器（`{ type: 'unihex', file, overrides }`）；多了一个 `unihexTables()` 方法和它的缓存字段，实现在新文件 `main/resources/fonts.ts`。用户字体的 `UserFontStore` 不在 `ResourceService` 里，在 `main/index.ts` 里另建，经 `handlers.ts` 接线。
+
+### 模板
+
+- **T4 加载界面**加 `style`（7 种）、`guiScale`、`background`、`monochrome`、`titleFont`、`subtitleFont`，版本号 1.1.0。默认样式从原来的自由排版改成 `javaClassic`（Java 版 Beta–1.13 的泥土背景“正在生成地形”），原来的样子保留为 `custom`。资源加载画面（红底标志）做成这里的一种样式，而不是单独一个模板：结构都是“铺满的背景 + 居中的字和进度条”的转场，和本模板的参数、时间轴一致，少一套基准图和清单。
+- **T6 进度提示**加 `style`（`java`、`javaAchievement`）、`kind`（进度、配方、系统）、`headerFont`、`titleFont`、`outSound`、`challengeSound`，版本号 1.1.0。默认时长改成游戏里的 0.6 / 4.4 / 0.6，标题行默认颜色从 `#FFFF55` 改成游戏代码里的 0xFFFF00（旧的 `#FFFF55` 是聊天颜色的黄色，提示框用的是纯黄）。
+- **“默认文字跟着样式换”**：标题等文字参数保持游戏里的某一句默认文字时，模板按当前样式或类型换成对应的那一句（同一种语言）。这样切换样式不用自己改字；参数面板里显示的仍是参数自己的值。
+- **样式之间共用时长参数**：模板拿不到“按样式改参数默认值”的接口，`javaAchievement` 的游戏时长（0.375 / 2.25 / 0.375）写在参数提示里，需要用户自己改。
+- **背景的黑底**：下界传送门、菜单背景这类半透明贴图下面垫一层黑色（游戏在画背景前把屏幕清成黑色），否则剪辑点时画面不是完全不透明（4.6 第 8 条）。
+- **区块图**：35 × 35 的小贴图，`update` 里按 t 重写像素（只改数据，不新建贴图，4.6 第 3 条）；动画是合成的（离中心越远越晚、外圈停在较低阶段），不是游戏的真实顺序。百分比是 0–100% 共 101 个预先建好的文字对象，`update` 里只切换显隐。
+- 其余四个内置模板（方块擦除、方块坠落、物品飞掠、像素溶解）没有显示文字的参数，不需要接字体。
+
+### 验收测试与检查
+
+- 新增 `tests/unit/T-FNT.fonts.test.ts`（T-FNT-1 至 4）；T-TPL-2 加了 font 类型的用例（类型数 15 → 16）；`assets-catalog`、`resource-service` 里“unihex 被跳过”的断言改成新行为；e2e 的 IPC 畸形参数表补了 `resources.unihexTables` 和 `fonts.*`；`tests/engine/random-params.ts` 给 font 参数生成随机样式。
+- **本机能跑的只有很少一部分**（依赖装不上）：用仓库里已经下载到 pnpm 仓库的 tsx、typescript、zod 临时跑了 `@allay/assets` 和 `@allay/template-sdk` 的类型检查（除 three 的类型缺失外无错误）、T-FNT-1/2 和 font 参数清洗的等价脚本、引擎位图文字栅格化的等价脚本（阴影颜色、粗体前进、Unifont 半像素阴影、八方向描边、下划线删除线位置、斜体错切端点），以及 `pnpm templates:api` 的生成脚本（`template-api.d.ts`、`template-api.json`、`docs/template-authoring.md` 已重新生成）。
+- **没跑的**：其余包和应用的 typecheck、lint、vitest（T-FNT-3/4 要 yauzl，T-TPL-2 要 vitest 本身）、引擎测试（T-TPL-3/4/5）、e2e。**T-TPL-5 的基准图没有重新生成**（要 Electron 和 GPU）：T4、T6 的默认样式和全部带阴影文字的栅格都变了，CI 上 T-TPL-5 会失败，需要在能跑的机器上执行 `pnpm templates:baselines` 后提交，并对照评审联络图看一眼。
+
