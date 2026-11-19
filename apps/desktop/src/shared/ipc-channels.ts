@@ -7,6 +7,7 @@
 // M6b 加上 export.writeAudio 和 resources.soundVariants、soundLibrary、soundFiles（音效，docs/decisions.md M6b）；
 // M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
+// 2026-11 反馈在 templates 下加上 readSource、writeSource、createFromAnimation（内嵌代码编辑、自建动画转为模板）；
 // MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）；
 // M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）；
 // 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
@@ -85,6 +86,10 @@ export const IPC = {
     copyBuiltin: 'templates:copyBuiltin',
     writeDevFiles: 'templates:writeDevFiles',
     openFolder: 'templates:openFolder',
+    /** 2026-11：内嵌代码编辑器读写模板源码（带内容版本），自建动画转为模板 */
+    readSource: 'templates:readSource',
+    writeSource: 'templates:writeSource',
+    createFromAnimation: 'templates:createFromAnimation',
     /** 主进程 → 渲染进程的事件：用户模板文件夹在应用之外被改动 */
     changed: 'templates:changed',
   },
@@ -193,6 +198,9 @@ export const INVOKE_CHANNELS = [
   IPC.templates.copyBuiltin,
   IPC.templates.writeDevFiles,
   IPC.templates.openFolder,
+  IPC.templates.readSource,
+  IPC.templates.writeSource,
+  IPC.templates.createFromAnimation,
   IPC.presets.list,
   IPC.presets.save,
   IPC.presets.remove,

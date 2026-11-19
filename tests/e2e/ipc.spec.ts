@@ -179,6 +179,18 @@ const MALFORMED: Record<string, unknown[][]> = {
   ],
   'templates.writeDevFiles': [[], ['user.abc.x'], ['C:\\Windows', '1.0.0'], [{ path: 'C:\\x' }, '1.0.0'], ['user.abc.x', '1.0.0', 'C:\\x']],
   'templates.openFolder': [[], ['C:\\Windows'], ['C:\\Windows', '1.0.0'], ['..', '..'], ['user.abc.x', { path: 'C:\\x' }], ['user.abc.x', '1.0.0', 'template.js']],
+  // 内嵌代码编辑与自建动画（2026-11）：路径一律不收，只认 id 和版本
+  'templates.readSource': [[], ['C:\\Windows\\win.ini'], ['user.abc.x'], ['..', '..'], ['user.abc.x', '1.0.0', 'template.js']],
+  'templates.writeSource': [
+    [],
+    [null],
+    ['user.abc.x', '1.0.0', 'code'],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x' }],
+    [{ id: 'C:\\x', version: '1.0.0', source: 'x', baseVersion: 'a' }],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x', baseVersion: 'a', path: 'C:\\x.js' }],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x'.repeat(1024 * 1024 + 1), baseVersion: 'a' }],
+  ],
+  'templates.createFromAnimation': [[], [null], ['{}'], [{ text: '' }], [{ text: '{}', path: 'C:\\x' }], [{ text: 'x'.repeat(512 * 1024 + 1) }]],
   'presets.list': [[1]],
   'presets.save': [
     [],

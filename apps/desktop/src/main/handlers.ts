@@ -201,6 +201,10 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.templates.copyBuiltin, (_event, req) => templateDev.copyBuiltin(req));
   handle(IPC.templates.writeDevFiles, (_event, id, version) => templateDev.writeDevFiles({ id, version }));
   handle(IPC.templates.openFolder, (_event, id, version) => templateDev.openFolder({ id, version }));
+  // 内嵌代码编辑（只写用户模板的 template.js）与自建动画转为模板（2026-11）
+  handle(IPC.templates.readSource, (_event, id, version) => templateDev.readSource({ id, version }));
+  handle(IPC.templates.writeSource, (_event, req) => templateDev.writeSource(req));
+  handle(IPC.templates.createFromAnimation, (_event, req) => templateDev.createFromAnimation(req.text));
 
   // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
   handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));

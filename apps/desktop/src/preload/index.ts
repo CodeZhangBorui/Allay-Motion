@@ -102,6 +102,9 @@ const api = {
     copyBuiltin: invoke(IPC.templates.copyBuiltin),
     writeDevFiles: invoke(IPC.templates.writeDevFiles),
     openFolder: invoke(IPC.templates.openFolder),
+    readSource: invoke(IPC.templates.readSource),
+    writeSource: invoke(IPC.templates.writeSource),
+    createFromAnimation: invoke(IPC.templates.createFromAnimation),
     onChanged: subscribe<TemplateDevChange>(IPC.templates.changed),
   },
   presets: {

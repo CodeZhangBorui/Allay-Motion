@@ -1,6 +1,8 @@
 // T-DEV-4（接入点）：可选模块按设置里的开关表惰性加载（docs/code-editing-and-mcp-plan.md 3.1、3.2）。
 // 用只存在于测试夹具里的假模块（tests/fixtures/fake-module）验证：开关打开时被加载、能经宿主接口注册面板与命令；
 // 关着时连代码都不加载；关掉时注册的东西全部注销。这次构建实际发现的模块（packages/optional）为空表。
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { EditorHost } from '../../packages/host-api/src/index';
 import { initI18n } from '../../apps/desktop/src/renderer/i18n';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -18,18 +20,21 @@ function testHost(id: string): Promise<ActiveHost> {
   const ui = createHostUi(id);
   const none = { dispose: () => undefined };
   const host: EditorHost = {
-    templates: { read: () => Promise.reject(new Error('n/a')), write: () => Promise.reject(new Error('n/a')), onExternalChange: () => none },
-    engine: { onDiagnostics: () => none, requestReload: () => Promise.resolve({ ok: false, diagnostics: [] }) },
+    templates: { read: () => Promise.reject(new Error('n/a')), write: () => Promise.reject(new Error('n/a')), current: () => null, onCurrentChange: () => none, onExternalChange: () => none },
+    engine: { onDiagnostics: () => none, requestReload: () => Promise.resolve({ ok: false, diagnostics: [] }), lint: () => Promise.resolve([]) },
+    commands: { dispatch: (cmd, input) => dispatch(cmd, input) },
     playhead: { get: () => 0, subscribe: () => none },
     domain: { blockIds: () => ['minecraft:stone'], easings: () => ['linear'], sdkApi: () => ({ formatVersion: 1, source: '', ctx: [], types: {}, aliases: {}, easings: [] }) },
-    ui: { registerPanel: (p) => ui.registerPanel(p), registerCommand: (c) => ui.registerCommand(c), registerMessages: (l, m) => ui.registerMessages(l, m) },
+    ui: { registerPanel: (p) => ui.registerPanel(p), registerCommand: (c) => ui.registerCommand(c), registerMessages: (l, m) => ui.registerMessages(l, m), registerCodeView: (v) => ui.registerCodeView(v), t: (k) => k, onLocaleChange: () => none },
   };
   return Promise.resolve({ ...host, disposeAll: () => ui.disposeAll() });
 }
 
 describe('T-DEV-4 可选模块的惰性加载', () => {
-  it('这次构建发现的可选模块是空表（packages/optional 下没有模块）', () => {
-    expect(discoveredModules()).toEqual({});
+  it('这次构建发现的可选模块就是 packages/optional 下带 src/index.ts 的目录（目录被删时是空表）', () => {
+    const root = join(import.meta.dirname, '../../packages/optional');
+    const dirs = existsSync(root) ? readdirSync(root).filter((d) => existsSync(join(root, d, 'src/index.ts'))) : [];
+    expect(Object.keys(discoveredModules()).sort()).toEqual(dirs.sort());
   });
 
   it('按目录名整理 import.meta.glob 的结果，不合格的目录名忽略', () => {

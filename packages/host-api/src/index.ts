@@ -4,7 +4,7 @@
 // 这是草案，按现有代码能支撑的程度落地。实现在渲染进程的 app/editorHost.ts（MD-b），每个成员的注释里写了现状：
 // - 「已实现」：可选模块调用时可用；
 // - 「未实现」：主程序还没有对应的能力，调用时以 HostUnsupportedError 拒绝（不假装成功）。
-// 现在没有任何可选模块；接入点（按目录的惰性发现、开关表）见 app/optionalModules.ts。
+// 可选模块：packages/optional/code-editor（2026-11）；接入点（按目录的惰性发现、开关表）见 app/optionalModules.ts。
 import type { TemplateDiagnostic } from '@allay/template-sdk';
 
 export type { TemplateDiagnostic };
@@ -87,12 +87,63 @@ export interface CommandContribution {
   run(input: unknown): unknown;
 }
 
+// ---- 2026-11 反馈新增（docs/decisions.md“2026-11 反馈：开发模式、代码编辑与动画编辑器”）：只加不改 ----
+
+/** 当前模板的概况（内嵌编辑器据此决定显示什么、能不能写） */
+export interface CurrentTemplate extends TemplateId {
+  /** 按界面语言取好的名字 */
+  name: string;
+  /** builtin 只读；user 可写；animation 是自建动画（代码由动画文档生成，改动画而不是代码） */
+  source: 'builtin' | 'user' | 'animation';
+}
+
+/** 代码视图里的一条诊断（行列从 1 开始；没有位置的放在第 1 行） */
+export interface CodeViewDiagnostic {
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  line?: number;
+  column?: number;
+}
+
+export interface CodeViewOptions {
+  language: 'javascript' | 'json';
+  value: string;
+  readOnly?: boolean;
+  /** 无障碍名称 */
+  label: string;
+  /** 用户改了文本（每次输入都调用；调用方自己防抖） */
+  onChange?(value: string): void;
+  /** 用户按了保存（Ctrl+S） */
+  onSave?(value: string): void;
+}
+
+export interface CodeViewHandle extends Disposable {
+  /** 从外面换文本（不触发 onChange） */
+  setValue(value: string): void;
+  setReadOnly(readOnly: boolean): void;
+  setDiagnostics(diagnostics: readonly CodeViewDiagnostic[]): void;
+  focus(): void;
+}
+
+/** 把一个代码编辑器画进容器（容器实际是 HTMLElement，见 PanelContribution.mount） */
+export type CodeViewProvider = (container: object, options: CodeViewOptions) => CodeViewHandle;
+
 export interface EditorHost {
   templates: {
-    /** 读用户模板的源码和内容版本。未实现：主进程没有带内容版本的读取（主程序自己不读写模板代码） */
+    /**
+     * 读模板的源码和内容版本（版本是模板文件夹的内容哈希，与 onExternalChange 的 version 相同）。
+     * 已实现（2026-11）：内置模板也能读（只读，版本是 builtin:<id>@<版本>），找不到时 reject
+     */
     read(id: TemplateId): Promise<{ source: string; version: string }>;
-    /** 写源码；baseVersion 不是当前版本时返回 conflict。未实现：界面不反写模板代码，主进程没有写源码的接口 */
+    /**
+     * 写用户模板的 template.js；baseVersion 不是当前版本时返回 conflict，内置模板返回 not-user，
+     * 语法错误或含 import 返回 invalid。写成功后监视服务照常发现改动、走热重载。已实现（2026-11）
+     */
     write(id: TemplateId, source: string, baseVersion: string): Promise<WriteResult>;
+    /** 当前模板；没有时为 null。已实现（2026-11） */
+    current(): CurrentTemplate | null;
+    /** 当前模板变了（换模板、热重载）。已实现（2026-11） */
+    onCurrentChange(cb: (current: CurrentTemplate | null) => void): Disposable;
     /**
      * 文件在应用之外被改动时回调，参数是新的内容版本。
      * 已实现：主进程的监视服务和 templates:changed 事件（hash 就是这里的 version；removed 不回调）。
@@ -106,6 +157,12 @@ export interface EditorHost {
     onDiagnostics(id: TemplateId, cb: (d: TemplateDiagnostic[]) => void): Disposable;
     /** 不落盘的试载（H9）：只能是当前模板；通过就把预览切到这份代码。已实现 */
     requestReload(id: TemplateId, source: string): Promise<ReloadResult>;
+    /** 静态检查（语法、import、确定性规则 H12），不装载、不运行。已实现（2026-11） */
+    lint(source: string): Promise<TemplateDiagnostic[]>;
+  };
+  /** 命令层（H2）：执行一个已注册的命令（参数按命令自己的 schema 校验）。已实现（2026-11） */
+  commands: {
+    dispatch(id: string, input?: unknown): Promise<unknown>;
   };
   playhead: {
     /** 当前时刻（秒）。已实现 */
@@ -127,6 +184,12 @@ export interface EditorHost {
     registerCommand(c: CommandContribution): Disposable;
     /** 注册模块自己的文案；两种语言都要给。键必须以“<模块 id>.”开头。已实现 */
     registerMessages(locale: HostLocale, m: Record<string, string>): Disposable;
+    /** 提供代码视图（主程序里显示、编辑代码的地方用它；同一时间只有一个提供者）。已实现（2026-11） */
+    registerCodeView(provider: CodeViewProvider): Disposable;
+    /** 按当前界面语言取文案（模块自己注册的键，或主程序的键）。已实现（2026-11） */
+    t(key: string): string;
+    /** 界面语言变了。已实现（2026-11） */
+    onLocaleChange(cb: () => void): Disposable;
   };
 }
 

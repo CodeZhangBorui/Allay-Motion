@@ -2,12 +2,15 @@
 // 监视用户模板目录并通知界面、把内置模板复制成可编辑的用户模板、往模板文件夹写类型定义和 jsconfig.json、
 // 在系统文件管理器里打开模板文件夹。界面接线（热重载、错误浮层、命令）在 MD-b。
 import { randomBytes } from 'node:crypto';
-import { rename, rm, writeFile } from 'node:fs/promises';
+import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { animationTemplateFiles } from '../../shared/animation/compile';
+import { parseAnimation } from '../../shared/animation/schema';
+import { analyzeTemplateCode, TemplateCodeError } from '../../shared/template-code';
 import { TEMPLATE_API_DTS_NAME, TEMPLATE_JSCONFIG_NAME, templateJsconfigText } from '../../shared/template-dev';
-import type { TemplateDevChange, TemplateDevResult } from '../../shared/templates';
+import type { CreateFromAnimationResult, ReadSourceResult, TemplateDevChange, TemplateDevResult, WriteSourceRequest, WriteSourceResult } from '../../shared/templates';
 import type { Logger } from '../logger';
-import type { TemplateWatcher } from './dev-watcher';
+import { hashTemplateDir, type TemplateWatcher } from './dev-watcher';
 import type { TemplateService } from './service';
 import type { TemplateEntry } from '../../shared/templates';
 
@@ -118,6 +121,77 @@ export class TemplateDevService {
       return { ok: false, error: 'open-failed' };
     }
     return { ok: true };
+  }
+
+  // ---- 2026-11：内嵌代码编辑与自建动画 ----
+
+  /**
+   * 读 template.js 和内容版本。用户模板的版本是文件夹的内容哈希（与监视事件的 hash 相同）；
+   * 内置模板只读，版本是 builtin:<id>@<版本>。派生模板没有自己的代码（not-script）。
+   */
+  async readSource(req: { id: string; version: string }): Promise<ReadSourceResult> {
+    const entry = this.opts.templates.list().find((e) => e.id === req.id && e.version === req.version);
+    if (!entry) return { ok: false, error: 'not-found' };
+    if (entry.kind !== 'script') return { ok: false, error: 'not-script' };
+    if (entry.source === 'builtin') {
+      const bundle = await this.opts.templates.read(req.id, req.version);
+      if (!bundle) return { ok: false, error: 'not-found' };
+      return { ok: true, source: bundle.code, version: `builtin:${req.id}@${req.version}`, readOnly: true };
+    }
+    const dir = await this.userDir(req.id, req.version);
+    if (!dir.ok) return { ok: false, error: dir.error === 'outside' ? 'outside' : 'not-found' };
+    const [source, version] = await Promise.all([readFile(join(dir.path, 'template.js'), 'utf8').catch(() => null), hashTemplateDir(dir.path)]);
+    if (source === null || version === null) return { ok: false, error: 'not-found' };
+    return { ok: true, source, version, readOnly: false };
+  }
+
+  /**
+   * 写用户模板的 template.js。baseVersion 必须是当前的内容哈希（期间被外部改过就是 conflict，不覆盖）；
+   * 语法错误、含 import 的拒绝（invalid，带诊断）；确定性规则的命中照写（热重载会拦下并在浮层里显示，和外部编辑器一样）。
+   * 不包在 ownWrite 里：监视服务照常发现这次改动、通知界面热重载。
+   */
+  async writeSource(req: WriteSourceRequest): Promise<WriteSourceResult> {
+    const dir = await this.userDir(req.id, req.version);
+    if (!dir.ok) return { ok: false, error: 'not-user' };
+    try {
+      await analyzeTemplateCode(req.source);
+    } catch (error) {
+      if (error instanceof TemplateCodeError) return { ok: false, error: 'invalid', diagnostic: error.diagnostic };
+      throw error;
+    }
+    const current = await hashTemplateDir(dir.path);
+    if (current === null) return { ok: false, error: 'not-user' };
+    if (current !== req.baseVersion) return { ok: false, error: 'conflict', currentVersion: current };
+    try {
+      await writeFileAtomic(join(dir.path, 'template.js'), req.source);
+    } catch (error) {
+      this.opts.log.warn('templates', 'could not write template source', { id: req.id, version: req.version, error: String(error) });
+      return { ok: false, error: 'io' };
+    }
+    const version = await hashTemplateDir(dir.path);
+    return version ? { ok: true, version } : { ok: false, error: 'io' };
+  }
+
+  /**
+   * 自建动画转为模板：主进程自己解析和校验动画文档、生成 manifest.json、template.js、animation.json，
+   * 新 id 是 user.<6 位随机十六进制>.<名字>，版本 1.0.0。再写好类型定义，方便之后用外部编辑器改。
+   */
+  async createFromAnimation(text: string): Promise<CreateFromAnimationResult> {
+    const parsed = parseAnimation(text);
+    if (!parsed.ok) return { ok: false, error: 'invalid', detail: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ').slice(0, 2000) };
+    const slug = parsed.doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'animation';
+    const ref = { id: `user.${randomBytes(3).toString('hex')}.${slug}`, version: '1.0.0' };
+    const files = animationTemplateFiles(parsed.doc, ref);
+    try {
+      await analyzeTemplateCode(files['template.js']);
+    } catch (error) {
+      return { ok: false, error: 'invalid', detail: error instanceof Error ? error.message.slice(0, 2000) : 'invalid code' };
+    }
+    const created = await this.opts.templates.createUser(files);
+    if (!created.ok) return { ok: false, error: created.error === 'bad-id' ? 'io' : 'invalid', ...(created.detail ? { detail: created.detail } : {}) };
+    const dev = await this.writeDevFiles(ref);
+    if (!dev.ok) this.opts.log.warn('templates', 'could not write dev files for animation template', { id: ref.id, error: dev.error });
+    return created;
   }
 
   // ---- 内部 ----

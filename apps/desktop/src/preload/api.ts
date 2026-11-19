@@ -16,6 +16,10 @@ import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
 import type { UpdateState } from '../shared/updates';
 import type {
+  CreateFromAnimationResult,
+  ReadSourceResult,
+  WriteSourceRequest,
+  WriteSourceResult,
   CommitResult,
   CopyBuiltinRequest,
   ExportFileResult,
@@ -142,6 +146,13 @@ export interface AllayApi {
     writeDevFiles(id: string, version: string): Promise<TemplateDevResult>;
     /** 在系统文件管理器里打开用户模板的文件夹 */
     openFolder(id: string, version: string): Promise<TemplateDevResult>;
+    // ---- 2026-11：内嵌代码编辑与自建动画 ----
+    /** 读模板的 template.js 和内容版本；内置模板只读 */
+    readSource(id: string, version: string): Promise<ReadSourceResult>;
+    /** 写用户模板的 template.js（内容版本对不上时返回 conflict）；写完监视服务照常发现、走热重载 */
+    writeSource(req: WriteSourceRequest): Promise<WriteSourceResult>;
+    /** 把动画文档转成一个新的用户模板（manifest.json、template.js、animation.json） */
+    createFromAnimation(req: { text: string }): Promise<CreateFromAnimationResult>;
     /** 用户模板文件夹在应用之外被改动（应用自己的写入不触发）；返回取消订阅的函数 */
     onChanged(callback: (change: TemplateDevChange) => void): () => void;
   };

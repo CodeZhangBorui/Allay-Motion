@@ -22,6 +22,8 @@ import { FolderKindSchema } from './folders';
 import {
   AssetPathSchema,
   CopyBuiltinSchema,
+  CreateFromAnimationSchema,
+  WriteSourceSchema,
   InstallReportSchema,
   PresetIdSchema,
   SaveDerivedSchema,
@@ -108,6 +110,9 @@ export const IPC_ARGS = {
   [IPC.templates.copyBuiltin]: z.tuple([CopyBuiltinSchema]),
   [IPC.templates.writeDevFiles]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
   [IPC.templates.openFolder]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
+  [IPC.templates.readSource]: z.tuple([TemplateIdArgSchema, TemplateVersionArgSchema]),
+  [IPC.templates.writeSource]: z.tuple([WriteSourceSchema]),
+  [IPC.templates.createFromAnimation]: z.tuple([CreateFromAnimationSchema]),
   [IPC.presets.list]: z.tuple([]),
   [IPC.presets.save]: z.tuple([SavePresetSchema]),
   [IPC.presets.remove]: z.tuple([PresetIdSchema]),
