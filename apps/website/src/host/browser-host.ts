@@ -358,6 +358,13 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
         desktopOnly('templates');
         return { ok: false, error: 'open-failed' };
       },
+      // 内嵌代码编辑、自建动画转为模板（2026-11）：网页演示没有可写的模板文件夹
+      readSource: async () => ({ ok: false, error: 'not-found' }),
+      writeSource: async () => ({ ok: false, error: 'not-user' }),
+      createFromAnimation: async () => {
+        desktopOnly('templates');
+        return { ok: false, error: 'io', detail: 'web demo' };
+      },
       onChanged: () => () => undefined,
     },
     presets: {
