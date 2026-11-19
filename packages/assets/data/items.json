@@ -124,5 +124,626 @@
   },
   "minecraft:music_disc_13": {
     "tex": "item/music_disc_13"
+  },
+  "minecraft:wooden_sword": {
+    "tex": "item/wooden_sword"
+  },
+  "minecraft:wooden_pickaxe": {
+    "tex": "item/wooden_pickaxe"
+  },
+  "minecraft:wooden_axe": {
+    "tex": "item/wooden_axe"
+  },
+  "minecraft:wooden_shovel": {
+    "tex": "item/wooden_shovel"
+  },
+  "minecraft:wooden_hoe": {
+    "tex": "item/wooden_hoe"
+  },
+  "minecraft:stone_sword": {
+    "tex": "item/stone_sword"
+  },
+  "minecraft:stone_pickaxe": {
+    "tex": "item/stone_pickaxe"
+  },
+  "minecraft:stone_axe": {
+    "tex": "item/stone_axe"
+  },
+  "minecraft:stone_shovel": {
+    "tex": "item/stone_shovel"
+  },
+  "minecraft:stone_hoe": {
+    "tex": "item/stone_hoe"
+  },
+  "minecraft:iron_axe": {
+    "tex": "item/iron_axe"
+  },
+  "minecraft:iron_shovel": {
+    "tex": "item/iron_shovel"
+  },
+  "minecraft:iron_hoe": {
+    "tex": "item/iron_hoe"
+  },
+  "minecraft:golden_pickaxe": {
+    "tex": "item/golden_pickaxe"
+  },
+  "minecraft:golden_axe": {
+    "tex": "item/golden_axe"
+  },
+  "minecraft:golden_shovel": {
+    "tex": "item/golden_shovel"
+  },
+  "minecraft:golden_hoe": {
+    "tex": "item/golden_hoe"
+  },
+  "minecraft:diamond_hoe": {
+    "tex": "item/diamond_hoe"
+  },
+  "minecraft:netherite_axe": {
+    "tex": "item/netherite_axe"
+  },
+  "minecraft:netherite_shovel": {
+    "tex": "item/netherite_shovel"
+  },
+  "minecraft:netherite_hoe": {
+    "tex": "item/netherite_hoe"
+  },
+  "minecraft:chainmail_helmet": {
+    "tex": "item/chainmail_helmet"
+  },
+  "minecraft:chainmail_chestplate": {
+    "tex": "item/chainmail_chestplate"
+  },
+  "minecraft:chainmail_leggings": {
+    "tex": "item/chainmail_leggings"
+  },
+  "minecraft:chainmail_boots": {
+    "tex": "item/chainmail_boots"
+  },
+  "minecraft:iron_helmet": {
+    "tex": "item/iron_helmet"
+  },
+  "minecraft:iron_chestplate": {
+    "tex": "item/iron_chestplate"
+  },
+  "minecraft:iron_leggings": {
+    "tex": "item/iron_leggings"
+  },
+  "minecraft:iron_boots": {
+    "tex": "item/iron_boots"
+  },
+  "minecraft:golden_helmet": {
+    "tex": "item/golden_helmet"
+  },
+  "minecraft:golden_chestplate": {
+    "tex": "item/golden_chestplate"
+  },
+  "minecraft:golden_leggings": {
+    "tex": "item/golden_leggings"
+  },
+  "minecraft:golden_boots": {
+    "tex": "item/golden_boots"
+  },
+  "minecraft:diamond_helmet": {
+    "tex": "item/diamond_helmet"
+  },
+  "minecraft:diamond_chestplate": {
+    "tex": "item/diamond_chestplate"
+  },
+  "minecraft:diamond_leggings": {
+    "tex": "item/diamond_leggings"
+  },
+  "minecraft:diamond_boots": {
+    "tex": "item/diamond_boots"
+  },
+  "minecraft:netherite_helmet": {
+    "tex": "item/netherite_helmet"
+  },
+  "minecraft:netherite_chestplate": {
+    "tex": "item/netherite_chestplate"
+  },
+  "minecraft:netherite_leggings": {
+    "tex": "item/netherite_leggings"
+  },
+  "minecraft:netherite_boots": {
+    "tex": "item/netherite_boots"
+  },
+  "minecraft:turtle_helmet": {
+    "tex": "item/turtle_helmet"
+  },
+  "minecraft:elytra": {
+    "tex": "item/elytra"
+  },
+  "minecraft:trident": {
+    "tex": "item/trident"
+  },
+  "minecraft:mace": {
+    "tex": "item/mace"
+  },
+  "minecraft:wind_charge": {
+    "tex": "item/wind_charge"
+  },
+  "minecraft:shears": {
+    "tex": "item/shears"
+  },
+  "minecraft:flint_and_steel": {
+    "tex": "item/flint_and_steel"
+  },
+  "minecraft:fishing_rod": {
+    "tex": "item/fishing_rod"
+  },
+  "minecraft:spyglass": {
+    "tex": "item/spyglass"
+  },
+  "minecraft:brush": {
+    "tex": "item/brush"
+  },
+  "minecraft:lead": {
+    "tex": "item/lead"
+  },
+  "minecraft:name_tag": {
+    "tex": "item/name_tag"
+  },
+  "minecraft:saddle": {
+    "tex": "item/saddle"
+  },
+  "minecraft:bell": {
+    "tex": "item/bell"
+  },
+  "minecraft:heart_of_the_sea": {
+    "tex": "item/heart_of_the_sea"
+  },
+  "minecraft:nautilus_shell": {
+    "tex": "item/nautilus_shell"
+  },
+  "minecraft:echo_shard": {
+    "tex": "item/echo_shard"
+  },
+  "minecraft:shulker_shell": {
+    "tex": "item/shulker_shell"
+  },
+  "minecraft:phantom_membrane": {
+    "tex": "item/phantom_membrane"
+  },
+  "minecraft:rabbit_foot": {
+    "tex": "item/rabbit_foot"
+  },
+  "minecraft:prismarine_shard": {
+    "tex": "item/prismarine_shard"
+  },
+  "minecraft:prismarine_crystals": {
+    "tex": "item/prismarine_crystals"
+  },
+  "minecraft:quartz": {
+    "tex": "item/quartz"
+  },
+  "minecraft:raw_iron": {
+    "tex": "item/raw_iron"
+  },
+  "minecraft:raw_copper": {
+    "tex": "item/raw_copper"
+  },
+  "minecraft:raw_gold": {
+    "tex": "item/raw_gold"
+  },
+  "minecraft:iron_nugget": {
+    "tex": "item/iron_nugget"
+  },
+  "minecraft:gold_nugget": {
+    "tex": "item/gold_nugget"
+  },
+  "minecraft:netherite_scrap": {
+    "tex": "item/netherite_scrap"
+  },
+  "minecraft:charcoal": {
+    "tex": "item/charcoal"
+  },
+  "minecraft:flint": {
+    "tex": "item/flint"
+  },
+  "minecraft:bone": {
+    "tex": "item/bone"
+  },
+  "minecraft:feather": {
+    "tex": "item/feather"
+  },
+  "minecraft:string": {
+    "tex": "item/string"
+  },
+  "minecraft:gunpowder": {
+    "tex": "item/gunpowder"
+  },
+  "minecraft:leather": {
+    "tex": "item/leather"
+  },
+  "minecraft:paper": {
+    "tex": "item/paper"
+  },
+  "minecraft:egg": {
+    "tex": "item/egg"
+  },
+  "minecraft:slime_ball": {
+    "tex": "item/slime_ball"
+  },
+  "minecraft:magma_cream": {
+    "tex": "item/magma_cream"
+  },
+  "minecraft:ghast_tear": {
+    "tex": "item/ghast_tear"
+  },
+  "minecraft:blaze_powder": {
+    "tex": "item/blaze_powder"
+  },
+  "minecraft:nether_wart": {
+    "tex": "item/nether_wart"
+  },
+  "minecraft:glowstone_dust": {
+    "tex": "item/glowstone_dust"
+  },
+  "minecraft:sugar": {
+    "tex": "item/sugar"
+  },
+  "minecraft:wheat": {
+    "tex": "item/wheat"
+  },
+  "minecraft:wheat_seeds": {
+    "tex": "item/wheat_seeds"
+  },
+  "minecraft:carrot": {
+    "tex": "item/carrot"
+  },
+  "minecraft:potato": {
+    "tex": "item/potato"
+  },
+  "minecraft:baked_potato": {
+    "tex": "item/baked_potato"
+  },
+  "minecraft:poisonous_potato": {
+    "tex": "item/poisonous_potato"
+  },
+  "minecraft:beetroot": {
+    "tex": "item/beetroot"
+  },
+  "minecraft:melon_slice": {
+    "tex": "item/melon_slice"
+  },
+  "minecraft:sweet_berries": {
+    "tex": "item/sweet_berries"
+  },
+  "minecraft:glow_berries": {
+    "tex": "item/glow_berries"
+  },
+  "minecraft:cookie": {
+    "tex": "item/cookie"
+  },
+  "minecraft:pumpkin_pie": {
+    "tex": "item/pumpkin_pie"
+  },
+  "minecraft:cake": {
+    "tex": "item/cake"
+  },
+  "minecraft:cooked_chicken": {
+    "tex": "item/cooked_chicken"
+  },
+  "minecraft:cooked_porkchop": {
+    "tex": "item/cooked_porkchop"
+  },
+  "minecraft:cooked_mutton": {
+    "tex": "item/cooked_mutton"
+  },
+  "minecraft:cooked_cod": {
+    "tex": "item/cooked_cod"
+  },
+  "minecraft:cooked_salmon": {
+    "tex": "item/cooked_salmon"
+  },
+  "minecraft:cooked_rabbit": {
+    "tex": "item/cooked_rabbit"
+  },
+  "minecraft:beef": {
+    "tex": "item/beef"
+  },
+  "minecraft:porkchop": {
+    "tex": "item/porkchop"
+  },
+  "minecraft:chicken": {
+    "tex": "item/chicken"
+  },
+  "minecraft:mutton": {
+    "tex": "item/mutton"
+  },
+  "minecraft:cod": {
+    "tex": "item/cod"
+  },
+  "minecraft:salmon": {
+    "tex": "item/salmon"
+  },
+  "minecraft:rotten_flesh": {
+    "tex": "item/rotten_flesh"
+  },
+  "minecraft:spider_eye": {
+    "tex": "item/spider_eye"
+  },
+  "minecraft:golden_carrot": {
+    "tex": "item/golden_carrot"
+  },
+  "minecraft:chorus_fruit": {
+    "tex": "item/chorus_fruit"
+  },
+  "minecraft:honey_bottle": {
+    "tex": "item/honey_bottle"
+  },
+  "minecraft:honeycomb": {
+    "tex": "item/honeycomb"
+  },
+  "minecraft:glass_bottle": {
+    "tex": "item/glass_bottle"
+  },
+  "minecraft:bowl": {
+    "tex": "item/bowl"
+  },
+  "minecraft:mushroom_stew": {
+    "tex": "item/mushroom_stew"
+  },
+  "minecraft:rabbit_stew": {
+    "tex": "item/rabbit_stew"
+  },
+  "minecraft:milk_bucket": {
+    "tex": "item/milk_bucket"
+  },
+  "minecraft:powder_snow_bucket": {
+    "tex": "item/powder_snow_bucket"
+  },
+  "minecraft:axolotl_bucket": {
+    "tex": "item/axolotl_bucket"
+  },
+  "minecraft:minecart": {
+    "tex": "item/minecart"
+  },
+  "minecraft:tnt_minecart": {
+    "tex": "item/tnt_minecart"
+  },
+  "minecraft:oak_boat": {
+    "tex": "item/oak_boat"
+  },
+  "minecraft:oak_sign": {
+    "tex": "item/oak_sign"
+  },
+  "minecraft:oak_door": {
+    "tex": "item/oak_door"
+  },
+  "minecraft:iron_door": {
+    "tex": "item/iron_door"
+  },
+  "minecraft:painting": {
+    "tex": "item/painting"
+  },
+  "minecraft:item_frame": {
+    "tex": "item/item_frame"
+  },
+  "minecraft:glow_item_frame": {
+    "tex": "item/glow_item_frame"
+  },
+  "minecraft:armor_stand": {
+    "tex": "item/armor_stand"
+  },
+  "minecraft:campfire": {
+    "tex": "item/campfire"
+  },
+  "minecraft:lantern": {
+    "tex": "item/lantern"
+  },
+  "minecraft:soul_lantern": {
+    "tex": "item/soul_lantern"
+  },
+  "minecraft:candle": {
+    "tex": "item/candle"
+  },
+  "minecraft:hopper": {
+    "tex": "item/hopper"
+  },
+  "minecraft:cauldron": {
+    "tex": "item/cauldron"
+  },
+  "minecraft:brewing_stand": {
+    "tex": "item/brewing_stand"
+  },
+  "minecraft:flower_pot": {
+    "tex": "item/flower_pot"
+  },
+  "minecraft:sugar_cane": {
+    "tex": "item/sugar_cane"
+  },
+  "minecraft:kelp": {
+    "tex": "item/kelp"
+  },
+  "minecraft:bamboo": {
+    "tex": "item/bamboo"
+  },
+  "minecraft:cocoa_beans": {
+    "tex": "item/cocoa_beans"
+  },
+  "minecraft:ink_sac": {
+    "tex": "item/ink_sac"
+  },
+  "minecraft:glow_ink_sac": {
+    "tex": "item/glow_ink_sac"
+  },
+  "minecraft:bone_meal": {
+    "tex": "item/bone_meal"
+  },
+  "minecraft:writable_book": {
+    "tex": "item/writable_book"
+  },
+  "minecraft:written_book": {
+    "tex": "item/written_book"
+  },
+  "minecraft:knowledge_book": {
+    "tex": "item/knowledge_book"
+  },
+  "minecraft:map": {
+    "tex": "item/map"
+  },
+  "minecraft:fire_charge": {
+    "tex": "item/fire_charge"
+  },
+  "minecraft:firework_star": {
+    "tex": "item/firework_star"
+  },
+  "minecraft:end_crystal": {
+    "tex": "item/end_crystal"
+  },
+  "minecraft:dragon_breath": {
+    "tex": "item/dragon_breath"
+  },
+  "minecraft:clay_ball": {
+    "tex": "item/clay_ball"
+  },
+  "minecraft:brick": {
+    "tex": "item/brick"
+  },
+  "minecraft:nether_brick": {
+    "tex": "item/nether_brick"
+  },
+  "minecraft:trial_key": {
+    "tex": "item/trial_key"
+  },
+  "minecraft:ominous_trial_key": {
+    "tex": "item/ominous_trial_key"
+  },
+  "minecraft:breeze_rod": {
+    "tex": "item/breeze_rod"
+  },
+  "minecraft:armadillo_scute": {
+    "tex": "item/armadillo_scute"
+  },
+  "minecraft:turtle_scute": {
+    "tex": "item/turtle_scute"
+  },
+  "minecraft:ominous_bottle": {
+    "tex": "item/ominous_bottle"
+  },
+  "minecraft:goat_horn": {
+    "tex": "item/goat_horn"
+  },
+  "minecraft:music_disc_11": {
+    "tex": "item/music_disc_11"
+  },
+  "minecraft:music_disc_blocks": {
+    "tex": "item/music_disc_blocks"
+  },
+  "minecraft:music_disc_cat": {
+    "tex": "item/music_disc_cat"
+  },
+  "minecraft:music_disc_chirp": {
+    "tex": "item/music_disc_chirp"
+  },
+  "minecraft:music_disc_far": {
+    "tex": "item/music_disc_far"
+  },
+  "minecraft:music_disc_mall": {
+    "tex": "item/music_disc_mall"
+  },
+  "minecraft:music_disc_mellohi": {
+    "tex": "item/music_disc_mellohi"
+  },
+  "minecraft:music_disc_stal": {
+    "tex": "item/music_disc_stal"
+  },
+  "minecraft:music_disc_strad": {
+    "tex": "item/music_disc_strad"
+  },
+  "minecraft:music_disc_wait": {
+    "tex": "item/music_disc_wait"
+  },
+  "minecraft:music_disc_ward": {
+    "tex": "item/music_disc_ward"
+  },
+  "minecraft:music_disc_pigstep": {
+    "tex": "item/music_disc_pigstep"
+  },
+  "minecraft:music_disc_otherside": {
+    "tex": "item/music_disc_otherside"
+  },
+  "minecraft:music_disc_5": {
+    "tex": "item/music_disc_5"
+  },
+  "minecraft:music_disc_relic": {
+    "tex": "item/music_disc_relic"
+  },
+  "minecraft:music_disc_creator": {
+    "tex": "item/music_disc_creator"
+  },
+  "minecraft:music_disc_creator_music_box": {
+    "tex": "item/music_disc_creator_music_box"
+  },
+  "minecraft:music_disc_precipice": {
+    "tex": "item/music_disc_precipice"
+  },
+  "minecraft:white_dye": {
+    "tex": "item/white_dye"
+  },
+  "minecraft:orange_dye": {
+    "tex": "item/orange_dye"
+  },
+  "minecraft:magenta_dye": {
+    "tex": "item/magenta_dye"
+  },
+  "minecraft:light_blue_dye": {
+    "tex": "item/light_blue_dye"
+  },
+  "minecraft:yellow_dye": {
+    "tex": "item/yellow_dye"
+  },
+  "minecraft:lime_dye": {
+    "tex": "item/lime_dye"
+  },
+  "minecraft:pink_dye": {
+    "tex": "item/pink_dye"
+  },
+  "minecraft:gray_dye": {
+    "tex": "item/gray_dye"
+  },
+  "minecraft:light_gray_dye": {
+    "tex": "item/light_gray_dye"
+  },
+  "minecraft:cyan_dye": {
+    "tex": "item/cyan_dye"
+  },
+  "minecraft:purple_dye": {
+    "tex": "item/purple_dye"
+  },
+  "minecraft:blue_dye": {
+    "tex": "item/blue_dye"
+  },
+  "minecraft:brown_dye": {
+    "tex": "item/brown_dye"
+  },
+  "minecraft:green_dye": {
+    "tex": "item/green_dye"
+  },
+  "minecraft:red_dye": {
+    "tex": "item/red_dye"
+  },
+  "minecraft:black_dye": {
+    "tex": "item/black_dye"
+  },
+  "minecraft:recovery_compass": {
+    "tex": "item/recovery_compass_00"
+  },
+  "minecraft:crossbow": {
+    "tex": "item/crossbow_standby"
+  },
+  "minecraft:enchanted_golden_apple": {
+    "tex": "item/golden_apple"
+  },
+  "minecraft:torch": {
+    "tex": "block/torch"
+  },
+  "minecraft:redstone_torch": {
+    "tex": "block/redstone_torch"
+  },
+  "minecraft:soul_torch": {
+    "tex": "block/soul_torch"
   }
 }

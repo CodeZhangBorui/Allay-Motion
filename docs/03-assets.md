@@ -128,6 +128,8 @@ Mojang 的模型和方块状态 JSON 不能随包分发，所以应用自带一�
 
 `diamond_sword` `iron_sword` `netherite_sword` `golden_sword` `diamond_pickaxe` `iron_pickaxe` `netherite_pickaxe` `diamond_axe` `diamond_shovel` `bow` `arrow` `diamond` `emerald` `gold_ingot` `iron_ingot` `netherite_ingot` `copper_ingot` `redstone` `lapis_lazuli` `coal` `amethyst_shard` `apple` `golden_apple` `bread` `cooked_beef` `ender_pearl` `ender_eye` `blaze_rod` `nether_star` `totem_of_undying` `firework_rocket` `book` `enchanted_book` `compass` `clock` `bucket` `water_bucket` `lava_bucket` `experience_bottle` `snowball` `stick` `music_disc_13`
 
+**2026-11 扩充（为内置模板目录，`docs/template-catalog.md` P2）**：方块加到 278 个、物品加到 249 个。新增的条目只有 ID、贴图路径和两种语言的名称，逐条对照过本机 Java 版 26.3 和 1.21.1 的游戏文件（jar 里的贴图清单、`en_us.json`，资源索引里的 `zh_cn.json`）：贴图在两个版本里都存在、两种语言的名称都查得到才收，查不到的不收。只收整方块和贴图是单张图的物品；药水、刷怪蛋、皮革护甲这类要叠层染色的，以及盾牌、床这类只有模型的没有收。新增的清单见 `tests/unit/assets-catalog.test.ts` 的 `EXTRA_BLOCKS`、`EXTRA_ITEMS`。唱片在游戏里都叫“音乐唱片”，这里按 ID 括注区分（沿用 `music_disc_13` 的写法）。金合欢、丛林、深色橡木、红树的树叶都用 `foliage` 常量着色（红树在游戏里是固定色，这里是近似）。
+
 ## 3.8 音效
 
 - 音效事件 ID 与游戏一致，例如 `minecraft:block.stone.place`。有原版层或资源包时，按 `sounds.json` 解析到具体文件，多个变体的选择规则见 `02-engine.md` 2.10。

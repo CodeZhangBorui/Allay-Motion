@@ -68,11 +68,11 @@
     "en": "Oak Planks"
   },
   "minecraft:spruce_planks": {
-    "zh-CN": "云杉木木板",
+    "zh-CN": "云杉木板",
     "en": "Spruce Planks"
   },
   "minecraft:birch_planks": {
-    "zh-CN": "白桦木木板",
+    "zh-CN": "白桦木板",
     "en": "Birch Planks"
   },
   "minecraft:dark_oak_planks": {
@@ -136,7 +136,7 @@
     "en": "Bookshelf"
   },
   "minecraft:hay_block": {
-    "zh-CN": "干草块",
+    "zh-CN": "干草捆",
     "en": "Hay Bale"
   },
   "minecraft:coal_ore": {
@@ -588,7 +588,7 @@
     "en": "Clock"
   },
   "minecraft:bucket": {
-    "zh-CN": "桶",
+    "zh-CN": "铁桶",
     "en": "Bucket"
   },
   "minecraft:water_bucket": {
@@ -614,5 +614,1497 @@
   "minecraft:music_disc_13": {
     "zh-CN": "音乐唱片（13）",
     "en": "Music Disc (13)"
+  },
+  "minecraft:granite": {
+    "zh-CN": "花岗岩",
+    "en": "Granite"
+  },
+  "minecraft:polished_granite": {
+    "zh-CN": "磨制花岗岩",
+    "en": "Polished Granite"
+  },
+  "minecraft:diorite": {
+    "zh-CN": "闪长岩",
+    "en": "Diorite"
+  },
+  "minecraft:polished_diorite": {
+    "zh-CN": "磨制闪长岩",
+    "en": "Polished Diorite"
+  },
+  "minecraft:andesite": {
+    "zh-CN": "安山岩",
+    "en": "Andesite"
+  },
+  "minecraft:polished_andesite": {
+    "zh-CN": "磨制安山岩",
+    "en": "Polished Andesite"
+  },
+  "minecraft:tuff": {
+    "zh-CN": "凝灰岩",
+    "en": "Tuff"
+  },
+  "minecraft:calcite": {
+    "zh-CN": "方解石",
+    "en": "Calcite"
+  },
+  "minecraft:dripstone_block": {
+    "zh-CN": "滴水石块",
+    "en": "Dripstone Block"
+  },
+  "minecraft:blackstone": {
+    "zh-CN": "黑石",
+    "en": "Blackstone"
+  },
+  "minecraft:smooth_basalt": {
+    "zh-CN": "平滑玄武岩",
+    "en": "Smooth Basalt"
+  },
+  "minecraft:cobbled_deepslate": {
+    "zh-CN": "深板岩圆石",
+    "en": "Cobbled Deepslate"
+  },
+  "minecraft:polished_deepslate": {
+    "zh-CN": "磨制深板岩",
+    "en": "Polished Deepslate"
+  },
+  "minecraft:deepslate_tiles": {
+    "zh-CN": "深板岩瓦",
+    "en": "Deepslate Tiles"
+  },
+  "minecraft:mossy_cobblestone": {
+    "zh-CN": "苔石",
+    "en": "Mossy Cobblestone"
+  },
+  "minecraft:mossy_stone_bricks": {
+    "zh-CN": "苔石砖",
+    "en": "Mossy Stone Bricks"
+  },
+  "minecraft:cracked_stone_bricks": {
+    "zh-CN": "裂纹石砖",
+    "en": "Cracked Stone Bricks"
+  },
+  "minecraft:chiseled_stone_bricks": {
+    "zh-CN": "雕纹石砖",
+    "en": "Chiseled Stone Bricks"
+  },
+  "minecraft:red_sand": {
+    "zh-CN": "红沙",
+    "en": "Red Sand"
+  },
+  "minecraft:clay": {
+    "zh-CN": "黏土",
+    "en": "Clay"
+  },
+  "minecraft:mud": {
+    "zh-CN": "泥巴",
+    "en": "Mud"
+  },
+  "minecraft:mud_bricks": {
+    "zh-CN": "泥砖",
+    "en": "Mud Bricks"
+  },
+  "minecraft:packed_mud": {
+    "zh-CN": "泥坯",
+    "en": "Packed Mud"
+  },
+  "minecraft:moss_block": {
+    "zh-CN": "苔藓块",
+    "en": "Moss Block"
+  },
+  "minecraft:coarse_dirt": {
+    "zh-CN": "砂土",
+    "en": "Coarse Dirt"
+  },
+  "minecraft:rooted_dirt": {
+    "zh-CN": "缠根泥土",
+    "en": "Rooted Dirt"
+  },
+  "minecraft:soul_sand": {
+    "zh-CN": "灵魂沙",
+    "en": "Soul Sand"
+  },
+  "minecraft:soul_soil": {
+    "zh-CN": "灵魂土",
+    "en": "Soul Soil"
+  },
+  "minecraft:blue_ice": {
+    "zh-CN": "蓝冰",
+    "en": "Blue Ice"
+  },
+  "minecraft:nether_wart_block": {
+    "zh-CN": "下界疣块",
+    "en": "Nether Wart Block"
+  },
+  "minecraft:warped_wart_block": {
+    "zh-CN": "诡异疣块",
+    "en": "Warped Wart Block"
+  },
+  "minecraft:shroomlight": {
+    "zh-CN": "菌光体",
+    "en": "Shroomlight"
+  },
+  "minecraft:nether_gold_ore": {
+    "zh-CN": "下界金矿石",
+    "en": "Nether Gold Ore"
+  },
+  "minecraft:nether_quartz_ore": {
+    "zh-CN": "下界石英矿石",
+    "en": "Nether Quartz Ore"
+  },
+  "minecraft:gilded_blackstone": {
+    "zh-CN": "镶金黑石",
+    "en": "Gilded Blackstone"
+  },
+  "minecraft:deepslate_coal_ore": {
+    "zh-CN": "深层煤矿石",
+    "en": "Deepslate Coal Ore"
+  },
+  "minecraft:deepslate_iron_ore": {
+    "zh-CN": "深层铁矿石",
+    "en": "Deepslate Iron Ore"
+  },
+  "minecraft:deepslate_copper_ore": {
+    "zh-CN": "深层铜矿石",
+    "en": "Deepslate Copper Ore"
+  },
+  "minecraft:deepslate_gold_ore": {
+    "zh-CN": "深层金矿石",
+    "en": "Deepslate Gold Ore"
+  },
+  "minecraft:deepslate_redstone_ore": {
+    "zh-CN": "深层红石矿石",
+    "en": "Deepslate Redstone Ore"
+  },
+  "minecraft:deepslate_lapis_ore": {
+    "zh-CN": "深层青金石矿石",
+    "en": "Deepslate Lapis Lazuli Ore"
+  },
+  "minecraft:deepslate_diamond_ore": {
+    "zh-CN": "深层钻石矿石",
+    "en": "Deepslate Diamond Ore"
+  },
+  "minecraft:deepslate_emerald_ore": {
+    "zh-CN": "深层绿宝石矿石",
+    "en": "Deepslate Emerald Ore"
+  },
+  "minecraft:raw_iron_block": {
+    "zh-CN": "粗铁块",
+    "en": "Block of Raw Iron"
+  },
+  "minecraft:raw_copper_block": {
+    "zh-CN": "粗铜块",
+    "en": "Block of Raw Copper"
+  },
+  "minecraft:raw_gold_block": {
+    "zh-CN": "粗金块",
+    "en": "Block of Raw Gold"
+  },
+  "minecraft:purpur_block": {
+    "zh-CN": "紫珀块",
+    "en": "Purpur Block"
+  },
+  "minecraft:end_stone_bricks": {
+    "zh-CN": "末地石砖",
+    "en": "End Stone Bricks"
+  },
+  "minecraft:prismarine": {
+    "zh-CN": "海晶石",
+    "en": "Prismarine"
+  },
+  "minecraft:prismarine_bricks": {
+    "zh-CN": "海晶石砖",
+    "en": "Prismarine Bricks"
+  },
+  "minecraft:dark_prismarine": {
+    "zh-CN": "暗海晶石",
+    "en": "Dark Prismarine"
+  },
+  "minecraft:sponge": {
+    "zh-CN": "海绵",
+    "en": "Sponge"
+  },
+  "minecraft:wet_sponge": {
+    "zh-CN": "湿海绵",
+    "en": "Wet Sponge"
+  },
+  "minecraft:terracotta": {
+    "zh-CN": "陶瓦",
+    "en": "Terracotta"
+  },
+  "minecraft:acacia_planks": {
+    "zh-CN": "金合欢木板",
+    "en": "Acacia Planks"
+  },
+  "minecraft:jungle_planks": {
+    "zh-CN": "丛林木板",
+    "en": "Jungle Planks"
+  },
+  "minecraft:mangrove_planks": {
+    "zh-CN": "红树木板",
+    "en": "Mangrove Planks"
+  },
+  "minecraft:cherry_planks": {
+    "zh-CN": "樱花木板",
+    "en": "Cherry Planks"
+  },
+  "minecraft:bamboo_planks": {
+    "zh-CN": "竹板",
+    "en": "Bamboo Planks"
+  },
+  "minecraft:crimson_planks": {
+    "zh-CN": "绯红木板",
+    "en": "Crimson Planks"
+  },
+  "minecraft:warped_planks": {
+    "zh-CN": "诡异木板",
+    "en": "Warped Planks"
+  },
+  "minecraft:sculk": {
+    "zh-CN": "幽匿块",
+    "en": "Sculk"
+  },
+  "minecraft:redstone_lamp": {
+    "zh-CN": "红石灯",
+    "en": "Redstone Lamp"
+  },
+  "minecraft:exposed_copper": {
+    "zh-CN": "斑驳的铜块",
+    "en": "Exposed Copper"
+  },
+  "minecraft:weathered_copper": {
+    "zh-CN": "锈蚀的铜块",
+    "en": "Weathered Copper"
+  },
+  "minecraft:oxidized_copper": {
+    "zh-CN": "氧化的铜块",
+    "en": "Oxidized Copper"
+  },
+  "minecraft:cut_copper": {
+    "zh-CN": "切制铜块",
+    "en": "Cut Copper"
+  },
+  "minecraft:chiseled_nether_bricks": {
+    "zh-CN": "雕纹下界砖块",
+    "en": "Chiseled Nether Bricks"
+  },
+  "minecraft:red_nether_bricks": {
+    "zh-CN": "红色下界砖块",
+    "en": "Red Nether Bricks"
+  },
+  "minecraft:cracked_nether_bricks": {
+    "zh-CN": "裂纹下界砖块",
+    "en": "Cracked Nether Bricks"
+  },
+  "minecraft:polished_blackstone": {
+    "zh-CN": "磨制黑石",
+    "en": "Polished Blackstone"
+  },
+  "minecraft:polished_blackstone_bricks": {
+    "zh-CN": "磨制黑石砖",
+    "en": "Polished Blackstone Bricks"
+  },
+  "minecraft:quartz_bricks": {
+    "zh-CN": "石英砖",
+    "en": "Quartz Bricks"
+  },
+  "minecraft:white_concrete_powder": {
+    "zh-CN": "白色混凝土粉末",
+    "en": "White Concrete Powder"
+  },
+  "minecraft:white_glazed_terracotta": {
+    "zh-CN": "白色带釉陶瓦",
+    "en": "White Glazed Terracotta"
+  },
+  "minecraft:white_stained_glass": {
+    "zh-CN": "白色染色玻璃",
+    "en": "White Stained Glass"
+  },
+  "minecraft:orange_concrete_powder": {
+    "zh-CN": "橙色混凝土粉末",
+    "en": "Orange Concrete Powder"
+  },
+  "minecraft:orange_glazed_terracotta": {
+    "zh-CN": "橙色带釉陶瓦",
+    "en": "Orange Glazed Terracotta"
+  },
+  "minecraft:orange_stained_glass": {
+    "zh-CN": "橙色染色玻璃",
+    "en": "Orange Stained Glass"
+  },
+  "minecraft:magenta_concrete_powder": {
+    "zh-CN": "品红色混凝土粉末",
+    "en": "Magenta Concrete Powder"
+  },
+  "minecraft:magenta_glazed_terracotta": {
+    "zh-CN": "品红色带釉陶瓦",
+    "en": "Magenta Glazed Terracotta"
+  },
+  "minecraft:magenta_stained_glass": {
+    "zh-CN": "品红色染色玻璃",
+    "en": "Magenta Stained Glass"
+  },
+  "minecraft:light_blue_concrete_powder": {
+    "zh-CN": "淡蓝色混凝土粉末",
+    "en": "Light Blue Concrete Powder"
+  },
+  "minecraft:light_blue_glazed_terracotta": {
+    "zh-CN": "淡蓝色带釉陶瓦",
+    "en": "Light Blue Glazed Terracotta"
+  },
+  "minecraft:light_blue_stained_glass": {
+    "zh-CN": "淡蓝色染色玻璃",
+    "en": "Light Blue Stained Glass"
+  },
+  "minecraft:yellow_concrete_powder": {
+    "zh-CN": "黄色混凝土粉末",
+    "en": "Yellow Concrete Powder"
+  },
+  "minecraft:yellow_glazed_terracotta": {
+    "zh-CN": "黄色带釉陶瓦",
+    "en": "Yellow Glazed Terracotta"
+  },
+  "minecraft:yellow_stained_glass": {
+    "zh-CN": "黄色染色玻璃",
+    "en": "Yellow Stained Glass"
+  },
+  "minecraft:lime_concrete_powder": {
+    "zh-CN": "黄绿色混凝土粉末",
+    "en": "Lime Concrete Powder"
+  },
+  "minecraft:lime_glazed_terracotta": {
+    "zh-CN": "黄绿色带釉陶瓦",
+    "en": "Lime Glazed Terracotta"
+  },
+  "minecraft:lime_stained_glass": {
+    "zh-CN": "黄绿色染色玻璃",
+    "en": "Lime Stained Glass"
+  },
+  "minecraft:pink_concrete_powder": {
+    "zh-CN": "粉红色混凝土粉末",
+    "en": "Pink Concrete Powder"
+  },
+  "minecraft:pink_glazed_terracotta": {
+    "zh-CN": "粉红色带釉陶瓦",
+    "en": "Pink Glazed Terracotta"
+  },
+  "minecraft:pink_stained_glass": {
+    "zh-CN": "粉红色染色玻璃",
+    "en": "Pink Stained Glass"
+  },
+  "minecraft:gray_concrete_powder": {
+    "zh-CN": "灰色混凝土粉末",
+    "en": "Gray Concrete Powder"
+  },
+  "minecraft:gray_glazed_terracotta": {
+    "zh-CN": "灰色带釉陶瓦",
+    "en": "Gray Glazed Terracotta"
+  },
+  "minecraft:gray_stained_glass": {
+    "zh-CN": "灰色染色玻璃",
+    "en": "Gray Stained Glass"
+  },
+  "minecraft:light_gray_concrete_powder": {
+    "zh-CN": "淡灰色混凝土粉末",
+    "en": "Light Gray Concrete Powder"
+  },
+  "minecraft:light_gray_glazed_terracotta": {
+    "zh-CN": "淡灰色带釉陶瓦",
+    "en": "Light Gray Glazed Terracotta"
+  },
+  "minecraft:light_gray_stained_glass": {
+    "zh-CN": "淡灰色染色玻璃",
+    "en": "Light Gray Stained Glass"
+  },
+  "minecraft:cyan_concrete_powder": {
+    "zh-CN": "青色混凝土粉末",
+    "en": "Cyan Concrete Powder"
+  },
+  "minecraft:cyan_glazed_terracotta": {
+    "zh-CN": "青色带釉陶瓦",
+    "en": "Cyan Glazed Terracotta"
+  },
+  "minecraft:cyan_stained_glass": {
+    "zh-CN": "青色染色玻璃",
+    "en": "Cyan Stained Glass"
+  },
+  "minecraft:purple_concrete_powder": {
+    "zh-CN": "紫色混凝土粉末",
+    "en": "Purple Concrete Powder"
+  },
+  "minecraft:purple_glazed_terracotta": {
+    "zh-CN": "紫色带釉陶瓦",
+    "en": "Purple Glazed Terracotta"
+  },
+  "minecraft:purple_stained_glass": {
+    "zh-CN": "紫色染色玻璃",
+    "en": "Purple Stained Glass"
+  },
+  "minecraft:blue_concrete_powder": {
+    "zh-CN": "蓝色混凝土粉末",
+    "en": "Blue Concrete Powder"
+  },
+  "minecraft:blue_glazed_terracotta": {
+    "zh-CN": "蓝色带釉陶瓦",
+    "en": "Blue Glazed Terracotta"
+  },
+  "minecraft:blue_stained_glass": {
+    "zh-CN": "蓝色染色玻璃",
+    "en": "Blue Stained Glass"
+  },
+  "minecraft:brown_concrete_powder": {
+    "zh-CN": "棕色混凝土粉末",
+    "en": "Brown Concrete Powder"
+  },
+  "minecraft:brown_glazed_terracotta": {
+    "zh-CN": "棕色带釉陶瓦",
+    "en": "Brown Glazed Terracotta"
+  },
+  "minecraft:brown_stained_glass": {
+    "zh-CN": "棕色染色玻璃",
+    "en": "Brown Stained Glass"
+  },
+  "minecraft:green_concrete_powder": {
+    "zh-CN": "绿色混凝土粉末",
+    "en": "Green Concrete Powder"
+  },
+  "minecraft:green_glazed_terracotta": {
+    "zh-CN": "绿色带釉陶瓦",
+    "en": "Green Glazed Terracotta"
+  },
+  "minecraft:green_stained_glass": {
+    "zh-CN": "绿色染色玻璃",
+    "en": "Green Stained Glass"
+  },
+  "minecraft:red_concrete_powder": {
+    "zh-CN": "红色混凝土粉末",
+    "en": "Red Concrete Powder"
+  },
+  "minecraft:red_glazed_terracotta": {
+    "zh-CN": "红色带釉陶瓦",
+    "en": "Red Glazed Terracotta"
+  },
+  "minecraft:red_stained_glass": {
+    "zh-CN": "红色染色玻璃",
+    "en": "Red Stained Glass"
+  },
+  "minecraft:black_concrete_powder": {
+    "zh-CN": "黑色混凝土粉末",
+    "en": "Black Concrete Powder"
+  },
+  "minecraft:black_glazed_terracotta": {
+    "zh-CN": "黑色带釉陶瓦",
+    "en": "Black Glazed Terracotta"
+  },
+  "minecraft:black_stained_glass": {
+    "zh-CN": "黑色染色玻璃",
+    "en": "Black Stained Glass"
+  },
+  "minecraft:tinted_glass": {
+    "zh-CN": "遮光玻璃",
+    "en": "Tinted Glass"
+  },
+  "minecraft:jungle_log": {
+    "zh-CN": "丛林原木",
+    "en": "Jungle Log"
+  },
+  "minecraft:acacia_log": {
+    "zh-CN": "金合欢原木",
+    "en": "Acacia Log"
+  },
+  "minecraft:dark_oak_log": {
+    "zh-CN": "深色橡木原木",
+    "en": "Dark Oak Log"
+  },
+  "minecraft:mangrove_log": {
+    "zh-CN": "红树原木",
+    "en": "Mangrove Log"
+  },
+  "minecraft:cherry_log": {
+    "zh-CN": "樱花原木",
+    "en": "Cherry Log"
+  },
+  "minecraft:crimson_stem": {
+    "zh-CN": "绯红菌柄",
+    "en": "Crimson Stem"
+  },
+  "minecraft:warped_stem": {
+    "zh-CN": "诡异菌柄",
+    "en": "Warped Stem"
+  },
+  "minecraft:jungle_leaves": {
+    "zh-CN": "丛林树叶",
+    "en": "Jungle Leaves"
+  },
+  "minecraft:acacia_leaves": {
+    "zh-CN": "金合欢树叶",
+    "en": "Acacia Leaves"
+  },
+  "minecraft:dark_oak_leaves": {
+    "zh-CN": "深色橡树树叶",
+    "en": "Dark Oak Leaves"
+  },
+  "minecraft:mangrove_leaves": {
+    "zh-CN": "红树树叶",
+    "en": "Mangrove Leaves"
+  },
+  "minecraft:cherry_leaves": {
+    "zh-CN": "樱花树叶",
+    "en": "Cherry Leaves"
+  },
+  "minecraft:azalea_leaves": {
+    "zh-CN": "杜鹃树叶",
+    "en": "Azalea Leaves"
+  },
+  "minecraft:basalt": {
+    "zh-CN": "玄武岩",
+    "en": "Basalt"
+  },
+  "minecraft:bone_block": {
+    "zh-CN": "骨块",
+    "en": "Bone Block"
+  },
+  "minecraft:ancient_debris": {
+    "zh-CN": "远古残骸",
+    "en": "Ancient Debris"
+  },
+  "minecraft:target": {
+    "zh-CN": "标靶",
+    "en": "Target"
+  },
+  "minecraft:ochre_froglight": {
+    "zh-CN": "赭黄蛙明灯",
+    "en": "Ochre Froglight"
+  },
+  "minecraft:verdant_froglight": {
+    "zh-CN": "青翠蛙明灯",
+    "en": "Verdant Froglight"
+  },
+  "minecraft:pearlescent_froglight": {
+    "zh-CN": "珠光蛙明灯",
+    "en": "Pearlescent Froglight"
+  },
+  "minecraft:sandstone": {
+    "zh-CN": "砂岩",
+    "en": "Sandstone"
+  },
+  "minecraft:red_sandstone": {
+    "zh-CN": "红砂岩",
+    "en": "Red Sandstone"
+  },
+  "minecraft:podzol": {
+    "zh-CN": "灰化土",
+    "en": "Podzol"
+  },
+  "minecraft:mycelium": {
+    "zh-CN": "菌丝体",
+    "en": "Mycelium"
+  },
+  "minecraft:crimson_nylium": {
+    "zh-CN": "绯红菌岩",
+    "en": "Crimson Nylium"
+  },
+  "minecraft:warped_nylium": {
+    "zh-CN": "诡异菌岩",
+    "en": "Warped Nylium"
+  },
+  "minecraft:dried_kelp_block": {
+    "zh-CN": "干海带块",
+    "en": "Dried Kelp Block"
+  },
+  "minecraft:sculk_catalyst": {
+    "zh-CN": "幽匿催发体",
+    "en": "Sculk Catalyst"
+  },
+  "minecraft:barrel": {
+    "zh-CN": "木桶",
+    "en": "Barrel"
+  },
+  "minecraft:lodestone": {
+    "zh-CN": "磁石",
+    "en": "Lodestone"
+  },
+  "minecraft:cartography_table": {
+    "zh-CN": "制图台",
+    "en": "Cartography Table"
+  },
+  "minecraft:fletching_table": {
+    "zh-CN": "制箭台",
+    "en": "Fletching Table"
+  },
+  "minecraft:smithing_table": {
+    "zh-CN": "锻造台",
+    "en": "Smithing Table"
+  },
+  "minecraft:respawn_anchor": {
+    "zh-CN": "重生锚",
+    "en": "Respawn Anchor"
+  },
+  "minecraft:bee_nest": {
+    "zh-CN": "蜂巢",
+    "en": "Bee Nest"
+  },
+  "minecraft:chiseled_bookshelf": {
+    "zh-CN": "雕纹书架",
+    "en": "Chiseled Bookshelf"
+  },
+  "minecraft:carved_pumpkin": {
+    "zh-CN": "雕刻南瓜",
+    "en": "Carved Pumpkin"
+  },
+  "minecraft:jack_o_lantern": {
+    "zh-CN": "南瓜灯",
+    "en": "Jack o'Lantern"
+  },
+  "minecraft:blast_furnace": {
+    "zh-CN": "高炉",
+    "en": "Blast Furnace"
+  },
+  "minecraft:smoker": {
+    "zh-CN": "烟熏炉",
+    "en": "Smoker"
+  },
+  "minecraft:dispenser": {
+    "zh-CN": "发射器",
+    "en": "Dispenser"
+  },
+  "minecraft:dropper": {
+    "zh-CN": "投掷器",
+    "en": "Dropper"
+  },
+  "minecraft:loom": {
+    "zh-CN": "织布机",
+    "en": "Loom"
+  },
+  "minecraft:observer": {
+    "zh-CN": "侦测器",
+    "en": "Observer"
+  },
+  "minecraft:wooden_sword": {
+    "zh-CN": "木剑",
+    "en": "Wooden Sword"
+  },
+  "minecraft:wooden_pickaxe": {
+    "zh-CN": "木镐",
+    "en": "Wooden Pickaxe"
+  },
+  "minecraft:wooden_axe": {
+    "zh-CN": "木斧",
+    "en": "Wooden Axe"
+  },
+  "minecraft:wooden_shovel": {
+    "zh-CN": "木锹",
+    "en": "Wooden Shovel"
+  },
+  "minecraft:wooden_hoe": {
+    "zh-CN": "木锄",
+    "en": "Wooden Hoe"
+  },
+  "minecraft:stone_sword": {
+    "zh-CN": "石剑",
+    "en": "Stone Sword"
+  },
+  "minecraft:stone_pickaxe": {
+    "zh-CN": "石镐",
+    "en": "Stone Pickaxe"
+  },
+  "minecraft:stone_axe": {
+    "zh-CN": "石斧",
+    "en": "Stone Axe"
+  },
+  "minecraft:stone_shovel": {
+    "zh-CN": "石锹",
+    "en": "Stone Shovel"
+  },
+  "minecraft:stone_hoe": {
+    "zh-CN": "石锄",
+    "en": "Stone Hoe"
+  },
+  "minecraft:iron_axe": {
+    "zh-CN": "铁斧",
+    "en": "Iron Axe"
+  },
+  "minecraft:iron_shovel": {
+    "zh-CN": "铁锹",
+    "en": "Iron Shovel"
+  },
+  "minecraft:iron_hoe": {
+    "zh-CN": "铁锄",
+    "en": "Iron Hoe"
+  },
+  "minecraft:golden_pickaxe": {
+    "zh-CN": "金镐",
+    "en": "Golden Pickaxe"
+  },
+  "minecraft:golden_axe": {
+    "zh-CN": "金斧",
+    "en": "Golden Axe"
+  },
+  "minecraft:golden_shovel": {
+    "zh-CN": "金锹",
+    "en": "Golden Shovel"
+  },
+  "minecraft:golden_hoe": {
+    "zh-CN": "金锄",
+    "en": "Golden Hoe"
+  },
+  "minecraft:diamond_hoe": {
+    "zh-CN": "钻石锄",
+    "en": "Diamond Hoe"
+  },
+  "minecraft:netherite_axe": {
+    "zh-CN": "下界合金斧",
+    "en": "Netherite Axe"
+  },
+  "minecraft:netherite_shovel": {
+    "zh-CN": "下界合金锹",
+    "en": "Netherite Shovel"
+  },
+  "minecraft:netherite_hoe": {
+    "zh-CN": "下界合金锄",
+    "en": "Netherite Hoe"
+  },
+  "minecraft:chainmail_helmet": {
+    "zh-CN": "锁链头盔",
+    "en": "Chainmail Helmet"
+  },
+  "minecraft:chainmail_chestplate": {
+    "zh-CN": "锁链胸甲",
+    "en": "Chainmail Chestplate"
+  },
+  "minecraft:chainmail_leggings": {
+    "zh-CN": "锁链护腿",
+    "en": "Chainmail Leggings"
+  },
+  "minecraft:chainmail_boots": {
+    "zh-CN": "锁链靴子",
+    "en": "Chainmail Boots"
+  },
+  "minecraft:iron_helmet": {
+    "zh-CN": "铁头盔",
+    "en": "Iron Helmet"
+  },
+  "minecraft:iron_chestplate": {
+    "zh-CN": "铁胸甲",
+    "en": "Iron Chestplate"
+  },
+  "minecraft:iron_leggings": {
+    "zh-CN": "铁护腿",
+    "en": "Iron Leggings"
+  },
+  "minecraft:iron_boots": {
+    "zh-CN": "铁靴子",
+    "en": "Iron Boots"
+  },
+  "minecraft:golden_helmet": {
+    "zh-CN": "金头盔",
+    "en": "Golden Helmet"
+  },
+  "minecraft:golden_chestplate": {
+    "zh-CN": "金胸甲",
+    "en": "Golden Chestplate"
+  },
+  "minecraft:golden_leggings": {
+    "zh-CN": "金护腿",
+    "en": "Golden Leggings"
+  },
+  "minecraft:golden_boots": {
+    "zh-CN": "金靴子",
+    "en": "Golden Boots"
+  },
+  "minecraft:diamond_helmet": {
+    "zh-CN": "钻石头盔",
+    "en": "Diamond Helmet"
+  },
+  "minecraft:diamond_chestplate": {
+    "zh-CN": "钻石胸甲",
+    "en": "Diamond Chestplate"
+  },
+  "minecraft:diamond_leggings": {
+    "zh-CN": "钻石护腿",
+    "en": "Diamond Leggings"
+  },
+  "minecraft:diamond_boots": {
+    "zh-CN": "钻石靴子",
+    "en": "Diamond Boots"
+  },
+  "minecraft:netherite_helmet": {
+    "zh-CN": "下界合金头盔",
+    "en": "Netherite Helmet"
+  },
+  "minecraft:netherite_chestplate": {
+    "zh-CN": "下界合金胸甲",
+    "en": "Netherite Chestplate"
+  },
+  "minecraft:netherite_leggings": {
+    "zh-CN": "下界合金护腿",
+    "en": "Netherite Leggings"
+  },
+  "minecraft:netherite_boots": {
+    "zh-CN": "下界合金靴子",
+    "en": "Netherite Boots"
+  },
+  "minecraft:turtle_helmet": {
+    "zh-CN": "海龟壳",
+    "en": "Turtle Shell"
+  },
+  "minecraft:elytra": {
+    "zh-CN": "鞘翅",
+    "en": "Elytra"
+  },
+  "minecraft:trident": {
+    "zh-CN": "三叉戟",
+    "en": "Trident"
+  },
+  "minecraft:mace": {
+    "zh-CN": "重锤",
+    "en": "Mace"
+  },
+  "minecraft:wind_charge": {
+    "zh-CN": "风弹",
+    "en": "Wind Charge"
+  },
+  "minecraft:shears": {
+    "zh-CN": "剪刀",
+    "en": "Shears"
+  },
+  "minecraft:flint_and_steel": {
+    "zh-CN": "打火石",
+    "en": "Flint and Steel"
+  },
+  "minecraft:fishing_rod": {
+    "zh-CN": "钓鱼竿",
+    "en": "Fishing Rod"
+  },
+  "minecraft:spyglass": {
+    "zh-CN": "望远镜",
+    "en": "Spyglass"
+  },
+  "minecraft:brush": {
+    "zh-CN": "刷子",
+    "en": "Brush"
+  },
+  "minecraft:lead": {
+    "zh-CN": "拴绳",
+    "en": "Lead"
+  },
+  "minecraft:name_tag": {
+    "zh-CN": "命名牌",
+    "en": "Name Tag"
+  },
+  "minecraft:saddle": {
+    "zh-CN": "鞍",
+    "en": "Saddle"
+  },
+  "minecraft:bell": {
+    "zh-CN": "钟",
+    "en": "Bell"
+  },
+  "minecraft:heart_of_the_sea": {
+    "zh-CN": "海洋之心",
+    "en": "Heart of the Sea"
+  },
+  "minecraft:nautilus_shell": {
+    "zh-CN": "鹦鹉螺壳",
+    "en": "Nautilus Shell"
+  },
+  "minecraft:echo_shard": {
+    "zh-CN": "回响碎片",
+    "en": "Echo Shard"
+  },
+  "minecraft:shulker_shell": {
+    "zh-CN": "潜影壳",
+    "en": "Shulker Shell"
+  },
+  "minecraft:phantom_membrane": {
+    "zh-CN": "幻翼膜",
+    "en": "Phantom Membrane"
+  },
+  "minecraft:rabbit_foot": {
+    "zh-CN": "兔子脚",
+    "en": "Rabbit's Foot"
+  },
+  "minecraft:prismarine_shard": {
+    "zh-CN": "海晶碎片",
+    "en": "Prismarine Shard"
+  },
+  "minecraft:prismarine_crystals": {
+    "zh-CN": "海晶砂粒",
+    "en": "Prismarine Crystals"
+  },
+  "minecraft:quartz": {
+    "zh-CN": "下界石英",
+    "en": "Nether Quartz"
+  },
+  "minecraft:raw_iron": {
+    "zh-CN": "粗铁",
+    "en": "Raw Iron"
+  },
+  "minecraft:raw_copper": {
+    "zh-CN": "粗铜",
+    "en": "Raw Copper"
+  },
+  "minecraft:raw_gold": {
+    "zh-CN": "粗金",
+    "en": "Raw Gold"
+  },
+  "minecraft:iron_nugget": {
+    "zh-CN": "铁粒",
+    "en": "Iron Nugget"
+  },
+  "minecraft:gold_nugget": {
+    "zh-CN": "金粒",
+    "en": "Gold Nugget"
+  },
+  "minecraft:netherite_scrap": {
+    "zh-CN": "下界合金碎片",
+    "en": "Netherite Scrap"
+  },
+  "minecraft:charcoal": {
+    "zh-CN": "木炭",
+    "en": "Charcoal"
+  },
+  "minecraft:flint": {
+    "zh-CN": "燧石",
+    "en": "Flint"
+  },
+  "minecraft:bone": {
+    "zh-CN": "骨头",
+    "en": "Bone"
+  },
+  "minecraft:feather": {
+    "zh-CN": "羽毛",
+    "en": "Feather"
+  },
+  "minecraft:string": {
+    "zh-CN": "线",
+    "en": "String"
+  },
+  "minecraft:gunpowder": {
+    "zh-CN": "火药",
+    "en": "Gunpowder"
+  },
+  "minecraft:leather": {
+    "zh-CN": "皮革",
+    "en": "Leather"
+  },
+  "minecraft:paper": {
+    "zh-CN": "纸",
+    "en": "Paper"
+  },
+  "minecraft:egg": {
+    "zh-CN": "鸡蛋",
+    "en": "Egg"
+  },
+  "minecraft:slime_ball": {
+    "zh-CN": "黏液球",
+    "en": "Slimeball"
+  },
+  "minecraft:magma_cream": {
+    "zh-CN": "岩浆膏",
+    "en": "Magma Cream"
+  },
+  "minecraft:ghast_tear": {
+    "zh-CN": "恶魂之泪",
+    "en": "Ghast Tear"
+  },
+  "minecraft:blaze_powder": {
+    "zh-CN": "烈焰粉",
+    "en": "Blaze Powder"
+  },
+  "minecraft:nether_wart": {
+    "zh-CN": "下界疣",
+    "en": "Nether Wart"
+  },
+  "minecraft:glowstone_dust": {
+    "zh-CN": "荧石粉",
+    "en": "Glowstone Dust"
+  },
+  "minecraft:sugar": {
+    "zh-CN": "糖",
+    "en": "Sugar"
+  },
+  "minecraft:wheat": {
+    "zh-CN": "小麦",
+    "en": "Wheat"
+  },
+  "minecraft:wheat_seeds": {
+    "zh-CN": "小麦种子",
+    "en": "Wheat Seeds"
+  },
+  "minecraft:carrot": {
+    "zh-CN": "胡萝卜",
+    "en": "Carrot"
+  },
+  "minecraft:potato": {
+    "zh-CN": "马铃薯",
+    "en": "Potato"
+  },
+  "minecraft:baked_potato": {
+    "zh-CN": "烤马铃薯",
+    "en": "Baked Potato"
+  },
+  "minecraft:poisonous_potato": {
+    "zh-CN": "毒马铃薯",
+    "en": "Poisonous Potato"
+  },
+  "minecraft:beetroot": {
+    "zh-CN": "甜菜根",
+    "en": "Beetroot"
+  },
+  "minecraft:melon_slice": {
+    "zh-CN": "西瓜片",
+    "en": "Melon Slice"
+  },
+  "minecraft:sweet_berries": {
+    "zh-CN": "甜浆果",
+    "en": "Sweet Berries"
+  },
+  "minecraft:glow_berries": {
+    "zh-CN": "发光浆果",
+    "en": "Glow Berries"
+  },
+  "minecraft:cookie": {
+    "zh-CN": "曲奇",
+    "en": "Cookie"
+  },
+  "minecraft:pumpkin_pie": {
+    "zh-CN": "南瓜派",
+    "en": "Pumpkin Pie"
+  },
+  "minecraft:cake": {
+    "zh-CN": "蛋糕",
+    "en": "Cake"
+  },
+  "minecraft:cooked_chicken": {
+    "zh-CN": "熟鸡肉",
+    "en": "Cooked Chicken"
+  },
+  "minecraft:cooked_porkchop": {
+    "zh-CN": "熟猪排",
+    "en": "Cooked Porkchop"
+  },
+  "minecraft:cooked_mutton": {
+    "zh-CN": "熟羊肉",
+    "en": "Cooked Mutton"
+  },
+  "minecraft:cooked_cod": {
+    "zh-CN": "熟鳕鱼",
+    "en": "Cooked Cod"
+  },
+  "minecraft:cooked_salmon": {
+    "zh-CN": "熟鲑鱼",
+    "en": "Cooked Salmon"
+  },
+  "minecraft:cooked_rabbit": {
+    "zh-CN": "熟兔肉",
+    "en": "Cooked Rabbit"
+  },
+  "minecraft:beef": {
+    "zh-CN": "生牛肉",
+    "en": "Raw Beef"
+  },
+  "minecraft:porkchop": {
+    "zh-CN": "生猪排",
+    "en": "Raw Porkchop"
+  },
+  "minecraft:chicken": {
+    "zh-CN": "生鸡肉",
+    "en": "Raw Chicken"
+  },
+  "minecraft:mutton": {
+    "zh-CN": "生羊肉",
+    "en": "Raw Mutton"
+  },
+  "minecraft:cod": {
+    "zh-CN": "生鳕鱼",
+    "en": "Raw Cod"
+  },
+  "minecraft:salmon": {
+    "zh-CN": "生鲑鱼",
+    "en": "Raw Salmon"
+  },
+  "minecraft:rotten_flesh": {
+    "zh-CN": "腐肉",
+    "en": "Rotten Flesh"
+  },
+  "minecraft:spider_eye": {
+    "zh-CN": "蜘蛛眼",
+    "en": "Spider Eye"
+  },
+  "minecraft:golden_carrot": {
+    "zh-CN": "金胡萝卜",
+    "en": "Golden Carrot"
+  },
+  "minecraft:chorus_fruit": {
+    "zh-CN": "紫颂果",
+    "en": "Chorus Fruit"
+  },
+  "minecraft:honey_bottle": {
+    "zh-CN": "蜂蜜瓶",
+    "en": "Honey Bottle"
+  },
+  "minecraft:honeycomb": {
+    "zh-CN": "蜜脾",
+    "en": "Honeycomb"
+  },
+  "minecraft:glass_bottle": {
+    "zh-CN": "玻璃瓶",
+    "en": "Glass Bottle"
+  },
+  "minecraft:bowl": {
+    "zh-CN": "碗",
+    "en": "Bowl"
+  },
+  "minecraft:mushroom_stew": {
+    "zh-CN": "蘑菇煲",
+    "en": "Mushroom Stew"
+  },
+  "minecraft:rabbit_stew": {
+    "zh-CN": "兔肉煲",
+    "en": "Rabbit Stew"
+  },
+  "minecraft:milk_bucket": {
+    "zh-CN": "奶桶",
+    "en": "Milk Bucket"
+  },
+  "minecraft:powder_snow_bucket": {
+    "zh-CN": "细雪桶",
+    "en": "Powder Snow Bucket"
+  },
+  "minecraft:axolotl_bucket": {
+    "zh-CN": "美西螈桶",
+    "en": "Bucket of Axolotl"
+  },
+  "minecraft:minecart": {
+    "zh-CN": "矿车",
+    "en": "Minecart"
+  },
+  "minecraft:tnt_minecart": {
+    "zh-CN": "TNT矿车",
+    "en": "Minecart with TNT"
+  },
+  "minecraft:oak_boat": {
+    "zh-CN": "橡木船",
+    "en": "Oak Boat"
+  },
+  "minecraft:oak_sign": {
+    "zh-CN": "橡木告示牌",
+    "en": "Oak Sign"
+  },
+  "minecraft:oak_door": {
+    "zh-CN": "橡木门",
+    "en": "Oak Door"
+  },
+  "minecraft:iron_door": {
+    "zh-CN": "铁门",
+    "en": "Iron Door"
+  },
+  "minecraft:painting": {
+    "zh-CN": "画",
+    "en": "Painting"
+  },
+  "minecraft:item_frame": {
+    "zh-CN": "物品展示框",
+    "en": "Item Frame"
+  },
+  "minecraft:glow_item_frame": {
+    "zh-CN": "荧光物品展示框",
+    "en": "Glow Item Frame"
+  },
+  "minecraft:armor_stand": {
+    "zh-CN": "盔甲架",
+    "en": "Armor Stand"
+  },
+  "minecraft:campfire": {
+    "zh-CN": "营火",
+    "en": "Campfire"
+  },
+  "minecraft:lantern": {
+    "zh-CN": "灯笼",
+    "en": "Lantern"
+  },
+  "minecraft:soul_lantern": {
+    "zh-CN": "灵魂灯笼",
+    "en": "Soul Lantern"
+  },
+  "minecraft:candle": {
+    "zh-CN": "蜡烛",
+    "en": "Candle"
+  },
+  "minecraft:hopper": {
+    "zh-CN": "漏斗",
+    "en": "Hopper"
+  },
+  "minecraft:cauldron": {
+    "zh-CN": "炼药锅",
+    "en": "Cauldron"
+  },
+  "minecraft:brewing_stand": {
+    "zh-CN": "酿造台",
+    "en": "Brewing Stand"
+  },
+  "minecraft:flower_pot": {
+    "zh-CN": "花盆",
+    "en": "Flower Pot"
+  },
+  "minecraft:sugar_cane": {
+    "zh-CN": "甘蔗",
+    "en": "Sugar Cane"
+  },
+  "minecraft:kelp": {
+    "zh-CN": "海带",
+    "en": "Kelp"
+  },
+  "minecraft:bamboo": {
+    "zh-CN": "竹子",
+    "en": "Bamboo"
+  },
+  "minecraft:cocoa_beans": {
+    "zh-CN": "可可豆",
+    "en": "Cocoa Beans"
+  },
+  "minecraft:ink_sac": {
+    "zh-CN": "墨囊",
+    "en": "Ink Sac"
+  },
+  "minecraft:glow_ink_sac": {
+    "zh-CN": "荧光墨囊",
+    "en": "Glow Ink Sac"
+  },
+  "minecraft:bone_meal": {
+    "zh-CN": "骨粉",
+    "en": "Bone Meal"
+  },
+  "minecraft:writable_book": {
+    "zh-CN": "书与笔",
+    "en": "Book and Quill"
+  },
+  "minecraft:written_book": {
+    "zh-CN": "成书",
+    "en": "Written Book"
+  },
+  "minecraft:knowledge_book": {
+    "zh-CN": "知识之书",
+    "en": "Knowledge Book"
+  },
+  "minecraft:map": {
+    "zh-CN": "空地图",
+    "en": "Empty Map"
+  },
+  "minecraft:fire_charge": {
+    "zh-CN": "火焰弹",
+    "en": "Fire Charge"
+  },
+  "minecraft:firework_star": {
+    "zh-CN": "烟火之星",
+    "en": "Firework Star"
+  },
+  "minecraft:end_crystal": {
+    "zh-CN": "末地水晶",
+    "en": "End Crystal"
+  },
+  "minecraft:dragon_breath": {
+    "zh-CN": "龙息",
+    "en": "Dragon's Breath"
+  },
+  "minecraft:clay_ball": {
+    "zh-CN": "黏土球",
+    "en": "Clay Ball"
+  },
+  "minecraft:brick": {
+    "zh-CN": "红砖",
+    "en": "Brick"
+  },
+  "minecraft:nether_brick": {
+    "zh-CN": "下界砖",
+    "en": "Nether Brick"
+  },
+  "minecraft:trial_key": {
+    "zh-CN": "试炼钥匙",
+    "en": "Trial Key"
+  },
+  "minecraft:ominous_trial_key": {
+    "zh-CN": "不祥试炼钥匙",
+    "en": "Ominous Trial Key"
+  },
+  "minecraft:breeze_rod": {
+    "zh-CN": "旋风棒",
+    "en": "Breeze Rod"
+  },
+  "minecraft:armadillo_scute": {
+    "zh-CN": "犰狳鳞甲",
+    "en": "Armadillo Scute"
+  },
+  "minecraft:turtle_scute": {
+    "zh-CN": "海龟鳞甲",
+    "en": "Turtle Scute"
+  },
+  "minecraft:ominous_bottle": {
+    "zh-CN": "不祥之瓶",
+    "en": "Ominous Bottle"
+  },
+  "minecraft:goat_horn": {
+    "zh-CN": "山羊角",
+    "en": "Goat Horn"
+  },
+  "minecraft:music_disc_11": {
+    "zh-CN": "音乐唱片（11）",
+    "en": "Music Disc (11)"
+  },
+  "minecraft:music_disc_blocks": {
+    "zh-CN": "音乐唱片（blocks）",
+    "en": "Music Disc (blocks)"
+  },
+  "minecraft:music_disc_cat": {
+    "zh-CN": "音乐唱片（cat）",
+    "en": "Music Disc (cat)"
+  },
+  "minecraft:music_disc_chirp": {
+    "zh-CN": "音乐唱片（chirp）",
+    "en": "Music Disc (chirp)"
+  },
+  "minecraft:music_disc_far": {
+    "zh-CN": "音乐唱片（far）",
+    "en": "Music Disc (far)"
+  },
+  "minecraft:music_disc_mall": {
+    "zh-CN": "音乐唱片（mall）",
+    "en": "Music Disc (mall)"
+  },
+  "minecraft:music_disc_mellohi": {
+    "zh-CN": "音乐唱片（mellohi）",
+    "en": "Music Disc (mellohi)"
+  },
+  "minecraft:music_disc_stal": {
+    "zh-CN": "音乐唱片（stal）",
+    "en": "Music Disc (stal)"
+  },
+  "minecraft:music_disc_strad": {
+    "zh-CN": "音乐唱片（strad）",
+    "en": "Music Disc (strad)"
+  },
+  "minecraft:music_disc_wait": {
+    "zh-CN": "音乐唱片（wait）",
+    "en": "Music Disc (wait)"
+  },
+  "minecraft:music_disc_ward": {
+    "zh-CN": "音乐唱片（ward）",
+    "en": "Music Disc (ward)"
+  },
+  "minecraft:music_disc_pigstep": {
+    "zh-CN": "音乐唱片（pigstep）",
+    "en": "Music Disc (pigstep)"
+  },
+  "minecraft:music_disc_otherside": {
+    "zh-CN": "音乐唱片（otherside）",
+    "en": "Music Disc (otherside)"
+  },
+  "minecraft:music_disc_5": {
+    "zh-CN": "音乐唱片（5）",
+    "en": "Music Disc (5)"
+  },
+  "minecraft:music_disc_relic": {
+    "zh-CN": "音乐唱片（relic）",
+    "en": "Music Disc (relic)"
+  },
+  "minecraft:music_disc_creator": {
+    "zh-CN": "音乐唱片（creator）",
+    "en": "Music Disc (creator)"
+  },
+  "minecraft:music_disc_creator_music_box": {
+    "zh-CN": "音乐唱片（creator music box）",
+    "en": "Music Disc (creator music box)"
+  },
+  "minecraft:music_disc_precipice": {
+    "zh-CN": "音乐唱片（precipice）",
+    "en": "Music Disc (precipice)"
+  },
+  "minecraft:white_dye": {
+    "zh-CN": "白色染料",
+    "en": "White Dye"
+  },
+  "minecraft:orange_dye": {
+    "zh-CN": "橙色染料",
+    "en": "Orange Dye"
+  },
+  "minecraft:magenta_dye": {
+    "zh-CN": "品红色染料",
+    "en": "Magenta Dye"
+  },
+  "minecraft:light_blue_dye": {
+    "zh-CN": "淡蓝色染料",
+    "en": "Light Blue Dye"
+  },
+  "minecraft:yellow_dye": {
+    "zh-CN": "黄色染料",
+    "en": "Yellow Dye"
+  },
+  "minecraft:lime_dye": {
+    "zh-CN": "黄绿色染料",
+    "en": "Lime Dye"
+  },
+  "minecraft:pink_dye": {
+    "zh-CN": "粉红色染料",
+    "en": "Pink Dye"
+  },
+  "minecraft:gray_dye": {
+    "zh-CN": "灰色染料",
+    "en": "Gray Dye"
+  },
+  "minecraft:light_gray_dye": {
+    "zh-CN": "淡灰色染料",
+    "en": "Light Gray Dye"
+  },
+  "minecraft:cyan_dye": {
+    "zh-CN": "青色染料",
+    "en": "Cyan Dye"
+  },
+  "minecraft:purple_dye": {
+    "zh-CN": "紫色染料",
+    "en": "Purple Dye"
+  },
+  "minecraft:blue_dye": {
+    "zh-CN": "蓝色染料",
+    "en": "Blue Dye"
+  },
+  "minecraft:brown_dye": {
+    "zh-CN": "棕色染料",
+    "en": "Brown Dye"
+  },
+  "minecraft:green_dye": {
+    "zh-CN": "绿色染料",
+    "en": "Green Dye"
+  },
+  "minecraft:red_dye": {
+    "zh-CN": "红色染料",
+    "en": "Red Dye"
+  },
+  "minecraft:black_dye": {
+    "zh-CN": "黑色染料",
+    "en": "Black Dye"
+  },
+  "minecraft:recovery_compass": {
+    "zh-CN": "追溯指针",
+    "en": "Recovery Compass"
+  },
+  "minecraft:crossbow": {
+    "zh-CN": "弩",
+    "en": "Crossbow"
+  },
+  "minecraft:enchanted_golden_apple": {
+    "zh-CN": "附魔金苹果",
+    "en": "Enchanted Golden Apple"
+  },
+  "minecraft:torch": {
+    "zh-CN": "火把",
+    "en": "Torch"
+  },
+  "minecraft:redstone_torch": {
+    "zh-CN": "红石火把",
+    "en": "Redstone Torch"
+  },
+  "minecraft:soul_torch": {
+    "zh-CN": "灵魂火把",
+    "en": "Soul Torch"
   }
 }
