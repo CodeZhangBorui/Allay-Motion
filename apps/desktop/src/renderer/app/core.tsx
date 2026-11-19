@@ -23,6 +23,7 @@ import { openRecent } from '../features/project/actions';
 import { installViaDialog } from '../features/templates/actions';
 import { useUiStore } from '../stores/uiStore';
 import { createEditorHost } from './editorHost';
+import { startWorkspaceMode } from './workspaceMode';
 import { installHostCommands } from './mainCommands';
 import { discoveredModules, OptionalModuleManager } from './optionalModules';
 import { AboutPage, AppearancePage, AssetsPage, ExportPage, FoldersPage, GeneralPage } from '../features/settings/pages';
@@ -206,9 +207,10 @@ export function registerCore(): void {
   for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS, ...OPEN_FILE_COMMANDS]) registerCommand(c);
   for (const c of EXPORT_TASK_COMMANDS) registerCommand(c);
   for (const c of [...DEV_MODE_COMMANDS, ...ANIMATION_COMMANDS]) registerCommand(c);
-  registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
-  registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });
-  registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions });
+  // 模板库、预设、模板参数只服务模板：进入动画编辑器时淡出收起（app/workspaceMode.ts）
+  registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions, modes: ['template'] });
+  registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab, modes: ['template'] });
+  registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions, modes: ['template'] });
   registerPanel({ id: 'output', titleKey: 'params.tabs.output', region: 'right', order: 10, component: OutputTab });
   for (const m of [...MENU_ITEMS, ...ANIMATION_MENU_ITEMS]) registerMenuItem(m);
   for (const p of SETTINGS_PAGES) registerSettingsPage(p);
@@ -216,6 +218,7 @@ export function registerCore(): void {
   hotReloader.start();
   installHostCommands();
   // 开发模式（6.15）与动画工作区
+  startWorkspaceMode();
   startDevMode();
   startAnimationWorkspace();
   // 可选模块：随开发模式启用（开发模式关着时全关，关着的模块不加载代码块）；设置里可以单独关掉某一个

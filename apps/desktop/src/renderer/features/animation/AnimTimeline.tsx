@@ -141,7 +141,7 @@ export function AnimTimeline() {
   const playX = duration > 0 ? time / duration : 0;
 
   return (
-    <section aria-label={t('anim.timeline.region')} className="flex h-[max(var(--h-timeline),280px)] shrink-0 flex-col rounded-xl bg-surface-1" data-testid="anim-timeline">
+    <section aria-label={t('anim.timeline.region')} className="flex h-full shrink-0 flex-col rounded-xl bg-surface-1" data-testid="anim-timeline">
       <div role="toolbar" aria-label={t('transport.region')} className="flex h-12 shrink-0 items-center gap-1 pr-2.5 pl-3" data-testid="transport">
         <Button variant="ghost" size="icon" aria-label={t('transport.toStart')} disabled={!ready} onClick={() => useTransportStore.getState().setTime(0)}>
           <SkipBack size={ICON.md} weight={ICON_WEIGHT.active} />

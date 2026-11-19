@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { PreviewArea } from '../features/preview/PreviewArea';
 import { TimelinePanel } from '../features/transport/TransportBar';
 import { AnimTimeline } from '../features/animation/AnimTimeline';
-import { useAnimationActive } from '../features/animation/workspace';
+import { fadeClass, useWorkspaceMode } from './workspaceMode';
 import { useUiStore, type Side } from '../stores/uiStore';
 import { layout } from '../features/commands/commands';
 import { usePanels } from './registry';
@@ -35,8 +35,12 @@ export function Workspace() {
   const setPanel = useUiStore((s) => s.setPanel);
   // 主区里可停靠的额外面板（注册表的 dock 区域；核心功能目前没有）
   const docked = usePanels('dock');
-  // 当前模板是自建动画时，时间轴换成图层与关键帧的时间轴（docs/animation-editor.md 5.3）
-  const animation = useAnimationActive();
+  // 当前模板是自建动画时，时间轴换成图层与关键帧的时间轴（docs/animation-editor.md 5.3）：
+  // 换的时候先淡出、高度平滑长到动画时间轴的高度，再淡入（workspaceMode.ts）
+  const mode = useWorkspaceMode((s) => s.shown);
+  const phase = useWorkspaceMode((s) => s.phase);
+  const animation = mode === 'animation';
+  const fade = fadeClass(phase, 2);
   // 只在挂载时读一次：之后分栏组件自己是状态的主人
   const initial = useUiStore.getState().settings.layout;
 
@@ -104,7 +108,14 @@ export function Workspace() {
             </ResizablePanel>
           </ResizablePanelGroup>
           <ErrorBoundary scope="timeline">
-            {animation ? <AnimTimeline /> : <TimelinePanel />}
+            <div
+              className={`shrink-0 overflow-hidden transition-[height] duration-(--dur-2) ease-out ${fade.className}`}
+              style={{ ...fade.style, height: animation ? 'max(var(--h-timeline), 280px)' : 'var(--h-timeline)', transitionProperty: 'height, opacity' }}
+              data-testid="timeline-slot"
+              data-mode={mode}
+            >
+              {animation ? <AnimTimeline /> : <TimelinePanel />}
+            </div>
           </ErrorBoundary>
         </div>
       </ResizablePanel>
