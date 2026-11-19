@@ -53,6 +53,8 @@ export interface AllayTestHooks {
   /** 预览已经装载了当前工程（模板和参数的最新一版）且处于就绪状态 */
   previewUpToDate(): boolean;
   workerGeneration(): number;
+  /** 预览装载或改参数成功的次数（T-ANIM-32 量拖动时预览的更新率） */
+  previewLoads(): number;
   transport(): { time: number; playing: boolean; duration: number; cutTime: number | null };
   setTime(t: number): void;
   /** 读回预览画布（预乘 alpha，顶部在前）的像素统计 */
@@ -179,6 +181,7 @@ export function installTestHooks(): void {
     status: () => usePreviewStore.getState().status,
     previewUpToDate: () => usePreviewStore.getState().status.kind === 'ready' && previewEngine.loadedProjectRevision === useProjectStore.getState().revision,
     workerGeneration: () => previewEngine.workerGeneration,
+    previewLoads: () => previewEngine.loadCount,
     transport: () => {
       const s = useTransportStore.getState();
       return { time: s.time, playing: s.playing, duration: s.duration, cutTime: s.cutTime };

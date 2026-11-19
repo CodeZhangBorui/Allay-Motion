@@ -3,8 +3,8 @@
 // 所以撤销重做、“已修改”、保存、预览、导出全部沿用现有的机制（projectStore），不另起一套。
 // 可视化编辑：改文档对象 → 序列化成文本；代码编辑：改文本 → 解析得过就换文档。两边改的是同一份文本。
 import i18next from 'i18next';
-import { animationManifest, animationTemplateCode } from '../../../shared/animation/compile';
-import { AnimationDocSchema, parseAnimation, serializeAnimation, type AnimationDoc } from '../../../shared/animation/schema';
+import { draftManifest, draftTemplateCode } from '../../../shared/animation/compile';
+import { AnimationDocSchema, DOC_PARAM, parseAnimation, serializeAnimation, type AnimationDoc } from '../../../shared/animation/schema';
 import { notify } from '../../stores/noticeStore';
 import { useProjectStore } from '../../stores/projectStore';
 import type { AnimationPayload, TemplateSource } from '../../templates/catalog';
@@ -17,10 +17,23 @@ export function draftRef(): { id: string; version: string } {
   return { id: `user.${hex}.animation`, version: ANIMATION_VERSION };
 }
 
-/** 从一份合法的文档建模板来源（代码由文档生成） */
+const DRAFT_CODE = draftTemplateCode();
+
+/**
+ * 从一份合法的文档建模板来源。编辑时的预览模板（第 9 项）：代码对每份文档都一样，文档在隐藏参数 DOC_PARAM 里
+ * （projectStore 按 animation.doc 填）；manifest 只取决于文档的名称、分类和参数表
+ */
 export function sourceFromDoc(ref: { id: string; version: string }, doc: AnimationDoc, text = serializeAnimation(doc), issues: AnimationPayload['issues'] = []): TemplateSource {
-  const manifest = animationManifest(doc, ref);
-  return { ref, manifest, params: [], hidden: [], code: animationTemplateCode(doc), assets: null, animation: { text, doc, issues } };
+  const manifest = draftManifest(doc, ref);
+  const docParam = manifest.params!.find((p) => p.key === DOC_PARAM)!;
+  return { ref, manifest, params: [docParam], hidden: [DOC_PARAM], code: DRAFT_CODE, assets: null, animation: { text, doc, issues } };
+}
+
+/** 提交一份新的模板来源：manifest 没变时只改参数（预览走 setParams），变了才重新装载 */
+function commitSource(cur: TemplateSource, next: TemplateSource): void {
+  const store = useProjectStore.getState();
+  if (next.code === cur.code && JSON.stringify(next.manifest) === JSON.stringify(cur.manifest)) store.setAnimationSource(next);
+  else store.setTemplate(next, store.params, i18next.language);
 }
 
 export function currentAnimation(): (AnimationPayload & { source: TemplateSource }) | null {
@@ -48,7 +61,7 @@ export function editDoc(mutate: (doc: AnimationDoc) => void): boolean {
   }
   const next = sourceFromDoc(cur.source.ref, parsed.data);
   if (next.animation!.text === cur.text) return true;
-  useProjectStore.getState().setTemplate(next, {}, i18next.language);
+  commitSource(cur.source, next);
   return true;
 }
 
@@ -69,7 +82,7 @@ export function setAnimationText(text: string): AnimationPayload['issues'] {
   if (!cur || text === cur.text) return cur?.issues ?? [];
   const parsed = parseAnimation(text);
   const next = parsed.ok ? sourceFromDoc(cur.source.ref, parsed.doc, text) : { ...cur.source, animation: { text, doc: cur.doc, issues: parsed.issues } };
-  useProjectStore.getState().setTemplate(next, {}, i18next.language);
+  commitSource(cur.source, next);
   return parsed.ok ? [] : parsed.issues;
 }
 

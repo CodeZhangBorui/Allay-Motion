@@ -13,6 +13,11 @@ export const ANIMATION_KIND = 'allay-animation';
  */
 export const ANIMATION_FORMAT_VERSION = 2;
 export const MAX_PARAMS = 32;
+/**
+ * 编辑时的预览模板把文档放在这个隐藏的参数里（docs/animation-editor.md 第 9 项）：改文档只是改参数值，
+ * 预览走 setParams 快速路径，不重新装载代码。动画自己的参数不能用这个键
+ */
+export const DOC_PARAM = 'animationSource';
 /** 文本上限：正常的动画不过几十 KB */
 export const MAX_ANIMATION_CHARS = 512 * 1024;
 export const MAX_LAYERS = 64;
@@ -275,6 +280,7 @@ const AnimationDocShape = z
     const params = new Map<string, AnimParam>();
     doc.params.forEach((p, i) => {
       if (params.has(p.key)) ctx.addIssue({ code: 'custom', path: ['params', i, 'key'], message: `duplicate param key "${p.key}"` });
+      if (p.key === DOC_PARAM) ctx.addIssue({ code: 'custom', path: ['params', i, 'key'], message: `"${DOC_PARAM}" is reserved` });
       params.set(p.key, p);
       if ((p.type === 'number' || p.type === 'duration') && !(p.min <= p.default && p.default <= p.max)) ctx.addIssue({ code: 'custom', path: ['params', i, 'default'], message: 'default must be within [min, max]' });
     });

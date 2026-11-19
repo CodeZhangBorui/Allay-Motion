@@ -3,7 +3,7 @@
 // 只用公开的模板接口，与内置模板、用户模板走同一条装载路径（硬性规则 5），在引擎 Worker 里运行（规则 3）。
 import { MANIFEST_FORMAT_VERSION, parseManifest, type TemplateManifest } from '@allay/template-sdk';
 import runtimeSource from './runtime.template.js?raw';
-import { isParamRef, serializeAnimation, type AnimationDoc, type AnimParam } from './schema';
+import { DOC_PARAM, isParamRef, serializeAnimation, type AnimationDoc, type AnimParam } from './schema';
 
 /** 生成的 template.js 第一行的标记：认出“这是从动画生成的” */
 export const GENERATED_MARKER = '// @allay-animation';
@@ -27,6 +27,38 @@ export function animationTemplateCode(doc: AnimationDoc): string {
     '};',
     '',
   ].join('\n');
+}
+
+/**
+ * 编辑时的预览模板（第 9 项）：代码与文档无关（每份文档都一样），文档从隐藏参数 DOC_PARAM 里读（JSON 文本）。
+ * 这样改文档只改参数值，预览走 setParams（只重跑 setup），不重新分析、装载代码。转为模板时仍用 animationTemplateCode（文档嵌在代码里）。
+ */
+export function draftTemplateCode(): string {
+  return [
+    GENERATED_MARKER,
+    '// Preview of an animation being edited: the document comes from a hidden parameter.',
+    "/** @type {import('./template-api').TemplateModule} */",
+    '',
+    runtimeSource.trim(),
+    '',
+    'export default {',
+    '  setup(ctx) {',
+    `    const text = ctx.params[${JSON.stringify(DOC_PARAM)}];`,
+    "    if (typeof text !== 'string' || text === '') throw new Error('no animation document');",
+    '    return createAnimation(ctx, JSON.parse(text));',
+    '  },',
+    '};',
+    '',
+  ].join('\n');
+}
+
+/** 编辑时的预览 manifest：转为模板的那份加上隐藏的文档参数 */
+export function draftManifest(doc: AnimationDoc, ref: { id: string; version: string }): TemplateManifest {
+  const json = animationManifestJson(doc, ref);
+  const params = [...((json.params as unknown[]) ?? []), { key: DOC_PARAM, label: { 'zh-CN': '动画文档', en: 'Animation document' }, type: 'text', default: '', multiline: true }];
+  const parsed = parseManifest({ ...json, params });
+  if (!parsed.ok) throw new Error(`generated manifest is invalid: ${parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`);
+  return parsed.manifest;
 }
 
 /** 动画的参数 → manifest 的参数定义（4.4）。类型一一对应；数值参数缺省用滑块 */

@@ -1,6 +1,7 @@
 // 工程的新建、打开、保存、另存为（docs/01-product-architecture.md 1.9）。路径只在主进程：这里只有句柄。
 import { compareVersionStrings, diffFromDefaults } from '@allay/template-sdk';
 import i18next from 'i18next';
+import { DOC_PARAM } from '../../../shared/animation/schema';
 import type { ProjectData, ProjectOpenResult } from '../../../shared/project';
 import { notify } from '../../stores/noticeStore';
 import { clearHistory, isDirty, useProjectStore } from '../../stores/projectStore';
@@ -28,7 +29,8 @@ export function projectData(): ProjectData | null {
   return {
     name: s.name ?? t('project.untitled'),
     template: s.template.ref,
-    params: diffFromDefaults(s.template.params, s.params, { locale: i18next.language }),
+    // 自建动画的文档参数不存（文档本身存在 animation 里）
+    params: Object.fromEntries(Object.entries(diffFromDefaults(s.template.params, s.params, { locale: i18next.language })).filter(([k]) => !(s.template!.animation && k === DOC_PARAM))),
     output: { width: s.output.width, height: s.output.height, fps },
     export: s.exportSettings,
     preview: { background: useUiStore.getState().settings.editor.background },

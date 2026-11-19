@@ -34,8 +34,8 @@ function worldOf(o: Object3D): Matrix4 {
   return o.matrixWorld.clone();
 }
 
-export async function runAnimation(doc: AnimationDoc, params: Record<string, unknown> = {}): Promise<Run> {
-  const code = animationTemplateCode(doc);
+/** code 不给时用转成模板的代码（文档嵌在里面）；给了就用它（比如编辑时的预览模板，文档在参数里） */
+export async function runAnimation(doc: AnimationDoc, params: Record<string, unknown> = {}, code = animationTemplateCode(doc)): Promise<Run> {
   const mod = (await import(/* @vite-ignore */ `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)) as { default: TemplateModule };
   const drawn: Drawn[] = [];
   const cues: Run['cues'] = [];
