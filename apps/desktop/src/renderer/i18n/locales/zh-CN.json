@@ -894,7 +894,8 @@
       "replace": "更换“{{name}}”",
       "weight": "“{{name}}”的权重",
       "remove": "移除“{{name}}”",
-      "add": "添加方块"
+      "add": "添加方块",
+      "reorder": "移动“{{name}}”（拖动，或按上下方向键）"
     },
     "texture": {
       "none": "（无）",

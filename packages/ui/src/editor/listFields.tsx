@@ -1,11 +1,12 @@
 import { cn } from 'cn';
-import { ImageSquare, Plus, X } from '@phosphor-icons/react';
-import { useEffect, useMemo, useState } from 'react';
+import { DotsSixVertical, ImageSquare, Plus, X } from '@phosphor-icons/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/misc';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { ICON } from '../lib/icons';
 import { useEditor } from './context';
+import { moveEntry } from './listOrder';
 import { entryName, ResourcePickerPopover, ResourceThumb } from './ResourcePicker';
 import { ScrubNumberField } from './ScrubNumberField';
 
@@ -16,17 +17,80 @@ export interface BlockListEntry {
   weight: number;
 }
 
-/** BlockListField：多个方块芯片，每个带权重（可拖拽调值），可增删 */
+/**
+ * BlockListField：多个方块芯片，每个带权重（可拖拽调值），可增删。
+ * 顺序有意义（“方块排列”按列表顺序铺条带）：拖动左侧把手排序，把手聚焦时上下方向键也能移动。
+ */
 export function BlockListField({ value, onChange, max = 64, label, testId }: { value: readonly BlockListEntry[]; onChange(v: BlockListEntry[]): void; max?: number; label: string; testId?: string }) {
   const editor = useEditor();
   const byId = useMemo(() => new Map(editor.blocks.map((b) => [b.id, b])), [editor.blocks]);
   const update = (i: number, patch: Partial<BlockListEntry>) => onChange(value.map((e, j) => (j === i ? { ...e, ...patch } : e)));
+  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
+  const handles = useRef<(HTMLSpanElement | null)[]>([]);
+  const move = (from: number, to: number, focus = false) => {
+    if (to < 0 || to >= value.length || from === to) return;
+    onChange(moveEntry(value, from, to));
+    if (focus) requestAnimationFrame(() => handles.current[to]?.focus());
+  };
   return (
     <div className="flex min-w-0 flex-col gap-1" role="group" aria-label={label} data-testid={testId}>
       {value.map((entry, i) => {
         const name = entryName(byId.get(entry.id), entry.id, editor.locale);
+        const dropHere = drag !== null && drag.over === i && drag.from !== i;
         return (
-          <div key={`${entry.id}-${i}`} className="flex h-8 min-w-0 items-center gap-2 rounded-lg bg-control pr-1 pl-[5px]">
+          <div
+            key={`${entry.id}-${i}`}
+            className={cn(
+              'flex h-8 min-w-0 items-center gap-1.5 rounded-lg bg-control pr-1',
+              drag?.from === i && 'opacity-50',
+              dropHere && (drag.from < i ? 'shadow-[inset_0_-2px_0_var(--primary)]' : 'shadow-[inset_0_2px_0_var(--primary)]'),
+            )}
+            data-testid={testId ? `${testId}-row-${i}` : undefined}
+            onDragOver={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              if (drag.over !== i) setDrag({ from: drag.from, over: i });
+            }}
+            onDrop={(e) => {
+              if (!drag) return;
+              e.preventDefault();
+              move(drag.from, i);
+              setDrag(null);
+            }}
+          >
+            {value.length > 1 ? (
+              <span
+                ref={(el) => {
+                  handles.current[i] = el;
+                }}
+                role="button"
+                tabIndex={0}
+                draggable
+                aria-label={editor.t('blockList.reorder', { name })}
+                title={editor.t('blockList.reorder', { name })}
+                className="flex h-full w-4 shrink-0 cursor-grab items-center justify-center rounded-sm text-fg-subtle hover:text-foreground active:cursor-grabbing"
+                data-testid={testId ? `${testId}-handle-${i}` : undefined}
+                onDragStart={(e) => {
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/plain', String(i));
+                  const row = e.currentTarget.parentElement;
+                  if (row) e.dataTransfer.setDragImage(row, 8, 16);
+                  setDrag({ from: i, over: i });
+                }}
+                onDragEnd={() => setDrag(null)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowUp') move(i, i - 1, true);
+                  else if (e.key === 'ArrowDown') move(i, i + 1, true);
+                  else return;
+                  e.preventDefault();
+                }}
+              >
+                <DotsSixVertical size={ICON.xs} weight="bold" />
+              </span>
+            ) : (
+              <span className="w-1 shrink-0" aria-hidden="true" />
+            )}
             <ResourcePickerPopover
               kind="block"
               value={entry.id}
