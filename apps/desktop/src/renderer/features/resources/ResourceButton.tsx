@@ -14,7 +14,7 @@ export function ResourceButton() {
   const { t } = useTranslation();
   const state = useResourceStore((s) => s.state);
   const open = useUiStore((s) => s.resourcesOpen);
-  const top = state ? [...state.layers].reverse().find((l) => l.enabled && !(l.kind === 'builtin' && l.empty)) : undefined;
+  const top = state ? [...state.layers].reverse().find((l) => l.enabled && !(l.kind === 'builtin' && l.empty) && l.source !== 'imported') : undefined;
   const label = top ? t('resources.button', { name: layerDisplayName(t, top) }) : t('resources.buttonNone');
   // 顶栏只显示图标和名称（如“Minecraft 1.21.1”），完整说明放在读屏标签里
   const short = top ? layerDisplayName(t, top) : t('resources.buttonNone');
