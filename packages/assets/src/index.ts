@@ -10,3 +10,5 @@ export * from './sounds';
 export * from './font';
 export * from './gui';
 export * from './coverage';
+export * from './versions';
+export * from './sound-names';

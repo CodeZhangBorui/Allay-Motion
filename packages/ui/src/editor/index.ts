@@ -9,7 +9,7 @@ export { EasingField, type EasingFieldProps } from './EasingField';
 export { AngleField, BooleanField, DurationField, EnumField, PatternField, SeedField, TextField, randomSeed, type EnumOption } from './fields';
 export { BlockListField, TextureField, type BlockListEntry } from './listFields';
 export { BlockPicker, ItemPicker, ResourcePickerPopover, ResourceThumb, entryName } from './ResourcePicker';
-export { SoundField, useSoundName } from './SoundPicker';
+export { SoundField, SpatialAudioRow, useSoundName } from './SoundPicker';
 export { ParamGroup, ParamPanel, ParamRow, isVisible, type ParamGroupDef, type ParamPanelProps } from './ParamPanel';
 export { TemplateCard, type TemplateCardProps } from './TemplateCard';
 export { TimelineTrack, segmentsMatch, timelineFrameLabel, type TimelineLane, type TimelineMenuTarget, type TimelineSegment, type TimelineTrackProps } from './TimelineTrack';

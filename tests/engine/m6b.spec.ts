@@ -95,6 +95,12 @@ test('M6b cue 变体：引擎按 random(sound:事件:序号) 选定并写进 cue
   expect(r.changed.map((c) => c.variant?.file)).not.toEqual(a.audioCues.map((c) => c.variant?.file));
 });
 
+test('T-SND-4 空间音效的声源位置：cue 的 position 原样写进 spatial，不给的没有；位置不是有限数时装载失败', async () => {
+  const a = await call('m6b', { scenario: 'spatial', seed: 7 }, SMALL);
+  expect(a.audioCues.map((c) => c.spatial ?? null)).toEqual([{ x: 3, y: 0, z: -4 }, null]);
+  await expect(call('m6b', { scenario: 'spatialBad', seed: 7 }, SMALL)).rejects.toThrow();
+});
+
 // ---- 离线混音（05-export.md 5.5）：真实的 OfflineAudioContext；音效是脚本生成的正弦波 ----
 
 const cue = (at: number, file: string | null, extra: Partial<{ gain: number; rate: number; pan: number }> = {}) => ({

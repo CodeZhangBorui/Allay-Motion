@@ -8,7 +8,7 @@ import { beginGesture, endGesture, useProjectStore } from '../../stores/projectS
 import { useResourceStore } from '../../stores/resourceStore';
 import { useUiStore } from '../../stores/uiStore';
 import { previewAudio } from '../../audio/app-audio';
-import { prepareSound, useSoundLibraryStore } from '../../audio/sound-library';
+import { importSounds, prepareSound, removeImportedSound, useSoundLibraryStore } from '../../audio/sound-library';
 import { thumbnails } from '../thumbnails/thumbnails';
 
 /** 方块目录按 03-assets.md 3.7 的分组顺序排列；按顺序切成这几组 */
@@ -90,6 +90,7 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
   const recent = useUiStore((s) => s.settings.editor.recent);
   const soundEvents = useSoundLibraryStore((s) => s.events);
   const soundsLoading = useSoundLibraryStore((s) => s.loading);
+  const spatial = useUiStore((s) => s.settings.editor.spatialAudio);
   const value = useMemo<EditorServices>(() => {
     const blockGroups: CatalogGroup[] = BLOCK_GROUP_SIZES.map(([key]) => ({ key, label: t(`editor.picker.groups.${key}`) }));
     const itemGroups: CatalogGroup[] = [{ key: 'items', label: t('editor.picker.groups.items') }];
@@ -109,6 +110,10 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       sounds: { library: soundEvents, common: SOUND_EVENTS, loading: soundsLoading },
       previewSound: (id) => void previewAudio.preview(id),
       prepareSound: (id) => void prepareSound(id),
+      importSounds,
+      removeImportedSound: (id) => void removeImportedSound(id),
+      // 空间音效：应用级偏好，保存工程时也记一份（2026-11 反馈）
+      spatialAudio: { value: spatial, onChange: (v) => useUiStore.getState().setEditor({ spatialAudio: v }) },
       async pickImage() {
         const picked = await window.allay.files.pickImage();
         if (!picked) return null;
@@ -129,6 +134,6 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
         </div>
       ),
     };
-  }, [t, i18n.language, fps, hasAssets, stamp, recent, soundEvents, soundsLoading]);
+  }, [t, i18n.language, fps, hasAssets, stamp, recent, soundEvents, soundsLoading, spatial]);
   return <EditorProvider value={value}>{children}</EditorProvider>;
 }

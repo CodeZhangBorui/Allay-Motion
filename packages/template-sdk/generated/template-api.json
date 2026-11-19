@@ -168,7 +168,7 @@
           "name": "cue",
           "kind": "method",
           "optional": false,
-          "signature": "cue(sound: string | null, at: number, opts?: { gain?: number; rate?: number; pan?: number }): void",
+          "signature": "cue(sound: string | null, at: number, opts?: AudioCueOptions): void",
           "doc": "在时刻 at（秒）播放音效事件；只能在 setup 里调用。sound 为 null 时什么也不做"
         }
       ]
@@ -299,6 +299,62 @@
           "optional": false,
           "signature": "smoothstep(edge0: number, edge1: number, x: number): number;",
           "doc": "x 在 [edge0, edge1] 之间的平滑过渡（三次 Hermite），两端钳制到 0 和 1"
+        }
+      ]
+    },
+    "AudioCueOptions": {
+      "doc": "ctx.audio.cue 的选项。position 是可选的空间音效字段（2026-11 反馈）：声源相对听者的位置，单位是格（方块），\n+x 右、+y 上、-z 正前方。宿主打开“空间音效”时按原版的规则处理：线性衰减（默认 16 格外听不到）、按左右方位定声像；\n只对单声道音效生效。模板自己决定画面怎样对应到格（例如把舞台的半宽当作 8 格、听者站在画面前 6 格）。\n不给 position 的 cue 和以前一样，不做空间处理。",
+      "members": [
+        {
+          "name": "gain",
+          "kind": "property",
+          "optional": true,
+          "signature": "gain?: number;",
+          "doc": ""
+        },
+        {
+          "name": "rate",
+          "kind": "property",
+          "optional": true,
+          "signature": "rate?: number;",
+          "doc": ""
+        },
+        {
+          "name": "pan",
+          "kind": "property",
+          "optional": true,
+          "signature": "pan?: number;",
+          "doc": ""
+        },
+        {
+          "name": "position",
+          "kind": "property",
+          "optional": true,
+          "signature": "position: { … };",
+          "doc": "",
+          "members": [
+            {
+              "name": "x",
+              "kind": "property",
+              "optional": false,
+              "signature": "x: number;",
+              "doc": ""
+            },
+            {
+              "name": "y",
+              "kind": "property",
+              "optional": false,
+              "signature": "y: number;",
+              "doc": ""
+            },
+            {
+              "name": "z",
+              "kind": "property",
+              "optional": false,
+              "signature": "z: number",
+              "doc": ""
+            }
+          ]
         }
       ]
     },

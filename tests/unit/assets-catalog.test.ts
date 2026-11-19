@@ -179,6 +179,7 @@ describe('资源栈配置（M2b 接进设置）', () => {
     const packs = new Map([['p1', layer('p1', 'pack')]]);
     const settings = {
       vanilla: { consent: true, enabled: false, dir: null },
+      vanillaSources: [],
       packs: [
         { id: 'p1', name: 'P1', source: { kind: 'folder' as const, path: 'D:/p1' }, enabled: true },
         { id: 'gone', name: 'Gone', source: { kind: 'folder' as const, path: 'D:/gone' }, enabled: true },

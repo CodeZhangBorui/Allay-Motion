@@ -10,7 +10,7 @@ import { ColorField } from './ColorField';
 import { useEditor } from './context';
 import { EasingField } from './EasingField';
 import { AngleField, BooleanField, DurationField, EnumField, SeedField, TextField, type EnumOption } from './fields';
-import { SoundField } from './SoundPicker';
+import { SoundField, SpatialAudioRow } from './SoundPicker';
 import { BlockListField, TextureField, type BlockListEntry } from './listFields';
 import { BlockPicker, ItemPicker } from './ResourcePicker';
 import { ScrubNumberField, SliderField } from './ScrubNumberField';
@@ -294,7 +294,12 @@ export function ParamPanel({ defs, groups = [], hidden = [], values, defaults, o
       data-testid="param-panel"
       data-focus-scope=""
     >
-      {loose.length > 0 && <div className="border-t border-divider px-3.5 py-2">{loose.map(row)}</div>}
+      {loose.length > 0 && (
+        <div className="border-t border-divider px-3.5 py-2">
+          {loose.map(row)}
+          {loose.some((d) => d.type === 'sound') && <SpatialAudioRow />}
+        </div>
+      )}
       {groups.map((g) => {
         const rows = shown.filter((d) => d.group === g.key);
         if (rows.length === 0) return null;
@@ -310,6 +315,8 @@ export function ParamPanel({ defs, groups = [], hidden = [], values, defaults, o
             onToggle={(c) => onToggleGroup(g.key, c)}
           >
             {durations ? <DurationGroup defs={rows} values={values} defaults={defaults} onChange={onChange} clipboard={clipboard} fileNames={fileNames} /> : rows.map(row)}
+            {/* 空间音效开关放在含音效参数的那一组末尾（2026-11 反馈） */}
+            {rows.some((d) => d.type === 'sound') && <SpatialAudioRow />}
           </ParamGroup>
         );
       })}

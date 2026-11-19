@@ -390,6 +390,67 @@
       "done": "Vanilla assets {{version}} are ready.",
       "bytes": "{{received}} of {{total}}",
       "speed": "{{speed}}/s"
+    },
+    "base": "Base",
+    "baseHint": "You can keep several vanilla versions. The topmost enabled one is the base: its files win, and resource packs are matched against its version. Lower vanilla layers only fill in files the base lacks. Resource packs always sit above vanilla.",
+    "vanillaLocalAt": "Local · {{dir}}",
+    "format": "Pack format {{format}}",
+    "noAssetIndex": "No asset index found: this layer has textures only, no sounds or Chinese language file.",
+    "missingLocal": "This version is gone ({{dir}}). It may have been moved or uninstalled.",
+    "missingDownloaded": "This version is no longer in the download cache.",
+    "compat": {
+      "madeFor": "Made for {{version}} (format {{format}})",
+      "formatOnly": "Pack format {{format}}",
+      "ok": "{{meta}}, matches the base",
+      "older": "{{meta}}, older than the base {{base}}; some content may not apply.",
+      "newer": "{{meta}}, newer than the base {{base}}; some content may not apply."
+    },
+    "versions": {
+      "button": "Add vanilla version…",
+      "title": "Minecraft versions",
+      "rules": "Versions come from three places: the versions folder of games on this computer (a client jar is required), versions you have already downloaded, and Mojang’s version manifest once you click “Get version list”. Newest first by release date. An added version goes on top of the vanilla layers and becomes the base; resource packs are compared with the base by the format number in pack.mcmeta, and you are told when they differ.",
+      "search": "Search version or path",
+      "sourceFilter": "Source",
+      "typeFilter": "Type",
+      "sources": {
+        "all": "All",
+        "local": "Local",
+        "downloaded": "Downloaded",
+        "remote": "Available"
+      },
+      "types": {
+        "release": "Releases",
+        "snapshot": "Snapshots",
+        "old": "Old",
+        "all": "All"
+      },
+      "latest": "Latest",
+      "empty": "No versions match.",
+      "add": "Add",
+      "added": "Added",
+      "download": "Download",
+      "fetch": "Get version list",
+      "refetch": "Refresh version list",
+      "fetching": "Getting…",
+      "fetchNote": "“Get version list” connects to piston-meta.mojang.com once to read the version manifest. No game files are downloaded and no personal data is sent. “Download” works like “Download vanilla assets”: it downloads that version’s client jar and common sounds from Mojang’s official servers."
+    },
+    "localPacks": {
+      "button": "Minecraft resource packs on this computer…",
+      "title": "Resource packs on this computer",
+      "rules": "These are the resourcepacks folders found in launchers on this computer. Only local files are read: nothing is downloaded or copied. Zips are referenced in place and folders by path, so changes made in the game show up here. Recognized: the official launcher, PCL and HMCL version isolation, Prism Launcher, CurseForge and Modrinth App. Use “Add folder…” for anything else.",
+      "search": "Search packs, versions or paths",
+      "scanning": "Looking…",
+      "none": "No Minecraft resource pack folders found on this computer.",
+      "empty": "No resource packs in this folder.",
+      "shared": "shared by all versions",
+      "unknownVersion": "unknown version",
+      "launchers": {
+        "official": "Official launcher",
+        "isolated": "Isolated version ({{instance}})",
+        "prism": "Prism Launcher · {{instance}}",
+        "curseforge": "CurseForge · {{instance}}",
+        "modrinth": "Modrinth App · {{instance}}"
+      }
     }
   },
   "common": {
@@ -751,7 +812,33 @@
       "remote": "Not downloaded yet; fetched from Mojang's official server when you preview or pick it",
       "unavailable": "No file for this sound in the current resources",
       "loading": "Reading the sound list…",
-      "noLibrary": "No assets yet, so there are no sounds to pick."
+      "noLibrary": "No assets yet, so there are no sounds to pick.",
+      "groupImported": "Imported sounds",
+      "import": "Import sound files…",
+      "removeImported": "Delete imported sound “{{name}}”",
+      "origin": {
+        "overridden": "Changed by resource pack: {{packs}}",
+        "added": "Added by resource pack: {{packs}}",
+        "imported": "Imported by you"
+      },
+      "categories": {
+        "block": "Blocks",
+        "entity": "Entities",
+        "item": "Items",
+        "ui": "Interface",
+        "music": "Music",
+        "music_disc": "Music discs",
+        "ambient": "Ambience",
+        "weather": "Weather",
+        "enchant": "Enchanting",
+        "event": "Events",
+        "particle": "Particles",
+        "other": "Other"
+      },
+      "spatial": "Spatial audio",
+      "spatialOn": "Attenuate and pan by source position",
+      "spatialOff": "Off",
+      "spatialHint": "Same as in the game: sounds fade linearly with distance (silent beyond 16 blocks by default) and are panned by where the source sits left or right on screen. Only applies to mono sounds the template gives a position; preview and export match."
     },
     "picker": {
       "recent": "Recent",
@@ -854,7 +941,10 @@
   "audio": {
     "missing": "These sounds aren't in the current resources and are muted: {{list}}",
     "peakNormalized": "The mix peaked above 0 dBFS, so it was turned down to −1 dBFS.",
-    "fetchFailed": "Some sounds couldn't be fetched from Mojang's server (you may be offline), so they're muted for now."
+    "fetchFailed": "Some sounds couldn't be fetched from Mojang's server (you may be offline), so they're muted for now.",
+    "imported": "Imported {{count}} sounds.",
+    "importedSome": "Imported {{count}} sounds and skipped {{skipped}} (only .ogg and .wav up to 32 MB are supported).",
+    "importFailed": "Nothing imported: only .ogg and .wav files up to 32 MB are supported."
   },
   "dev": {
     "overlay": {

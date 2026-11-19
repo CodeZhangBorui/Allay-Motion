@@ -81,8 +81,21 @@ export interface SetupContext {
   ease: EaseLibrary;
   math: MathHelpers;
   time: { segment(t: number, start: number, duration: number): number };
-  audio: { cue(sound: string | null, at: number, opts?: { gain?: number; rate?: number; pan?: number }): void };
+  audio: { cue(sound: string | null, at: number, opts?: AudioCueOptions): void };
   warn(message: string): void;
+}
+
+/**
+ * ctx.audio.cue 的选项。position 是可选的空间音效字段（2026-11 反馈）：声源相对听者的位置，单位是格（方块），
+ * +x 右、+y 上、-z 正前方。宿主打开“空间音效”时按原版的规则处理：线性衰减（默认 16 格外听不到）、按左右方位定声像；
+ * 只对单声道音效生效。模板自己决定画面怎样对应到格（例如把舞台的半宽当作 8 格、听者站在画面前 6 格）。
+ * 不给 position 的 cue 和以前一样，不做空间处理。
+ */
+export interface AudioCueOptions {
+  gain?: number;
+  rate?: number;
+  pan?: number;
+  position?: { x: number; y: number; z: number };
 }
 
 /** 方块的六个面：上、下、北（-z）、南（+z，朝向默认相机）、东（+x）、西（-x） */

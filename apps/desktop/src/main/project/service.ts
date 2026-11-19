@@ -143,6 +143,7 @@ export class ProjectService {
       output: file.output,
       export: file.export,
       preview: file.preview,
+      audio: file.audio,
       resourceHint: file.resourceHint,
     };
     return { ok: true, handle, name, data, missingFiles };
@@ -192,6 +193,7 @@ export class ProjectService {
         output: data.output,
         export: data.export,
         preview: data.preview,
+        ...(data.audio ? { audio: data.audio } : {}),
         files,
         resourceHint: data.resourceHint,
       };

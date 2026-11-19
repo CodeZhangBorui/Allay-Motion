@@ -10,7 +10,22 @@ import type {
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
 import type { HostCommandRequest, HostCommandResult } from '../shared/host-commands';
-import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
+import type {
+  AddPackResult,
+  CacheUsage,
+  ChooseGameDirResult,
+  DownloadResult,
+  FontProvidersResult,
+  ImportSoundsResult,
+  LocalPackFolderInfo,
+  RemoteVersionsResult,
+  ResourceState,
+  SoundFilesResult,
+  SoundLibrary,
+  SoundVariantInfo,
+  VanillaSourceArg,
+  VersionCatalog,
+} from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
@@ -111,6 +126,21 @@ export interface AllayApi {
     /** 资源包从下往上的新顺序 */
     reorder(ids: string[]): Promise<ResourceState>;
     setEnabled(id: string, enabled: boolean): Promise<ResourceState>;
+    /** 版本检索：本机、已下载、（取过的话）Mojang 版本清单。离线 */
+    versions(): Promise<VersionCatalog>;
+    /** 联网：取 Mojang 版本清单。只在用户点了“获取版本列表”后调用 */
+    fetchRemoteVersions(): Promise<RemoteVersionsResult>;
+    /** 把本机或已下载的某个版本加进资源栈，放在原版层最上面（成为基底） */
+    addVanillaSource(source: VanillaSourceArg): Promise<ResourceState>;
+    /** 联网：下载指定版本。只在用户点了按钮后调用 */
+    downloadVanillaVersion(versionId: string): Promise<DownloadResult>;
+    /** 本机 Minecraft 启动器的资源包文件夹和其中的资源包（只读） */
+    localPacks(): Promise<LocalPackFolderInfo[]>;
+    /** 把 localPacks 列出的某个资源包加进资源栈（zip 原地引用、不复制） */
+    addLocalPack(path: string): Promise<AddPackResult>;
+    /** 弹出主进程的文件对话框导入 .ogg / .wav 音效 */
+    importSounds(): Promise<ImportSoundsResult>;
+    removeImportedSound(eventId: string): Promise<ResourceState>;
     onChanged(callback: (state: ResourceState) => void): () => void;
   };
   templates: {

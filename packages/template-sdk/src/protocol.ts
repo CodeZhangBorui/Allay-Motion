@@ -41,6 +41,8 @@ export const AudioCueVariantSchema = z.strictObject({
   file: z.string().min(1).max(256),
   volume: z.number().min(0).max(16),
   pitch: z.number().min(0).max(16),
+  /** 衰减距离（格），sounds.json 的 attenuation_distance，没写时游戏取 16（空间音效用） */
+  attenuation: z.number().min(1).max(1024).optional(),
 });
 export type AudioCueVariant = z.infer<typeof AudioCueVariantSchema>;
 
@@ -52,6 +54,11 @@ export const AudioCueSchema = z.strictObject({
   pan: z.number(),
   /** 选定的变体；资源栈里没有这个音效事件时为 null（宿主静音并给警告） */
   variant: AudioCueVariantSchema.nullable(),
+  /**
+   * 声源相对听者的位置，单位是格：+x 右、+y 上、-z 正前方（模板的 cue 选项 position）。模板给了才有；
+   * 宿主打开“空间音效”时据此做原版的线性衰减和左右定位（decisions.md“2026-11 反馈：素材与音效”）。
+   */
+  spatial: z.strictObject({ x: z.number(), y: z.number(), z: z.number() }).optional(),
 });
 export type AudioCue = z.infer<typeof AudioCueSchema>;
 
@@ -218,6 +225,7 @@ export const SoundMetaVariantSchema = z.strictObject({
   volume: z.number().min(0).max(16),
   pitch: z.number().min(0).max(16),
   weight: z.number().min(0).max(1_000_000),
+  attenuation: z.number().min(1).max(1024).optional(),
 });
 export type SoundMetaVariant = z.infer<typeof SoundMetaVariantSchema>;
 

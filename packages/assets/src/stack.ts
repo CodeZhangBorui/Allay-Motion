@@ -163,8 +163,28 @@ export const PackSourceSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('zip'), file: z.string().regex(/^[0-9a-f]{64}\.zip$/) }),
   /** 文件夹只记路径 */
   z.strictObject({ kind: z.literal('folder'), path: z.string().min(1) }),
+  /**
+   * 本机 Minecraft 的 resourcepacks 文件夹里的 zip，原地只读引用、不复制（decisions.md“2026-11 反馈：素材与音效”）。
+   * 只能经“使用本机 Minecraft 的资源包”添加，主进程核对路径来自探测结果。
+   */
+  z.strictObject({ kind: z.literal('linked'), path: z.string().min(1) }),
 ]);
 export type PackSource = z.infer<typeof PackSourceSchema>;
+
+/** 版本号要用作目录名：只含字母数字、点、下划线、连字符（与 download.ts 的 SafeId 一致） */
+export const VersionIdSchema = z.string().min(1).max(64).regex(/^[\w.-]+$/).refine((s) => s !== '.' && s !== '..');
+
+/** 一个原版来源：本机某个游戏目录里的某个版本，或下载缓存里的某个版本 */
+export const VanillaSourceSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('local'), gameDir: z.string().min(1).max(4096), versionId: VersionIdSchema }),
+  z.strictObject({ kind: z.literal('downloaded'), versionId: VersionIdSchema }),
+]);
+export type VanillaSource = z.infer<typeof VanillaSourceSchema>;
+
+/** 原版来源在资源栈里的层 id：同一个来源总是同一个 id */
+export function vanillaLayerId(source: VanillaSource): string {
+  return source.kind === 'downloaded' ? `vanilla:dl:${source.versionId}` : `vanilla:local:${fnv1a64(source.gameDir).slice(0, 10)}:${source.versionId}`;
+}
 
 export const ResourceStackSettingsSchema = z.strictObject({
   vanilla: z.strictObject({
@@ -174,6 +194,11 @@ export const ResourceStackSettingsSchema = z.strictObject({
     /** 用户上次手动选过的游戏目录 */
     dir: z.string().min(1).nullable(),
   }),
+  /**
+   * 原版来源，从下往上，可以有多个（2026-11 反馈）。最上面启用的那个是“生效的原版基底”：同名文件它胜出，
+   * 资源包格式按它匹配；下面的只补它没有的文件。旧设置没有这个字段，主进程第一次探测后按旧的二选一规则迁移一条。
+   */
+  vanillaSources: z.array(z.strictObject({ id: z.string().min(1).max(128), source: VanillaSourceSchema, enabled: z.boolean() })).max(64).default([]),
   /** 从下往上 */
   packs: z.array(z.strictObject({ id: z.string().min(1), name: z.string(), source: PackSourceSchema, enabled: z.boolean() })),
 });
@@ -181,22 +206,41 @@ export type ResourceStackSettings = z.infer<typeof ResourceStackSettingsSchema>;
 
 export const DEFAULT_RESOURCE_STACK_SETTINGS: ResourceStackSettings = {
   vanilla: { consent: null, enabled: true, dir: null },
+  vanillaSources: [],
   packs: [],
 };
 
-/** 把打开的各层按设置排好：builtin、vanilla（若有）、各个包（按设置的顺序和开关）。打不开的包不在 layersById 里，直接跳过 */
+/**
+ * 把打开的各层按设置排好：builtin、原版层（若有）、各个包（按设置的顺序和开关）。打不开的层不在表里，直接跳过。
+ * vanilla 传一张表（id → 层）时按 settings.vanillaSources 的顺序和开关排；传单个层时是旧的“只有一个原版层”的用法。
+ * 原版层整体在资源包之下（decisions.md M2b），原版层之间可以排序。
+ */
 export function buildStack(
   builtin: ResourceLayer,
-  vanilla: ResourceLayer | null,
+  vanilla: ResourceLayer | ReadonlyMap<string, ResourceLayer> | null,
   packsById: ReadonlyMap<string, ResourceLayer>,
   settings: ResourceStackSettings,
 ): ResourceLayer[] {
   const stack: ResourceLayer[] = [{ ...builtin, enabled: true }];
-  if (vanilla && settings.vanilla.consent === true) stack.push({ ...vanilla, enabled: settings.vanilla.enabled });
+  if (vanilla instanceof Map) {
+    for (const v of settings.vanillaSources ?? []) {
+      const layer = vanilla.get(v.id);
+      if (layer) stack.push({ ...layer, enabled: v.enabled });
+    }
+  } else if (vanilla && !(vanilla instanceof Map) && settings.vanilla.consent === true) stack.push({ ...(vanilla as ResourceLayer), enabled: settings.vanilla.enabled });
   for (const p of settings.packs) {
     const layer = packsById.get(p.id);
     if (layer) stack.push({ ...layer, enabled: p.enabled });
   }
   assertValidStack(stack);
   return stack;
+}
+
+/** 生效的原版基底：资源栈里最上面那个启用的原版层；没有时为 null */
+export function vanillaBase(stack: ResourceStack): ResourceLayer | null {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const l = stack[i];
+    if (l?.kind === 'vanilla' && l.enabled) return l;
+  }
+  return null;
 }

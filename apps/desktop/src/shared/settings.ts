@@ -64,6 +64,8 @@ export interface EditorPrefs {
   zoom: (typeof PREVIEW_ZOOMS)[number];
   hqPreview: boolean;
   muted: boolean;
+  /** 空间音效（2026-11 反馈）：按原版的线性衰减和方位定位处理带声源位置的 cue；预览和导出共用。工程里也记一份 */
+  spatialAudio: boolean;
   groups: Record<string, Record<string, boolean>>;
   recent: Record<RecentKind, string[]>;
 }
@@ -76,6 +78,7 @@ export function defaultEditorPrefs(): EditorPrefs {
     zoom: 'fit',
     hqPreview: false,
     muted: false,
+    spatialAudio: false,
     groups: {},
     recent: { color: [], block: [], item: [], texture: [] },
   };
@@ -88,6 +91,7 @@ export const EditorPrefsSchema = z.strictObject({
   zoom: z.enum(PREVIEW_ZOOMS).catch('fit'),
   hqPreview: z.boolean().catch(false),
   muted: z.boolean().catch(false),
+  spatialAudio: z.boolean().catch(false).default(false),
   groups: GroupStateSchema.catch({}),
   recent: RecentSchema.catch(() => defaultEditorPrefs().recent),
 });
@@ -163,6 +167,7 @@ export const UiSettingsPatchSchema = z.strictObject({
       zoom: z.enum(PREVIEW_ZOOMS).optional(),
       hqPreview: z.boolean().optional(),
       muted: z.boolean().optional(),
+      spatialAudio: z.boolean().optional(),
       groups: GroupStateSchema.optional(),
       recent: RecentSchema.optional(),
     })
