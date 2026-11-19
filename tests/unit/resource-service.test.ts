@@ -191,7 +191,8 @@ describe('ResourceService', () => {
       { type: 'space', advances: [[32, 4]] },
       { type: 'bitmap', file: 'assets/minecraft/textures/font/ascii.png', ascent: 7, height: 8, rows: [[65, 66]] },
     ]);
-    expect(f?.skipped).toContain('unihex');
+    // hex_file 不是 zip：记为无效的 unihex
+    expect(f?.skipped).toContain('unihex(invalid)');
     expect(await svc.fontProviders('minecraft:nope')).toBeNull();
     const fallback = await svc.fallbackFontTables();
     expect(fallback?.codepoints.length).toBeGreaterThan(20_000);

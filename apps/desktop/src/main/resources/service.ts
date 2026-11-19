@@ -25,6 +25,8 @@ import {
   type ResourceLayer,
   type ResourceStackSettings,
   type SoundDefinitions,
+  type UnihexOverride,
+  type UnihexTables,
 } from '@allay/assets';
 import type {
   AddPackResult,
@@ -47,6 +49,7 @@ import type { SettingsStore } from '../settings-store';
 import { chooseVanillaSource, DownloadError, type CachedVanilla, type VanillaDownloader } from './download';
 import { DownloadTracker } from './download-progress';
 import { BUILTIN_LAYER_ID, openBuiltinLayer, openFolderPack, openZipPack, type ClosableLayer } from './layers';
+import { loadUnihexTables, UnihexCache } from './fonts';
 import { importZipPack, packZipPath } from './pack-import';
 import { detectMinecraft, findLatestRelease, openVanillaLayer, VANILLA_LAYER_ID, type CandidateEnv, type VanillaInstall } from './vanilla';
 import { ZipRejectedError } from './zip';
@@ -531,9 +534,21 @@ export class ResourceService {
     });
     if (!found) return null;
     return {
-      providers: providers.map((p) => (p.type === 'bitmap' ? { type: 'bitmap', file: p.file, ascent: p.ascent, height: p.height, rows: p.rows } : { type: 'space', advances: [...p.advances.entries()] })),
+      providers: providers.map((p) =>
+        p.type === 'bitmap'
+          ? { type: 'bitmap', file: p.file, ascent: p.ascent, height: p.height, rows: p.rows }
+          : p.type === 'unihex'
+            ? { type: 'unihex', file: p.file, overrides: p.overrides }
+            : { type: 'space', advances: [...p.advances.entries()] },
+      ),
       skipped,
     };
+  }
+
+  /** unihex 提供器的字形表（fonts.ts）：从资源栈读 zip、解析 .hex，按 stamp 缓存 */
+  private readonly unihex = new UnihexCache();
+  unihexTables(file: string, overrides: readonly UnihexOverride[]): Promise<UnihexTables | null> {
+    return this.unihex.get(this.stamp, file, overrides, () => loadUnihexTables((path) => this.read(path), file, overrides));
   }
 
   /** 合并后的 sounds.json，按 (stamp, 命名空间) 缓存 */

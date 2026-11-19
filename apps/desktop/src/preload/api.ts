@@ -10,7 +10,22 @@ import type {
 import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
 import type { HostCommandRequest, HostCommandResult } from '../shared/host-commands';
-import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
+import type {
+  AddPackResult,
+  CacheUsage,
+  ChooseGameDirResult,
+  DownloadResult,
+  FontProvidersResult,
+  ImportFontResult,
+  ResourceState,
+  SoundFilesResult,
+  SoundLibrary,
+  SoundVariantInfo,
+  UnihexOverrideInfo,
+  UnihexTablesInfo,
+  UserFontData,
+  UserFontInfo,
+} from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
@@ -95,6 +110,8 @@ export interface AllayApi {
     fontProviders(fontId: string): Promise<FontProvidersResult | null>;
     /** 兜底像素字体 */
     fallbackFont(): Promise<BitmapFontTables | null>;
+    /** unihex 提供器的字形表（Unifont）：file 是 fontProviders 给的 zip 路径 */
+    unihexTables(file: string, overrides: UnihexOverrideInfo[]): Promise<UnihexTablesInfo | null>;
     /** 重新离线探测本机游戏和下载缓存 */
     detectMinecraft(): Promise<ResourceState>;
     setVanilla(patch: { consent?: boolean; enabled?: boolean }): Promise<ResourceState>;
@@ -191,6 +208,14 @@ export interface AllayApi {
     /** 运行下好的安装包并退出应用 */
     install(): Promise<UpdateState>;
     onChanged(callback: (state: UpdateState) => void): () => void;
+  };
+  /** 用户导入的字体（复制在应用数据目录里，按内容哈希登记） */
+  fonts: {
+    list(): Promise<UserFontInfo[]>;
+    /** 弹出主进程的文件对话框导入字体文件 */
+    import(): Promise<ImportFontResult>;
+    remove(id: string): Promise<UserFontInfo[]>;
+    read(id: string): Promise<UserFontData | null>;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

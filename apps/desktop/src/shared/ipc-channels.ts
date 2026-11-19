@@ -11,7 +11,8 @@
 // M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）；
 // 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
 // 界面增强加上 folders：默认文件夹的查询、选择、清除（docs/decisions.md 界面增强）；
-// 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）。
+// 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）；
+// 2026-11 字体加上 resources.unihexTables 和 fonts：用户导入字体的列表、导入、删除、读取（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）。
 
 export const IPC = {
   app: {
@@ -56,6 +57,7 @@ export const IPC = {
     list: 'resources:list',
     fontProviders: 'resources:fontProviders',
     fallbackFont: 'resources:fallbackFont',
+    unihexTables: 'resources:unihexTables',
     detectMinecraft: 'resources:detectMinecraft',
     setVanilla: 'resources:setVanilla',
     chooseGameDir: 'resources:chooseGameDir',
@@ -126,6 +128,12 @@ export const IPC = {
     /** 主进程 → 渲染进程的事件 */
     changed: 'updates:changed',
   },
+  fonts: {
+    list: 'fonts:list',
+    import: 'fonts:import',
+    remove: 'fonts:remove',
+    read: 'fonts:read',
+  },
   cache: {
     getThumb: 'cache:getThumb',
     putThumb: 'cache:putThumb',
@@ -169,6 +177,7 @@ export const INVOKE_CHANNELS = [
   IPC.resources.list,
   IPC.resources.fontProviders,
   IPC.resources.fallbackFont,
+  IPC.resources.unihexTables,
   IPC.resources.detectMinecraft,
   IPC.resources.setVanilla,
   IPC.resources.chooseGameDir,
@@ -214,6 +223,10 @@ export const INVOKE_CHANNELS = [
   IPC.updates.download,
   IPC.updates.cancel,
   IPC.updates.install,
+  IPC.fonts.list,
+  IPC.fonts.import,
+  IPC.fonts.remove,
+  IPC.fonts.read,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

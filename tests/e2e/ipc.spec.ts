@@ -119,6 +119,7 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.list': [[42], ['../'], ['C:\\'], [null]],
   'resources.fontProviders': [[], [42], ['x'.repeat(600)]],
   'resources.fallbackFont': [[1]],
+  'resources.unihexTables': [[], ['assets/minecraft/font/unifont.zip'], ['../x.zip', []], ['C:\\x.zip', []], ['assets/minecraft/font/unifont.zip', [{ from: -1, to: 1, left: 0, right: 1 }]], ['assets/minecraft/font/unifont.zip', 'all']],
   'resources.detectMinecraft': [[1], ['C:\\Games']],
   'resources.setVanilla': [[], [null], [{ consent: 'yes' }], [{ dir: 'C:\\Games' }], [{ enabled: true }, 'x']],
   // 合法的 chooseGameDir、addPack 会弹对话框，这里只有畸形参数
@@ -221,6 +222,11 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true, output: 'x'.repeat(1_000_001) }],
     [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true }, 'extra'],
   ],
+  // 合法的 fonts.import 会弹文件对话框，这里只有畸形参数；读、删只接受 user:<32 位十六进制>，拼不出目录外的路径
+  'fonts.list': [[1]],
+  'fonts.import': [[1], ['C:\\x.ttf']],
+  'fonts.remove': [[], ['user:../../x'], ['minecraft:default'], [42]],
+  'fonts.read': [[], ['user:../../x'], ['user:0123'], ['C:\\Windows\\Fonts\\arial.ttf'], [null]],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],

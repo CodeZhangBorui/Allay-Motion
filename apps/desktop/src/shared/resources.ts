@@ -127,6 +127,7 @@ export interface FontProvidersResult {
   providers: (
     | { type: 'bitmap'; file: string; ascent: number; height: number; rows: number[][] }
     | { type: 'space'; advances: [number, number][] }
+    | { type: 'unihex'; file: string; overrides: UnihexOverrideInfo[] }
   )[];
   skipped: string[];
 }
@@ -166,6 +167,38 @@ export interface CacheUsage {
 
 export const ResourcePathSchema = z.string().min(1).max(1024).refine(isSafeRelativePath, { message: 'unsafe resource path' });
 export const ResourceIdSchema = z.string().min(1).max(512);
+/** unihex 提供器的 size_overrides（码位范围和左右列） */
+export interface UnihexOverrideInfo {
+  from: number;
+  to: number;
+  left: number;
+  right: number;
+}
+export const UnihexOverridesSchema = z
+  .array(z.strictObject({ from: z.int().min(0).max(0x10ffff), to: z.int().min(0).max(0x10ffff), left: z.int().min(-64).max(64), right: z.int().min(-64).max(64) }))
+  .max(1024);
+/** 用户导入的字体：user:<sha256 前 32 位> */
+export const UserFontIdSchema = z.string().regex(/^user:[0-9a-f]{32}$/);
+export interface UserFontInfo {
+  id: string;
+  name: string;
+  format: 'ttf' | 'otf' | 'woff' | 'woff2' | 'bdf';
+}
+export type ImportFontResult = { ok: true; font: UserFontInfo } | { ok: false; error: 'unsupported' | 'too-large' | 'unreadable' } | { canceled: true };
+/** fonts.read 的结果：BDF 已解析成字形表，矢量字体是原样字节 */
+export type UserFontData =
+  | { kind: 'bdf'; ascent: number; descent: number; codepoints: Uint32Array; metrics: Int16Array; offsets: Uint32Array; bits: Uint8Array }
+  | { kind: 'vector'; data: Uint8Array };
+/** resources.unihexTables 的结果：Unifont 的字形表 */
+export interface UnihexTablesInfo {
+  ascent: number;
+  descent: number;
+  oversample: number;
+  codepoints: Uint32Array;
+  metrics: Int16Array;
+  offsets: Uint32Array;
+  bits: Uint8Array;
+}
 /** 音效事件 ID：命名空间:路径（路径里可以有点），例如 minecraft:block.stone.place */
 export const SoundEventIdSchema = z.string().min(3).max(256).regex(/^[a-z0-9_.-]+:[a-z0-9_./-]+$/);
 export const ResourcePrefixSchema = z.string().max(1024).refine((p) => p === '' || isSafeRelativePath(p.replace(/\/$/, '')), { message: 'unsafe prefix' });

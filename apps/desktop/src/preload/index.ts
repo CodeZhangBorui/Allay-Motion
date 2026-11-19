@@ -66,6 +66,7 @@ const api = {
     list: invoke(IPC.resources.list),
     fontProviders: invoke(IPC.resources.fontProviders),
     fallbackFont: invoke(IPC.resources.fallbackFont),
+    unihexTables: invoke(IPC.resources.unihexTables),
     detectMinecraft: invoke(IPC.resources.detectMinecraft),
     setVanilla: invoke(IPC.resources.setVanilla),
     chooseGameDir: invoke(IPC.resources.chooseGameDir),
@@ -136,6 +137,12 @@ const api = {
     cancel: invoke(IPC.updates.cancel),
     install: invoke(IPC.updates.install),
     onChanged: subscribe<UpdateState>(IPC.updates.changed),
+  },
+  fonts: {
+    list: invoke(IPC.fonts.list),
+    import: invoke(IPC.fonts.import),
+    remove: invoke(IPC.fonts.remove),
+    read: invoke(IPC.fonts.read),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),
