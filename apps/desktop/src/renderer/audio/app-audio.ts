@@ -47,15 +47,28 @@ function soundName(id: string): string {
 /**
  * 放不出声的音效：给一条提示（同一组在同一个资源栈下只提示一次）。
  * forCues 为真时（预览播放、导出）同时记进 previewStore，给测试和以后的界面看。
+ * notFetched 是其中“下载缓存的索引里有、只是还没取回”的那些：它们不是找不到，提示里说明怎么取回
+ * （试听或导出前确认，decisions.md M6b；这里只提示，不联网）。
  */
-export function reportMissingSounds(missing: readonly string[], forCues = true): void {
+export function reportMissingSounds(missing: readonly string[], forCues = true, notFetched: readonly string[] = []): void {
   if (forCues) usePreviewStore.getState().setAudioMissing(missing);
   if (missing.length === 0) return;
-  const key = `${bankStamp}|${[...missing].sort().join(',')}`;
+  const key = `${bankStamp}|${[...missing].sort().join(',')}|${[...notFetched].sort().join(',')}`;
   if (notifiedMissing.has(key)) return;
   notifiedMissing.add(key);
-  const list = missing.slice(0, 4).map(soundName).join(i18next.t('templates.listSeparator'));
-  notify('info', i18next.t('audio.missing', { count: missing.length, list }));
+  const names = (ids: readonly string[]) => ids.slice(0, 4).map(soundName).join(i18next.t('templates.listSeparator'));
+  const remote = missing.filter((id) => notFetched.includes(id));
+  const gone = missing.filter((id) => !notFetched.includes(id));
+  if (gone.length > 0) notify('info', i18next.t('audio.missing', { count: gone.length, list: names(gone) }));
+  if (remote.length > 0) notify('info', i18next.t('audio.notFetched', { count: remote.length, list: names(remote) }));
+}
+
+/** missing 里哪些事件只是“还没取回”：它选定的变体文件在下载缓存的索引里（状态 remote）。只查状态，不取回 */
+async function notFetchedEvents(cues: readonly AudioCue[], missing: readonly string[]): Promise<string[]> {
+  const candidates = cues.filter((c) => missing.includes(c.sound) && c.variant);
+  if (candidates.length === 0) return [];
+  const states = await soundFileStates(candidates.map((c) => c.variant!.file), false);
+  return missing.filter((id) => candidates.some((c) => c.sound === id && states[c.variant!.file] === 'remote'));
 }
 
 /** 预览播放和试听共用的实时上下文（第一次需要时才建，48 kHz：与离线混音同一个采样率） */
@@ -109,7 +122,7 @@ class PreviewAudio {
       if (t.playing) this.restart(t.time);
     });
     useUiStore.subscribe((s, prev) => {
-      if (s.settings.editor.muted === prev.settings.editor.muted) return;
+      if (s.settings.editor.muted === prev.settings.editor.muted && s.settings.editor.spatialAudio === prev.settings.editor.spatialAudio) return;
       const t = useTransportStore.getState();
       if (s.settings.editor.muted) this.stop();
       else if (t.playing) this.restart(t.time);
@@ -154,8 +167,9 @@ class PreviewAudio {
 
   private async begin(cues: readonly AudioCue[], requested: number, token: number): Promise<void> {
     const prepared = await soundBank.prepare(cues);
+    const notFetched = prepared.missing.length > 0 ? await notFetchedEvents(cues, prepared.missing) : [];
     if (token !== this.token) return;
-    reportMissingSounds(prepared.missing);
+    reportMissingSounds(prepared.missing, true, notFetched);
     if (prepared.voices.length === 0) return;
     const c = context();
     const transport = useTransportStore.getState();
@@ -165,7 +179,7 @@ class PreviewAudio {
     const gain = c.createGain();
     gain.connect(c.destination);
     const startAt = c.currentTime + 0.01;
-    const sources = scheduleCues(c, gain, prepared.voices, { from, startAt, until: transport.duration });
+    const sources = scheduleCues(c, gain, prepared.voices, { from, startAt, until: transport.duration, spatial: useUiStore.getState().settings.editor.spatialAudio });
     this.session = { gain, sources, from, startAt };
   }
 

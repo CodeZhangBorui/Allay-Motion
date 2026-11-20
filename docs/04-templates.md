@@ -87,6 +87,7 @@ interface ParamBase {
 | `duration` | 秒 | `default` `min` `max` | 数字框，同时显示帧数，吸附到帧 |
 | `angle` | 度 | `default` `snap?` | 方向盘 |
 | `seed` | 整数 | `default` | 数字框 + 骰子按钮 |
+| `font` | `{ family, bold, italic, underline, strikethrough, shadow, outline }` | `default`（至少给 `family`） | 字体族下拉（游戏字体、内嵌字体、系统字体、导入的字体、“导入字体…”）+ 内嵌字体的“强制使用 Unicode 字体”开关 + 样式开关 + 描边颜色 |
 
 **enum 的图案选择器**（可选的界面提示，只影响属性面板的画法，不影响参数的值和校验）：在 enum 参数上写 `ui: 'pattern'`，并给每个选项一个 `pattern`——16 个 0–1 之间的数，按行从左上到右下对应一个 4×4 的小格，表示这一格出现的先后（0 最先）。控件把每个选项画成一个小方格图，越早出现越亮，当前项的名称显示在右上。`pattern` 必须正好 16 个、每个在 0–1 之间；声明了 `ui: 'pattern'` 却有选项缺 `pattern` 时 manifest 不合法（T-TPL-1 有夹具）。适合“顺序”“图案”这类能画成一张小图的选项；没声明的照旧走分段控件或下拉。
 
@@ -96,6 +97,7 @@ interface ParamBase {
 - `text` 的 `default` 是多语言时，新建工程按界面语言取一次，之后值就是普通字符串。
 - `visibleWhen` 只做界面显隐，不影响值。
 - 模板有 `seed` 参数时，`ctx.random` 以它为种子。
+- `font`（2026-11 加入）：`family` 是资源栈里的字体 ID（`minecraft:default`、`minecraft:uniform`、`minecraft:alt`、`minecraft:illageralt` 或资源包自己的字体）、`system:sans`（系统字体；旧工程里的 `allay:fallback` 读成它）、`user:<sha256 前 32 位>`（用户导入、复制在 `userData/fonts/` 的字体文件），或随应用内嵌的 GNU Unifont 的两种模式：`embedded:default`（普通模式：Mojangles 优先，它没有的字形如中文用内嵌 Unifont）和 `embedded:uniform`（强制 Unicode 模式：所有字形都用内嵌 Unifont）。两种模式都不用资源栈里的 unihex，中日韩字形不随原版素材和机器变化；内嵌 Unifont 也没有的字形落到系统字体；没有原版素材时普通模式等于全部用 Unifont。属性面板里两者是一项加一个“强制使用 Unicode 字体”开关。字体文件只有一份，由宿主读取、经资源通道交给引擎 Worker，模板包里不带（docs/decisions.md“内嵌 Unifont 与两种字体模式”）。清洗时逐个字段检查，坏的字段取默认值的那一项；`outline` 是 `#RRGGBB` 或 `null`。值原样交给 `ctx.text.create({ font })`。属性面板里的字体名不用该字体预览（应用自己的界面不用游戏字体，`09-compliance.md` 9.3）。
 
 ## 4.5 运行时契约
 
@@ -123,6 +125,7 @@ export interface SetupContext {
 
   resources: {
     texture(id: string): Promise<THREE.Texture>;                           // 已设好过滤和色彩空间
+    texture(id: string, opts: { optional: true }): Promise<THREE.Texture | null>;   // 没有时是 null、不记警告（按版本依次试路径）
     block(id: string, opts?: { shading?: boolean }): Promise<BlockHandle>;
     item(id: string): Promise<ItemHandle>;
   };
@@ -157,7 +160,10 @@ export interface ItemHandle { single(): THREE.Object3D }   // 高度为 1，厚�
 export interface TextOptions {
   text: string; size: number;                  // size 是一个字体像素对应多少设计单位
   color?: string; shadow?: boolean; align?: 'left' | 'center' | 'right'; maxWidth?: number;
+  font?: string | FontStyle;                   // 字体族 ID 或 font 参数的值；对象里写了的样式优先
+  bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean; outline?: string | null;
 }
+export interface FontStyle { family: string; bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean; shadow?: boolean; outline?: string | null }
 export interface TextObject { object: THREE.Object3D; width: number; height: number; setOpacity(a: number): void }
 export interface SpriteOptions { nineSlice?: [number, number, number, number]; pixelSize?: number }
 export interface SpriteObject { object: THREE.Object3D; setSize(w: number, h: number): void; setOpacity(a: number): void }
@@ -218,6 +224,7 @@ export default {
 
 - 只存与默认值不同的参数。加载时缺的用默认值补，多的丢弃。
 - 模板升级后预设照常可用，参数经校验函数清洗。
+- 模板可以在 manifest 的 `presets` 里自带预设（`[{ key, name, params }]`，最多 32 个，params 只能引用本模板的参数）。界面的预设菜单里排在用户预设前面，套用方式相同，不能导出（2026-11，见 `decisions.md`“方块排列顺序”）。
 
 **派生模板**：
 
@@ -252,13 +259,16 @@ export default {
 ```
 packages/templates/<name>/
   manifest.json
-  src/index.ts        只允许从 @allay/template-sdk 做类型导入，以及导入本目录内的文件
+  src/index.ts        只允许从 @allay/template-sdk 做类型导入，以及导入本目录和 _lib 里的文件
   assets/
+packages/templates/_lib/
+  src/                内置模板共用的源码（时间余量、界面像素布局、闭式粒子），不是模板
 ```
 
 - `scripts/build-templates.ts` 用 esbuild 把每个模板打成单文件 ESM（不留任何 import），连同 manifest 和 assets 打成 `.allaytpl`，输出到 `resources/templates/`。
 - 应用启动时把 `resources/templates/` 当作只读的模板来源。内置模板走和用户模板相同的装载路径，只跳过 4.8 的第 1、3 步（体积和导入检查已经在构建时保证）。
 - 用 lint 规则禁止内置模板导入 `three` 的运行时或引擎内部模块。
+- 共用的源码放在 `packages/templates/_lib/`（2026-11，`docs/template-catalog.md` P1）：模板用相对路径导入，esbuild 把用到的函数并进那个模板的单文件产物，产物里仍然没有任何 import。它只是源码层面的复用，不是新的运行时接口：`_lib` 和模板一样只能用 `ctx` 给的东西，用户模板想要同样的函数可以照抄。名字以 `_` 开头的目录不打包；模板之间不能互相导入（lint 和构建脚本各拦一次）。
 
 ## 4.10 六个内置模板
 
@@ -343,25 +353,40 @@ packages/templates/<name>/
 
 ### T4 加载界面 `allay.builtin.loading-screen`（转场）
 
-整屏平铺的压暗方块贴图，中间一行标题、一行副标题、一条进度条。进度条在停留阶段从 0 走到 100%。
+按游戏里的样子还原加载画面（2026-11 反馈），`style` 选版本样式；`custom` 保留最初的自由排版。除 `custom` 外，布局以界面像素计：一个界面像素 = `guiScale` 个设计单位，界面宽高 = 舞台宽高 / `guiScale`，坐标的整数截断照游戏代码。进度（进度条、百分比、区块图）在停留阶段从 0 走到 100%。`cutTime = inDuration + hold × cutAt`。
 
-- 背景：`block` 的贴图以 `tileSize` 平铺，颜色乘以 `dim`。
-- 进出方式 `inStyle` / `outStyle`：`fade`、`slideUp`、`dissolve`（按 T5 的像素阈值方式出现）。
-- 文字用位图字，带阴影，居中。字号由 `textScale` 决定。
-- `cutTime = inDuration + hold × cutAt`。
+“依据”一栏里，“凭记忆”是实现者对反编译游戏代码的记忆，开发时没能联网核对；“经搜索摘要确认”是开发时用网络搜索查到的 Minecraft Wiki 摘要。都没有和游戏的实际画面逐帧对照过（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）。
+
+| `style` | 对应的游戏版本 | 画面 | 依据 |
+|---|---|---|---|
+| `javaClassic` | Java 版 Beta–1.13（进度条只到 1.2.5） | 泥土背景（32 界面像素一格、0x404040）；标题在 `h/2 − 4 − 16`，副标题在 `h/2 − 4 + 8`，白字带阴影居中；进度条 100 × 2，在 `h/2 + 16`，底 0x808080、进度 0x80FF80 | `LoadingScreenRenderer`（凭记忆）；1.3.1 之前有进度条、12w25a 起只剩文字（经搜索摘要确认） |
+| `javaChunks` | Java 版 1.14–1.20.4 | 泥土背景；百分比在 `h/2 − 4 − 30`；区块状态图 35 × 35、每块 2 × 2，以 `(w/2, h/2 + 30)` 为中心，带 1 像素黑边 | `LevelLoadingScreen`（凭记忆）；35 × 35 和部分阶段颜色（空 #545454、结构起点 #999999、结构引用 #5F6191、生物群系 #80B252、噪声 #D1D1D1、地表 #726809、雕刻 #303572）、黑边在 24w19a 去掉（经搜索摘要确认）；其余阶段颜色凭记忆 |
+| `javaChunksModern` | Java 版 1.20.5–1.21.8（24w09a–1.21.8） | 模糊的全景图（`gui/title/background/panorama_0–5`）加 `gui/menu_background`；区块图没有黑边 | 24w09a 起背景换成模糊、压暗的标题画面全景图，24w19a 去掉黑边（经搜索摘要确认）；模糊是近似（高一级 mipmap 加 9 点平均），不是游戏的高斯模糊 |
+| `javaTerrain` | Java 版“正在加载地形……”（进服务器、换维度） | 文字在 `h/2 − 50`；`background` 可选方块平铺、全景图、下界传送门（贴图拉伸铺满）、末地传送门（天空加 15 层传送门图案） | 穿过下界、末地传送门时用对应的动画贴图做背景（经搜索摘要确认，具体从哪个版本开始没查到）；末地传送门的层颜色和变换照 `rendertype_end_portal` 着色器（凭记忆） |
+| `javaSplash` | Java 版 1.16 起的资源加载画面；`monochrome` 是 1.17（21w13a）起的“单色标志” | 底色 0xEF323D（单色为黑）；标志按 `LoadingOverlay` 的尺寸分左右两半画（`gui/title/mojangstudios`）；白色进度条在 `h × 0.8325`；退出时先淡出进度条、再淡出背景和标志（游戏里各 1 秒，这里把 `outDuration` 对半分） | `LoadingOverlay`（凭记忆）；单色标志的版本（经搜索摘要确认）；游戏里标志是加法混合，这里按亮度当覆盖率普通混合，红底上结果相同 |
+| `bedrock` | 基岩版的世界加载（**近似**） | 全景图背景，中间深色框里“正在构建地形”，经验条样式的进度条（`hud/experience_bar_*`），下面一行提示 | 基岩版用菜单全景图、经验条样式的进度条、加载提示，“Building terrain”框里带标志（经搜索摘要确认）；框和条的尺寸、位置、颜色是估的，框里没有画标志；基岩版的界面贴图不在 Java 版的游戏文件里，用 Java 版的经验条贴图代替 |
+| `custom` | — | 最初的样子：`tileSize`、`dim`、`textScale` 自由调 | — |
+
+区块图的动画是按“离中心越远越晚、外圈停在较低阶段”合成的，不是游戏的真实生成顺序（那取决于世界）。
+
+没有做的：Java 版 1.21.9（25w31a）起区块图下面新加的进度条（没查到它的样子）；基岩版更精确的版式；1.14–1.15 的白底旧标志（新版本的游戏文件里没有那张贴图）。
 
 | 参数 | 类型 | 默认 | 范围 / 选项 |
 |---|---|---|---|
-| `block` | block | `minecraft:dirt` | — |
-| `dim` | number | 0.25 | 0.05–1 |
-| `tileSize` | number | 128 | 32–360 |
-| `title` | text | “正在加载世界” / “Loading world” | 最长 40 字 |
-| `subtitle` | text | “正在生成地形…” / “Building terrain…” | 最长 60 字，可为空 |
+| `style` | enum | `javaClassic` | 见上表 |
+| `guiScale` | number | 4 | 1–8，`custom` 以外的样式用 |
+| `background` | enum | `auto` | `auto`（按样式）`dirt` `panorama` `netherPortal` `endPortal` |
+| `monochrome` | boolean | false | `javaSplash` 用 |
+| `block` | block | `minecraft:dirt` | 方块平铺背景用 |
+| `dim` / `tileSize` | number | 0.25 / 128 | 0.05–1 / 32–360，`custom` 用 |
+| `title` | text | “正在加载世界” / “Loading world” | 最长 40 字；保持某个样式的默认文字时换成当前样式的那一句 |
+| `subtitle` | text | “正在生成地形…” / “Building terrain…” | 最长 60 字，可为空；同上 |
+| `titleFont` / `subtitleFont` | font | `minecraft:default`，带阴影 | — |
 | `textColor` | color | `#FFFFFF` | 色板 `chat` |
-| `textScale` | number | 5 | 2–12，一个字体像素对应的设计单位 |
+| `textScale` | number | 5 | 2–12，`custom` 用 |
 | `showBar` | boolean | true | — |
-| `barColor` | color | `#55FF55` | 色板 `chat` |
-| `inStyle` / `outStyle` | enum | `fade` / `fade` | `fade` `slideUp` `dissolve` |
+| `barColor` | color | `#55FF55` | `custom` 用 |
+| `inStyle` / `outStyle` | enum | `fade` / `fade` | `fade` `slideUp` `dissolve`（溶解只对方块平铺背景）；`javaSplash` 固定照游戏淡出 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.3 / 0.9 / 0.3 | 0.1–2 / 0.2–5 / 0.1–2 |
 | `cutAt` | number | 0.5 | 0–1 |
 | `seed` | seed | 1 | 仅 `dissolve` 用 |
@@ -394,27 +419,38 @@ packages/templates/<name>/
 
 ### T6 进度提示 `allay.builtin.advancement-toast`（叠加层）
 
-屏幕一角滑入一个提示框：左边一个物品图标，右边两行字。停留后滑出。没有剪辑点，`cutTime` 为 `null`。
+屏幕一角滑入一个提示框：左边一个物品图标，右边两行字。停留后滑出。没有剪辑点，`cutTime` 为 `null`。2026-11 起按游戏还原（“依据”的含义同 T4）：
 
-- 面板是九宫格贴图，原生尺寸 160×32 界面像素。贴图 ID `minecraft:gui/sprites/toast/advancement`，资源栈里没有时用内置层自制的版本。
-- 一个界面像素对应 `guiScale` 个设计单位。
-- 图标是物品（或方块）的缩略渲染，放在面板左侧 8 像素处，16×16 界面像素。
-- 标题行颜色由 `frame` 决定的默认值可被 `headerColor` 覆盖。
+| `style` / `kind` | 对应的游戏版本 | 画面与动画 | 依据 |
+|---|---|---|---|
+| `java` + `advancement` | Java 版 1.12 起 | 面板 `gui/sprites/toast/advancement`（160 × 32，1.20.2 起的路径），图标在 (8, 8)，文字在 x = 30，两行在 y = 7、18，不带阴影；类型行颜色：进度、目标 0xFFFF00，挑战 0xFF88FF；标题超过 125 界面像素时换行：前 1.5 秒只显示类型行（1.2–1.5 秒淡出），之后标题各行在 0.3 秒里淡入、竖直居中、行距 9 | `AdvancementToast`（凭记忆）；三种类型的文字和颜色、挑战音效（经搜索摘要确认） |
+| `java` + `recipe` | Java 版 1.12 起 | `toast/recipe`；“新配方已解锁！”0x500050、“查看你的配方书”黑色 | `RecipeToast`（凭记忆） |
+| `java` + `system` | Java 版 1.12 起 | `toast/system`，没有图标，文字从 x = 18 开始，类型行 0xFFFF00、正文白色，面板按文字加宽 | `SystemToast`（凭记忆） |
+| `java` 的动画 | 同上 | 从右边缘水平滑入，在画面上的比例 = (经过时间 / 0.6 s)²；滑出是 1 − (经过时间 / 0.6 s)²；进度提示从出现起 5 秒后开始滑出（默认 `inDuration` 0.6、`hold` 4.4、`outDuration` 0.6）；贴着右上角，没有边距；滑入放 `ui.toast.in`，开始滑出放 `ui.toast.out`，挑战另在开头放 `ui.toast.challenge_complete` | `ToastManager` / `ToastComponent`（凭记忆） |
+| `javaAchievement` | Java 版 1.11 及更早（成就） | “获得成就！”黄字（0xFFFF00）、成就名白字；从顶上落下：共 3 秒，进出各 1/8（0.375 s），位移 36 × (1 − 进度)⁴ 界面像素；游戏里没有音效 | `GuiAchievement`（凭记忆）；成就框贴图 `achievement_background.png` 新版本的游戏文件里没有，用同尺寸的进度提示框代替 |
+
+没有做的：基岩版的提示（只查到支持 Xbox 通知的设备上用系统通知，没查到游戏内提示框的版式）；教程提示（`toast/tutorial`，带进度条和按键图标）。
 
 | 参数 | 类型 | 默认 | 范围 / 选项 |
 |---|---|---|---|
-| `icon` | item | `minecraft:diamond` | — |
+| `style` | enum | `java` | `java` `javaAchievement` |
+| `kind` | enum | `advancement` | `advancement` `recipe` `system`（`java` 样式） |
 | `frame` | enum | `task` | `task` `goal` `challenge` |
-| `header` | text | “进度已达成！” / “Advancement Made!” | 最长 24 字 |
-| `title` | text | “钻石！” / “Diamonds!” | 最长 28 字 |
-| `headerColor` | color | `#FFFF55` | 色板 `chat` |
-| `titleColor` | color | `#FFFFFF` | 色板 `chat` |
+| `icon` | item | `minecraft:diamond` | — |
+| `header` | text | “进度已达成！” / “Advancement Made!” | 最长 40 字；保持游戏里的某一句默认文字时按类型换成对应的那一句 |
+| `title` | text | “钻石！” / “Diamonds!” | 最长 60 字 |
+| `headerColor` / `titleColor` | color | `#FFFF00` / `#FFFFFF` | 保持默认值时按类型取游戏里的颜色 |
+| `headerFont` / `titleFont` | font | `minecraft:default`，不带阴影 | — |
 | `anchor` | enum | `topRight` | `topRight` `topLeft` `bottomRight` `bottomLeft` |
 | `guiScale` | integer | 4 | 2–10 |
-| `margin` | number | 0 | 0–120，离屏幕边缘的距离 |
-| `inDuration` / `hold` / `outDuration` | duration | 0.25 / 2.5 / 0.25 | 0.1–1 / 0.5–10 / 0.1–1 |
-| `sound` | sound | `minecraft:ui.toast.in` | — |
+| `margin` | number | 0 | 0–120 |
+| `inDuration` / `hold` / `outDuration` | duration | 0.6 / 4.4 / 0.6 | 0.1–1 / 0.5–10 / 0.1–1 |
+| `sound` / `outSound` / `challengeSound` | sound | `minecraft:ui.toast.in` / `minecraft:ui.toast.out` / `minecraft:ui.toast.challenge_complete` | — |
 | `volume` | number | 0.8 | 0–1 |
+
+### 其余内置模板
+
+内置模板计划做到 100 个（`docs/template-catalog.md`）。上面六个之外的不在这里逐个写：每个模板的画面、参数表、依据和没做的写在 `docs/templates/<名字>.md`，各批次的决定和偏差写在 `docs/templates/batch-<批号>.md`。4.3–4.9 的规则对它们同样适用。
 
 ## 4.11 验收测试
 
@@ -428,3 +464,15 @@ packages/templates/<name>/
 | T-TPL-6 | 安装校验：带 import 的脚本、路径穿越、超大包、冒用 `allay.` 前缀、基模板缺失 | 各自被拒绝并返回对应错误码 |
 | T-TPL-7 | 派生模板：覆盖默认值、隐藏参数、引用自带图片 | 装载结果符合 4.7 |
 | T-TPL-8 | 预设保存后再加载；模板升级增删参数后加载旧预设 | 参数一致；多余的丢弃、缺的补默认值 |
+| T-FNT-1 | 字体定义里的 unihex 提供器和 filter | unihex 记下 zip 路径和 size_overrides；要求 uniform / jp 打开的提供器和 reference 跳过 |
+| T-FNT-2 | Unifont 的 .hex 解析 | 宽度按墨迹（或覆盖），前进宽度 floor(列数 / 2) + 1 个字体像素，同一码位先出现的胜出 |
+| T-FNT-3 | 主进程从资源栈的 zip 里读 unihex 字形表 | 读出全部 .hex；条目名不安全的 zip 整个拒绝 |
+| T-FNT-4 | 用户导入字体 | 按文件头认格式，复制进 `userData/fonts/` 并按内容哈希命名；认不出的文件、目录外的 ID 被拒绝 |
+| T-FNT-5 | 内嵌 Unifont 的 OTF 还原成点阵 | 版本 18.0.01、哈希与来源登记一致；字形与 .hex 逐位相同；全宽区间的中文前进 9 像素；两次解析逐字节相同 |
+| T-FNT-6 | 两种字体模式的字形来源 | 普通模式：ASCII 取原版 bitmap、中文取内嵌 Unifont（不用资源栈的 unihex）；强制 Unicode 模式全部取内嵌 Unifont；没有原版素材时普通模式等于全部 Unifont；内嵌也没有的落到系统字体 |
+| T-FNT-7 | 内嵌 Unifont 文字的确定性 | 同一输入两次栅格化逐字节相同，硬边像素 |
+| T-FNT-8 | 内嵌字体族 ID | `embedded:` 只认 `default`、`uniform`；参数清洗保留它们 |
+| T-FNT-9 | 内嵌 Unifont 只加载一次 | 主进程第一次调用才读文件；引擎换资源栈也不再要；不用时不要 |
+| T-FNT-10 | 文字对象与缓存 | 两种模式的宽度符合预期、缓存键分开；宿主没有内嵌字体时退回 `minecraft:default` 并警告 |
+| T-FNT-11 | 安装包里的字体 | Windows、macOS 包里字体文件有且只有一份 `fonts/unifont/unifont-18.0.01.otf`，旁边是 `OFL.txt` |
+| T-FNT-12 | 引擎里的两种模式（导出路径） | 有无原版素材时两种模式的文字尺寸符合预期；同一画面画两次逐点相同 |

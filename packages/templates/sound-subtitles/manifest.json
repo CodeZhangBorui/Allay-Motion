@@ -1,0 +1,51 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.sound-subtitles",
+  "version": "1.0.0",
+  "name": { "zh-CN": "声音字幕", "en": "Subtitles" },
+  "description": {
+    "zh-CN": "右下角的黑底字幕框，一条声音一行，行首行尾的 < > 指出声源方向；新的叠在上面，旧的由白变灰后消失。",
+    "en": "A black subtitle box at the lower right with one line per sound and < > arrows pointing toward the source; new lines stack on top while old ones dim from white to gray and disappear."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "subtitles"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版 1.9 加入的字幕框。基岩版的隐藏式字幕（在聊天的对侧、聊天的样式）没有做", "en": "The subtitle box Java added in 1.9. Bedrock closed captions (chat-styled, opposite the chat) are not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版 1.9 起", "en": "Java 1.9+" } }] },
+    { "key": "lines", "type": "text", "label": { "zh-CN": "字幕", "en": "Subtitles" }, "hint": { "zh-CN": "一行一条，最多 10 条。行尾加空格和 < 或 > 表示声音来自左边或右边，不加表示在正面", "en": "One per line, up to 10. End a line with a space and < or > for a sound from the left or right; nothing for a sound in front" }, "group": "content", "default": { "zh-CN": "苦力怕：嘶~ <\n脚步声\n僵尸：低吼 >\n骷髅：咯咯声 <\n箱子：开启", "en": "Creeper hisses <\nFootsteps\nZombie groans >\nSkeleton rattles <\nChest opens" }, "maxLength": 600, "multiline": true },
+    { "key": "interval", "type": "duration", "label": { "zh-CN": "字幕间隔", "en": "Interval" }, "hint": { "zh-CN": "相邻两条字幕出现的时间差", "en": "Time between one subtitle and the next" }, "group": "content", "default": 0.8, "min": 0.05, "max": 10 },
+    { "key": "lifetime", "type": "duration", "label": { "zh-CN": "字幕显示多久", "en": "Subtitle lifetime" }, "hint": { "zh-CN": "每条字幕从出现到消失的时间，期间由白变灰；游戏里默认 3 秒", "en": "How long each subtitle stays while dimming from white to gray; 3 s by default in the game" }, "group": "content", "default": 3, "min": 0.5, "max": 30 },
+    { "key": "side", "type": "enum", "label": { "zh-CN": "位置", "en": "Side" }, "hint": { "zh-CN": "游戏里在右下；左下是镜像过来的，给右边被别的东西占着的画面用", "en": "Lower right in the game; lower left is mirrored for footage whose right side is occupied" }, "group": "layout", "default": "right", "options": [{ "value": "right", "label": { "zh-CN": "右下（游戏里的位置）", "en": "Lower right (as in the game)" } }, { "value": "left", "label": { "zh-CN": "左下", "en": "Lower left" } }] },
+    { "key": "bgOpacity", "type": "number", "label": { "zh-CN": "背景不透明度", "en": "Background opacity" }, "hint": { "zh-CN": "黑底的不透明度；游戏里是 80%", "en": "Opacity of the black box; 80% in the game" }, "group": "layout", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）；字幕框放不下时自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto); shrinks automatically when the box does not fit" }, "group": "layout", "default": 5, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "font", "type": "font", "label": { "zh-CN": "字体", "en": "Font" }, "hint": { "zh-CN": "字幕文字默认不带阴影", "en": "Subtitle text has no shadow by default" }, "group": "text", "default": { "family": "embedded:default", "shadow": false } },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "整体淡入。游戏里字幕是直接出现的，这里淡入是为了盖到视频上时不突兀", "en": "Overall fade in. The game shows subtitles instantly; the fade keeps the overlay from popping onto the footage" }, "group": "timing", "default": 0.2, "min": 0.05, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "hint": { "zh-CN": "字幕在这段时间里按间隔出现、到时间消失", "en": "Subtitles appear at the interval and expire during this time" }, "group": "timing", "default": 5, "min": 0.5, "max": 26 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "hint": { "zh-CN": "整体淡出，还没到时间的字幕在这里一起消失", "en": "Overall fade out; subtitles still showing disappear here together" }, "group": "timing", "default": 0.2, "min": 0.05, "max": 2 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "提示音", "en": "Cue sound" }, "hint": { "zh-CN": "每条字幕出现时播放。字幕对应的声音本来在你的视频里，一般留空", "en": "Plays when each subtitle appears. The sounds the subtitles describe are in your own footage, so this is usually left empty" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "game-lifetime", "name": { "zh-CN": "游戏原始时长（一条 3 秒）", "en": "Game lifetime (one line, 3 s)" }, "params": { "lines": "箱子：开启", "lifetime": 3, "inDuration": 0.2, "hold": 2.7, "outDuration": 0.2 } },
+    { "key": "cave", "name": { "zh-CN": "洞穴里", "en": "In a cave" }, "params": { "lines": "僵尸：低吼 <\n骷髅：咯咯声 >\n脚步声\n箭：被射出 >\n玩家：受伤", "interval": 0.7, "hold": 4.6 } },
+    { "key": "explosion", "name": { "zh-CN": "身边爆炸", "en": "Explosion nearby" }, "params": { "lines": "苦力怕：嘶~ <\n爆炸 <\n玩家：受伤", "interval": 1.5, "hold": 4.6 } },
+    { "key": "level-up", "name": { "zh-CN": "获得经验并升级", "en": "Experience and level up" }, "params": { "lines": "获得经验\n玩家：升级", "interval": 0.6, "hold": 3, "sound": "minecraft:entity.experience_orb.pickup" } },
+    { "key": "custom-caption", "name": { "zh-CN": "自编字幕（左下）", "en": "Custom captions (lower left)" }, "params": { "lines": "主播：倒吸一口凉气\n队友：憋笑 >\n键盘：噼里啪啦", "interval": 1, "side": "left", "hold": 4.2 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"font": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

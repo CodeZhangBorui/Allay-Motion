@@ -68,8 +68,12 @@ export function payloadBuffers(payload: ResourcePayload): ArrayBuffer[] {
   const views: ArrayBufferView[] = [];
   if (payload.kind === 'rgba') views.push(payload.data);
   else if (payload.kind === 'font') {
-    for (const p of payload.providers) if (p.type === 'bitmap') views.push(p.image.data);
+    for (const p of payload.providers) {
+      if (p.type === 'bitmap') views.push(p.image.data);
+      else if (p.type === 'glyphs') views.push(p.codepoints, p.metrics, p.offsets, p.bits);
+    }
   } else if (payload.kind === 'bdf') views.push(payload.codepoints, payload.metrics, payload.offsets, payload.bits);
+  else if (payload.kind === 'vector') views.push(payload.data);
   // 'sound'（音效变体表）是普通对象，没有可转移的缓冲
   const set = new Set<ArrayBuffer>();
   for (const v of views) if (v.buffer instanceof ArrayBuffer) set.add(v.buffer);

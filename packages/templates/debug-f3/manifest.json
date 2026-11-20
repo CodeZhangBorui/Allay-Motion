@@ -1,0 +1,57 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.debug-f3",
+  "version": "1.0.0",
+  "name": { "zh-CN": "调试屏幕", "en": "Debug Screen" },
+  "description": {
+    "zh-CN": "按 F3 出现的左右两栏调试文字，每行垫着半透明灰底；坐标、朝向和帧率按你给的起点和终点随时间变化。",
+    "en": "The two columns of F3 debug text on translucent grey plates; coordinates, facing and frame rate change over time along the route you set."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "debug"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "route", "label": { "zh-CN": "路线", "en": "Route" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" }, "collapsed": true },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版 1.8 到 1.21.8 的调试屏幕。1.21.9 重做后默认显示的行变少，每行的样子没变，改左右栏的文字即可。基岩版没有这个界面", "en": "The Java debug screen from 1.8 to 1.21.8. The 1.21.9 redesign shows fewer lines by default but each line looks the same, so just edit the text. Bedrock has no such screen" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版（1.21.8 及更早）", "en": "Java (up to 1.21.8)" } }] },
+    { "key": "left", "type": "text", "label": { "zh-CN": "左栏", "en": "Left column" }, "hint": { "zh-CN": "每行一条，空行占一行的位置。可用的占位符：{x} {y} {z} 坐标，{bx} {by} {bz} 方块坐标，{cx} {cy} {cz} 区块坐标，{rx} {ry} {rz} 区块内坐标，{facing} {towards} 朝向，{yaw} {pitch} 视角，{fps} 帧率。版本号、内存等固定的内容只是示意，照你的情况改", "en": "One entry per line; an empty line keeps its row. Placeholders: {x} {y} {z} position, {bx} {by} {bz} block, {cx} {cy} {cz} chunk, {rx} {ry} {rz} position within the chunk, {facing} {towards} direction, {yaw} {pitch} rotation, {fps} frame rate. Fixed values such as the version and memory are only examples; edit them to match yours" }, "group": "content", "default": "Minecraft 1.21.1 (1.21.1/vanilla)\n{fps} fps T: 120 vsync fancy-clouds B: 2\n\nXYZ: {x} / {y} / {z}\nBlock: {bx} {by} {bz} [{rx} {ry} {rz}]\nChunk: {cx} {cy} {cz}\nFacing: {facing} (Towards {towards}) ({yaw} / {pitch})", "maxLength": 500, "multiline": true },
+    { "key": "right", "type": "text", "label": { "zh-CN": "右栏", "en": "Right column" }, "hint": { "zh-CN": "靠右对齐；占位符和左栏相同；留空则不显示", "en": "Right-aligned; same placeholders as the left column; leave empty to hide" }, "group": "content", "default": "Java: 21.0.3 64bit\nMem: 43% 880/2048MB\n\nDisplay: 1920x1080", "maxLength": 500, "multiline": true },
+    { "key": "fromX", "type": "number", "label": { "zh-CN": "起点 X", "en": "From X" }, "hint": { "zh-CN": "坐标在停留阶段从起点匀速走到终点；朝向取行进的方向", "en": "The position moves from start to end at constant speed during the stay; the facing follows the travel direction" }, "group": "route", "default": 104.5, "min": -30000000, "max": 30000000, "step": 0.5, "ui": "field" },
+    { "key": "fromY", "type": "number", "label": { "zh-CN": "起点 Y", "en": "From Y" }, "group": "route", "default": 64, "min": -64, "max": 320, "step": 0.5, "ui": "field" },
+    { "key": "fromZ", "type": "number", "label": { "zh-CN": "起点 Z", "en": "From Z" }, "group": "route", "default": -231.5, "min": -30000000, "max": 30000000, "step": 0.5, "ui": "field" },
+    { "key": "toX", "type": "number", "label": { "zh-CN": "终点 X", "en": "To X" }, "group": "route", "default": 121.5, "min": -30000000, "max": 30000000, "step": 0.5, "ui": "field" },
+    { "key": "toY", "type": "number", "label": { "zh-CN": "终点 Y", "en": "To Y" }, "group": "route", "default": 64, "min": -64, "max": 320, "step": 0.5, "ui": "field" },
+    { "key": "toZ", "type": "number", "label": { "zh-CN": "终点 Z", "en": "To Z" }, "group": "route", "default": -228.5, "min": -30000000, "max": 30000000, "step": 0.5, "ui": "field" },
+    { "key": "pitch", "type": "number", "label": { "zh-CN": "俯仰", "en": "Pitch" }, "hint": { "zh-CN": "向下看为正；显示的值在它上下轻微晃动", "en": "Positive looks down; the shown value sways slightly around it" }, "group": "route", "default": 8, "min": -90, "max": 90, "step": 0.5, "unit": "°", "ui": "slider" },
+    { "key": "fpsBase", "type": "integer", "label": { "zh-CN": "帧率", "en": "Frame rate" }, "hint": { "zh-CN": "显示的帧率每秒变一次，在这个值上下浮动约 4%", "en": "The shown frame rate changes once a second, within about 4% of this value" }, "group": "route", "default": 60, "min": 1, "max": 999, "ui": "field" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "hint": { "zh-CN": "决定视角晃动和帧率浮动的样子", "en": "Sets how the rotation sways and the frame rate drifts" }, "group": "route", "default": 3 },
+    { "key": "textColor", "type": "color", "label": { "zh-CN": "文字颜色", "en": "Text color" }, "group": "text", "default": "#E0E0E0", "palette": "chat" },
+    { "key": "bgColor", "type": "color", "label": { "zh-CN": "灰底颜色", "en": "Plate color" }, "hint": { "zh-CN": "每行文字后面的底，带不透明度", "en": "The plate behind each line, with opacity" }, "group": "text", "default": "#50505090", "alpha": true },
+    { "key": "font", "type": "font", "label": { "zh-CN": "字体", "en": "Font" }, "hint": { "zh-CN": "调试屏幕的字不带阴影", "en": "Debug text has no shadow" }, "group": "text", "default": { "family": "embedded:default", "shadow": false } },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）；两栏放不下时会自动整体缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto); everything shrinks when the two columns do not fit" }, "group": "layout", "default": 4, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏里是直接出现", "en": "It appears at once in the game" }, "group": "timing", "default": 0.15, "min": 0.05, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "hint": { "zh-CN": "坐标在这段时间里从起点走到终点", "en": "The position travels from start to end during this time" }, "group": "timing", "default": 4, "min": 0.1, "max": 24 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "group": "timing", "default": 0.15, "min": 0.05, "max": 3 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "walking", "name": { "zh-CN": "在地表行走", "en": "Walking on the surface" }, "params": { "fromX": 104.5, "fromY": 64, "fromZ": -231.5, "toX": 121.5, "toY": 64, "toZ": -228.5, "pitch": 8, "hold": 4 } },
+    { "key": "void-fall", "name": { "zh-CN": "掉进虚空", "en": "Falling into the void" }, "params": { "fromX": 0.5, "fromY": 96, "fromZ": 0.5, "toX": 0.5, "toY": -64, "toZ": 0.5, "pitch": 60, "hold": 3 } },
+    { "key": "fly-up", "name": { "zh-CN": "向上飞", "en": "Flying up" }, "params": { "fromX": 104.5, "fromY": 64, "fromZ": -231.5, "toX": 108.5, "toY": 300, "toZ": -231.5, "pitch": -70, "hold": 5 } },
+    { "key": "coordinates-only", "name": { "zh-CN": "只有坐标", "en": "Coordinates only" }, "params": { "left": "XYZ: {x} / {y} / {z}", "right": "", "guiScale": 6 } },
+    { "key": "nether-travel", "name": { "zh-CN": "下界赶路（坐标除以 8）", "en": "Nether travel (coordinates ÷ 8)" }, "params": { "fromX": 13.063, "fromY": 70, "fromZ": -28.938, "toX": 15.188, "toY": 70, "toZ": -28.563, "pitch": 4, "hold": 4 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"font": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

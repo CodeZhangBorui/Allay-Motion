@@ -5,7 +5,7 @@
 ```
 <name>/
   manifest.json
-  src/index.ts     只允许从 @allay/template-sdk 做类型导入，以及导入本目录内的文件（lint 强制）
+  src/index.ts     只允许从 @allay/template-sdk 做类型导入，以及导入本目录和 _lib 里的文件（lint 和构建脚本强制）
   assets/          可选
 ```
 

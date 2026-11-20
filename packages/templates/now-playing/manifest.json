@@ -1,0 +1,54 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.now-playing",
+  "version": "1.0.0",
+  "name": { "zh-CN": "正在播放", "en": "Now Playing" },
+  "description": {
+    "zh-CN": "唱片机开始播放时的提示：快捷栏上方一行彩虹变色的“正在播放：……”，或 1.21.6 起带跳动音符的音乐提示框。",
+    "en": "The jukebox notice: a rainbow “Now Playing: …” line above the hotbar, or the music toast with bouncing notes added in 1.21.6."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "music"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "动作栏文字：有唱片机的所有 Java 版本。音乐提示框：Java 版 1.21.6 起，需要那个版本之后的原版素材；它的时长请用“音乐提示框”预设。基岩版的样子没有做", "en": "Action bar text: every Java version with jukeboxes. Music toast: Java 1.21.6+, needs vanilla assets from that version on; use the “Music toast” preset for its timing. The Bedrock look is not implemented" }, "group": "layout", "default": "actionbar", "options": [{ "value": "actionbar", "label": { "zh-CN": "动作栏文字", "en": "Action bar text" } }, { "value": "toast", "label": { "zh-CN": "音乐提示框（1.21.6 起）", "en": "Music toast (1.21.6+)" } }] },
+    { "key": "prefix", "type": "text", "label": { "zh-CN": "前缀", "en": "Prefix" }, "hint": { "zh-CN": "曲名前面的字，默认是游戏的原文；留空则只显示曲名", "en": "Text before the track name, the game's own wording by default; leave empty to show the track alone" }, "group": "content", "default": { "zh-CN": "正在播放：", "en": "Now Playing: " }, "maxLength": 40, "visibleWhen": { "key": "style", "equals": "actionbar" } },
+    { "key": "track", "type": "text", "label": { "zh-CN": "曲名", "en": "Track" }, "hint": { "zh-CN": "游戏里的写法是“作者 - 曲名”", "en": "The game writes it as “Artist - Track”" }, "group": "content", "default": { "zh-CN": "曲名 - 作者", "en": "Track - Artist" }, "maxLength": 80 },
+    { "key": "icon", "type": "enum", "label": { "zh-CN": "图标", "en": "Icon" }, "hint": { "zh-CN": "游戏里是跳动的音符；也可以换成一张唱片", "en": "Bouncing notes in the game; a music disc can be shown instead" }, "group": "content", "default": "notes", "options": [{ "value": "notes", "label": { "zh-CN": "音符", "en": "Notes" } }, { "value": "disc", "label": { "zh-CN": "唱片", "en": "Disc" } }], "visibleWhen": { "key": "style", "equals": "toast" } },
+    { "key": "disc", "type": "item", "label": { "zh-CN": "唱片", "en": "Disc" }, "group": "content", "default": "minecraft:music_disc_cat", "visibleWhen": { "key": "icon", "equals": "disc" } },
+    { "key": "rainbow", "type": "boolean", "label": { "zh-CN": "彩虹变色", "en": "Rainbow" }, "hint": { "zh-CN": "游戏里唱片机的这行字会循环变色，每刻换一次颜色", "en": "The jukebox line cycles through colors in the game, changing every tick" }, "group": "text", "default": true, "visibleWhen": { "key": "style", "equals": "actionbar" } },
+    { "key": "color", "type": "color", "label": { "zh-CN": "文字颜色", "en": "Text color" }, "hint": { "zh-CN": "动作栏文字关掉彩虹变色时用", "en": "Used by the action bar text when the rainbow is off" }, "group": "text", "default": "#FFFFFF", "palette": "chat", "visibleWhen": { "key": "rainbow", "equals": false } },
+    { "key": "font", "type": "font", "label": { "zh-CN": "动作栏字体", "en": "Action bar font" }, "hint": { "zh-CN": "游戏里这行字带阴影", "en": "This line has a shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": true }, "visibleWhen": { "key": "style", "equals": "actionbar" } },
+    { "key": "toastColor", "type": "color", "label": { "zh-CN": "提示框文字颜色", "en": "Toast text color" }, "group": "text", "default": "#FFFFFF", "palette": "chat", "visibleWhen": { "key": "style", "equals": "toast" } },
+    { "key": "toastFont", "type": "font", "label": { "zh-CN": "提示框字体", "en": "Toast font" }, "hint": { "zh-CN": "提示框里的字不带阴影", "en": "Toast text has no shadow" }, "group": "text", "default": { "family": "embedded:default", "shadow": false }, "visibleWhen": { "key": "style", "equals": "toast" } },
+    { "key": "anchor", "type": "enum", "label": { "zh-CN": "位置", "en": "Position" }, "hint": { "zh-CN": "提示框贴着哪个角，从那一侧的画面外滑进来", "en": "The corner the toast sits in; it slides in from that side" }, "group": "layout", "default": "topLeft", "options": [{ "value": "topLeft", "label": { "zh-CN": "左上", "en": "Top left" } }, { "value": "topRight", "label": { "zh-CN": "右上", "en": "Top right" } }], "visibleWhen": { "key": "style", "equals": "toast" } },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）", "en": "Design units per GUI pixel (4 for a 1080p window at Auto)" }, "group": "layout", "default": 5, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "hint": { "zh-CN": "动作栏文字：淡入（游戏里是直接出现）。提示框：滑入，游戏里是 0.6 秒", "en": "Action bar text: fade in (it appears at once in the game). Toast: slide in, 0.6 s in the game" }, "group": "timing", "default": 0.1, "min": 0.05, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "group": "timing", "default": 1.9, "min": 0.1, "max": 20 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "hint": { "zh-CN": "动作栏文字：淡出，游戏里是最后 20 刻（1 秒）。提示框：滑出，游戏里是 0.6 秒", "en": "Action bar text: fade out, the last 20 ticks (1 s) in the game. Toast: slide out, 0.6 s in the game" }, "group": "timing", "default": 1, "min": 0.05, "max": 3 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放。默认没有：音乐本身是你视频里的音轨", "en": "Plays at the start. None by default: the music itself is your video's own audio track" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    { "key": "game-actionbar", "name": { "zh-CN": "动作栏文字，游戏的时长（60 刻）", "en": "Action bar text, game timing (60 ticks)" }, "params": { "style": "actionbar", "rainbow": true, "inDuration": 0.1, "hold": 1.9, "outDuration": 1 } },
+    { "key": "music-toast", "name": { "zh-CN": "音乐提示框（显示 5 秒）", "en": "Music toast (5 s)" }, "params": { "style": "toast", "icon": "notes", "anchor": "topLeft", "guiScale": 4, "inDuration": 0.6, "hold": 4.4, "outDuration": 0.6 } },
+    { "key": "disc-toast", "name": { "zh-CN": "带唱片图标的提示框", "en": "Toast with a disc icon" }, "params": { "style": "toast", "icon": "disc", "disc": "minecraft:music_disc_cat", "anchor": "topRight", "guiScale": 4, "inDuration": 0.6, "hold": 4.4, "outDuration": 0.6 } },
+    { "key": "bgm-credit", "name": { "zh-CN": "白色的背景音乐署名", "en": "Plain white BGM credit" }, "params": { "style": "actionbar", "prefix": "BGM: ", "rainbow": false, "color": "#FFFFFF", "inDuration": 0.3, "hold": 5, "outDuration": 1 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"font": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}, "toastFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

@@ -461,6 +461,46 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/optional/code-editor:
+    dependencies:
+      '@allay/host-api':
+        specifier: workspace:*
+        version: link:../../host-api
+      '@codemirror/autocomplete':
+        specifier: ^6.20.4
+        version: 6.20.4
+      '@codemirror/commands':
+        specifier: ^6.11.1
+        version: 6.11.1
+      '@codemirror/lang-javascript':
+        specifier: ^6.2.5
+        version: 6.2.5
+      '@codemirror/lang-json':
+        specifier: ^6.0.2
+        version: 6.0.2
+      '@codemirror/language':
+        specifier: ^6.13.1
+        version: 6.13.1
+      '@codemirror/lint':
+        specifier: ^6.9.8
+        version: 6.9.8
+      '@codemirror/search':
+        specifier: ^6.7.2
+        version: 6.7.2
+      '@codemirror/state':
+        specifier: ^6.7.6
+        version: 6.7.6
+      '@codemirror/view':
+        specifier: ^6.43.15
+        version: 6.43.15
+      '@lezer/highlight':
+        specifier: ^1.2.5
+        version: 1.2.5
+    devDependencies:
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/template-sdk:
     dependencies:
       zod:
@@ -474,7 +514,79 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/templates/_lib:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/templates/advancement-toast:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/ambient-particles:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/anvil-rename:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/banner-unfurl:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/bat-swarm:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/beacon-beam:
     devDependencies:
       '@allay/template-sdk':
         specifier: workspace:*
@@ -498,7 +610,487 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/templates/block-letters:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/block-punch:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/templates/block-wipe:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/book-flip:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/boss-bar:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/cake-celebrate:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/chat-message:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/checklist:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/chest-open:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/chunk-rise:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/clock-wipe:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/cloud-pass:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/column-melt:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/corner-badge:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/countdown:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/counter:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/crafting-recipe:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/crt-power:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/death-screen:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/debug-f3:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/door-shut:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/effect-icons:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/elder-guardian-curse:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/enchant-glyphs:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/end-credits:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/end-screen:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/ender-pearl-warp:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/explosion-blast:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/facecam-frame:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/fire-burn:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/firework-show:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/first-person-hand:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/furnace-smelt:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/game-mode-switcher:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/glint-sweep:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/glitch-blocks:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/hotbar-switch:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/hud-status:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/ice-shatter:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/intro-logo:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/item-showcase:
     devDependencies:
       '@allay/template-sdk':
         specifier: workspace:*
@@ -522,6 +1114,90 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/templates/item-swarm:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/item-tooltip:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/key-hint:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/kinetic-title:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/lightning-flash:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/like-reminder:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/liquid-flood:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/templates/loading-screen:
     devDependencies:
       '@allay/template-sdk':
@@ -534,7 +1210,511 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  packages/templates/map-route:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/map-unfold:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/mask-iris:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/mining-crack:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/nameplate:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/now-playing:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/painting-zoom:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/particle-burst:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/pause-menu:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/piston-push:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
   packages/templates/pixel-dissolve:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/player-card:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/portal-gate:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/precipitation:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/riptide-vortex:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/scoreboard-sidebar:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/screen-vignette:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sculk-spread:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/server-list-entry:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sign-post:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sky-timelapse:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sleep-fade:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/smoke-rise:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/social-handles:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sonic-darkness:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sound-subtitles:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/speedrun-timer:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/splash-potion:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/subscribe-button:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/sword-slash:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/tab-player-list:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/target-hit:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/ticker:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/title-command:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/title-panorama:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/totem-pop:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/tunnel-rush:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/typewriter-caption:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/versus-screen:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/vine-overgrow:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/vote-bars:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/written-book-card:
+    devDependencies:
+      '@allay/template-sdk':
+        specifier: workspace:*
+        version: link:../../template-sdk
+      '@types/three':
+        specifier: 0.187.0
+        version: 0.187.0
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+
+  packages/templates/xp-collect:
     devDependencies:
       '@allay/template-sdk':
         specifier: workspace:*
@@ -797,6 +1977,36 @@ packages:
 
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
+
+  '@codemirror/autocomplete@6.20.4':
+    resolution: {integrity: sha512-yF8RhOf2SXlg00+qtupzLhrglcas61boqaONiNcbPIebHCpJocpqTBA6dyrtUrQO47hqyTdeob/3XnYilT7TaQ==}
+
+  '@codemirror/commands@6.11.1':
+    resolution: {integrity: sha512-O/4hG3SC1YwcmQ0d2UVNDs+AsaNWd1iHVxbTeEBuqH+6bExAiPK3iS/BvpY6rZGURALv4ZD3sIgcCmRvw3ehBg==}
+
+  '@codemirror/lang-javascript@6.2.5':
+    resolution: {integrity: sha512-zD4e5mS+50htS7F+TYjBPsiIFGanfVqg4HyUz6WNFikgOPf2BgKlx+TQedI1w6n/IqRBVBbBWmGFdLB/7uxO4A==}
+
+  '@codemirror/lang-json@6.0.2':
+    resolution: {integrity: sha512-x2OtO+AvwEHrEwR0FyyPtfDUiloG3rnVTSZV1W8UteaLL8/MajQd8DpvUb2YVzC+/T18aSDv0H9mu+xw0EStoQ==}
+
+  '@codemirror/language@6.13.1':
+    resolution: {integrity: sha512-zfvU2r3TyylQLMj/te+5CnQ0rSqZi8B1oTCBbQkagcLW4Xc6imab6qN+pEJhsuNOLaJqiRyBXp9UhWA1DhVvDw==}
+
+  '@codemirror/lint@6.9.8':
+    resolution: {integrity: sha512-qNvtcE73xUto/D1RvtgSRI4A1Hg8ekxlvtZpjHpdpisLBnhyu82EUEJMEgaxkjuQCA8vqnrylENWKOsEDCOHcw==}
+
+  '@codemirror/search@6.7.2':
+    resolution: {integrity: sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA==}
+
+  '@codemirror/state@6.7.6':
+    resolution: {integrity: sha512-kAz+AncRtKuIknedxT1bq4XwXv4UowhbkHU1myPrtVb/jZtImWuV5BXzv5vK6i3kYACsdiZiQKFQQ5Mq7elW8w==}
+
+  '@codemirror/streamparser@6.0.0':
+    resolution: {integrity: sha512-JTFPF6xrfjt0mnfGPgzcLiMwYmvIyNaoizp8BYzv8FE8KrT6GBGDZ190rtt+O7Wke3gG/MFHyiY9YGNeimof4w==}
+
+  '@codemirror/view@6.43.15':
+    resolution: {integrity: sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw==}
 
   '@dimforge/rapier3d-compat@0.12.0':
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
@@ -1161,6 +2371,21 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
+  '@lezer/common@1.5.5':
+    resolution: {integrity: sha512-Pw7PVCndruF1pb3ebCxpSVpkMHSDjwRCLcTRw+RizUKco5QbWylwq2g4lnG/RYN7yTTQDXE9F77MwtkAyphrjg==}
+
+  '@lezer/highlight@1.2.5':
+    resolution: {integrity: sha512-O1GMVKgtf5YspFaRzpmqkVgMtIk2HG9uMAbH6wdAIdNh3TVzCsch/+cRi+6l2//UGDKe6NB9BW3cvuR5ezMQ0w==}
+
+  '@lezer/javascript@1.5.6':
+    resolution: {integrity: sha512-sEvOqpl4vJQca0NugSQK02vQPbc5KrvoojnYGoqqFgFO0MtcYhwGiHKVEB+LuXYJnfyXo4QPA8ztbrEa4Fw5NA==}
+
+  '@lezer/json@1.0.3':
+    resolution: {integrity: sha512-BP9KzdF9Y35PDpv04r0VeSTKDeox5vVr3efE7eBbx3r4s3oNLfunchejZhjArmeieBH+nVOpgIiBJpEAv8ilqQ==}
+
+  '@lezer/lr@1.4.12':
+    resolution: {integrity: sha512-On9HU4oMMiHPMkQDgoTnGahjgG5n/MkN38CgG77sMraKLL+3JBbeQNi1FcCXV9QRqwF9/BUXP3caHyJC1fBOTQ==}
+
   '@malept/cross-spawn-promise@2.0.0':
     resolution: {integrity: sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg==}
     engines: {node: '>= 12.13.0'}
@@ -1168,6 +2393,9 @@ packages:
   '@malept/flatpak-bundler@0.4.0':
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
+
+  '@marijn/find-cluster-break@1.0.4':
+    resolution: {integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==}
 
   '@modelcontextprotocol/core@2.4.0':
     resolution: {integrity: sha512-z8QBKqdfXLPzkLQuG4xp8hrVEMm1PZ1IgxMN2sMbJiFiAKOWXnAzogXn2W4aqIBlP1ea6U5yiqVquvUNM1Cj6Q==}
@@ -2066,6 +3294,9 @@ packages:
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
+
+  crelt@1.0.7:
+    resolution: {integrity: sha512-aK6BbWfhf4U/wCcLHKPJl/xa6VkVstRaPywWtMKGwuOLc/wZTyQYuoxgvZnNsBvv7Kg3YTBQYYBCggcviQczuA==}
 
   cross-dirname@0.1.0:
     resolution: {integrity: sha512-+R08/oI0nl3vfPcqftZRpytksBXDzOUveBq/NBVx0sUp1axwzPQrKinNx5yd5sxPu8j1wIy8AfnVQ+5eFdha6Q==}
@@ -3565,6 +4796,9 @@ packages:
     resolution: {integrity: sha512-aulFJcD6YK8V1G7iRB5tigAP4TsHBZZrOV8pjV++zdUwmeV8uzbY7yn6h9MswN62adStNZFuCIx4haBnRuMDaw==}
     engines: {node: '>=18'}
 
+  style-mod@4.1.5:
+    resolution: {integrity: sha512-WQ2llCZa9sZSkJA+aOwpg5DkfbAXFKGh//t3MRTBeruFiSBC+GXUmbBzrw3bXyboCWAbtCW9InDfBsXrRD/rAg==}
+
   sumchecker@3.0.1:
     resolution: {integrity: sha512-MvjXzkz/BOfyVDkG0oFOtBxHX2u3gKbMHIF/dXblZsgD3BWOFLmHovIpZY7BykJdAjcqRCBi1WYBNdEC9yI7vg==}
     engines: {node: '>= 8.0'}
@@ -3836,6 +5070,9 @@ packages:
         optional: true
       jsdom:
         optional: true
+
+  w3c-keyname@2.2.8:
+    resolution: {integrity: sha512-dpojBhNsCNN7T82Tm7k26A6G9ML3NkhDsnw9n/eoxSRlVBB4CEtIQ/KTCLI2Fwf3ataSXRhYFkQi3SlnFwPvPQ==}
 
   webcrypto-core@1.9.2:
     resolution: {integrity: sha512-gsXecm82UQNlTBURJGuqOWy1Ww08S3kZUcr3aOJS02Pk0xLtkfeUAVC0u0xhgdonFme80edSJUIJyuvL/7250Q==}
@@ -4185,6 +5422,70 @@ snapshots:
       hashery: 1.5.1
       keyv: 5.6.0
 
+  '@codemirror/autocomplete@6.20.4':
+    dependencies:
+      '@codemirror/language': 6.13.1
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.15
+      '@lezer/common': 1.5.5
+
+  '@codemirror/commands@6.11.1':
+    dependencies:
+      '@codemirror/language': 6.13.1
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.15
+      '@lezer/common': 1.5.5
+
+  '@codemirror/lang-javascript@6.2.5':
+    dependencies:
+      '@codemirror/autocomplete': 6.20.4
+      '@codemirror/language': 6.13.1
+      '@codemirror/lint': 6.9.8
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.15
+      '@lezer/common': 1.5.5
+      '@lezer/javascript': 1.5.6
+
+  '@codemirror/lang-json@6.0.2':
+    dependencies:
+      '@codemirror/language': 6.13.1
+      '@lezer/json': 1.0.3
+
+  '@codemirror/language@6.13.1':
+    dependencies:
+      '@codemirror/state': 6.7.6
+      '@codemirror/streamparser': 6.0.0
+      '@codemirror/view': 6.43.15
+      '@lezer/common': 1.5.5
+      '@lezer/highlight': 1.2.5
+      '@lezer/lr': 1.4.12
+      style-mod: 4.1.5
+
+  '@codemirror/lint@6.9.8':
+    dependencies:
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.15
+      crelt: 1.0.7
+
+  '@codemirror/search@6.7.2':
+    dependencies:
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.15
+      crelt: 1.0.7
+
+  '@codemirror/state@6.7.6':
+    dependencies:
+      '@marijn/find-cluster-break': 1.0.4
+
+  '@codemirror/streamparser@6.0.0': {}
+
+  '@codemirror/view@6.43.15':
+    dependencies:
+      '@codemirror/state': 6.7.6
+      crelt: 1.0.7
+      style-mod: 4.1.5
+      w3c-keyname: 2.2.8
+
   '@dimforge/rapier3d-compat@0.12.0': {}
 
   '@dnd-kit/accessibility@3.1.1(react@19.3.1)':
@@ -4532,6 +5833,28 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
+  '@lezer/common@1.5.5': {}
+
+  '@lezer/highlight@1.2.5':
+    dependencies:
+      '@lezer/common': 1.5.5
+
+  '@lezer/javascript@1.5.6':
+    dependencies:
+      '@lezer/common': 1.5.5
+      '@lezer/highlight': 1.2.5
+      '@lezer/lr': 1.4.12
+
+  '@lezer/json@1.0.3':
+    dependencies:
+      '@lezer/common': 1.5.5
+      '@lezer/highlight': 1.2.5
+      '@lezer/lr': 1.4.12
+
+  '@lezer/lr@1.4.12':
+    dependencies:
+      '@lezer/common': 1.5.5
+
   '@malept/cross-spawn-promise@2.0.0':
     dependencies:
       cross-spawn: 7.0.6
@@ -4544,6 +5867,8 @@ snapshots:
       tmp-promise: 3.0.3
     transitivePeerDependencies:
       - supports-color
+
+  '@marijn/find-cluster-break@1.0.4': {}
 
   '@modelcontextprotocol/core@2.4.0':
     dependencies:
@@ -5425,6 +6750,8 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   core-util-is@1.0.3: {}
+
+  crelt@1.0.7: {}
 
   cross-dirname@0.1.0:
     optional: true
@@ -6915,6 +8242,8 @@ snapshots:
 
   strip-final-newline@4.0.0: {}
 
+  style-mod@4.1.5: {}
+
   sumchecker@3.0.1(supports-color@7.2.0):
     dependencies:
       debug: 4.4.3(supports-color@7.2.0)
@@ -7118,6 +8447,8 @@ snapshots:
       '@types/node': 26.6.6
     transitivePeerDependencies:
       - msw
+
+  w3c-keyname@2.2.8: {}
 
   webcrypto-core@1.9.2:
     dependencies:

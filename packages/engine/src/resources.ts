@@ -4,10 +4,12 @@ import { animationFrameAt, frameRect, layoutAnimation, parseAnimationMeta, parse
 import {
   BitmapFontPayloadSchema,
   DEFAULT_FONT_ID,
-  FALLBACK_FONT_ID,
+  EMBEDDED_UNIFONT_RESOURCE_ID,
   FontPayloadSchema,
   SoundMetaPayloadSchema,
   TexturePayloadSchema,
+  USER_FONT_RE,
+  VectorFontPayloadSchema,
   type SoundMetaVariant,
   type BitmapFontPayload,
   type FontPayload,
@@ -80,11 +82,35 @@ function showFrame(tex: THREE.Texture, info: TextureInfo, index: number): void {
   tex.offset.set(r.x / info.width, 1 - (r.y + r.height) / info.height);
 }
 
-export interface LoadedFonts {
-  /** 资源栈里的默认字体（minecraft:default）；没有原版层或资源包提供时为 null */
-  vanilla: FontPayload | null;
-  /** 兜底像素字体；载入失败时为 null */
-  fallback: BitmapFontPayload | null;
+/**
+ * 一个字体族载入后的样子：资源栈字体（提供器列表）、定长字形表（用户导入的 BDF）、
+ * 用户导入的矢量字体（已经用 FontFace 注册进 Worker，css 是注册时的字体名）。取不到时为 null。
+ */
+export type FontAsset = { kind: 'stack'; payload: FontPayload } | { kind: 'table'; payload: BitmapFontPayload } | { kind: 'vector'; css: string };
+
+/** Worker 里注册过的矢量字体（按内容哈希，不随资源栈变，整个 Worker 只注册一次） */
+const vectorFaces = new Map<string, Promise<string | null>>();
+
+async function registerVectorFont(family: string, data: Uint8Array): Promise<string | null> {
+  const fonts = (globalThis as { fonts?: FontFaceSet }).fonts;
+  if (!fonts || typeof FontFace !== 'function') return null;
+  const css = `allay-${family.slice('user:'.length)}`;
+  const face = new FontFace(css, data.slice().buffer);
+  await face.load();
+  fonts.add(face);
+  return css;
+}
+
+/** 一段栅格化过的文字：贴图像素（已翻成 DataTexture 的行序）、过滤方式、几何（用时复制）、设计单位的宽高，和画它时的警告 */
+export interface CachedText {
+  data: Uint8Array;
+  width: number;
+  height: number;
+  nearest: boolean;
+  geometry: THREE.BufferGeometry;
+  textWidth: number;
+  textHeight: number;
+  warnings: string[];
 }
 
 export class EngineResources {
@@ -92,8 +118,15 @@ export class EngineResources {
   private readonly textures = new Map<string, Promise<THREE.Texture>>();
   private readonly animated = new Set<THREE.Texture>();
   private placeholder: THREE.Texture | null = null;
-  private vanillaFont: Promise<FontPayload | null> | null = null;
-  private fallbackFont: Promise<BitmapFontPayload | null> | null = null;
+  /** 资源栈字体，随 stamp 清空 */
+  private readonly stackFonts = new Map<string, Promise<FontAsset | null>>();
+  /** 用户导入的字体（按内容哈希命名）和内嵌 Unifont 的字形表：不随资源栈变，整个 Worker 只要一次 */
+  private readonly fixedFonts = new Map<string, Promise<FontAsset | null>>();
+  /**
+   * 栅格化过的文字（fonts.ts 的 TextCache）：每次 setup（改参数）都要重画所有文字，同样的输入画出同样的像素，
+   * 所以按输入缓存像素和几何，随资源栈清空。只是省时间，画面不变
+   */
+  readonly textCache = new Map<string, CachedText>();
 
   constructor(
     private readonly resolve: ResolveResource,
@@ -117,8 +150,9 @@ export class EngineResources {
       );
     this.textures.clear();
     this.animated.clear();
-    this.vanillaFont = null;
+    this.stackFonts.clear();
     this.sounds.clear();
+    this.textCache.clear();
   }
 
   private readonly sounds = new Map<string, Promise<readonly SoundMetaVariant[]>>();
@@ -162,8 +196,13 @@ export class EngineResources {
     }
   }
 
-  /** 设好过滤和色彩空间的贴图；缺失时返回占位图并经 warn 记一条警告（3.2、T-AST-3） */
-  texture(id: string, warn: Warn): Promise<THREE.Texture> {
+  /**
+   * 设好过滤和色彩空间的贴图；缺失时返回占位图并经 warn 记一条警告（3.2、T-AST-3）。
+   * optional 为真时缺失返回 null、不记警告：模板按“新路径 → 旧路径”依次试（docs/template-catalog.md P3）
+   */
+  texture(id: string, warn: Warn): Promise<THREE.Texture>;
+  texture(id: string, warn: Warn, optional: boolean): Promise<THREE.Texture | null>;
+  texture(id: string, warn: Warn, optional = false): Promise<THREE.Texture | null> {
     if (typeof id !== 'string' || id.length === 0 || id.length > 512) return Promise.reject(new TypeError('invalid texture id'));
     let p = this.textures.get(id);
     if (!p) {
@@ -180,7 +219,10 @@ export class EngineResources {
       this.textures.set(id, p);
     }
     return p.then((tex) => {
-      if (textureInfo(tex)?.missing) warn(`texture ${id} is missing; a placeholder is used`);
+      if (textureInfo(tex)?.missing) {
+        if (optional) return null;
+        warn(`texture ${id} is missing; a placeholder is used`);
+      }
       return tex;
     });
   }
@@ -229,23 +271,53 @@ export class EngineResources {
     return tex;
   }
 
-  /** 文字用的字体，在每次 setup 之前载入（text.create 是同步的） */
-  async fonts(): Promise<LoadedFonts> {
-    this.vanillaFont ??= this.resolve('font', DEFAULT_FONT_ID).then(
-      (raw) => (raw === null ? null : FontPayloadSchema.parse(raw)),
-      (error: unknown) => {
-        this.log('warn', `font ${DEFAULT_FONT_ID} failed: ${error instanceof Error ? error.message : String(error)}`);
+  /**
+   * 文字用的字体（字体族见 template-sdk 的 isFontFamily），在每次 setup 之前载入（text.create 是同步的）。
+   * 取不到（资源栈里没有、文件丢了、解析失败）时为 null，由调用方退回默认字体。
+   */
+  font(family: string): Promise<FontAsset | null> {
+    const fixed = USER_FONT_RE.test(family) || family === EMBEDDED_UNIFONT_RESOURCE_ID;
+    const cache = fixed ? this.fixedFonts : this.stackFonts;
+    let p = cache.get(family);
+    if (!p) {
+      p = this.resolve('font', family).then(
+        async (raw): Promise<FontAsset | null> => {
+          if (raw === null) return null;
+          if (raw.kind === 'font') return { kind: 'stack', payload: FontPayloadSchema.parse(raw) };
+          if (raw.kind === 'bdf') return { kind: 'table', payload: BitmapFontPayloadSchema.parse(raw) };
+          if (raw.kind === 'vector' && USER_FONT_RE.test(family)) {
+            const data = VectorFontPayloadSchema.parse(raw).data;
+            let face = vectorFaces.get(family);
+            if (!face) {
+              face = registerVectorFont(family, data).catch(() => null);
+              vectorFaces.set(family, face);
+            }
+            const css = await face;
+            if (!css) throw new Error('the font file could not be loaded');
+            return { kind: 'vector', css };
+          }
+          throw new Error(`unexpected payload ${raw.kind}`);
+        },
+      );
+      p = p.catch((error: unknown) => {
+        this.log('warn', `font ${family} failed: ${error instanceof Error ? error.message : String(error)}`);
         return null;
-      },
-    );
-    this.fallbackFont ??= this.resolve('font', FALLBACK_FONT_ID).then(
-      (raw) => (raw === null ? null : BitmapFontPayloadSchema.parse(raw)),
-      (error: unknown) => {
-        this.log('warn', `fallback font failed: ${error instanceof Error ? error.message : String(error)}`);
-        return null;
-      },
-    );
-    const [vanilla, fallback] = await Promise.all([this.vanillaFont, this.fallbackFont]);
-    return { vanilla, fallback };
+      });
+      cache.set(family, p);
+    }
+    return p;
   }
+
+  /** 内嵌 Unifont 的字形表（第一次用到时向宿主要，之后一直留着）；宿主没有时为 null */
+  async embeddedUnifont(): Promise<BitmapFontPayload | null> {
+    const v = await this.font(EMBEDDED_UNIFONT_RESOURCE_ID);
+    return v?.kind === 'table' ? v.payload : null;
+  }
+
+  /** 资源栈里的默认字体；没有时为 null */
+  async defaultFont(): Promise<FontPayload | null> {
+    const v = await this.font(DEFAULT_FONT_ID);
+    return v?.kind === 'stack' ? v.payload : null;
+  }
+
 }

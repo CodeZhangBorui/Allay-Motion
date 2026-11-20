@@ -41,7 +41,8 @@ const template = {
       item.scale.setScalar(320);
       scene.add(item);
     } else if (scenario === 'text') {
-      const a = ctx.text.create({ text: String(params.text ?? 'AB'), size: 10, color: '#ffffff', shadow: true, align: 'left' });
+      // 只取 font 参数的字体族（样式仍用这里写的阴影），让同一个场景能换字体测
+      const a = ctx.text.create({ text: String(params.text ?? 'AB'), size: 10, color: '#ffffff', shadow: true, align: 'left', font: params.font?.family ?? 'minecraft:default' });
       a.object.position.set(-900, 300, 0);
       scene.add(a.object);
       ctx.warn(`text-size:${a.width}x${a.height}`);
@@ -60,6 +61,13 @@ const template = {
       scene.add(s.object);
       await ctx.resources.block('minecraft:not_a_block');
       await ctx.resources.item('minecraft:not_an_item');
+    } else if (scenario === 'optional') {
+      // 可选贴图：没有时是 null、不记警告，模板退回另一个路径
+      const first = await ctx.resources.texture('minecraft:gui/does_not_exist', { optional: true });
+      if (first !== null) ctx.warn('optional texture should be null when missing');
+      const tex = first ?? (await ctx.resources.texture('minecraft:block/stone', { optional: true }));
+      if (tex === null) ctx.warn('optional texture should resolve when present');
+      else scene.add(ctx.sprite.create(tex, { pixelSize: 10 }).object);
     }
     return { duration: 1, cutTime: 0.5, update };
   },

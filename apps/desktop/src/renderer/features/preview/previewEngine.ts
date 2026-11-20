@@ -120,6 +120,12 @@ export class PreviewEngine {
     return this.loadedRevision;
   }
 
+  /** 装载或改参数成功了几次（诊断与测试用：拖动时预览实际更新了几次，T-ANIM-32） */
+  private loads = 0;
+  get loadCount(): number {
+    return this.loads;
+  }
+
   get workerGeneration(): number {
     return this.generation;
   }
@@ -368,6 +374,7 @@ export class PreviewEngine {
       if (this.loadingRevision === revision) this.loadingRevision = -1;
     }
     if (host !== this.host) return;
+    this.loads++;
     this.hasLoaded = true;
     this.loadedRevision = revision;
     this.loadedStructure = structureRevision;

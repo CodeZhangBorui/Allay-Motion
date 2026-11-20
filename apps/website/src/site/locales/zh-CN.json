@@ -147,8 +147,7 @@
   "footer": {
     "disclaimerLabel": "非官方声明",
     "license": "代码以 GPL-3.0 许可证开源。",
-    "fonts": "界面字体 IBM Plex Sans、IBM Plex Mono、Noto Sans SC 与像素字体“方舟像素字体”均以 SIL OFL 1.1 授权。",
-    "fontLicense": "像素字体许可全文",
+    "fonts": "界面字体 IBM Plex Sans、IBM Plex Mono、Noto Sans SC 均以 SIL OFL 1.1 授权。",
     "source": "源代码",
     "noTracking": "本站不使用 Cookie、统计或任何第三方资源。",
     "end": "完",

@@ -19,6 +19,8 @@ import { mixOffline } from '../../../apps/desktop/src/renderer/audio/mix';
 import { SoundBank } from '../../../apps/desktop/src/renderer/audio/sound-bank';
 import { encodeWav } from '../../../apps/desktop/src/renderer/audio/wav';
 import { ANIM_COLORS, FAKE_STAMP, fakeColor, fakeResolveResource, setFakeVanillaFont } from './fake-resources';
+import { animationManifest, animationTemplateCode } from '../../../apps/desktop/src/shared/animation/compile';
+import { AnimationDocSchema, newAnimationDoc } from '../../../apps/desktop/src/shared/animation/schema';
 import { frameCount } from '../../../packages/engine/src/frames';
 import { diagnosticOf, TemplateManifestSchema, type AudioCue, type FrameQuality, type TemplateDiagnostic, type OutputSettings, type ParamValues, type TemplateManifest } from '../../../packages/template-sdk/src/index';
 
@@ -46,6 +48,7 @@ const SOURCES = {
     manifest: fixture([
       { key: 'scenario', type: 'text', label: 'scenario', default: '' },
       { key: 'text', type: 'text', label: 'text', default: 'AB' },
+      { key: 'font', type: 'font', label: 'font', default: { family: 'minecraft:default' } },
     ]),
   },
   m6bFeatures: {
@@ -231,6 +234,61 @@ const harness = {
     } finally {
       host.dispose();
     }
+  },
+
+  /**
+   * 文字缓存（docs/animation-editor.md 第 8 节）：同一个 Worker 里装载文字场景、渲染，再用同样的参数 setParams（命中缓存）、
+   * 换一段文字再换回来，各渲染一帧。返回每次的整帧哈希和 warnings
+   */
+  async textCache(text: string, other: string, output: OutputSettings) {
+    const { host, loaded } = await exportEngine('m2Features', output, { scenario: 'text', text });
+    const hash = async () => {
+      const buf = new Uint8Array(await host.renderFrame(0, { subframes: 1, shutterAngle: 180 }));
+      let h = 2166136261;
+      for (let i = 0; i < buf.length; i++) h = Math.imul(h ^ buf[i]!, 16777619);
+      return (h >>> 0).toString(16);
+    };
+    try {
+      const first = { hash: await hash(), warnings: loaded.warnings };
+      const again = await host.setParams({ scenario: 'text', text });
+      const second = { hash: await hash(), warnings: again.warnings };
+      const changed = await host.setParams({ scenario: 'text', text: other });
+      const third = { hash: await hash(), warnings: changed.warnings };
+      const back = await host.setParams({ scenario: 'text', text });
+      const fourth = { hash: await hash(), warnings: back.warnings };
+      return { first, second, third, fourth };
+    } finally {
+      host.dispose();
+    }
+  },
+
+  /**
+   * 逐字动画的排版（docs/animation-editor.md 3.8，第三轮补）：同一段文字整段画一次、逐字（不错开、没有动画）画一次，
+   * 比较两帧：不一样的像素数、有墨迹的像素数。用测试字体（位图字体，和 unihex 的中文字形）
+   */
+  async charsLayout(text: string, align: 'left' | 'center' | 'right', output: OutputSettings) {
+    const frame = async (chars: boolean) => {
+      const doc = AnimationDocSchema.parse({
+        ...newAnimationDoc('Chars', 'B'),
+        layers: [{ id: 't', name: 'T', type: 'text', text, size: 10, shadow: false, align, props: { x: -200 }, ...(chars ? { chars: { stagger: 0 } } : {}) }],
+      });
+      const host = await EngineHost.create({ mode: 'export', resolveResource: fakeResolveResource, strictDeterminism: true });
+      try {
+        const loaded = await host.load({ manifest: animationManifest(doc, { id: 'user.abcdef.chars', version: '1.0.0' }), code: animationTemplateCode(doc), params: {}, output, resourceStamp: FAKE_STAMP });
+        return { buf: new Uint8Array(await host.renderFrame(0, { subframes: 1, shutterAngle: 180 })), warnings: loaded.warnings };
+      } finally {
+        host.dispose();
+      }
+    };
+    const whole = await frame(false);
+    const split = await frame(true);
+    let diff = 0;
+    let ink = 0;
+    for (let i = 0; i < whole.buf.length; i += 4) {
+      if (whole.buf[i + 3]! > 0) ink++;
+      if (Math.abs(whole.buf[i + 3]! - split.buf[i + 3]!) > 8) diff++;
+    }
+    return { diff, ink, warnings: [...whole.warnings, ...split.warnings] };
   },
 
   /** 缩略图（3.10）：尺寸、不透明像素比例、中心像素 */

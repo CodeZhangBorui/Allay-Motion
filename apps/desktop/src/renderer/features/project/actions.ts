@@ -1,6 +1,7 @@
 // 工程的新建、打开、保存、另存为（docs/01-product-architecture.md 1.9）。路径只在主进程：这里只有句柄。
 import { compareVersionStrings, diffFromDefaults } from '@allay/template-sdk';
 import i18next from 'i18next';
+import { DOC_PARAM } from '../../../shared/animation/schema';
 import type { ProjectData, ProjectOpenResult } from '../../../shared/project';
 import { notify } from '../../stores/noticeStore';
 import { clearHistory, isDirty, useProjectStore } from '../../stores/projectStore';
@@ -8,6 +9,7 @@ import { useResourceStore } from '../../stores/resourceStore';
 import { useTemplateStore } from '../../stores/templateStore';
 import { useUiStore } from '../../stores/uiStore';
 import { DEFAULT_TEMPLATE_ID, readTemplate } from '../../templates/catalog';
+import { sourceFromDoc } from '../animation/source';
 import { previewEngine } from '../preview/previewEngine';
 import { askConfirm } from './confirm';
 
@@ -17,7 +19,7 @@ const t = (key: string, vars?: Record<string, unknown>) => i18next.t(key, vars ?
 function resourceHint(): string[] {
   const st = useResourceStore.getState().state;
   if (!st) return [];
-  return st.layers.filter((l) => l.enabled && !(l.kind === 'builtin' && l.empty)).map((l) => (l.kind === 'vanilla' ? 'vanilla' : l.kind === 'pack' ? `pack:${l.name}` : 'builtin'));
+  return st.layers.filter((l) => l.enabled && !(l.kind === 'builtin' && l.empty) && l.source !== 'imported').map((l) => (l.kind === 'vanilla' ? 'vanilla' : l.kind === 'pack' ? `pack:${l.name}` : 'builtin'));
 }
 
 export function projectData(): ProjectData | null {
@@ -27,16 +29,20 @@ export function projectData(): ProjectData | null {
   return {
     name: s.name ?? t('project.untitled'),
     template: s.template.ref,
-    params: diffFromDefaults(s.template.params, s.params, { locale: i18next.language }),
+    // 自建动画的文档参数不存（文档本身存在 animation 里）
+    params: Object.fromEntries(Object.entries(diffFromDefaults(s.template.params, s.params, { locale: i18next.language })).filter(([k]) => !(s.template!.animation && k === DOC_PARAM))),
     output: { width: s.output.width, height: s.output.height, fps },
     export: s.exportSettings,
     preview: { background: useUiStore.getState().settings.editor.background },
+    audio: { spatial: useUiStore.getState().settings.editor.spatialAudio },
     resourceHint: resourceHint(),
+    // 自建动画：存最后一份合法的文档（代码视图里没改完的文本不进工程文件）
+    ...(s.template.animation ? { animation: s.template.animation.doc } : {}),
   };
 }
 
 /** 有未保存的改动时先问一句；返回 false 表示用户取消 */
-async function confirmDiscard(): Promise<boolean> {
+export async function confirmDiscard(): Promise<boolean> {
   if (!isDirty(useProjectStore.getState())) return true;
   return askConfirm({ title: t('project.unsaved.title'), body: t('project.unsaved.body'), confirm: t('project.unsaved.discard') });
 }
@@ -60,6 +66,14 @@ async function applyOpened(result: ProjectOpenResult): Promise<boolean> {
     return false;
   }
   const { data } = result;
+  // 自建动画（docs/animation-editor.md 5.1）：模板从工程里的文档生成，不去模板库里找
+  if (data.animation) {
+    useProjectStore.getState().reset({ template: sourceFromDoc(data.template, data.animation), params: {}, output: data.output, exportSettings: data.export, name: result.name, handle: result.handle, locale: i18next.language });
+    clearHistory();
+    useUiStore.getState().setEditor({ background: data.preview.background });
+    previewEngine.retry();
+    return true;
+  }
   const entries = await useTemplateStore.getState().refresh();
   // 引用的模板：同一个版本优先，没有就用同一个 id 的最高版本（模板升级后工程照常可用）
   const versions = entries.filter((e) => e.id === data.template.id && !e.baseMissing).map((e) => e.version).sort(compareVersionStrings);
@@ -79,7 +93,7 @@ async function applyOpened(result: ProjectOpenResult): Promise<boolean> {
     locale: i18next.language,
   });
   clearHistory();
-  useUiStore.getState().setEditor({ background: data.preview.background });
+  useUiStore.getState().setEditor({ background: data.preview.background, spatialAudio: data.audio?.spatial ?? false });
   previewEngine.retry();
   if (result.missingFiles.length > 0) notify('error', t('project.missingFiles', { keys: result.missingFiles.join(', ') }));
   else {

@@ -132,6 +132,8 @@ export interface PresetEntry {
   template: { id: string; version: string };
   params: ParamValues;
   createdAt: string;
+  /** 模板 manifest 自带的预设（渲染进程从 manifest.presets 生成，不在 userData/presets 里，不能导出） */
+  builtin?: true;
 }
 
 export type PresetImportResult = { canceled: true } | { canceled?: false; ok: true; entry: PresetEntry } | { canceled?: false; ok: false; error: string };
@@ -164,3 +166,45 @@ export interface TemplateDevChange {
   /** 改动之后这个模板还能装载（manifest 合法、template.js 在）；为 false 时它已从模板列表里移除 */
   valid: boolean;
 }
+
+// ---- 2026-11：内嵌代码编辑与自建动画（docs/decisions.md“2026-11 反馈：开发模式、代码编辑与动画编辑器”）----
+
+/** template.js 的大小上限与安装时相同（1 MB，按 UTF-16 码元粗算） */
+export const MAX_TEMPLATE_SOURCE_CHARS = 1024 * 1024;
+
+/** templates.writeSource 的入参：只能写用户模板的 template.js；baseVersion 是读的时候拿到的内容版本 */
+export const WriteSourceSchema = z.strictObject({
+  id: TemplateIdSchema,
+  version: TemplateVersionArgSchema,
+  source: z.string().max(MAX_TEMPLATE_SOURCE_CHARS),
+  baseVersion: z.string().min(1).max(200),
+});
+export type WriteSourceRequest = z.infer<typeof WriteSourceSchema>;
+
+export type ReadSourceResult = { ok: true; source: string; version: string; readOnly: boolean } | { ok: false; error: 'not-found' | 'not-script' | 'outside' };
+
+export type WriteSourceResult =
+  | { ok: true; version: string }
+  | { ok: false; error: 'conflict'; currentVersion: string }
+  | { ok: false; error: 'not-user' | 'invalid' | 'io'; diagnostic?: TemplateDiagnostic };
+
+/** templates.createFromAnimation 的入参：动画文档的原文（主进程自己解析、校验、生成代码） */
+export const CreateFromAnimationSchema = z.strictObject({
+  text: z.string().min(1).max(512 * 1024),
+});
+
+export type CreateFromAnimationResult = { ok: true; entry: TemplateEntry } | { ok: false; error: 'invalid' | 'io'; detail?: string };
+
+/**
+ * templates.readAnimation 的结果（第三轮）：用户模板里的 animation.json 原文。inSync 表示 template.js 还是从它生成的那份
+ * （在外部编辑器里改过 template.js 时为 false：重新打开编辑再更新会覆盖那些改动）
+ */
+export type ReadAnimationResult = { ok: true; text: string; inSync: boolean } | { ok: false; error: 'not-found' | 'not-user' | 'invalid'; detail?: string };
+
+/** templates.updateFromAnimation 的入参：要更新的用户模板，和动画文档的原文（主进程自己解析、校验、生成代码） */
+export const UpdateFromAnimationSchema = z.strictObject({
+  id: TemplateIdArgSchema,
+  version: TemplateVersionArgSchema,
+  text: z.string().min(1).max(512 * 1024),
+});
+export type UpdateFromAnimationRequest = z.infer<typeof UpdateFromAnimationSchema>;

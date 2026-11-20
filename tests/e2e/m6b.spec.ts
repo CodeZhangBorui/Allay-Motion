@@ -11,7 +11,7 @@ import { solidPng, tex } from '../unit/helpers/resource-fixtures';
 import { startFakeMojang } from './fake-mojang';
 import { launchApp, makeUserDataDir, removeUserDataDir, requirePinnedFfmpeg, ROOT } from './helpers';
 
-type Locale = { audio: { missing: string } };
+type Locale = { audio: { missing: string }; editor: { sound: { categories: Record<string, string> } } };
 const locale = (name: string): Locale => JSON.parse(readFileSync(join(ROOT, 'apps/desktop/src/renderer/i18n/locales', name), 'utf8')) as Locale;
 const en = locale('en.json');
 const zhCN = locale('zh-CN.json');
@@ -261,7 +261,7 @@ test.describe('T-EXP-4 端到端', () => {
 });
 
 test.describe('M6b 音效库', () => {
-  test('M6b 选择器：库是资源包 sounds.json 里的全部事件，常用置顶、按“命名空间 · 类别”分组、可搜索；选中后参数和 cue 跟着变', async () => {
+  test('M6b 选择器：库是资源包 sounds.json 里的全部事件，常用置顶、按分类分组、可搜索；选中后参数和 cue 跟着变', async () => {
     const dir = setup(true);
     const { app, page } = await launchApp(dir);
     try {
@@ -273,7 +273,9 @@ test.describe('M6b 音效库', () => {
       // 常用（3.8 的事件、库里有的）在最前面，其后是分组
       const labels = await list.locator('div.h-6').allTextContents();
       expect(labels[0]).toBe((await messages(page)) === zhCN ? '常用' : 'Common');
-      expect(labels).toEqual(expect.arrayContaining(['minecraft · block', 'minecraft · ui']));
+      // 2026-11 反馈：分组改按分类（方块、界面……），不再是“命名空间 · 类别”
+      const cats = (await messages(page)).editor.sound.categories;
+      expect(labels).toEqual(expect.arrayContaining([cats.block, cats.ui]));
       await page.getByTestId('sound-search').fill('toast');
       // 常用里一行、分组里一行
       await expect(list.locator('[data-testid^="sound-minecraft:"]')).toHaveCount(2);

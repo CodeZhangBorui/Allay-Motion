@@ -27,6 +27,12 @@ const template = {
       ctx.audio.cue('test:single', 0.2, { rate: 1.5, pan: -0.5 });
       ctx.audio.cue('minecraft:does_not_exist', 0.3);
       ctx.audio.cue(null, 0.4);
+    } else if (scenario === 'spatial') {
+      // 2026-11 反馈：带声源位置（相对听者，单位格）的 cue 和不带位置的 cue
+      ctx.audio.cue('test:single', 0.1, { position: { x: 3, y: 0, z: -4 } });
+      ctx.audio.cue('test:single', 0.2);
+    } else if (scenario === 'spatialBad') {
+      ctx.audio.cue('test:single', 0.1, { position: { x: Number.NaN, y: 0, z: 0 } });
     }
     return { duration: 1, cutTime: null, update() {} };
   },

@@ -1,6 +1,6 @@
 // M6b 音频里不依赖 Web Audio 的部分：WAV 编码与校验、FFmpeg 的音频参数、cue 的数值规则、音效事件表的覆盖。
 // 调度、离线混音的确定性在 test:engine（真实的 OfflineAudioContext）；T-EXP-4 在 test:export 和 e2e。
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { PRESET_AUDIO_ARGS, PRESET_AUDIO_ENCODER } from '../../apps/desktop/src/main/export/ffmpeg-args';
@@ -8,6 +8,8 @@ import { voiceParams } from '../../apps/desktop/src/renderer/audio/schedule';
 import { encodeWav } from '../../apps/desktop/src/renderer/audio/wav';
 import { AudioWavSchema, EXPORT_PRESETS, MAX_AUDIO_BYTES, readWavInfo } from '../../apps/desktop/src/shared/export';
 import { SOUND_EVENTS } from '../../packages/assets/src/index';
+import { isSoundEventId, manifestSoundEvents, MAX_PREFETCH_EVENTS, prefetchSoundEvents } from '../../apps/desktop/src/shared/template-sounds';
+import { templateDirs } from '../../scripts/build-templates';
 
 describe('M6b WAV', () => {
   it('encodeWav：48 kHz 立体声 16 位 PCM，样本交错、钳制、四舍五入；readWavInfo 读回格式', () => {
@@ -54,15 +56,62 @@ describe('M6b cue 的数值规则', () => {
 });
 
 describe('M6b 音效事件表', () => {
-  it('内置模板 sound 参数的默认值都在事件表里（下载原版资源时一并取回的就是这张表）', () => {
-    const dir = join(import.meta.dirname, '../../packages/templates');
-    const defaults: string[] = [];
-    for (const name of readdirSync(dir, { withFileTypes: true })) {
-      if (!name.isDirectory()) continue;
-      const manifest = JSON.parse(readFileSync(join(dir, name.name, 'manifest.json'), 'utf8')) as { params?: { type: string; default: unknown }[] };
-      for (const p of manifest.params ?? []) if (p.type === 'sound' && typeof p.default === 'string') defaults.push(p.default);
-    }
+  type Manifest = { id: string; params?: { key: string; type: string; default: unknown }[]; presets?: { key: string; name: string; params: Record<string, unknown> }[] };
+  // 有 manifest 的目录才是模板：共用的 _lib 和还没实现的骨架目录不算
+  const manifests = templateDirs().map((dir) => JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as Manifest);
+  /** 最初的六个模板：它们的默认音效就是基础表（03-assets.md 3.8）的来历 */
+  const ORIGINAL = ['block-wipe', 'block-fall', 'item-stinger', 'loading-screen', 'pixel-dissolve', 'advancement-toast'].map((n) => `allay.builtin.${n}`);
+
+  it('最初六个内置模板 sound 参数的默认值都在基础表里', () => {
+    const defaults = manifests.filter((m) => ORIGINAL.includes(m.id)).flatMap((m) => (m.params ?? []).filter((p) => p.type === 'sound' && typeof p.default === 'string').map((p) => p.default as string));
     expect(defaults.length).toBeGreaterThan(0);
     for (const d of defaults) expect(SOUND_EVENTS as readonly string[]).toContain(d);
+  });
+
+  it('每个内置模板的默认音效和预设里的音效都是带命名空间的合法事件 ID，并且都在“下载时一并取回”的清单里', () => {
+    const prefetch = prefetchSoundEvents(manifests as never);
+    // 基础表总在清单里，排在最前面
+    expect(prefetch.slice(0, SOUND_EVENTS.length)).toEqual([...SOUND_EVENTS]);
+    expect(new Set(prefetch).size).toBe(prefetch.length);
+    for (const m of manifests) {
+      const soundKeys = new Set((m.params ?? []).filter((p) => p.type === 'sound').map((p) => p.key));
+      const values = [
+        ...(m.params ?? []).filter((p) => p.type === 'sound').map((p) => ({ where: `${m.id} ${p.key}`, value: p.default })),
+        ...(m.presets ?? []).flatMap((preset) => Object.entries(preset.params).filter(([k]) => soundKeys.has(k)).map(([k, value]) => ({ where: `${m.id} preset ${preset.key} ${k}`, value }))),
+      ];
+      for (const { where, value } of values) {
+        if (value === null) continue; // “无”
+        expect(isSoundEventId(value), `${where}: ${String(value)}`).toBe(true);
+        expect(prefetch, where).toContain(value);
+      }
+    }
+  });
+
+  it('从 manifest 里取音效：默认值和预设里的值，跳过“无”和不合法的，去重；用不着的参数不算', () => {
+    const m = {
+      params: [
+        { key: 'openSound', type: 'sound', label: 'a', default: 'minecraft:block.chest.open' },
+        { key: 'closeSound', type: 'sound', label: 'b', default: null },
+        { key: 'title', type: 'text', label: 'c', default: 'minecraft:not.a.sound' },
+      ],
+      presets: [
+        { key: 'ender', name: 'Ender', params: { openSound: 'minecraft:block.ender_chest.open', closeSound: 'minecraft:block.ender_chest.close', title: 'minecraft:ignored' } },
+        { key: 'same', name: 'Same', params: { openSound: 'minecraft:block.chest.open', closeSound: null } },
+        { key: 'bad', name: 'Bad', params: { openSound: 'No Namespace', closeSound: 42 } },
+      ],
+    };
+    expect(manifestSoundEvents(m as never)).toEqual(['minecraft:block.chest.open', 'minecraft:block.ender_chest.open', 'minecraft:block.ender_chest.close']);
+    expect(prefetchSoundEvents([m as never, m as never])).toEqual([...SOUND_EVENTS, 'minecraft:block.chest.open', 'minecraft:block.ender_chest.open', 'minecraft:block.ender_chest.close']);
+    expect(prefetchSoundEvents([])).toEqual([...SOUND_EVENTS]);
+  });
+
+  it('事件 ID 的格式', () => {
+    for (const ok of ['minecraft:block.stone.place', 'allay:whoosh', 'my_pack:music/boss-1']) expect(isSoundEventId(ok), ok).toBe(true);
+    for (const bad of ['block.stone.place', 'Minecraft:Block.Stone', 'minecraft:', ':x', 'minecraft:a b', '', null, 7, `minecraft:${'x'.repeat(300)}`]) expect(isSoundEventId(bad), String(bad)).toBe(false);
+  });
+
+  it('一份坏掉的 manifest 不能让下载去取上千个事件', () => {
+    const many = { params: Array.from({ length: MAX_PREFETCH_EVENTS + 50 }, (_, i) => ({ key: `s${i}`, type: 'sound', label: 'x', default: `minecraft:fake.${i}` })) };
+    expect(prefetchSoundEvents([many as never])).toHaveLength(SOUND_EVENTS.length + MAX_PREFETCH_EVENTS);
   });
 });

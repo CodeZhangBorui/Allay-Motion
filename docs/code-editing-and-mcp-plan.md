@@ -1,6 +1,6 @@
 # 代码编辑与 MCP：准备方案
 
-状态：第 4 节的准备和 P0（模板开发模式）已由用户于 2026-11-13 确认纳入本次交付（里程碑 MD，见 `docs/08-milestones.md`）；P1 及以后、MCP 仍是方案，不实现。2026-11-13 由主控根据三路调研汇总。调研里凡是没有读到一手出处的结论，本文都标了“未核实”。
+状态：第 4 节的准备和 P0（模板开发模式）已由用户于 2026-11-13 确认纳入本次交付（里程碑 MD，见 `docs/08-milestones.md`）。**P1 内嵌编辑器已实现**（用户 2026-11-15 要求“允许直接在软件里纯代码编辑模板和动画”，即对 H-CODE-EDITOR 答复“做”）：可选模块 `packages/optional/code-editor/`，随开发模式启用，见第 9 节。P2、P3 和 MCP 仍是方案，不实现。2026-11-13 由主控根据三路调研汇总。调研里凡是没有读到一手出处的结论，本文都标了“未核实”。
 
 ## 1. 目标与约束
 
@@ -152,7 +152,7 @@ export interface EditorHost {
 | 编号 | 事项 | 默认 |
 |---|---|---|
 | H-CODE-SCOPE | P0（模板开发模式）是否纳入这次交付。它在 `docs/08-milestones.md` 里原是“之后的方向”第 1 条，不在 v1 范围内 | **已确认纳入**（用户 2026-11-13 答复“纳入”），排在 M7 之后、M8 之前 |
-| H-CODE-EDITOR | 是否做 P1 内嵌编辑器 | 不做，等 P0 的使用反馈 |
+| H-CODE-EDITOR | 是否做 P1 内嵌编辑器 | **已决定做**（用户 2026-11-15 的反馈清单：“允许直接在软件里纯代码编辑模板和动画”）。默认随开发模式开启 |
 | ★ H-MCP | 是否做 MCP，以及是否接受“启用后模板代码和画面会经 AI 客户端到达云端模型” | 不做；做之前必须确认 |
 
 ## 8. 不做的事
@@ -163,4 +163,14 @@ export interface EditorHost {
 - 不让界面反写模板代码。
 - 不把模板改成 TypeScript。
 - 不向任何公开的 MCP 目录或注册表发布（规则 11）。
-- 现在不写可选模块的任何代码，也不做占位界面。
+- ~~现在不写可选模块的任何代码，也不做占位界面。~~（2026-11：P1 已做，见第 9 节；MCP 仍不写任何代码。）
+
+## 9. P1 的落地（2026-11）
+
+- **模块**：`packages/optional/code-editor/`（`@allay/optional-code-editor`），依赖 CodeMirror 6 的九个包（`@codemirror/state`、`view`、`commands`、`language`、`lang-javascript`、`lang-json`、`autocomplete`、`lint`、`search`）和 `@lezer/highlight`，全部 MIT。只引用 `@allay/host-api`。构建时是单独的惰性代码块（约 0.9 MB 未压缩），开发模式关着时不加载。
+- **提供**：“模板代码”停靠面板（命令 `code-editor.open` / `close`）和代码视图（`ui.registerCodeView`，动画的“动画代码”面板用它）。
+- **功能**：JS 高亮；行内诊断——打字时 300 ms 防抖做静态检查（`engine.lint`：语法、import、H12 的确定性规则），保存后热重载回来的结构化诊断（H5，带行列）；保存即热重载（`templates.write` 写盘，不算应用自己的写入，监视服务照常发现、走 H9 的管线）；`ctx.` 成员链的补全与悬停、`ctx.ease.` 的缓动名、字符串里的方块 ID 补全（H8 的 `template-api.json`）；内置模板只读，“复制为我的模板”后编辑；外部改过（内容版本对不上）时不覆盖，提示“重新读取”。
+- **宿主接口新增**（`packages/host-api`，只加不改）：`templates.read` / `write` 从“未实现”改为已实现（主进程新 IPC `templates.readSource` / `writeSource`，版本是文件夹的内容哈希）；`templates.current` / `onCurrentChange`；`engine.lint`；`commands.dispatch`；`ui.registerCodeView`、`ui.t`、`ui.onLocaleChange`。
+- **拆除**：删掉 `packages/optional/code-editor`、刷新 lockfile。主程序没有提到它的地方；动画的代码视图退回普通文本框，模板代码仍可用外部编辑器改（P0）。`pnpm check:removable` 验证。
+- **默认开关**：可选模块随开发模式启用（`effectiveModuleSwitches`：开发模式关着时全关；开着时除非设置里单独关掉都开）。主程序仍不认识具体的模块。
+- **没做的**（P2）：行内小部件（数字拖动、颜色块）、格式化。中文输入法下的组合输入没有实测（2.2 的风险）。

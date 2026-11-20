@@ -391,6 +391,37 @@ export class TemplateService {
   }
 
   /**
+   * 用一组文本文件建一个新的用户模板（自建动画转为模板，2026-11）：manifest.json 必须合法，id 不得重复、不得以 allay. 开头。
+   * 版本由 manifest 决定。template.js 的静态检查由调用方做。
+   */
+  createUser(files: Readonly<Record<string, string>>, assets: readonly { name: string; bytes: Uint8Array }[] = []): Promise<{ ok: true; entry: TemplateEntry } | { ok: false; error: 'invalid' | 'bad-id'; detail?: string }> {
+    return this.serial(async () => {
+      const manifestText = files['manifest.json'];
+      if (manifestText === undefined || files['template.js'] === undefined) return { ok: false, error: 'invalid', detail: 'manifest.json and template.js are required' };
+      if (Object.keys(files).some((f) => !/^[a-z][a-z0-9-]*\.(json|js)$/.test(f))) return { ok: false, error: 'invalid', detail: 'unexpected file name' };
+      const parsed = parseManifest(JSON.parse(manifestText) as unknown);
+      if (!parsed.ok) return { ok: false, error: 'invalid', detail: parsed.issues.map((i) => `${i.path}: ${i.message}`).join('; ') };
+      const { id, version } = parsed.manifest;
+      if (isReservedId(id) || [...this.templates.values()].some((t) => t.manifest.id === id)) return { ok: false, error: 'bad-id' };
+      const dir = this.versionDir(id, version);
+      await this.guard(id, version, async () => {
+        await mkdir(dir, { recursive: true });
+        for (const [name, text] of Object.entries(files)) await writeFile(join(dir, name), text, 'utf8');
+        // 图片图层用的本机图片（第三轮）：复制进 assets/，文档里已改成 asset: 引用
+        if (assets.length > 0) {
+          await mkdir(join(dir, 'assets'), { recursive: true });
+          for (const a of assets) await writeFile(join(dir, 'assets', a.name), a.bytes);
+        }
+      });
+      await writeJsonAtomic(this.metaFile(id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [], createdFrom: 'animation' });
+      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
+      this.templates.set(key(id, version), stored);
+      this.opts.log.info('templates', 'created template from animation', { id });
+      return { ok: true, entry: this.entryOf(stored) };
+    });
+  }
+
+  /**
    * 文件夹在外面被改了（监视服务报来的）：重新读 manifest.json，更新或移除这个用户模板。
    * 返回新的条目；文件夹不在了或 manifest 不合法时为 null（不合法的原因记进日志）。
    */

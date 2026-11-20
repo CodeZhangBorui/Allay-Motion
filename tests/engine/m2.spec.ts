@@ -1,5 +1,5 @@
 // pnpm test:engine：M2 的引擎部分（docs/02-engine.md 2.8、03-assets.md）：贴图缺失、动画贴图、方块、物品、文字、精灵、缩略图。
-// 资源来自测试页里的假资源栈（纯色色块，tests/engine/harness/fake-resources.ts），兜底字体用仓库里的方舟像素字体。
+// 资源来自测试页里的假资源栈（纯色色块，tests/engine/harness/fake-resources.ts），没有原版字体时文字走系统字体。
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
@@ -49,6 +49,13 @@ test('T-AST-3 引用不存在的贴图、方块、物品：得到占位图和警
   // 品红与黑的棋盘
   near(r.frames[0]![0]!, [248, 0, 248, 255], 1);
   near(r.frames[0]![1]!, [0, 0, 0, 255], 1);
+});
+
+test('T-TPL-OPT-1 可选贴图：没有时返回 null、不记警告；有时和普通贴图一样', async () => {
+  const stone = await call('fakeColor', 'minecraft:block/stone');
+  const r = await call('scenario', 'optional', {}, HD, [0], [[960, 540]]);
+  expect(r.warnings).toEqual([]);
+  near(r.frames[0]![0]!, [...stone, 255], 1);
 });
 
 test('T-AST-4（引擎）4 帧动画贴图、frametime 2：t = 0, 0.1, 0.2, 0.3, 0.4 依次显示第 0, 1, 2, 3, 0 帧', async () => {
@@ -102,14 +109,73 @@ test('文字：资源栈的位图字体（墨水宽度 + 1 像素间距）、阴
   }
 });
 
-test('文字：没有原版层时回退到方舟像素字体（含中文）；哪个字体都没有的字形报警告', async () => {
+test('文字：没有原版字体时整段用系统字体（含中文），不报缺字形', async () => {
   const ok = await call('scenario', 'text', { text: 'A中' }, HD, [0], []);
   expect(ok.warnings).toHaveLength(1);
   const [w, h] = ok.warnings[0]!.replace('text-size:', '').split('x').map(Number);
   expect(w).toBeGreaterThan(100);
-  expect(h).toBeGreaterThan(100);
-  const missing = await call('scenario', 'text', { text: 'A\u{10FFFD}' }, HD, [0], []);
-  expect(missing.warnings.some((m) => m.includes('no glyph') && m.includes('U+10FFFD'))).toBe(true);
+  expect(h).toBeGreaterThan(80);
+});
+
+test('T-ANIM-32 文字缓存：同样的参数再 setup 一次（命中缓存）画面和警告都与第一次相同；换文字画面变，换回来又相同（位图字体和系统字体）', async () => {
+  for (const vanilla of [true, false]) {
+    await call('setFakeVanillaFont', vanilla);
+    try {
+      const r = await call('textCache', 'AB中', 'BA', HD);
+      expect(r.second).toEqual(r.first);
+      expect(r.fourth).toEqual(r.first);
+      expect(r.third.hash).not.toBe(r.first.hash);
+    } finally {
+      await call('setFakeVanillaFont', false);
+    }
+  }
+});
+
+test('T-ANIM-31 逐字动画的排版与整段文字一致：位图字体（含空格、多行、三种对齐）和 unihex 的中文字形', async () => {
+  for (const mode of [true, 'unihex'] as const) {
+    await call('setFakeVanillaFont', mode);
+    try {
+      const texts = mode === 'unihex' ? ['A中国B', '中 国\nDA'] : ['ABCD', 'AB CD', 'AB C\nDA B'];
+      for (const text of texts)
+        for (const align of ['left', 'center', 'right'] as const) {
+          const r = await call('charsLayout', text, align, HD);
+          expect(r.ink, `${text} ${align}`).toBeGreaterThan(100);
+          expect(r.diff, `${text} ${align}`).toBe(0);
+        }
+    } finally {
+      await call('setFakeVanillaFont', false);
+    }
+  }
+});
+
+test('文字：原版字体里缺的字形用系统字体按像素补上（前进宽度同游戏的 Unifont 字形）', async () => {
+  await call('setFakeVanillaFont', true);
+  try {
+    // 测试字体只有 A–D：“中”由系统字体补，前进宽度 8 + 1 = 9 个字体像素；A 前进 3 → 共 12 个字体像素，size 10 → 宽 120
+    const r = await call('scenario', 'text', { text: 'A中' }, HD, [0], []);
+    expect(r.warnings).toEqual(['text-size:120x80']);
+  } finally {
+    await call('setFakeVanillaFont', false);
+  }
+});
+
+test('T-FNT-12 内嵌 Unifont 的两种模式（引擎里、导出路径）：普通模式 ASCII 用原版、中文用 Unifont，强制 Unicode 全用 Unifont，没有原版素材时普通模式全用 Unifont；两次画面相同', async () => {
+  // 测试字体的 A 前进 3；Unifont 的 A 前进 4、中文 9；Unifont 字形高 8 个字体像素；size 10
+  const size = async (text: string, family: string) => (await call('scenario', 'text', { text, font: { family } }, HD, [0], [])).warnings;
+  await call('setFakeVanillaFont', true);
+  try {
+    expect(await size('AA', 'embedded:default')).toEqual(['text-size:60x80']);
+    expect(await size('A中', 'embedded:default')).toEqual(['text-size:120x80']);
+    expect(await size('A中', 'embedded:uniform')).toEqual(['text-size:130x80']);
+    const pts: [number, number][] = [[70, 240], [75, 245], [80, 250], [90, 255], [100, 260], [110, 245], [150, 250], [170, 255]];
+    const a = await call('scenario', 'text', { text: 'A中文', font: { family: 'embedded:default' } }, HD, [0], pts);
+    const b = await call('scenario', 'text', { text: 'A中文', font: { family: 'embedded:default' } }, HD, [0], pts);
+    expect(b.frames).toEqual(a.frames);
+  } finally {
+    await call('setFakeVanillaFont', false);
+  }
+  // 没有原版素材：普通模式等于全部用 Unifont（不是 minecraft:default 那样整段换成系统字体）
+  expect(await size('A中', 'embedded:default')).toEqual(['text-size:130x80']);
 });
 
 test('精灵：九宫格的边框不拉伸，中间拉伸', async () => {

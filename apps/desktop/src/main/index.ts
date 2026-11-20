@@ -1,7 +1,8 @@
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { app, session, shell, type BrowserWindow } from 'electron';
+import { app, dialog, session, shell, type BrowserWindow } from 'electron';
 import { IPC } from '../shared/ipc-channels';
+import { prefetchSoundEvents } from '../shared/template-sounds';
 import { handleAppProtocol, registerAppScheme } from './app-protocol';
 import { FileGrants } from './file-grants';
 import { registerHandlers } from './handlers';
@@ -10,6 +11,7 @@ import { ExportService } from './export/export-service';
 import { createIpcRegistrar } from './ipc';
 import { createLogger } from './logger';
 import { createVanillaDownloader, MOJANG_HOSTS } from './resources/download';
+import { EMBEDDED_UNIFONT_FILE, EmbeddedUnifont, UserFontStore } from './resources/fonts';
 import { ResourceService } from './resources/service';
 import { APP_ENTRY_URL, APP_ORIGIN, assertLocalDevOrigin } from './security-policy';
 import { hardenSession, installGlobalHardening } from './security';
@@ -26,6 +28,8 @@ import { HostCommandChannel } from './host-commands';
 import { filesFromArgv, filesFromOpenEvent, OpenFileQueue } from './open-files';
 import { Splash } from './splash';
 import { createMainWindow } from './window';
+import { CodeWindowService } from './code-window';
+import { ExternalEditorService } from './external-editor';
 import { startup } from './startup-timing';
 import { UpdateService } from './updates/service';
 
@@ -90,7 +94,6 @@ if (!app.requestSingleInstanceLock()) {
   const resources = new ResourceService({
     userDataDir: userData,
     builtinDir: join(bundledResources, 'builtin-pack'),
-    fallbackFontFile: join(bundledResources, 'fonts', 'ark-pixel', 'ark-pixel-12px-proportional-zh_hans.bdf'),
     settings,
     log,
     // 测试用 ALLAY_E2E_GAME_APPDATA 代替 %APPDATA%（只在未打包时生效），不碰这台机器上真装的游戏
@@ -105,7 +108,16 @@ if (!app.requestSingleInstanceLock()) {
     onChanged: (state) => {
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.resources.changed, state);
     },
+    // 下载原版资源时一并取回的音效：基础表加上内置模板 manifest 里的默认音效（用户装的模板不参与）
+    prefetchSounds: async () => {
+      await templatesReady;
+      return prefetchSoundEvents(templates.list().filter((t) => t.source === 'builtin').map((t) => t.manifest));
+    },
   });
+  // 用户导入的字体：复制在 userData/fonts 下（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）
+  const fonts = new UserFontStore(userData);
+  // 内嵌的 Unifont：随应用分发、只有一份，第一次有文字用到时才读（docs/decisions.md“内嵌 Unifont 与两种字体模式”）
+  const embeddedUnifont = new EmbeddedUnifont(join(bundledResources, ...EMBEDDED_UNIFONT_FILE), (message, data) => log.info('fonts', message, data));
   const thumbs = new ThumbCache(userData);
   // 自动更新（docs/decisions.md“自动更新”）：只有打包后的应用会自动检查；安装时运行安装包或打开 dmg，然后退出
   const updates = new UpdateService({
@@ -205,7 +217,25 @@ if (!app.requestSingleInstanceLock()) {
         ? new Splash({ origin: devOrigin ?? APP_ORIGIN, ui: settings.ui, mascotDir, log, hiddenForTests })
         : null;
 
-    const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, devOrigin, log });
+    // 代码窗口（2026-11 第二轮反馈）：与主窗口同一份安全设置；IPC 只认这里登记的那个窗口、只放行一个通道（ipc-guard.ts）
+    const codeWindow = new CodeWindowService({ getMainWindow: () => mainWindow, devOrigin, theme: () => settings.ui.theme, log, hiddenForTests });
+    const externalEditor = new ExternalEditorService({
+      userDataDir: userData,
+      settings,
+      log,
+      openPath: (file) => shell.openPath(file),
+      pickProgram: async () => {
+        const win = mainWindow;
+        if (!win || win.isDestroyed()) return null;
+        const r = await dialog.showOpenDialog(win, { properties: ['openFile'], ...(process.platform === 'win32' ? { filters: [{ name: 'Programs', extensions: ['exe'] }] } : {}) });
+        return r.canceled ? null : (r.filePaths[0] ?? null);
+      },
+      onFileChanged: (change) => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(IPC.animations.fileChanged, change);
+      },
+    });
+    app.on('before-quit', () => externalEditor.close());
+    const registrar = createIpcRegistrar({ getMainWindow: () => mainWindow, getCodeWindow: () => codeWindow.registered(), devOrigin, log });
     // 模板列表在注册 IPC 之前准备好：渲染进程第一次 templates.list 就能拿到内置模板
     if (splash) await splash.firstFrame(SPLASH_FIRST_FRAME_WAIT_MS);
     await templatesReady;
@@ -219,6 +249,8 @@ if (!app.requestSingleInstanceLock()) {
       grants,
       exports,
       resources,
+      fonts,
+      embeddedUnifont,
       thumbs,
       templates,
       templateDev,
@@ -235,6 +267,8 @@ if (!app.requestSingleInstanceLock()) {
       projectPathForTests: testSwitches.projectPath,
       testHooks: testSwitches.testHooks,
       getMainWindow: () => mainWindow,
+      codeWindow,
+      externalEditor,
     });
     // 资源栈：内置层和资源包先打开，原版层在后台离线探测（3.4），结果经 resources:changed 推给渲染进程
     void resources.init();

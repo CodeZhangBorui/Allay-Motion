@@ -1,15 +1,11 @@
-// 官网构建用的两个 Vite 插件。
+// 官网构建用的 Vite 插件。
 //
 // 1. virtual:allay-builtin-templates：用 pnpm templates:build 同一份打包函数（esbuild + 导入检查 + 确定性规则）
 //    现场把 packages/templates/* 打成单文件 ESM，连同 manifest 一起交给页面。packages/templates 下多一个模板，
 //    官网就多一个，不用改官网代码（tests/engine/vite.config.ts 用的是同一个办法）。
-// 2. 方舟像素字体（兜底字形，OFL-1.1）以文本打进仿真器的代码块；OFL 要求随字体附带许可全文，
-//    构建时把 resources/fonts/ark-pixel/OFL.txt 原样放进产物的 licenses/ 下。
 import { existsSync, readFileSync } from 'node:fs';
-import { gzipSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
-import { PIXEL_FONT_PATH } from '../src/host/paths';
 import { GENERATED_FILES } from '../../../packages/mascot/src/atlas';
 import { bundleTemplate, readTemplateManifest, templateDirs } from '../../../scripts/build-templates';
 
@@ -56,31 +52,6 @@ export function websiteMc(): Plugin {
 }
 
 /**
- * 兜底像素字体（方舟像素字体的 BDF，原样不改）作为单独的文件随产物发出，不打进 JS：
- * 只在引擎第一次要它（带文字的模板）时才下载。外面套一层 gzip，不管静态托管会不会压缩 .bdf，下载量都约 560 KB；
- * 页面里用 DecompressionStream 解开（src/host/browser-host.ts）。
- */
-export { PIXEL_FONT_PATH };
-const pixelFontGz = () => gzipSync(readFileSync(resolve(ROOT, 'resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf')), { level: 9 });
-
-export function pixelFont(): Plugin {
-  return {
-    name: 'allay-website-pixel-font',
-    generateBundle() {
-      this.emitFile({ type: 'asset', fileName: PIXEL_FONT_PATH, source: pixelFontGz() });
-    },
-    configureServer(server) {
-      let cached: Buffer | null = null;
-      server.middlewares.use(`/${PIXEL_FONT_PATH}`, (_req, res) => {
-        cached ??= pixelFontGz();
-        res.setHeader('content-type', 'application/octet-stream');
-        res.end(cached);
-      });
-    },
-  };
-}
-
-/**
  * 应用里那只 3D 悦灵：用 pnpm mascot:bake 烘焙出的同一份图集和头像（packages/mascot/generated/，git 忽略，M5a）。
  * 和桌面版一样放在页面同源的 mascot/ 下（packages/mascot 的组件从 mascot/allay.atlas.json 读），
  * 构建时复制进产物，开发服务器上直接提供。产物是原版贴图的派生图像：官网可以用（docs/decisions.md 官网 · 原版素材）。
@@ -120,25 +91,6 @@ export function mascotAssets(): Plugin {
         if (!MASCOT_FILES.includes(name) || !existsSync(resolve(MASCOT_GENERATED, name))) return next();
         res.setHeader('content-type', name.endsWith('.json') ? 'application/json' : 'image/png');
         res.end(readFileSync(resolve(MASCOT_GENERATED, name)));
-      });
-    },
-  };
-}
-
-const FONT_LICENSE_PATH = 'licenses/ark-pixel-font-OFL.txt';
-const fontLicenseText = () => readFileSync(resolve(ROOT, 'resources/fonts/ark-pixel/OFL.txt'), 'utf8');
-
-export function fontLicense(): Plugin {
-  return {
-    name: 'allay-website-font-license',
-    generateBundle() {
-      this.emitFile({ type: 'asset', fileName: FONT_LICENSE_PATH, source: fontLicenseText() });
-    },
-    // 开发服务器上也能点开
-    configureServer(server) {
-      server.middlewares.use(`/${FONT_LICENSE_PATH}`, (_req, res) => {
-        res.setHeader('content-type', 'text/plain; charset=utf-8');
-        res.end(fontLicenseText());
       });
     },
   };

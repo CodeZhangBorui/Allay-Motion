@@ -242,6 +242,9 @@ test('H11 主进程经命令通道调用界面命令；H3 修订号冲突被拒�
   const big = await page.evaluate(() => window.__allayTest!.renderStill(0.55, 99_999));
   expect([big.width, big.height]).toEqual([1920, 1080]);
 
-  // 这次构建没有可选模块
-  expect(await page.evaluate(() => window.__allayTest!.optionalModules())).toEqual({ available: [], active: [], failures: {} });
+  // 可选模块：这次构建带着 code-editor（2026-11），开发模式关着，一个都没有启用
+  const modules = await page.evaluate(() => window.__allayTest!.optionalModules());
+  expect(modules.active).toEqual([]);
+  expect(modules.failures).toEqual({});
+  expect(modules.available.every((id) => /^[a-z][a-z0-9-]*$/.test(id))).toBe(true);
 });

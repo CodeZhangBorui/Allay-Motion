@@ -1,14 +1,17 @@
 // 交给编辑器控件（@allay/ui/editor）的服务：翻译、方块与物品目录、缩略图、贴图预览、图片选择、最近使用、连续操作的起止。
 import { BLOCKS, ITEMS, NAMES, SOUND_EVENTS } from '@allay/assets';
 import { AllayLoader } from '@allay/mascot';
-import { EditorProvider, type CatalogEntry, type CatalogGroup, type EditorServices } from '@allay/ui/editor';
-import { useMemo, type ReactNode } from 'react';
+import { EMBEDDED_DEFAULT_FONT_ID, EMBEDDED_UNIFORM_FONT_ID } from '@allay/template-sdk';
+import { EditorProvider, type CatalogEntry, type CatalogGroup, type EditorServices, type FontFamilyOption } from '@allay/ui/editor';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { UserFontInfo } from '../../../shared/resources';
+import { notify } from '../../stores/noticeStore';
 import { useTranslation } from 'react-i18next';
 import { beginGesture, endGesture, useProjectStore } from '../../stores/projectStore';
 import { useResourceStore } from '../../stores/resourceStore';
 import { useUiStore } from '../../stores/uiStore';
 import { previewAudio } from '../../audio/app-audio';
-import { prepareSound, useSoundLibraryStore } from '../../audio/sound-library';
+import { importSounds, prepareSound, removeImportedSound, useSoundLibraryStore } from '../../audio/sound-library';
 import { thumbnails } from '../thumbnails/thumbnails';
 
 /** 方块目录按 03-assets.md 3.7 的分组顺序排列；按顺序切成这几组 */
@@ -82,14 +85,46 @@ function texturePreview(value: string): Promise<string | null> {
   return p;
 }
 
+/** 字体参数里可选的游戏字体（资源栈里的字体 ID）和内置字体；显示名在 editor.font.families 下 */
+const GAME_FONTS = ['minecraft:default', 'minecraft:uniform', 'minecraft:alt', 'minecraft:illageralt'] as const;
+
+/** 用户导入的字体列表（主进程的 fonts.list），导入后刷新 */
+function useUserFonts(): [UserFontInfo[], () => Promise<string | null>] {
+  const { t } = useTranslation();
+  const [fonts, setFonts] = useState<UserFontInfo[]>([]);
+  useEffect(() => {
+    let alive = true;
+    void window.allay.fonts
+      .list()
+      .then((list) => alive && setFonts(list))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const importFont = useCallback(async (): Promise<string | null> => {
+    const r = await window.allay.fonts.import().catch(() => null);
+    if (!r || 'canceled' in r) return null;
+    if (!r.ok) {
+      notify('error', t(`editor.font.importError.${r.error}`));
+      return null;
+    }
+    setFonts(await window.allay.fonts.list().catch(() => []));
+    return r.font.id;
+  }, [t]);
+  return [fonts, importFont];
+}
+
 export function EditorServicesProvider({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
+  const [userFonts, importFont] = useUserFonts();
   const fps = useProjectStore((s) => s.output.fps);
   const hasAssets = useResourceStore((s) => s.state?.hasAssets ?? false);
   const stamp = useResourceStore((s) => s.state?.stamp ?? '');
   const recent = useUiStore((s) => s.settings.editor.recent);
   const soundEvents = useSoundLibraryStore((s) => s.events);
   const soundsLoading = useSoundLibraryStore((s) => s.loading);
+  const spatial = useUiStore((s) => s.settings.editor.spatialAudio);
   const value = useMemo<EditorServices>(() => {
     const blockGroups: CatalogGroup[] = BLOCK_GROUP_SIZES.map(([key]) => ({ key, label: t(`editor.picker.groups.${key}`) }));
     const itemGroups: CatalogGroup[] = [{ key: 'items', label: t('editor.picker.groups.items') }];
@@ -109,6 +144,10 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       sounds: { library: soundEvents, common: SOUND_EVENTS, loading: soundsLoading },
       previewSound: (id) => void previewAudio.preview(id),
       prepareSound: (id) => void prepareSound(id),
+      importSounds,
+      removeImportedSound: (id) => void removeImportedSound(id),
+      // 空间音效：应用级偏好，保存工程时也记一份（2026-11 反馈）
+      spatialAudio: { value: spatial, onChange: (v) => useUiStore.getState().setEditor({ spatialAudio: v }) },
       async pickImage() {
         const picked = await window.allay.files.pickImage();
         if (!picked) return null;
@@ -121,6 +160,16 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       gesture: (phase) => (phase === 'start' ? beginGesture() : endGesture()),
       openResources: () => useUiStore.getState().setResourcesOpen(true),
       // 缩略图未就绪：网格上一层骨架之上的飞舞（7.5 第 4 项）。整层不接收指针，点击落到下面的格子上
+      fonts: {
+        families: [
+          ...GAME_FONTS.map((id): FontFamilyOption => ({ id, label: t(`editor.font.families.${id.slice('minecraft:'.length)}`), group: 'game', hint: t('editor.font.gameHint') })),
+          // 内嵌 Unifont：一项加一个“强制 Unicode 字体”开关（docs/decisions.md“内嵌 Unifont 与两种字体模式”）
+          { id: EMBEDDED_DEFAULT_FONT_ID, forceUnicodeId: EMBEDDED_UNIFORM_FONT_ID, label: t('editor.font.families.embedded'), group: 'embedded', hint: t('editor.font.embeddedHint') },
+          { id: 'system:sans', label: t('editor.font.families.system'), group: 'builtin', hint: t('editor.font.builtinHint') },
+          ...userFonts.map((f): FontFamilyOption => ({ id: f.id, label: f.name, group: 'user' })),
+        ],
+        importFont,
+      },
       pickerLoader: (loading) => (
         <div className="pointer-events-none absolute inset-0" data-testid="picker-loading-layer">
           <AllayLoader loading={loading} label={t('editor.picker.loading')} priority="picker" className="size-full" testId="picker-loader">
@@ -129,6 +178,6 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
         </div>
       ),
     };
-  }, [t, i18n.language, fps, hasAssets, stamp, recent, soundEvents, soundsLoading]);
+  }, [t, i18n.language, fps, hasAssets, stamp, recent, soundEvents, soundsLoading, spatial, userFonts, importFont]);
   return <EditorProvider value={value}>{children}</EditorProvider>;
 }

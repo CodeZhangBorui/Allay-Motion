@@ -19,6 +19,31 @@ export interface CatalogGroup {
 export interface SoundLibraryItem {
   id: string;
   state: 'local' | 'remote' | 'missing';
+  /**
+   * 来源（2026-11 反馈）：vanilla 原版；overridden 资源包改过定义或替换了文件；added 资源包新增；imported 用户导入。
+   * 缺省按 vanilla
+   */
+  origin?: 'vanilla' | 'overridden' | 'added' | 'imported';
+  /** overridden、added：相关资源包的名字，最上面的在前 */
+  packs?: readonly string[];
+  /** 选择器的分类（ambient、block、music…）；缺省按 ID 的第一段 */
+  category?: string;
+  /** 从语言文件推出的显示名 */
+  names?: { 'zh-CN'?: string; en?: string };
+}
+
+/** 字体参数可选的字体族（font 参数，4.4）：game 是资源栈里的游戏字体，builtin 是应用内置的开放许可字体，user 是用户导入的 */
+export interface FontFamilyOption {
+  id: string;
+  label: string;
+  group: 'game' | 'embedded' | 'builtin' | 'user';
+  /** 悬停说明 */
+  hint?: string;
+  /**
+   * 这个字体族的“强制 Unicode 字体”模式对应的另一个字体族 ID（内嵌 Unifont：embedded:default ↔ embedded:uniform）。
+   * 给了时下拉里只列这一项，选中后字段下面多一个开关，在两个 ID 之间切换
+   */
+  forceUnicodeId?: string;
 }
 
 export type RecentKind = 'color' | 'block' | 'item' | 'texture';
@@ -54,12 +79,20 @@ export interface EditorServices {
   previewSound?(id: string): void;
   /** 用户在选择器里选中了一个音效（宿主按需取回还没下载的文件） */
   prepareSound?(id: string): void;
+  /** 导入音效文件（宿主弹文件对话框）；返回新事件的 ID。未提供时不显示导入按钮 */
+  importSounds?(): Promise<string[]>;
+  /** 删除一个导入的音效 */
+  removeImportedSound?(id: string): void;
+  /** 空间音效开关（音效参数区）；未提供时不显示 */
+  spatialAudio?: { value: boolean; onChange(value: boolean): void };
   recent(kind: RecentKind): readonly string[];
   addRecent(kind: RecentKind, value: string): void;
   /** 一次连续操作（拖滑块、拖数字）开始和结束：之间的改动只算一条撤销记录（1.7） */
   gesture(phase: 'start' | 'end'): void;
   /** 引导用户添加素材（缩略图占位旁的按钮） */
   openResources?(): void;
+  /** 字体参数的字体族列表；importFont 弹出主进程的对话框导入字体文件，返回新字体族的 ID（取消或失败为 null） */
+  fonts?: { families: readonly FontFamilyOption[]; importFont?(): Promise<string | null> };
   /** 选择器网格的缩略图还没好时，盖在网格上的加载编排（docs/07-allay-mascot.md 7.5 第 4 项）；不提供时只有每格的骨架 */
   pickerLoader?(loading: boolean): ReactNode;
 }

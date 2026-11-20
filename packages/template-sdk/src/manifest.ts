@@ -135,6 +135,33 @@ const DurationParam = z.looseObject({ ...base, type: z.literal('duration'), defa
 const AngleParam = z.looseObject({ ...base, type: z.literal('angle'), default: finite, snap: z.number().positive().max(360).optional() });
 const SeedParam = z.looseObject({ ...base, type: z.literal('seed'), default: z.int() });
 
+/**
+ * 字体族的写法（font 参数的 family）：
+ * - 资源栈里的字体 ID，如 minecraft:default（游戏默认字体）、minecraft:uniform（Unifont）、minecraft:alt（标准银河字母）、
+ *   minecraft:illageralt（灾厄村民文字），以及资源包自己加的字体；
+ * - system:sans：系统字体（Worker 里 OffscreenCanvas 的系统字体栈）；旧版本的 allay:fallback（已删除的内置像素字体）当作它；
+ * - user:<32 位十六进制>：用户导入的字体文件（内容哈希，文件在应用数据目录里，由主进程读取）；
+ * - embedded:default、embedded:uniform：内嵌 Unifont 的普通模式和强制 Unicode 模式（protocol.ts 的 EMBEDDED_*_FONT_ID）。
+ *   embedded: 命名空间只认这两个，别的不是字体族（资源包里同名的字体不会被读到）。
+ */
+export const USER_FONT_RE = /^user:[0-9a-f]{32}$/;
+export function isFontFamily(value: string): boolean {
+  if (value.startsWith('embedded:')) return value === 'embedded:default' || value === 'embedded:uniform';
+  return USER_FONT_RE.test(value) || isResourceId(value);
+}
+const fontFamily = z.string().max(256).refine(isFontFamily, 'must be a font id like minecraft:default, embedded:default, system:sans or user:<hash>');
+/** font 参数的默认值：只给 family 也行，样式缺省为关、描边为 null */
+export const FontDefaultSchema = z.strictObject({
+  family: fontFamily,
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  strikethrough: z.boolean().optional(),
+  shadow: z.boolean().optional(),
+  outline: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'outline must be #RRGGBB').nullable().optional(),
+});
+const FontParam = z.looseObject({ ...base, type: z.literal('font'), default: FontDefaultSchema });
+
 export const ParamDefSchema = z.discriminatedUnion('type', [
   NumberParam,
   IntegerParam,
@@ -151,19 +178,31 @@ export const ParamDefSchema = z.discriminatedUnion('type', [
   DurationParam,
   AngleParam,
   SeedParam,
+  FontParam,
 ]);
 export type ParamDef = z.infer<typeof ParamDefSchema>;
 export type ParamType = ParamDef['type'];
 export type ParamDefOf<T extends ParamType> = Extract<ParamDef, { type: T }>;
 
-/** 15 种参数类型（4.4） */
+/** 16 种参数类型（4.4；font 是 2026-11 加的） */
 export const PARAM_TYPES = [
-  'number', 'integer', 'boolean', 'enum', 'color', 'text', 'block', 'blockList', 'item', 'texture', 'sound', 'easing', 'duration', 'angle', 'seed',
+  'number', 'integer', 'boolean', 'enum', 'color', 'text', 'block', 'blockList', 'item', 'texture', 'sound', 'easing', 'duration', 'angle', 'seed', 'font',
 ] as const satisfies readonly ParamType[];
 
 // ---- manifest（4.3）----
 
 const GroupSchema = z.strictObject({ key: z.string().min(1).max(64), label: LocalizedStringSchema, collapsed: z.boolean().optional() });
+/**
+ * 模板自带的预设（2026-11 反馈：方块排列顺序）：界面的预设菜单里排在用户预设前面，套用方式与用户预设相同
+ * （缺的补默认值，多的丢弃，4.7）。key 在模板内唯一，params 只能引用本模板声明的参数。
+ */
+export const PRESET_KEY_RE = /^[a-z0-9][a-z0-9-]*$/;
+export const ManifestPresetSchema = z.strictObject({
+  key: z.string().max(64).regex(PRESET_KEY_RE, 'preset key must match ^[a-z0-9][a-z0-9-]*$'),
+  name: LocalizedStringSchema,
+  params: z.record(ParamKeySchema, ParamValueJson),
+});
+export type ManifestPreset = z.infer<typeof ManifestPresetSchema>;
 const OutputSchema = z.strictObject({ width: z.int().min(16).max(8192), height: z.int().min(16).max(8192), fps: z.int().min(1).max(240) });
 
 const ManifestShape = z.looseObject({
@@ -187,6 +226,7 @@ const ManifestShape = z.looseObject({
     })
     .optional(),
   defaultOutput: OutputSchema.optional(),
+  presets: z.array(ManifestPresetSchema).max(32).optional(),
   minAppVersion: VersionSchema.optional(),
 });
 
@@ -248,6 +288,16 @@ export const TemplateManifestSchema = ManifestShape.superRefine((m, ctx) => {
     if (m.params === undefined) ctx.addIssue({ code: 'custom', path: ['params'], message: 'a script template must declare params' });
     if (m.overrides !== undefined) ctx.addIssue({ code: 'custom', path: ['overrides'], message: 'overrides are only for derived templates' });
   }
+  const presetKeys = new Set<string>();
+  m.presets?.forEach((p, i) => {
+    if (presetKeys.has(p.key)) ctx.addIssue({ code: 'custom', path: ['presets', i, 'key'], message: `duplicate preset key "${p.key}"` });
+    presetKeys.add(p.key);
+    // 派生模板的参数来自基模板，这里查不到，只查脚本模板
+    if (m.extends) return;
+    for (const k of Object.keys(p.params)) {
+      if (!keys.has(k)) ctx.addIssue({ code: 'custom', path: ['presets', i, 'params', k], message: `preset refers to unknown param "${k}"` });
+    }
+  });
   m.timeline?.segments.forEach((s, i) => {
     if (keys.get(s.param)?.type !== 'duration') ctx.addIssue({ code: 'custom', path: ['timeline', 'segments', i, 'param'], message: `"${s.param}" is not a duration param` });
   });

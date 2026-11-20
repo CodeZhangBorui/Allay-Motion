@@ -2,12 +2,13 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, isAbsolute } from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
 import type { AppInfo, PickedFile } from '../shared/ipc-contract';
-import type { AddPackResult, ChooseGameDirResult } from '../shared/resources';
+import type { AddPackResult, ChooseGameDirResult, ImportFontResult, ImportSoundsResult, UserFontData } from '../shared/resources';
 import { IPC } from '../shared/ipc-channels';
 import { TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import { UnknownJobError, type ExportService } from './export/export-service';
 import type { FileGrants } from './file-grants';
 import { IpcRejected, type createIpcRegistrar } from './ipc';
+import type { EmbeddedUnifont, UserFontStore } from './resources/fonts';
 import type { ResourceService } from './resources/service';
 import type { SettingsStore } from './settings-store';
 import type { ThumbCache } from './thumb-cache';
@@ -24,12 +25,19 @@ import type { UpdateService } from './updates/service';
 
 const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
+import type { CodeWindowService } from './code-window';
+import type { ExternalEditorService } from './external-editor';
+
 export interface HandlerDeps {
   registrar: ReturnType<typeof createIpcRegistrar>;
   settings: SettingsStore;
   grants: FileGrants;
   exports: ExportService;
   resources: ResourceService;
+  /** 用户导入的字体（2026-11） */
+  fonts: UserFontStore;
+  /** 内嵌的 Unifont（不给时 fonts.embeddedUnifont 返回 null） */
+  embeddedUnifont?: EmbeddedUnifont;
   thumbs: ThumbCache;
   templates: TemplateService;
   templateDev: TemplateDevService;
@@ -47,6 +55,9 @@ export interface HandlerDeps {
   /** 测试开关：工程的打开、保存对话框不弹出，直接用这个路径（只在未打包时非空） */
   projectPathForTests: string | null;
   testHooks: boolean;
+  /** 代码窗口与外部编辑器（2026-11 第二轮反馈） */
+  codeWindow: CodeWindowService;
+  externalEditor: ExternalEditorService;
   getMainWindow(): BrowserWindow | null;
 }
 
@@ -67,7 +78,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, fonts, embeddedUnifont, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow, codeWindow, externalEditor }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -129,7 +140,28 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.soundLibrary, () => resources.soundLibrary());
   handle(IPC.resources.soundFiles, (_event, files, fetch) => resources.soundFiles(files, fetch));
   handle(IPC.resources.fontProviders, (_event, id) => resources.fontProviders(id));
-  handle(IPC.resources.fallbackFont, () => resources.fallbackFontTables());
+  handle(IPC.resources.unihexTables, (_event, file, overrides) => resources.unihexTables(file, overrides));
+
+  // ---- fonts：用户导入的字体（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）----
+  handle(IPC.fonts.list, () => fonts.list());
+  handle(IPC.fonts.embeddedUnifont, () => embeddedUnifont?.get() ?? null);
+  handle(IPC.fonts.import, async (): Promise<ImportFontResult> => {
+    const win = getMainWindow();
+    if (!win) return { canceled: true };
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2', 'bdf'] }] });
+    const path = result.filePaths[0];
+    if (result.canceled || !path) return { canceled: true };
+    return fonts.importFile(path);
+  });
+  handle(IPC.fonts.remove, async (_event, id) => {
+    await fonts.remove(id);
+    return fonts.list();
+  });
+  handle(IPC.fonts.read, async (_event, id): Promise<UserFontData | null> => {
+    const font = await fonts.read(id);
+    if (!font) return null;
+    return font.kind === 'bdf' ? { kind: 'bdf', ...font.tables } : font;
+  });
   handle(IPC.resources.detectMinecraft, () => resources.detectMinecraft());
   handle(IPC.resources.setVanilla, (_event, patch) => resources.setVanilla(patch));
   handle(IPC.resources.chooseGameDir, async (): Promise<ChooseGameDirResult> => {
@@ -161,6 +193,27 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.resources.removeLayer, (_event, id) => resources.removeLayer(id));
   handle(IPC.resources.reorder, (_event, ids) => resources.reorder(ids));
   handle(IPC.resources.setEnabled, (_event, id, enabled) => resources.setEnabled(id, enabled));
+  handle(IPC.resources.versions, async () => {
+    await resources.whenOpened();
+    return resources.versions();
+  });
+  // 联网只在用户点了按钮后（M2a 的下载例外：只访问 Mojang 的三个主机，边界写死在 download.ts）
+  handle(IPC.resources.fetchRemoteVersions, () => resources.fetchRemoteVersions());
+  handle(IPC.resources.addVanillaSource, (_event, source) => resources.addVanillaSource(source));
+  handle(IPC.resources.downloadVanillaVersion, (_event, versionId) => resources.downloadVanilla(versionId));
+  handle(IPC.resources.localPacks, () => resources.localPacks());
+  handle(IPC.resources.addLocalPack, (_event, path) => {
+    if (!isAbsolute(path)) throw new IpcRejected('local pack path must be absolute');
+    return resources.addLocalPack(path);
+  });
+  handle(IPC.resources.importSounds, async (): Promise<ImportSoundsResult> => {
+    const win = getMainWindow();
+    if (!win) return { canceled: true };
+    const result = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'Audio', extensions: ['ogg', 'wav'] }] });
+    if (result.canceled || result.filePaths.length === 0) return { canceled: true };
+    return resources.importSounds(result.filePaths.slice(0, 100));
+  });
+  handle(IPC.resources.removeImportedSound, (_event, id) => resources.removeImportedSound(id));
 
   // ---- templates（04-templates.md 4.7–4.9）----
   handle(IPC.templates.list, () => templates.list());
@@ -201,6 +254,24 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   handle(IPC.templates.copyBuiltin, (_event, req) => templateDev.copyBuiltin(req));
   handle(IPC.templates.writeDevFiles, (_event, id, version) => templateDev.writeDevFiles({ id, version }));
   handle(IPC.templates.openFolder, (_event, id, version) => templateDev.openFolder({ id, version }));
+  // 内嵌代码编辑（只写用户模板的 template.js）与自建动画转为模板（2026-11）
+  handle(IPC.templates.readSource, (_event, id, version) => templateDev.readSource({ id, version }));
+  handle(IPC.templates.writeSource, (_event, req) => templateDev.writeSource(req));
+  handle(IPC.templates.createFromAnimation, (_event, req) => templateDev.createFromAnimation(req.text, (ref) => grants.resolve(ref)));
+  handle(IPC.templates.readAnimation, (_event, id, version) => templateDev.readAnimation({ id, version }));
+  handle(IPC.templates.updateFromAnimation, (_event, req) => templateDev.updateFromAnimation(req, (ref) => grants.resolve(ref)));
+
+  // ---- 代码窗口（来源：open/close/publish 只认主窗口，send 只认代码窗口，见 ipc-guard.ts）----
+  handle(IPC.codeWindow.open, () => codeWindow.open());
+  handle(IPC.codeWindow.close, () => codeWindow.close());
+  handle(IPC.codeWindow.publish, (_event, message) => codeWindow.publish(message));
+  handle(IPC.codeWindow.send, (_event, message) => codeWindow.receive(message));
+  // ---- 外部编辑器与动画文档文件：程序路径只来自主进程的对话框，文件在应用自己的目录里（1.6 第 6 条）----
+  handle(IPC.editors.get, () => externalEditor.info());
+  handle(IPC.editors.setKind, (_event, kind) => externalEditor.setKind(kind));
+  handle(IPC.editors.chooseProgram, () => externalEditor.chooseProgram());
+  handle(IPC.animations.openExternal, (_event, req) => externalEditor.openExternal(req.key, req.text));
+  handle(IPC.animations.syncFile, (_event, req) => externalEditor.syncFile(req.key, req.text));
 
   // ---- 主进程到界面的命令通道（H11）：界面交回结果 ----
   handle(IPC.host.commandResult, (_event, result) => hostCommands.receive(result));

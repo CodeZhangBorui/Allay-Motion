@@ -1,0 +1,55 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.chat-message",
+  "version": "1.0.0",
+  "name": { "zh-CN": "聊天消息", "en": "Chat" },
+  "description": {
+    "zh-CN": "左下角的聊天行一条条出现，每行带半透明黑底，新的把旧的顶上去，过一会儿淡出；可以先在输入栏里一个字一个字打出第一条再发出。",
+    "en": "Chat lines appear one by one at the lower left, each on a translucent black strip, pushing older lines up and fading after a while; the first one can be typed into the input bar before it is sent."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "chat"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "typing", "label": { "zh-CN": "输入栏", "en": "Input bar" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版的聊天栏。基岩版的聊天（会压暗背景的界面）没有做", "en": "The Java chat. The Bedrock chat (a screen that dims the background) is not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版", "en": "Java" } }] },
+    { "key": "lines", "type": "text", "label": { "zh-CN": "消息", "en": "Messages" }, "hint": { "zh-CN": "一行一条，最多 12 条。可以用 § 或 & 加格式码换颜色（如 §e 黄色、§a 绿色、§l 粗体）；带格式码的一行不会自动换行", "en": "One message per line, up to 12. Use § or & format codes for color (§e yellow, §a green, §l bold); a line with format codes does not wrap" }, "group": "content", "default": { "zh-CN": "<Alex> 有人在吗？\n<Steve> 来了来了\n§eSunny加入了游戏", "en": "<Alex> anyone here?\n<Steve> on my way\n§eSunny joined the game" }, "maxLength": 1200, "multiline": true },
+    { "key": "interval", "type": "duration", "label": { "zh-CN": "消息间隔", "en": "Interval" }, "hint": { "zh-CN": "相邻两条消息出现的时间差", "en": "Time between one message and the next" }, "group": "content", "default": 1.2, "min": 0.1, "max": 10 },
+    { "key": "lifetime", "type": "duration", "label": { "zh-CN": "消息显示多久", "en": "Message lifetime" }, "hint": { "zh-CN": "每条消息从出现到消失的时间，最后十分之一淡出；游戏里是 200 刻（10 秒）", "en": "How long each message stays, fading over its last tenth; 200 ticks (10 s) in the game" }, "group": "content", "default": 10, "min": 1, "max": 30 },
+    { "key": "typeFirst", "type": "boolean", "label": { "zh-CN": "先打字再发出", "en": "Type the first message" }, "hint": { "zh-CN": "开头显示聊天输入栏，把第一条消息一个字一个字打出来（不含开头的 <名字>，最多 48 个字），停一下后发出", "en": "Opens the chat input bar and types the first message character by character (without the leading <name>, up to 48 characters), then sends it after a short pause" }, "group": "typing", "default": false },
+    { "key": "typeSpeed", "type": "number", "label": { "zh-CN": "打字速度", "en": "Typing speed" }, "hint": { "zh-CN": "每秒打出几个字", "en": "Characters typed per second" }, "group": "typing", "default": 10, "min": 1, "max": 40, "step": 1, "unit": "/s", "ui": "slider", "visibleWhen": { "key": "typeFirst", "equals": true } },
+    { "key": "textColor", "type": "color", "label": { "zh-CN": "文字颜色", "en": "Text color" }, "hint": { "zh-CN": "没有格式码的文字的颜色", "en": "Color of text without format codes" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
+    { "key": "font", "type": "font", "label": { "zh-CN": "字体", "en": "Font" }, "hint": { "zh-CN": "游戏里聊天文字带阴影", "en": "Chat text has a shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "bgOpacity", "type": "number", "label": { "zh-CN": "背景不透明度", "en": "Background opacity" }, "hint": { "zh-CN": "每行后面黑底的不透明度，输入栏也用它；游戏里的默认值是 50%", "en": "Opacity of the black strip behind each line and of the input bar; 50% by default in the game" }, "group": "layout", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）；画面放不下 332 个界面像素宽的聊天栏时自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto); shrinks automatically when the 332-pixel-wide chat does not fit" }, "group": "layout", "default": 4, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "整体淡入。游戏里聊天是直接出现的，这里淡入是为了盖到视频上时不突兀", "en": "Overall fade in. The game shows chat instantly; the fade keeps the overlay from popping onto the footage" }, "group": "timing", "default": 0.2, "min": 0.05, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "hint": { "zh-CN": "消息在这段时间里按间隔出现；比消息显示时间长时，消息会自己先淡出", "en": "Messages appear during this time; if it is longer than the message lifetime the messages fade out on their own first" }, "group": "timing", "default": 6, "min": 0.5, "max": 26 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "hint": { "zh-CN": "整体淡出，还没到时间的消息在这里一起消失", "en": "Overall fade out; messages still showing disappear here together" }, "group": "timing", "default": 0.2, "min": 0.05, "max": 2 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "消息音效", "en": "Message sound" }, "hint": { "zh-CN": "每条消息出现时播放。游戏里收到聊天没有声音；创作者常用音符盒的“叮”（minecraft:block.note_block.pling）", "en": "Plays when each message appears. The game has no chat sound; creators often use the note block pling (minecraft:block.note_block.pling)" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "game-lifetime", "name": { "zh-CN": "游戏原始时长（10 秒后淡出）", "en": "Game lifetime (fades after 10 s)" }, "params": { "lines": "<Steve> 晚上好", "lifetime": 10, "inDuration": 0.2, "hold": 10, "outDuration": 0.2 } },
+    { "key": "conversation", "name": { "zh-CN": "一段对话", "en": "Conversation" }, "params": { "lines": "<Alex> 有人在吗？\n<Steve> 来了来了\n<Alex> 我在出生点等你\n<Steve> 马上到\n<Alex> 带上镐子", "interval": 1.5, "hold": 8.5 } },
+    { "key": "type-and-send", "name": { "zh-CN": "打字后发出", "en": "Type and send" }, "params": { "lines": "<Steve> 今天来造一座城堡", "typeFirst": true, "typeSpeed": 8, "hold": 5 } },
+    { "key": "announcement", "name": { "zh-CN": "服务器公告", "en": "Server announcement" }, "params": { "lines": "§6[公告] §f服务器将在 5 分钟后重启\n§7请及时回到安全的地方", "interval": 1, "hold": 5 } },
+    { "key": "advancement", "name": { "zh-CN": "进度消息", "en": "Advancement message" }, "params": { "lines": "Steve取得了进度§a[钻石！]", "hold": 4 } },
+    { "key": "join-and-death", "name": { "zh-CN": "加入和死亡消息", "en": "Join and death messages" }, "params": { "lines": "§eAlex加入了游戏\nSteve落地过猛\n<Alex> 哈哈哈", "interval": 1.4, "hold": 6 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"font": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

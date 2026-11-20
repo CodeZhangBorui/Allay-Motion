@@ -117,4 +117,36 @@ describe('编辑器偏好（settings.json 的 ui.editor）', () => {
     expect(next.editor.background).toBe('checker');
     expect(UiSettingsPatchSchema.safeParse({ editor: { recent: { color: Array(13).fill('#000000'), block: [], item: [], texture: [] } } }).success).toBe(false);
   });
+
+  it('T-ANIM-30 自建动画里图片图层的本机图片：文档里存成空、路径记进 animationFiles；打开时重新签发引用，丢了的报告图层名', async () => {
+    const { newAnimationDoc, AnimationDocSchema } = await import('../../apps/desktop/src/shared/animation/schema');
+    const grants = new FileGrants();
+    const svc = new ProjectService({ userDataDir: dir, appVersion: '0.1.0', grants, log });
+    const img = join(dir, 'pic.png');
+    writeFileSync(img, 'x');
+    const ref = grants.grant(img);
+    const animation = AnimationDocSchema.parse({
+      ...newAnimationDoc('A'),
+      layers: [
+        { id: 'pic', name: 'Pic', type: 'image', image: `file:${ref}`, props: {} },
+        { id: 'gui', name: 'Gui', type: 'image', image: 'minecraft:gui/sprites/widget/button', props: {} },
+      ],
+    });
+    const file = join(dir, 'anim.allay');
+    await svc.saveTo(file, { ...data(), animation });
+    const raw = JSON.parse(readFileSync(file, 'utf8'));
+    expect(raw.animation.layers.map((l: { image: string }) => l.image)).toEqual(['', 'minecraft:gui/sprites/widget/button']);
+    expect(raw.animationFiles).toEqual({ pic: img });
+    const opened = await svc.openPath(file);
+    if (opened.canceled || !opened.ok) throw new Error('open failed');
+    const image = (opened.data.animation!.layers[0] as { image: string }).image;
+    expect(image).toMatch(/^file:/);
+    expect(image).not.toBe(`file:${ref}`);
+    expect(grants.resolve(image.slice(5))).toBe(img);
+    rmSync(img);
+    const again = await svc.openPath(file);
+    if (again.canceled || !again.ok) throw new Error('open failed');
+    expect(again.missingFiles).toEqual(['Pic']);
+    expect((again.data.animation!.layers[0] as { image: string }).image).toBe('');
+  });
 });

@@ -1,3 +1,4 @@
+import { StageOverlay } from '../animation/StageOverlay';
 import { Allay, AllayLoader } from '@allay/mascot';
 import { Button } from '@allay/ui/components/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@allay/ui/components/popover';
@@ -195,6 +196,7 @@ export function PreviewArea() {
   const areaRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const output = useProjectStore((s) => s.output);
+  const animation = useProjectStore((s) => !!s.template?.animation);
   const revision = useProjectStore((s) => s.revision);
   const status = usePreviewStore((s) => s.status);
   const editor = useUiStore((s) => s.settings.editor);
@@ -306,6 +308,9 @@ export function PreviewArea() {
       {onboarding && !failed && <ResourceOnboarding />}
       <ErrorCard />
       <DevOverlay />
+      {/* 动画工作区：在预览里直接选中、拖动、缩放、旋转图层 */}
+      {/* 改动后预览会重新装载：装载中也不卸下这一层，免得拖到一半断掉 */}
+      {animation && !failed && <StageOverlay />}
     </PreviewViewport>
   );
 }

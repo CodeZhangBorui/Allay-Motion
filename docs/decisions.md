@@ -2,12 +2,6 @@
 
 规格没说清、或与现实对不上的地方，在这里记一笔：偏离了什么、为什么。按里程碑分节。
 
-## 补齐 T-ARC-6 的畸形参数表（2026-11-20）
-
-- T-ARC-6 要求 `window.allay` 的每个方法都在 `tests/e2e/ipc.spec.ts` 的畸形参数表里有条目。`folders.*`（get/choose/reset）和 `updates.*`（state/check/download/cancel/install）共 8 个方法是在这两组通道（6.11 文件夹、自动更新）加进来时漏补的，测试在 main 上也失败。
-- 补齐 8 个方法的畸形参数：`folders.get` 和 `updates.*` 都是无参数（`z.tuple([])`），只发带多余参数的用例；`folders.choose`/`reset` 只收枚举 `'project' | 'export'`，发空参、数字、路径、别的枚举值和多余参数。合法的 `choose` 会弹对话框、`updates.check/download` 会联网、`install` 会重启，所以表里绝不放合法参数（沿用表头的约定）。
-- 验证：用 `IPC_ARGS` 的 zod schema 逐个核对，8 个方法共 30 个用例全部 `safeParse` 失败（会返回 `invalid arguments`，命中测试的判定正则）；合法参数（`['project']`、`[]`）能通过，确认用例确实畸形。preload 暴露的 104 个方法与表的 104 个键一一对应。`pnpm typecheck`、`pnpm lint`、`check:provenance`、`check:licenses`、网站构建通过；完整 e2e 以 CI 为准。
-
 ## GitCode 镜像与自动发布（2026-11-14）
 
 - 用户要求 GitCode `Mystic-Stars/Allay-Motion` 作为镜像分发源，使用 GitHub Actions 单向同步代码、标签及正式 Release 附件，不依赖开发者电脑登录或推送。
@@ -265,7 +259,7 @@ M2 拆成两半并行：M2a 不依赖引擎（本节），M2b 在 M1 合入后�
 - **T-AST-2 的前提改为**：资源栈里只有一个由测试脚本生成的假原版层（纯色色块的假 jar，覆盖方块、物品、界面目录的全部贴图）。e2e 里这样装载临时模板，`warnings` 为空。另加一条：没有任何素材层时显示引导状态，不报错、不白屏。T-AST-7、H-ART 不再适用，没有做。
 - 覆盖率检查：`tests/unit/coverage-fake-vanilla.test.ts` 对假原版层全覆盖；对本机真实 jar 的检查仍是手动的 `scripts/smoke-vanilla.ts`。
 
-### 兜底字体：方舟像素字体
+### 兜底字体：方舟像素字体（2026-11 已删除，见“2026-11 反馈：原版动画还原与字体”）
 
 - 规格的“内置像素字体”用 9.7 推荐的方舟像素字体（Ark Pixel Font）2026.11.10，12px 比例宽度 zh_hans 的 **BDF**，从官方发布包原样取出，**不做任何修改**（不转格式、不裁剪），放在 `resources/fonts/ark-pixel/`，附发布包里的 `OFL.txt`，登记在 `ASSETS_PROVENANCE.json`，随安装包（`extraResources`）分发。
 - 许可核对（2026-11-13，经 GitHub API 读仓库）：字体部分是 `LICENSE-OFL`（SIL OFL 1.1，`Copyright (c) 2021, TakWolf`，**没有 Reserved Font Name**）；构建程序是 `LICENSE-MIT`，不随我们分发。README 写明“字体”和“构建程序”分别授权，没有发现其他条款。缝合像素字体合并了多个来源的字形，许可链更长，没有选。
@@ -1851,3 +1845,307 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - 设置补丁复用桌面端的 `applyUiPatch`。仿真器默认跳过首次启动和新手引导，直接进入演示工程；帮助菜单仍可重新打开引导。
 - 本机验证通过：`pnpm install --frozen-lockfile --offline`、`pnpm typecheck`、`pnpm lint`、`pnpm check:provenance`、`pnpm check:licenses`、`pnpm website:build`；来源检查和体素模型相关单元测试共 40 项通过；官网 Playwright/Electron 测试 18 项全部通过（包含此前未运行的最新 T-WEB-19）。测试使用不显示的离屏窗口，临时目录放在 E 盘。
 - 完整仓库 `pnpm check` 以合入后 GitHub Actions 的结果为准，本机没有重复跑桌面应用的全套引擎、导出和端到端检查。本次合并不配置网站托管、不部署官网、不创建发版标签。
+
+
+## 2026-11 反馈：时间线与曲线编辑（2026-11-19）
+
+来自用户 2026-11-15 的反馈清单（图 1–3），这一块只管界面交互。验收测试编号 T-UXF-*：纯计算在 `tests/unit/T-UXF.timeline-ops.test.ts`（T-UXF-4…7），交互在 `tests/e2e/T-UXF.timeline-easing.spec.ts`（T-UXF-1、2、3、8、9、10）。
+
+### 退出段的段尾拖不动（图 1）
+
+- **原因**：时间轴把把手建模成“段与段之间的分界线”，只画了前 n−1 条（`shownSegments.slice(0, -1)`），每条改左边那一段。最后一段的右边缘不是任何两段之间的分界，于是根本没有把手；只有一段的模板一条都没有。
+- **改法**：把手改成“每一段的段尾”，n 段就有 n 个，拖第 i 个改第 i 段的 duration 参数。前 n−1 个与原来的分界线完全一样（拖它本来就是改左边那一段，右边各段整体平移），最后一个改最后一段、总时长随之变。拖动、键盘、按帧吸附、min/max、撤销一步、冻结比例尺、在 window 上跟踪指针都是同一份代码，没有给最后一段写特例逻辑。
+- 唯一的差别在布局：拖别的段尾时布局冻结在按下时（各段之和超出的部分裁掉，段尾始终在指针下）；拖最后一段把总时长拉长到超出冻结的布局时，布局改按各段之和，整段始终可见、段尾停在轨道右端，数值仍按按下时的比例尺随指针走（有指针捕获，指针可以越过轨道右端继续拖）。缩短时照常冻结，段尾在指针下，后面留空。
+- 最后一个把手的读屏名是“‘退出’的结尾”（`transport.segmentEnd`），其余仍是“‘A’与‘B’的分界”。
+- 顺带：各段时长从时间轴以外的地方改了（右键菜单、设置时长、属性面板、撤销），引擎报回新时长之前也按各段之和布局，不再闪掉色段（只在同一组段之间；换模板时照 4.3 等引擎）。
+
+### 自定义缓动曲线编辑器的聚焦（图 2）
+
+- **问题的实际成因**：控制点的 y 允许超出 0–1，超出方格的部分不只是被下面的控件盖住，还会被折叠分组（`CollapsibleContent` 是 `overflow: hidden`）和属性面板的滚动区裁掉。只调 z-index 解决不了裁剪。
+- **做法**：鼠标进入方格（含拉出方格的控制点和手柄，它们是同一个 SVG 的子元素）、按住控制点、或键盘焦点在控制点上时进入聚焦：原位留一个同高的占位，编辑器本身改成 `position: fixed` 停在原来的屏幕位置（同一个 DOM 节点，拖动中的指针捕获不断；`fixed` 不受祖先 `overflow` 裁剪），层级在面板之上；面板滚动或窗口改尺寸时跟着原位走；祖先有 transform、`fixed` 的包含块不是视口时，浮起后量一次按差值校正。
+- 属性面板其余各行和组标题降到 35% 不透明度（ParamPanel 根上的 `data-focus-layer`，各行的 `data-dim`；曲线所在的行标 `data-focus-owner`，不降）。过渡用 `--dur-2`（120 ms），只改透明度；减少动效时 `--dur-2` 为 0，直接切换。
+- **退出**：3 秒（`EASING_FOCUS_IDLE_MS`）没有操作（拖动中不算无操作，松手后重新计时）；在编辑器外按下；Esc；键盘焦点移到编辑器外；窗口失焦。
+- **取舍：背景层不完全“不响应指针”**。要让“点背景那一下直接作用于被点的控件”，背景控件就得能收到这次按下：如果给它们 `pointer-events: none`，浏览器在按下时已经把目标定成面板容器，之后再恢复也拿不回这次点击（click 的目标是按下和松开目标的共同祖先，重新派发事件对 Base UI 的按钮、菜单不可靠）。所以背景只做视觉降层，指针照常命中；编辑器外的任何按下都在捕获阶段先退出聚焦、不拦截，这一下照常落到被点的控件上。代价是聚焦期间悬停背景控件仍可能出现它们的悬停样式或提示。
+- 可视的 y 范围没有扩大（仍是 −0.3–1.3）：浮起后超出部分完整可见可点，扩大方格会把 0–1 的主要区域压扁。y 仍然不限制。
+- 聚焦层的标记是 EasingField 直接写在 DOM 上的属性（React 不渲染这几个属性，不会被覆盖）。EasingField 不在 ParamPanel 里单独使用时只浮起、不降其他行。
+
+### 时间轴右键菜单（图 3）
+
+参考 Premiere、DaVinci Resolve、Final Cut、After Effects 时间线右键菜单的常见项，只做在现有工程模型里能落地的。阶段轨的各段就是模板的 duration 参数；音效 cue 和剪辑点由模板给出（只读）；循环是一个开关。菜单用 Base UI 的 ContextMenu，内容由 `TimelineTrack` 的 `renderMenu(target)` 交给宿主（`features/transport/TimelineMenu.tsx`），按点中的轨道和位置给不同的条目；有对应命令的走命令层（`runCommand`），右侧显示生效的快捷键（含自定义）。每个改参数的条目只调一次 `setParams`，撤销就是一步。
+
+- **阶段轨（点中某一段或它的段尾）**：设置时长…（弹窗输秒数，吸附到帧、受 min/max 限制，实时显示帧数）、段尾移到播放头、重置这一段的时长、复制时长、粘贴时长、跳到段首、跳到段尾；多于一段时还有“平均分配各段时长”（保持总帧数，尽量一样长，某段放不下就把差额分给其他段）和“重置全部阶段时长”。
+- **音效轨**：跳到上一个 / 下一个音效（相对右键处）、静音预览（勾选）。
+- **剪辑点轨**：跳到剪辑点。
+- **所有轨（含刻度行）**：跳到这里（显示帧号）、从这里播放、播放/暂停、循环播放（勾选）、回到开头、跳到结尾。
+- 新增命令（命令面板里也有，可在设置里绑快捷键）：`prevCue`、`nextCue`、`toCut`（都没有默认快捷键）、`mute`（默认 `M`，此前没被占用）。
+- **键盘**：焦点在时间轴（播放头滑块）或某个段尾上时，菜单键或 Shift+F10 打开菜单：在段尾上是那一段的菜单，在时间轴上是播放头处那一段的菜单；菜单里方向键移动、回车执行、Esc 关闭（Base UI）。
+- **复制时长**存在时间轴自己的剪贴板里（本次运行内有效），和属性面板右键的“复制值”是两份：那份在 `features/params/ParamsPanel.tsx` 里，不在这次能改的范围。后续可以合成一份。
+
+**没做的（需要新数据格式或新功能）**：
+
+- 添加 / 删除剪辑点、剪辑点吸附：剪辑点是模板算出来的（`cutTime`），工程里没有可编辑的剪辑点列表；时间本来就按帧吸附。
+- 设入点 / 出点、循环区域：循环只有开关，没有区间，导出也没有区间。要做得给工程加入/出点字段，并让播放和导出遵守。
+- 缩放到适合、显示 / 隐藏某轨：时间轴没有缩放（设计方向写明这次不做）；轨道显隐没有地方存（要进设置或工程格式）。
+- 音效“预听”单个 cue：要动预览音频，不在这次范围；用“从这里播放”替代。
+- 静音某一条音效轨：只有一条音效轨，“静音预览”就是它；按 cue 静音需要新数据。
+
+### 验证情况
+
+- 本机跑过的检查见提交说明和汇报。
+- **没有验证的**：e2e（T-UXF-1、2、3、8、9、10）写好了，没在本机跑，以 GitHub Actions 为准；没有起应用亲手看过效果——浮起的位置、降层的观感、菜单的布局和键盘路径交给用户试用。Shift+F10 / 菜单键打开菜单依赖 Chromium 对聚焦元素派发 contextmenu，没在 Windows 上实测。
+
+## 2026-11 反馈：素材与音效（分支 claude/assets-sounds-c4ec65）
+
+用户 2026-11-15 反馈清单的第 4、8、9、11 条（经主控拆分转达）。规则写进了 `docs/03-assets.md` 3.8、3.12。
+
+### 多个原版来源（第 4 条）
+
+- 原因：原来的原版层是二选一（`chooseVanillaSource`）。用户选了“使用本机的 1.21.11”之后，下载的 26.3 就从资源栈里消失了。
+- 现在设置里多了 `resources.vanillaSources`（从下往上的来源列表）。每个来源一层，层 id 为 `vanilla:local:<游戏目录哈希>:<版本>` 或 `vanilla:dl:<版本>`。最上面启用的是“生效的原版基底”（`vanillaBase()`），层信息里标 `base`，界面徽标写“基底”。
+- 旧设置（只有 `consent` 和 `enabled`）第一次探测后按旧规则迁移成一条来源。`vanilla.consent` 保留，仍表示“问过、同意过使用原版素材”。`setVanilla({ consent: true })` 在列表为空时按旧规则加一条。`setVanilla({ enabled })` 对全部来源生效。旧的层 id `vanilla` 仍被 `setEnabled`、`removeLayer` 接受，作用于全部来源，旧的测试和调用方不用改。
+- 删掉最后一个原版来源等于不再使用原版素材（`consent = false`），首次发现的对话框不会再弹。
+- 原版层之间可以拖动排序。资源包仍整体在原版之上（M2b 的决定不变）：`reorder` 按 id 把资源包和原版来源分开排，混在一起的顺序会被拆开。
+- 下载完成、选游戏目录、在版本列表里加入，都把那一版放到原版最上面，成为新的基底。
+- **`service.ts` 的改动**（方便和字体会话合并）：
+  - 原版部分整段重写：字段 `vanillaLayers` 和 `localVersions`，方法 `detectVanilla`、`migrateVanilla`、`applyVanilla`、`putVanillaOnTop`、`addVanillaSource`、`versions`、`fetchRemoteVersions`；
+  - `state()`、`rebuild()` 改了；
+  - 音效库一段（`soundDefinitionsWithOrigin`、`lang`、`soundLibrary`、`soundFiles`）改了；
+  - 新增本机资源包、导入音效两段；
+  - 字体相关的方法（`fontProviders`、`fallbackFontTables`）没有动。
+
+### 版本检索（第 4 条）
+
+- 版本有三处来源：本机候选游戏目录的 `versions/`（现在列出全部带 jar 的版本，包括快照）、下载缓存（新的 `listCached()`）、Mojang 版本清单。规则见 3.12。
+- **联网边界不变**：取版本清单（`listRemoteVersions`）和下载指定版本（`downloadLatest({ versionId })`）都在 `download.ts` 里，走同一个白名单、同样不带请求头、同样拒绝重定向，只在用户点“获取版本列表”“下载”时调用。
+  - 版本清单是 M2a 下载流程本来就会取的第一个文件，所以这算沿用已批准的例外，不是新增联网。
+  - 下载“指定版本”比原来的“最新正式版”多了一种选择，取什么、存哪里、怎么校验都相同。
+- jar 根目录的 `version.json` 现在也收进索引（只用来读 `pack_version`），对外的 `has`、`list` 仍只暴露 `assets/`。
+- 对照表（`FORMAT_TABLE`，到 1.21.8）**按公开资料凭记忆整理，没有联网逐条复核**。它只在 jar 里读不到格式号时用，较新的版本一律以 jar 为准。
+
+### 本机 Minecraft 的资源包文件夹（第 4 条）
+
+- 能可靠认出的位置见 3.12 的表。原 M2a 的说法是“其他启动器不自动探测”，这里对资源包文件夹放宽了：只读、只看固定的相对路径和各启动器自己的元数据文件，认不出就不列。原版 jar 的探测仍只认官方结构（Prism 的 jar 在 `libraries/` 里，这次没做）。
+- Modrinth App 新版把实例的游戏版本存在 SQLite 里，不引入数据库依赖，读不到就写“版本未知”。
+- 资源包新增一种来源 `linked`：本机 zip 原地只读引用，不复制。复制一份几百 MB 的高清包不划算，用户在游戏里更新了包，这里也跟着变。安全上沿用 zip 的全部校验（不安全的条目名整个拒绝、解压炸弹限制）。主进程只接受上一次 `localPacks()` 返回过的路径。
+- 本机这台机器上 `%APPDATA%` 下有 `ModrinthApp`、`PCL`，但没有官方的 `.minecraft`。没有在真实启动器目录上看过界面，只跑了夹具测试。
+
+### 音效来源与分类（第 8、11 条）
+
+- `mergeSoundDefinitions` 记下每个事件由哪些层定义（`definedBy`，replace 之后重置）和字幕键（`subtitle`，与游戏相同：跟着创建或替换这个事件的那一层走）。
+- 来源判定（`SoundLibraryEvent.origin`）：
+  - 导入层定义的是 `imported`；
+  - 原版层定义过的：有资源包改定义、或任何变体的文件由资源包胜出，是 `overridden`，否则是 `vanilla`；
+  - 原版没有、资源包有的是 `added`。
+  - `packs` 列出相关资源包的名字，最上面的在前。选择器里分别显示铅笔、加号、文件图标，悬停写明资源包名。没用琥珀色：设计规范规定琥珀只表示“改过的参数”。
+- 分类不再按“命名空间 · 第一段”，改按事件 ID 第一段的别名表（`dig`、`step` 归方块，`records` 归唱片……），认不出时看第一个变体的文件路径。这样资源包新增的 `mypack:bossfight`（文件在 `music/`）会出现在“音乐”分组。
+- **导入音效**：`.ogg`、`.wav`，单个不超过 32 MB，最多 500 个。复制到 `userData/imported-sounds/`，摆成资源包的结构，作为资源栈最上面一层（id `imported`）。资源栈弹层、顶栏、状态栏、工程的 `resourceHint`、`hasAssets` 都不算这一层。选择器里可以删除。
+
+### 音效的中文名（第 11 条）
+
+- 名字从资源栈的语言文件推出（`deriveSoundName`），仓库里没有任何从 Wiki 或游戏抄来的翻译表。游戏内字幕的中文就是 zh.minecraft.wiki“声音事件”表里用的那套文本，所以叫法与 Wiki 一致。没有字幕的几类名称，用的是本应用自己写的几个词（摔落、脚步、敲击、创造模式、主菜单等，两种语言），不是 Wiki 的文本。
+- `zh_cn.json` 只在资源索引里（jar 里只有 `en_us.json`）：
+  - 下载缓存的原版层在“下载原版资源”时一并取回（`extraKeys`，同一主机、同样校验）；
+  - 之前已经下载过的，在用户试听或选中音效时随音效一起取回（M6b 的按需规则，不新增触发点）；
+  - 本机游戏的原版层直接读本地对象。
+  - 中文语言文件还没取回时，中文界面先显示英文名。
+- **覆盖率**（`scripts/smoke-sound-names.ts`，只读本机 `D:\Minecraft\.minecraft`）：
+
+  | 版本 | 事件总数 | 推出中文名 | 推不出（显示 ID） |
+  |---|---|---|---|
+  | 1.21.1 | 1613 | 1560 | 53 |
+  | 26.3 | 1991 | 1957 | 34 |
+
+  推不出的多是没有字幕的事件，例如 `ui.toast.*`、`entity.bat.loop`、`ambient.underwater.*`，以及若干方块的 `fall`（方块名在语言文件里没有对应键）。`ui.toast.*`、`ui.button.click` 等常用事件仍有界面自带的译名。这部分**不需要 Wiki 的内容**；如果要补齐，可以给剩下的几十个事件写本应用自己的名字，或接受显示 ID。
+
+### 空间音效（第 9 条）
+
+- 开关在音效参数区（含音效参数的那一组末尾）。存在编辑器偏好 `spatialAudio` 里，保存工程时写进 `.allay` 的 `audio.spatial`，打开工程时恢复（旧工程按关闭处理）。改开关不算工程“已修改”。
+- **原版规则**：
+  - 衰减：游戏的 `SoundEngine` 播放带位置的声音时调 `Channel.linearAttenuation(max(音量, 1) × attenuation_distance)`。它设 OpenAL 的 `AL_LINEAR_DISTANCE`，参考距离 0、滚降 1、最大距离为上面那个值。按 OpenAL 1.1 规范的线性距离模型，增益 = 1 − min(d, 最大距离) / 最大距离。`sounds.json` 的 `attenuation_distance` 缺省 16（Minecraft Wiki 英文版“Sounds.json”页的字段说明）。
+  - 定位：OpenAL 只给单声道缓冲区做空间化，立体声文件（原版的音乐、唱片多为立体声）照常播放。
+  - **出处是对游戏代码和 OpenAL 规范的记忆，这次没有联网复核**。
+- **实现**：`apps/desktop/src/renderer/audio/schedule.ts` 的 `spatialFactors`，预览的实时播放和导出的离线混音都经 `scheduleCues` 调它，是同一份算法。距离衰减照上面的公式。左右定位用声源方向在听者右轴上的分量（sin 方位角 · cos 仰角）作为 `StereoPannerNode` 的声像，加在模板给的 `pan` 上再钳制。
+  - **与原版的偏差**：OpenAL Soft 在立体声输出上的实际声像曲线（默认不开 HRTF 时）和 Web Audio 的等功率声像不完全相同。这里取方向分量是近似，没有逐样本对比过游戏。上下方向只影响距离，不影响声像。
+- **模板接口**（`packages/template-sdk`，只加音效相关的可选字段）：
+  - `ctx.audio.cue` 的选项多了 `position?: { x, y, z }`，是声源相对听者的位置，单位格，+x 右、+y 上、-z 前。
+  - `AudioCue` 多了可选的 `spatial`；变体多了可选的 `attenuation`。
+  - 引擎只校验 `position` 是有限数并原样带给宿主，不读相机：舞台相机离 z = 0 平面有几十到上百格远（正交相机在 4 倍舞台宽处），按真实相机算会全部衰减成静音。所以画面怎么对应到格由模板决定。
+  - `pnpm templates:api` 的产物已重新生成。字体会话也改了 `runtime.ts`，合并后要再生成一次。
+- **内置模板**（单独一个提交，和模板会话冲突时可以整体丢掉）：方块擦除、方块坠落的抽样 cue 带上那块方块的位置：舞台半宽当作 8 格，听者在画面前 6 格。打开开关后，画面中心的方块大约 0.63 倍音量、正中；边缘大约 0.38 倍、声像约 ±0.8。抽样到的时刻和以前完全相同。别的模板的音效（提示框、物品飞掠）是界面音，原版里也不定位，没有加。
+
+### 测试
+
+- 新增 `tests/unit/T-AST-MV.multi-vanilla.test.ts`（T-AST-MV-1…5、T-AST-VER-1/2、T-AST-LP-1/2）和 `tests/unit/T-SND.sounds-2026-11.test.ts`（T-AST-VER-3、T-SND-1…3）。
+- `tests/engine/m6b.spec.ts` 加了 T-SND-4（cue 的 `position` 写进 `spatial`，非法时装载失败）。
+- `tests/e2e/ipc.spec.ts` 的畸形参数表补了 8 个新的 IPC 方法。
+- 改了旧测试的期望：音效库的条目多了字段，`soundVariants` 多了 `attenuation`。
+- 本机跑过：`pnpm typecheck`、对改动文件的 eslint、`vitest run` 全部单元测试。只有 T-ALY 烘焙一项没过：本机 `pnpm install --ignore-scripts` 没装 Electron 二进制，与改动无关。
+- 没跑：test:engine（T-SND-4）、e2e（含 IPC 表）、test:export、`pnpm check`，以 GitHub Actions 为准。
+
+### 没验证的
+
+- 没有起应用看界面：资源栈弹层的新按钮、版本列表和本机资源包两个对话框、选择器的来源标记和分类、空间音效开关，都只过了类型检查和 lint。
+- 空间音效没在耳机上听过，导出的音频没在剪辑软件里听过。
+- 没在真实的 Prism、CurseForge、Modrinth、PCL 目录上试过本机资源包的探测，只有夹具。
+- “获取版本列表”和“下载指定版本”没有对真实的 Mojang 服务器跑过，测试用的是替身。
+
+## 2026-11 反馈：原版动画还原与字体（分支 claude/mc-templates-fonts-b499da）
+
+用户 2026-11-15 的反馈清单里“还原原版加载动画、提示和效果”“允许改字体”两条，由主控拆给本分支。用户已经批准：原版素材（含字体）在运行时从下载的 jar 里取用，不进仓库；开发时可以上网查资料、参考别人的实现。
+
+### 开发环境的限制（影响下面所有“依据”）
+
+- 这次开发所在的环境网络不通：`pnpm install` 拉不到依赖包，Mojang 的 jar 下载不了，网页抓取被拦，只有网络搜索的摘要能用。所以**没有拿到任何一份原版游戏文件来对照**，也**没有看任何录屏**。
+- 各变体的数值来自两处，`04-templates.md` 的 T4、T6 两节逐条标了是哪一处：一是实现者对反编译游戏代码（`LoadingOverlay`、`LevelLoadingScreen`、`ReceivingLevelScreen`、`LoadingScreenRenderer`、`ToastManager`、`AdvancementToast`、`RecipeToast`、`SystemToast`、`GuiAchievement`、`UnihexProvider`、`BakedGlyph`、`Font` 的效果线和八方向描边）的记忆，标“凭记忆”；二是网络搜索查到的 Minecraft Wiki 摘要，标“经搜索摘要确认”。**没有逐像素、逐帧和游戏画面对照过**，这一步留给用户试用时做。
+- 没有引用任何第三方代码，没有新增依赖，没有新增二进制素材（`ASSETS_PROVENANCE.json` 不变）。
+
+### 字体
+
+- **新参数类型 `font`**（template-sdk，第 16 种）：值是 `{ family, bold, italic, underline, strikethrough, shadow, outline }`。清洗时逐个字段检查，坏的字段取默认值的那一项，而不是整个回到默认：用户换了字体、样式里有一项坏了不至于全丢。
+- **`ctx.text.create` 多了 `font` 和几个样式字段**。传 `font` 参数的值时，对象里的样式优先于同一次调用里的 `shadow` 等字段：用户在参数里选的为准。
+- **字体族**：资源栈里的任意字体 ID（游戏的 `minecraft:default`、`uniform`、`alt`、`illageralt`，以及资源包自己的字体），`system:sans`（系统字体），`user:<哈希>`（导入的字体）。资源栈里没有、或这个字体一个字形都没有时退回 `minecraft:default` 并记一条警告；缺的字形再退回系统字体（见下面“删除内置像素字体”）。游戏里缺字形画的是方框，这里退回是为了用户的中文标题不至于变成一排方框。
+- **只预载 font 参数里出现的字体**：`text.create` 是同步的，字体必须在 `setup` 之前载好。引擎按 manifest 的 font 参数（当前值和默认值）加上默认字体预载，最多 32 个；系统字体不用向宿主要。模板代码里临时写的其他字体族当作没载入。
+- **样式的画法照游戏**：粗体是向右偏一个“阴影偏移”重描一次、前进宽度加同样的量；斜体是把字形四边形的顶边右移 1 − 0.25 × 上沿、底边右移 1 − 0.25 × 下沿（相对行顶，换算成相对基线是 −0.75 − 0.25 × y），整行一个错切四边形；阴影偏移 1 个字体像素（Unifont 0.5），颜色取正文各通道的 1/4（`(c & 0xFCFCFC) >> 2`）；下划线在基线下 1–2、删除线在基线上 2.5–3.5，从字形左边 1 像素画到前进宽度末尾；描边是八个方向各偏一个阴影偏移、描边颜色，有描边时不画阴影（发光告示牌 `drawInBatch8xOutline` 的做法）。
+- **栅格化改成子像素**：为了表示 Unifont 的半像素（字形画一半大小、阴影和粗体偏 0.5），一个字体像素栅格成 2 × 2 个子像素。阴影、描边直接画进同一张贴图，颜色也烘进去，不再是“正文一张白色贴图加一个阴影网格”。原来阴影颜色是线性空间里乘 0.25 的近似，现在按游戏取整，**带阴影的文字颜色会和旧基准图差几个单位**。
+- **Unifont 的读取**：`hex_file` 指向资源栈里的 zip，主进程在内存里用 `yauzl.fromBuffer` 解开（不写盘），条目名不安全时整个拒绝，最多 64 个 .hex、每个 32 MB。解析成和 BDF 一样的定长表（度量单位是 Unifont 像素，`oversample = 2`），按（stamp、文件、覆盖）缓存，经新的 IPC `resources.unihexTables` 交给渲染进程。码位按 .hex 在 zip 里的顺序先出现的胜出。空字形（全是 0、没有覆盖）宽 0、前进 1 像素。
+- **矢量字体**（用户导入的 TTF/OTF/WOFF/WOFF2）：Worker 里用 `FontFace` 从字节载入（不经网络，CSP 不用放宽），`OffscreenCanvas` 的 2D 上下文按输出分辨率栅格化（一个 em = 10 个字体像素），线性过滤。同一台机器上预览和导出一致；预览分辨率比导出低时抗锯齿边缘会略有不同，这和其他矢量内容一样。粗体、斜体交给 CSS 的字重、字形（字体里没有就由浏览器合成），不是游戏的重描和错切。
+- **用户导入字体**：主进程的对话框选文件（扩展名白名单 ttf、otf、woff、woff2、bdf，≤ 32 MB）→ 复制成 `userData/fonts/` 下的临时文件 → 对副本按文件头认格式（`00 01 00 00`/`true`、`OTTO`、`wOFF`、`wOF2`、BDF 的 `STARTFONT`，BDF 还要能解析）→ 按 sha256 改名、写 `index.json`。字体族 ID 是 `user:<sha256 前 32 位>`，读文件时主进程按 ID 在这个目录里找，ID 的格式由正则限定（01 1.6 第 6 条：渲染进程拿不到路径）。新 IPC 命名空间 `fonts`：`list`、`import`、`remove`、`read`，全部有 zod 校验，T-ARC-6 的畸形参数表已补。
+- **工程里的登记**：工程文件的 params 里存的是 `user:<哈希>`，内容寻址，同一台机器上打开工程就能找到字体。**换一台机器时字体文件不会跟着工程走**，那边会显示“找不到导入的字体”并退回默认字体。把字体文件打进工程（或在打开时提示缺字体、让用户重新导入）没有做，留作后续。
+- **属性面板**：新组件 `packages/ui/src/editor/FontField.tsx`：字体族下拉（游戏字体、内置字体、导入的字体，末尾“导入字体…”），一排样式开关，打开描边时出现描边颜色。字体名不用该字体预览（09 9.3：应用自己的界面不用游戏字体）。`ParamPanel.tsx` 只加了 `font` 的一个分支和“高行”判断。
+- **`service.ts` 的改动只有两处**：`fontProviders()` 的结果多了 unihex 提供器（`{ type: 'unihex', file, overrides }`）；多了一个 `unihexTables()` 方法和它的缓存字段，实现在新文件 `main/resources/fonts.ts`。用户字体的 `UserFontStore` 不在 `ResourceService` 里，在 `main/index.ts` 里另建，经 `handlers.ts` 接线。
+
+### 删除内置像素字体，改用原版字体和系统字体（用户补充要求，经主控转达）
+
+用户原话：“把应用原带的像素字体删除，使用minecraft内自带的像素字体，无该资源时默认先使用系统字体替代”。
+
+- **删掉的**：`resources/fonts/ark-pixel/`（BDF 和 OFL.txt）、`ASSETS_PROVENANCE.json` 里的登记、`.gitattributes` 里那一行、`electron-builder.yml` 的 `extraResources`、第三方许可清单（`scripts/third-party.ts`、`third-party-licenses.json`）和关于页里的那一条、README 的许可说明；主进程的 `fallbackFontFile` 选项、`fallbackFontTables()`，IPC 的 `resources.fallbackFont`，渲染进程的兜底字体载入。官网（`apps/website`）原来也用它做仿真器的兜底字形：构建插件 `pixelFont`、`fontLicense`，`pixel-font.worker.ts`、`paths.ts`，页脚的“像素字体许可全文”链接一起删了，仿真器里的文字现在走系统字体。BDF 解析器（`parseBdf`）留着：用户导入的 BDF 字体还要用它。
+- **中文走原版像素字形**：上面的 unihex（Unifont）解析就是为这个做的。有原版素材时，`minecraft:default` 经 `include/unifont.json` 引用 `unifont.zip`，中日韩字形和游戏一样来自 Unifont。`ttf` 提供器没有做：原版的字体定义里已经不用它（资源包偶尔用），而且要在 Worker 里解析 TrueType 轮廓。
+- **系统字体的两种用法**：
+  1. 资源栈里一个原版字形都没有（没有原版素材，也没有资源包提供字体）时，整段文字用系统字体，按输出分辨率抗锯齿画（和用户导入的矢量字体同一条路径，一个 em = 10 个字体像素），不报“缺字形”的警告。
+  2. 有原版字体、只是缺某些字形时，缺的字形用系统字体在 OffscreenCanvas 上按子像素（一个字体像素 2 × 2）画，alpha ≥ 50% 的算有墨迹、其余透明，和原版字形一样是硬边像素；一个 em = 8 个字体像素（和 Unifont 字形同高），基线在格子顶下 7 个字体像素，前进宽度 = 量出的宽度向上取整 + 1（中文正好 9，与游戏一致），阴影和粗体偏 0.5 个字体像素（同 Unifont）。
+- **字体栈**：`"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", sans-serif`。Worker 里的 2D 画布能直接用系统装的字体，不经网络，CSP 不用动。
+- **确定性**：预览和导出是同一个引擎、同一段代码、同一条回退路径，结果只取决于文字、样式、输出分辨率和这台机器上的字体，同一台机器上逐帧一致（引擎的确定性自检照常有效）。**已知限制：换一台机器（或者装、卸了字体）以后系统字体可能不同，同一个工程导出的文字字形会不同。**整段系统字体按输出分辨率抗锯齿，预览分辨率比导出低时边缘会略有不同。
+- **字体参数**：`minecraft:default`（“默认”，游戏字体一组的第一项）仍是所有内置模板的默认值；“系统字体”是新的字体族 `system:sans`，放在“系统字体”一组；导入的字体照旧。旧工程、旧预设里的 `allay:fallback` 在清洗时换成 `system:sans`（`LEGACY_FALLBACK_FONT_ID`）。
+- **测试**：引擎测试的假资源栈不再带兜底字体，只有拼出来的测试字体（`setFakeVanillaFont`，实心矩形，不是 Mojang 文件）。m2 的文字用例改成“没有原版字体时整段用系统字体”和“原版字体缺的字形由系统字体按像素补上”；BDF 解析的用例改用测试里手写的 BDF 文本；安装包检查改成“不带 fonts/”；第三方许可清单的检查去掉 Ark Pixel Font。T-TPL-5 的基准图本来就要重新生成（见下面），这一条让所有带文字的基准图也一起变了。
+
+### 模板
+
+- **T4 加载界面**加 `style`（7 种）、`guiScale`、`background`、`monochrome`、`titleFont`、`subtitleFont`，版本号 1.1.0。默认样式从原来的自由排版改成 `javaClassic`（Java 版 Beta–1.13 的泥土背景“正在生成地形”），原来的样子保留为 `custom`。资源加载画面（红底标志）做成这里的一种样式，而不是单独一个模板：结构都是“铺满的背景 + 居中的字和进度条”的转场，和本模板的参数、时间轴一致，少一套基准图和清单。
+- **T6 进度提示**加 `style`（`java`、`javaAchievement`）、`kind`（进度、配方、系统）、`headerFont`、`titleFont`、`outSound`、`challengeSound`，版本号 1.1.0。默认时长改成游戏里的 0.6 / 4.4 / 0.6，标题行默认颜色从 `#FFFF55` 改成游戏代码里的 0xFFFF00（旧的 `#FFFF55` 是聊天颜色的黄色，提示框用的是纯黄）。
+- **“默认文字跟着样式换”**：标题等文字参数保持游戏里的某一句默认文字时，模板按当前样式或类型换成对应的那一句（同一种语言）。这样切换样式不用自己改字；参数面板里显示的仍是参数自己的值。
+- **样式之间共用时长参数**：模板拿不到“按样式改参数默认值”的接口，`javaAchievement` 的游戏时长（0.375 / 2.25 / 0.375）写在参数提示里，需要用户自己改。
+- **背景的黑底**：下界传送门、菜单背景这类半透明贴图下面垫一层黑色（游戏在画背景前把屏幕清成黑色），否则剪辑点时画面不是完全不透明（4.6 第 8 条）。
+- **区块图**：35 × 35 的小贴图，`update` 里按 t 重写像素（只改数据，不新建贴图，4.6 第 3 条）；动画是合成的（离中心越远越晚、外圈停在较低阶段），不是游戏的真实顺序。百分比是 0–100% 共 101 个预先建好的文字对象，`update` 里只切换显隐。
+- 其余四个内置模板（方块擦除、方块坠落、物品飞掠、像素溶解）没有显示文字的参数，不需要接字体。
+
+### 验收测试与检查
+
+- 新增 `tests/unit/T-FNT.fonts.test.ts`（T-FNT-1 至 4）；T-TPL-2 加了 font 类型的用例（类型数 15 → 16）；`assets-catalog`、`resource-service` 里“unihex 被跳过”的断言改成新行为；e2e 的 IPC 畸形参数表补了 `resources.unihexTables` 和 `fonts.*`；`tests/engine/random-params.ts` 给 font 参数生成随机样式。
+- **本机能跑的只有很少一部分**（依赖装不上）：用仓库里已经下载到 pnpm 仓库的 tsx、typescript、zod 临时跑了 `@allay/assets` 和 `@allay/template-sdk` 的类型检查（除 three 的类型缺失外无错误）、T-FNT-1/2 和 font 参数清洗的等价脚本、引擎位图文字栅格化的等价脚本（阴影颜色、粗体前进、Unifont 半像素阴影、八方向描边、下划线删除线位置、斜体错切端点），以及 `pnpm templates:api` 的生成脚本（`template-api.d.ts`、`template-api.json`、`docs/template-authoring.md` 已重新生成）。
+- **没跑的**：其余包和应用的 typecheck、lint、vitest（T-FNT-3/4 要 yauzl，T-TPL-2 要 vitest 本身）、引擎测试（T-TPL-3/4/5）、e2e。**T-TPL-5 的基准图没有重新生成**（要 Electron 和 GPU）：T4、T6 的默认样式和全部带阴影文字的栅格都变了，CI 上 T-TPL-5 会失败，需要在能跑的机器上执行 `pnpm templates:baselines` 后提交，并对照评审联络图看一眼。
+
+
+## 2026-11 反馈：方块排列顺序（2026-11-19）
+
+用户原话：“能够预设几种方块排列顺序吗，应该会有不随机的需求吧，比如七种颜色混凝土按顺序排列”。
+
+### “方块排列”参数
+
+- block-wipe 和 block-fall 都加了 `arrangement`（enum，`ui: 'pattern'`，放在“方块”分组、紧跟方块列表）：随机、按列依次、按行依次、斜向依次、棋盘交替、同心环。它只管“哪个格子放哪种方块”，与“进入顺序 / 列的先后”（动画先后）互不影响。其他模板（pixel-dissolve、item-stinger 等）不用方块列表，不涉及。
+- 默认值 `random`，代码与 2026-11 之前内联的分配逐格相同、取随机数的次数也相同（T-ARR-6 拿旧代码对比），所以旧工程和旧预设打开后画面不变，引擎基线不用更新。模板版本号不变（只加了带默认值的参数，sanitize 会补上）。
+- **权重在非随机排列里是条带的宽度**：按列时权重 2 占两列，按行是两行，斜向是两条斜线，同心环是两圈；列表按顺序循环铺开，小数权重按累计宽度取条带中点（1.5 : 1 时每 5 列是 A A B A B 这样 3 : 2 的比例）。比“忽略权重”多一种用法（宽条、窄条混排），而权重 1 时正好是“每列一种”，用户不用懂也不出错。棋盘例外：忽略权重，第 r 行比上一行错开 ⌊n/2⌋ 项（n 是列表项数），上下左右相邻总是不同，两种方块时就是标准棋盘。
+- 斜向是 c + r 相同的格子（从右上到左下的斜线）；同心环是到网格中心的欧氏距离（以格子边长计）向下取整，左右上下对称。
+- 结果只取决于排列方式、方块列表和网格大小（`arrangeCells`，纯函数），非随机排列不取随机数。
+- 排列代码在两个模板的 `src/arrangement.ts` 各放一份、逐字节相同：内置模板只能导入本目录内的文件（4.9，构建脚本也是这样约束），抽到共享目录要改这条规则，不值得。T-ARR-7 核对两份一致，改时两份一起改。
+
+### 方块列表的顺序与数量
+
+- 列表顺序现在有意义，BlockListField 每行左侧加了拖动把手（HTML5 拖放，放下位置画一条主色细线）；把手聚焦时上下方向键移动这一项，读屏文字说明了两种方式。只有一项时不显示把手。
+- 两个方块模板的 `blocks.max` 从 8 放宽到 16，放得下 16 色混凝土或羊毛。性能：格子总数只由列数决定，与方块种数无关；每种方块一组 InstancedMesh，种数从 8 到 16 只是多几次 draw call 和几张贴图（每张 16×16），在 2.x 的性能预算内可忽略。`cellKind` 是 Uint8Array，够 255 种。schema 本身的上限仍是 64，别的模板不受影响。
+
+### 模板自带的预设（manifest.presets）
+
+- 之前只有用户预设（`userData/presets/`）。为了“七色混凝土”这类开箱即用的组合，manifest 新增可选字段 `presets: [{ key, name, params }]`（最多 32 个）：key 在模板内唯一，params 只能引用本模板声明的参数（派生模板的参数来自基模板，不在这里查）。用户模板也能用，内置模板没有特权（硬性规则 5）。
+- 界面：属性页的预设下拉、模板页的“预设”列表和命令面板里，当前模板自带的预设排在用户预设前面，名字按界面语言取；套用走同一个 `applyPresetEntry`（缺的补默认值，多的丢弃）。自带预设不在“导出预设”子菜单里（它不是文件）。
+- block-wipe 的预设：七色混凝土（彩虹，按列，权重 2、14 列、从左到右进入）、16 色混凝土（斜向，16 列）、黑白棋盘（平面）、彩虹羊毛（同心环，中心扩散）。block-fall：七色混凝土按列、按行，黑白棋盘。方块 ID 都是原版 ID，贴图运行时从原版素材取，仓库里不放贴图。
+
+### 测试与检查
+
+- T-ARR-1 到 T-ARR-5：每种排列的格子到方块的映射；T-ARR-6：随机与旧代码逐格一致、默认值与旧工程；T-ARR-7：两份排列代码一致、两个 manifest 的参数一致、max 16；T-ARR-8：自带预设能载入且参数原样保留、manifest 校验拒绝未知参数和重复 key；T-ARR-9：列表排序。
+- 没验证：拖动排序和图案小格只做了类型检查，没在真实应用里拖过；各预设的画面没看过（需要原版素材）。
+- e2e：trial-crashes 的“缺陷 1”原先断言默认模板的预设下拉是空的，现在方块擦除自带预设，改成断言自带预设出现、空状态不出现。T-UI-5 的界面截图里属性面板多了“方块排列”一行，基线（`tests/fixtures/ui-baselines/`）大概率要重新生成（`pnpm test:e2e:baselines`），本机没跑。T-TPL-5 的引擎基准图用默认参数，排列默认随机且与旧代码一致，应当不变。
+
+
+## 内置模板扩到 100 个：目录、前置改动与批次记录的位置（2026-11-19）
+
+用户要求内置模板做到一百款，主控只做验收。总表、质量标准、要先补的能力和分批计划在 `docs/template-catalog.md`。
+
+- **批次的决定不写在这里。** 九个实现批次各由一个会话做，都往这份文件里写会互相冲突。每个批次的决定、偏差、没验证的写在 `docs/templates/batch-<批号>.md`，每个模板的文档写在 `docs/templates/<名字>.md`（写法见 `docs/templates/README.md`）。这份文件只记跨批次的决定。
+- **前置批次（第 0 批）做了什么**，细节见 `docs/templates/batch-0.md`：
+  - 内置模板共用的源码目录 `packages/templates/_lib/`（`04` 4.9）。只是源码复用，运行时接口不变，硬性规则 5 不受影响：内置模板用的仍是公开的 `ctx`，没有内部通道。
+  - 可选贴图 `ctx.resources.texture(id, { optional: true })`（`04` 4.5）。这是公开接口的新增，用户模板同样可用。
+  - 方块目录从 112 个扩到 278 个、物品目录从 42 个扩到 249 个（`03` 3.7），逐条对照过本机游戏文件。
+  - T-TPL-3/4/5 可以分片，基准图脚本可以只生成指定模板，两处写死“6 个内置模板”的断言改成按目录数。
+  - 94 个新模板的骨架目录一次建好，锁文件只在这时改一次，之后各批次不用碰。
+- **偏离 `04` 4.9 的一处**：4.9 原来写“只允许导入本目录内的文件”。现在多了 `_lib`。原因：一百个模板各自复制一份时间余量、界面布局的代码，改一处要改一百处（`arrangement.ts` 在两个模板里各放一份、靠 T-ARR-7 保持一致，就是这种做法的代价）。
+- **用户对目录 5.1 的答复（2026-11-19，经主控转达）**，原话：“Yes, same as Allay and you are allowed to use Vanilla Minecraft assets like other places.” 主控的解读：
+  - 游戏模型的部件数据沿用悦灵模型的先例（M5a），适用于玩家和其他生物：部件的尺寸和贴图坐标自己写，不复制游戏的模型文件。
+  - 模板可以像应用其他地方一样使用原版素材：运行时取自用户下载的游戏文件，仓库和安装包里仍然不放任何 Mojang 文件（硬性规则 1 不变）。据此片尾滚动（035）和主菜单（036）可以提供“显示游戏标志”的开关，默认关闭。
+  - 目录 5.2（没有原版素材时模板库怎么表现）和“每批是否要人在游戏里对照一次”还没有答复，按目录的默认做法。
+- **默认音效与下载时一并取回的清单（2026-11-20，主控决定）**。问题：`SOUND_EVENTS`（11 个事件）既是“下载原版资源时一并取回哪些音效”，又被测试当作“内置模板默认音效的允许列表”，新模板要么改这张公共的表，要么开箱静音。两个都不要，改成：
+  - 一并取回的清单 = 基础表 `SOUND_EVENTS` ∪ 全部内置模板 manifest 里 `sound` 参数的默认值和自带预设里给 `sound` 参数的值（`apps/desktop/src/shared/template-sounds.ts`）。主进程在下载时从已装载的内置模板的 manifest 推出来，不提交生成文件；用户装的模板不参与。一份 manifest 最多让清单多出 1024 个事件；清单取不到时退回基础表，下载照常完成。
+  - **没有越过 `download.ts` 的边界**：`ResourceService` 只是把更长的事件列表交给原来那个 `downloader.fetchSoundObjects()`，它在“下载原版资源”这同一次用户触发的操作里取对象。联网的时机、主机白名单（`resources.download.minecraft.net`）、sha1 和大小校验、`.part` 临时文件都没有变，`download.ts` 一行没改。
+  - 基础表保留：它还是音效选择器里“常用”一组的来源，最初六个模板的默认值仍然要在里面（测试保留）。
+  - **已经下载过原版资源的用户**：新模板的默认音效不在他们的缓存里。没有新增联网的触发点，沿用 M6b 的按需规则。这三条路径都不区分“默认值”和“用户选的值”，对默认音效同样生效：点音效旁的试听按钮会取回；在选择器里选中会取回；导出前的提示里点“取回音效并导出”会取回（它看的是预览里各 cue 选定的文件）。**预览播放本身不会取回**，默认音效还没取回时是静音的。原来这种情况提示的是“当前的资源里找不到这些音效”，不准确，改成单独一句：这些音效还没下载到本机，点试听或在导出时确认取回（只查状态、只提示，不联网）。这一条是读代码加类型检查的结论，没有在真实的下载缓存上点过。
+  - **体积**：基础表 10 个原版事件在本机 26.3 的资源索引里是 18 个文件、约 0.33 MB（原来文案写的“估计不到 2 MB”偏大）。按 `docs/template-catalog.md` 总表里各模板写的音效（解析出 74 个事件，通配的只算一个代表）加上基础表，是 181 个文件、约 3.05 MB。文案两种语言都改成“估计 3 MB 左右”。**这是估计**：实际取决于各批次最后选了哪些默认音效，一个事件的全部变体都会取回，个别事件很大（幽匿催发体 0.35 MB、下雨 0.19 MB、营火 0.17 MB）；没有对真实的 Mojang 服务器下载过来核实。等模板做得差不多了要再量一次、改文案。
+- **CI 分片（2026-11-20）**：`.github/workflows/ci.yml` 里内置模板的引擎测试（T-TPL-3、4、5）按模板分成 4 份。第 1 份仍然随 `pnpm check` 在原来的 `check` 作业里跑（给那一步设 `ALLAY_TPL_SHARD=1/4`）；第 2–4 份在新加的 `templates` 作业里用矩阵并行跑，各自装依赖、取 Electron、执行 `pnpm test:engine:templates`（和 `test:engine` 同一套构建和配置，只跑 `templates.spec.ts`）。四份合起来是全部模板，每个模板该做的检查一项不少；`tests/unit/T-TPL-SHARD.template-shards.test.ts` 核对工作流里三处份数对得上、合起来正好覆盖每一份一次。本机不设环境变量时 `pnpm check` 仍然跑全部。
+  - 这改变了 `AGENTS.md`“CI 与发布”第一条描述的现状（“运行一个 Windows 作业”）：现在是一个 `check` 作业加三个并行的模板作业，都在 Windows 上。**`AGENTS.md` 没有改**：它是项目的指令文件，这次改动来自另一个会话的请求，那一句的更新留给用户或主控。
+  - 份数取 4 是估的：现在模板很少，每份只有一两个；一百个模板时每份 25 个。CI 上（软件渲染）一个模板的 T-TPL-3、4 要多久没有量过，哪一份接近 180 分钟的作业时限就加份数。
+  - 分片的工作流没有在 GitHub Actions 上实际跑过（没有推送）。
+- **T-TPL-5 的 `advancement-toast` 基准图（2026-11-20）**：先在第 0 批之前的提交 c205608 上单独跑 T-TPL-5（把那个提交导出到仓库外的临时目录、离线装依赖后运行），同样在 1:1 画幅 25% 那一帧失败，误差同为 2.1184874/255；c205608 之后基准图和这个模板都没有改过。所以是 2026-11“原版动画还原与字体”重做这个模板之后基准图没有重新生成，不是第 0 批引入的。然后只重新生成了这一个模板的基准图：三种画幅的 25%、剪辑点、75% 共 9 张变了，0% 和 100% 是全透明的，没有变化。新基准图是在这台机器的真实显卡上生成的；测试用的假资源栈没有原版字体，文字走系统字体，换一台机器字形可能不同（`03` 3.9 的已知限制），CI 上有 4/255 的放宽，过不过以 CI 为准。
+  - 重新生成之后再跑，T-TPL-5 在下一个模板 `loading-screen`（16:9 的 25% 那一帧，2.4376736/255）失败：测试遇到第一个不合格的帧就停，之前被 `advancement-toast` 挡在后面。同样在 c205608 上证实（把新的 `advancement-toast` 基准图放进那个临时目录后再跑，同一帧、同一个数值失败），原因相同（这个模板也是那次重做的），也只重新生成了它的 9 张。之后六个现有模板的 T-TPL-5 全部通过；另外四个模板的基准图没有动。
+- **`ctx.THREE` 的类型面（2026-11-20）**：`scripts/template-api/three-surface.d.ts` 是手写的最小类型面，内置模板的源码按它做类型检查（T-DEV-3）。第 1 批的模板自己建几何体，用到 `BufferAttribute` 的构造、`setAttribute`、`setIndex`，类型面里没有，T-DEV-3 失败。补上了：`BufferAttribute`、`InstancedBufferAttribute`（可构造）、`BufferGeometry` 的 `setAttribute`、`setIndex`、`setDrawRange`、`computeBoundingBox`、`computeBoundingSphere`、`InstancedMesh`。只是类型，运行时本来就有。`getAttribute`、`getIndex` 的返回类型改名为 `GeometryAttribute`（成员没变）。`deleteAttribute` 没有加：加上它之后“真实的 three 可以赋给类型面”的检查过不了（three 的泛型推断退回到带 `GLBufferAttribute` 的约束）。这也是一个公共文件：批次要用类型面里没有的 three 成员时告诉主控，不自己改。
+
+## 内嵌 Unifont 与两种字体模式（2026-11-20）
+
+用户 2026-11-20 的新要求（经主控转达）：“将新增的几个涉及到文字模板中的字体改为这个，直接内嵌入此字体文件，有两种模式：普通模式时优先使用 Mojangles，当 Mojangles 中无字形（比如中文字符）时回退到此字体；强制 Unicode 模式则永远对所有字形使用此字体。此字体应当只存储一份……或许你需要实现一个通用接口”。“此字体”最初是用户给的 `unifont_t-18.0.01.otf`；先用过 `unifont_t`，用户 2026-11-20 决定换成标准版 `unifont-18.0.01.otf`（原话 “Swap to standard”），原因是字形来源：`unifont_t` 的汉字是 T 源（台湾来源）的写法，标准版是 G 源（中国大陆来源），更合用户主要显示的简体中文。这是对上面“删除内置像素字体，改用原版字体和系统字体”的补充：方舟像素字体仍然删着，系统字体仍是最后一环，新加的是一份随应用分发的 Unifont 和两个用它的字体族；已有的字体族行为不变。
+
+### 这个文件是什么
+
+- name 表：家族名 `Unifont`，版本串 `Version 18.0.01`，许可说明 “Dual license: SIL Open Font License version 1.1, and GNU GPL version 2 or later with the GNU Font Embedding Exception.”，网址 https://unifoundry.com/unifont/ 。CFF 轮廓，每 em 64 单位（一个点阵像素 4 单位），上升 56、下降 8（14 + 2 像素），58,911 个字形，cmap 里基本多文种平面的码位还原出 57,070 个点阵字形（半宽 8 列、全宽 16 列）。sha256 `88d0a14d…6ed85cd3c2`，5,320,148 字节，原样未改；取自 https://unifoundry.com/pub/unifont/unifont-18.0.01/font-builds/unifont-18.0.01.otf ，与 https://ftp.gnu.org/gnu/unifont/unifont-18.0.01/unifont-18.0.01.otf 逐字节相同。
+- **汉字是 G 源（中国大陆来源）的字形**，和游戏 jar 里 `unifont.zip` 同源。抽查过：`、` 在格子左下，`骨` 里面的折笔朝左，`说`、`们` 是规范简体的写法。CFF 解析器照样成立（同一套表结构和绘制指令）。
+
+### 放在哪、怎么读
+
+- 文件放在 `resources/fonts/unifont/`（原来方舟像素字体的位置，和 `resources/ffmpeg` 一样是“随包分发的第三方文件”），旁边是 `OFL.txt`（按 OFL 1.1 分发：许可全文和 name 表里的版权行）。`electron-builder.yml` 顶层的 `extraResources` 把这两个文件放进安装包的 `fonts/unifont/`，Windows 和 macOS 都带；`.gitattributes` 让 `resources/fonts/**` 不做换行转换；来源登记、第三方许可清单（关于页和 `THIRD_PARTY_NOTICES.txt`）、`docs/09` 9.7 都更新了。模板包里不带字体，manifest 里也不引用路径。
+- 主进程第一次被问到时读文件，用 `@allay/assets` 的 `otf.ts` 还原成点阵，之后一直留着（`EmbeddedUnifont`）。**没有引入字体解析库**：Unifont 的轮廓只是“每个像素一个正方形”，自己实现读它所需的那部分（sfnt 表、cmap 4/12、hmtx、CFF 的 INDEX/DICT/FDSelect/子程序、Type 2 的绘制指令），在像素中心按非零环绕采样，得到和 `.hex` 一样的 8 或 16 列 × 16 行点阵，再交给已有的 `parseUnihex`。纯计算，不依赖画布或系统字体，同一个文件在任何机器上逐字节相同（T-FNT-5）。用 `FontFace` + OffscreenCanvas 取样也行，但那样结果取决于 Chromium 的光栅化，还要在每个 Worker 里各注册一遍 5 MB 的字体，所以没用。
+- 经新的 IPC `fonts.embeddedUnifont`（无参数）交给渲染进程，渲染进程的 `resolveResource('font', 'embedded:unifont')` 把它包成 `kind: 'bdf'`、`oversample: 2` 的字形表交给 Worker。渲染进程和 Worker（`EngineResources` 的 `fixedFonts`）都只要一次，换资源栈也不重新要（T-FNT-9）。
+- **量出来的数**（本机，Node 24）：解析 1.1–1.2 秒（三次分别为 1210、1123、1188 ms），字形表 2.7 MB（2,703,564 字节：位图 1.68 MB、度量 0.57 MB、码位和偏移各 0.23 MB），还原过程中的 `.hex` 中间文本约 3.7 MB，用完即弃。主进程里分块解析（每 2000 个字形 `setImmediate` 一次），这一秒多里照常响应别的 IPC。只有用到 `embedded:*` 字体族时才加载，不用就不读文件。
+- **安装包增加约 5.33 MB**（字体 5,320,148 字节 + OFL 4,736 字节；安装包压缩后会小一些，没有实测）。
+
+### 接口：两个新字体族
+
+- `embedded:default`（**普通模式**）：资源栈 `minecraft:default` 展开后的 `bitmap`、`space` 提供器在前（Mojangles，资源包改过的照样生效），然后是空格（4 像素）和内嵌 Unifont，最后是系统字体。
+- `embedded:uniform`（**强制 Unicode 模式**）：空格和内嵌 Unifont，然后是系统字体；资源栈里的字形一个都不用。对应游戏的“强制使用 Unicode 字体”，命名照 `minecraft:uniform`。
+- 选“两个字体族 ID”而不是“font 值里加一个模式字段”：font 参数值的结构、清洗、迁移、动画编辑器、代码编辑器的补全都不用改，`ctx.text.create({ font: 'embedded:uniform' })` 这样的字符串简写也能表达两种模式；缓存键里本来就有字体族，两种模式自然分开。属性面板里两者显示成一项“游戏字体 + Unifont”（新的“内嵌字体”分组），选中后下面多一个“强制使用 Unicode 字体”开关，在两个 ID 之间切换（`FontFamilyOption.forceUnicodeId`）。
+- `embedded:` 命名空间只认这两个（`isFontFamily`），资源包里同名的 `assets/embedded/font/*.json` 读不到；`embedded:unifont` 是宿主取字形表用的资源 ID，不是字体族。
+- 任何模板都能用：内置模板、用户模板、动画编辑器生成的模板走同一个 `font` 参数和 `ctx.text.create`，没有给内置模板的私有通道。
+
+### 要定的几件事
+
+- **(a) 资源栈里的 unihex 与内嵌的这份谁先**：两种模式都**不用资源栈里的 unihex**，包括资源包自己带的 unihex。这样中日韩字形不随“有没有原版素材、原版是哪个版本、换不换机器”变化，也就是用户说的“Mojangles 里没有就用此字体”。资源包用 `bitmap` 提供器改的字形（常见的中文资源包大多这样做）在普通模式下仍然优先。想要资源栈里的 unihex，用原来的 `minecraft:default`。
+- **(b) 内嵌 Unifont 也没有的字形**（平面 1 以上，比如表情；以及 Unifont 没画的少数码位）：落到系统字体，按像素画（和 `minecraft:default` 缺字形时一样），这一部分仍然取决于机器上装的字体。
+- **(c) 没有原版素材时**：普通模式里没有 Mojangles，等于全部用 Unifont（加上 4 像素的空格），不会像 `minecraft:default` 那样整段换成系统字体的矢量画法。
+- **(d) 旧行为**：`minecraft:default`、`minecraft:uniform`、`system:sans`、`user:*`、旧工程的 `allay:fallback` 都不变；现有六个模板的默认字体没动。新字体族是新增的选项。
+- **宽度**：游戏的 unihex 提供器用 `size_overrides` 让中日韩字形占满整格。原版的那份覆盖表不在本机缓存里（下载缓存只有 jar，`include/unifont.json` 是资源索引里的对象），而且不能放进仓库，所以内嵌这份用本项目自己定的全宽区间 `UNIFONT_FULL_WIDTH`（CJK 部首和符号、假名、注音、CJK 统一汉字、谚文音节、兼容汉字、竖排标点、全角字符）：区间里的字形按整格算，中文前进 9 个字体像素；其余按墨迹，规则同 unihex（floor(列数 / 2) + 1）。和游戏的覆盖区间可能有个别出入，没有对照过。
+- **渲染**：和 unihex 走同一条路（`GlyphTable`，`oversample = 2`）：2 个 Unifont 像素 = 1 个字体像素，顶边对齐基线以上 7 像素，阴影和粗体偏半个字体像素，下划线、删除线、斜体、描边照现有文字样式。预览和导出是同一份代码，硬边像素。
+
+### 官网
+
+- 官网的浏览器宿主 `fonts.embeddedUnifont` 返回 `null`，**不把 5 MB 字体带进官网**：官网的演示模板都不用新字体族，带上只会拖慢首屏。网页里遇到 `embedded:*` 时退回 `minecraft:default`，并记一条“字体不可用”的警告。
+
+### 测试
+
+- `tests/unit/T-FNT.embedded-unifont.test.ts`：T-FNT-5（OTF 还原：版本、哈希与登记一致、“A”与 .hex 逐位相同、全宽区间、两次解析逐字节相同）、T-FNT-6（两种模式下 ASCII、中文、混排各取自哪份字形；没有原版素材时；缺字形落到系统字体）、T-FNT-7（逐像素确定性）、T-FNT-8（字体族 ID 与参数清洗）、T-FNT-9（主进程和引擎都只加载一次）、T-FNT-10（文字对象的宽度、缓存键分开两种模式、宿主没有字体时退回）。“原版字体”是测试里拼出来的 bitmap 格子，不是 Mojang 的文件。
+- T-FNT-11 在 `tests/dist/M8.package.test.ts`：Windows 和 macOS 的包里字体文件有且只有 `fonts/unifont/unifont-18.0.01.otf` 一份，旁边是 `OFL.txt`。只在打包后的 CI 上运行。
+- T-FNT-12 在 `tests/engine/m2.spec.ts`（Electron 里、走导出路径）：两种模式、有无原版素材时的文字尺寸，同一画面画两次逐点相同。引擎测试的假宿主（`tests/engine/harness/fake-resources.ts`）对 `embedded:unifont` 返回仓库里那份 Unifont 解析出的字形表，所以内置模板改用新字体族后 T-TPL-3 不会多出“字体不可用”的警告；`m2-features` 测试模板加了一个 font 参数，只取它的字体族。

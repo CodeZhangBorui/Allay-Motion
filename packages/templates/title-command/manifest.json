@@ -1,0 +1,57 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.title-command",
+  "version": "1.0.0",
+  "name": { "zh-CN": "标题命令", "en": "Title command" },
+  "description": {
+    "zh-CN": "屏幕中央的大标题和副标题，加上快捷栏上方的动作栏文字，按 /title 命令的方式淡入、停留、淡出。",
+    "en": "A large title and subtitle in the middle of the screen plus action bar text above the hotbar, fading in, staying and fading out like the /title command."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "title"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版 1.8 加入 /title，版式至今没有变过。基岩版的标题没有做", "en": "Java added /title in 1.8 and the layout has not changed since. The Bedrock title is not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版 1.8 起", "en": "Java 1.8+" } }] },
+    { "key": "title", "type": "text", "label": { "zh-CN": "标题", "en": "Title" }, "hint": { "zh-CN": "界面像素的 4 倍大；留空则不显示", "en": "Four times the GUI pixel size; leave empty to hide" }, "group": "content", "default": { "zh-CN": "第 1 天", "en": "Day 1" }, "maxLength": 40 },
+    { "key": "subtitle", "type": "text", "label": { "zh-CN": "副标题", "en": "Subtitle" }, "hint": { "zh-CN": "界面像素的 2 倍大；留空则不显示", "en": "Twice the GUI pixel size; leave empty to hide" }, "group": "content", "default": { "zh-CN": "生存开始", "en": "Survival begins" }, "maxLength": 60 },
+    { "key": "actionbar", "type": "text", "label": { "zh-CN": "动作栏文字", "en": "Action bar" }, "hint": { "zh-CN": "快捷栏上方的一行小字；留空则不显示", "en": "A small line above the hotbar; leave empty to hide" }, "group": "content", "default": "", "maxLength": 80 },
+    { "key": "titleColor", "type": "color", "label": { "zh-CN": "标题颜色", "en": "Title color" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
+    { "key": "subtitleColor", "type": "color", "label": { "zh-CN": "副标题颜色", "en": "Subtitle color" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
+    { "key": "actionbarColor", "type": "color", "label": { "zh-CN": "动作栏颜色", "en": "Action bar color" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
+    { "key": "titleFont", "type": "font", "label": { "zh-CN": "标题字体", "en": "Title font" }, "hint": { "zh-CN": "游戏里这三行字都带阴影", "en": "All three lines have a shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "subtitleFont", "type": "font", "label": { "zh-CN": "副标题字体", "en": "Subtitle font" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "actionbarFont", "type": "font", "label": { "zh-CN": "动作栏字体", "en": "Action bar font" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "textBackground", "type": "boolean", "label": { "zh-CN": "文本背景", "en": "Text background" }, "hint": { "zh-CN": "每行字后面垫一块半透明黑底，对应游戏辅助功能里“文本背景：全局”的效果", "en": "A translucent black plate behind each line, like the accessibility option “Text Background: Everywhere” in the game" }, "group": "layout", "default": false },
+    { "key": "backgroundOpacity", "type": "number", "label": { "zh-CN": "背景不透明度", "en": "Background opacity" }, "hint": { "zh-CN": "游戏里的默认值是 50%", "en": "50% by default in the game" }, "group": "layout", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider", "visibleWhen": { "key": "textBackground", "equals": true } },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）", "en": "Design units per GUI pixel (4 for a 1080p window at Auto)" }, "group": "layout", "default": 4, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏的默认值是 10 刻（0.5 秒）", "en": "10 ticks (0.5 s) by default in the game" }, "group": "timing", "default": 0.5, "min": 0.05, "max": 5 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "hint": { "zh-CN": "游戏的默认值是 70 刻（3.5 秒）", "en": "70 ticks (3.5 s) by default in the game" }, "group": "timing", "default": 3.5, "min": 0.1, "max": 20 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "hint": { "zh-CN": "游戏的默认值是 20 刻（1 秒）", "en": "20 ticks (1 s) by default in the game" }, "group": "timing", "default": 1, "min": 0.05, "max": 5 },
+    { "key": "actionbarDuration", "type": "duration", "label": { "zh-CN": "动作栏时长", "en": "Action bar time" }, "hint": { "zh-CN": "动作栏文字从开头显示多久，最后 1 秒淡出；游戏里是固定的 60 刻（3 秒），不受标题的三段时间影响", "en": "How long the action bar text shows from the start, fading over its last second; fixed at 60 ticks (3 s) in the game, independent of the title times" }, "group": "timing", "default": 3, "min": 0.5, "max": 30 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放；游戏里显示标题没有声音，地图作者通常自己配一个", "en": "Plays at the start; the game shows titles silently and map makers usually add their own" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "game-default", "name": { "zh-CN": "游戏默认时长（10 / 70 / 20 刻）", "en": "Game default times (10 / 70 / 20 ticks)" }, "params": { "inDuration": 0.5, "hold": 3.5, "outDuration": 1 } },
+    { "key": "day-counter", "name": { "zh-CN": "第 N 天", "en": "Day counter" }, "params": { "title": "第 100 天", "subtitle": "", "titleColor": "#FFAA00", "inDuration": 0.25, "hold": 2, "outDuration": 0.5 } },
+    { "key": "dimension", "name": { "zh-CN": "维度名", "en": "Dimension name" }, "params": { "title": "下界", "subtitle": "正在进入", "titleColor": "#FF5555", "subtitleColor": "#AAAAAA" } },
+    { "key": "chapter", "name": { "zh-CN": "章节标题", "en": "Chapter title" }, "params": { "title": "第一章", "subtitle": "出发", "titleFont": { "family": "embedded:default", "bold": true, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null }, "inDuration": 1, "hold": 3, "outDuration": 1 } },
+    { "key": "actionbar-tip", "name": { "zh-CN": "只有动作栏提示", "en": "Action bar tip only" }, "params": { "title": "", "subtitle": "", "actionbar": "按 Shift 潜行", "actionbarColor": "#FFFF55", "inDuration": 0.1, "hold": 2.8, "outDuration": 0.1 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"titleFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}, "subtitleFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}, "actionbarFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

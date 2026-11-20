@@ -1,3 +1,4 @@
+import type { AnimationFileChange, CodeEditorKind, CodeWindowDown, CodeWindowUp, EditorInfo, OpenExternalResult } from '../shared/code-window';
 import type {
   ChooseFolderResult,
   ExportFinishResult,
@@ -7,15 +8,39 @@ import type {
   FfmpegInfo,
   H264Probe,
 } from '../shared/export';
-import type { BitmapFontTables } from '@allay/assets';
 import type { AppInfo, PickedFile, TitleBarColors } from '../shared/ipc-contract';
 import type { HostCommandRequest, HostCommandResult } from '../shared/host-commands';
-import type { AddPackResult, CacheUsage, ChooseGameDirResult, DownloadResult, FontProvidersResult, ResourceState, SoundFilesResult, SoundLibrary, SoundVariantInfo } from '../shared/resources';
+import type {
+  AddPackResult,
+  CacheUsage,
+  ChooseGameDirResult,
+  DownloadResult,
+  FontProvidersResult,
+  ImportSoundsResult,
+  LocalPackFolderInfo,
+  RemoteVersionsResult,
+  ImportFontResult,
+  ResourceState,
+  SoundFilesResult,
+  SoundLibrary,
+  SoundVariantInfo,
+  VanillaSourceArg,
+  VersionCatalog,
+  UnihexOverrideInfo,
+  UnihexTablesInfo,
+  UserFontData,
+  UserFontInfo,
+} from '../shared/resources';
 import type { ProjectData, ProjectOpenResult, ProjectSaveResult, RecentProject } from '../shared/project';
 import type { UiSettings, UiSettingsPatch } from '../shared/settings';
 import type { FolderChooseResult, FolderInfo, FolderKind, FoldersInfo } from '../shared/folders';
 import type { UpdateState } from '../shared/updates';
 import type {
+  CreateFromAnimationResult,
+  ReadAnimationResult,
+  ReadSourceResult,
+  WriteSourceRequest,
+  WriteSourceResult,
   CommitResult,
   CopyBuiltinRequest,
   ExportFileResult,
@@ -93,8 +118,8 @@ export interface AllayApi {
     soundFiles(files: string[], fetch: boolean): Promise<SoundFilesResult>;
     list(prefix: string): Promise<string[]>;
     fontProviders(fontId: string): Promise<FontProvidersResult | null>;
-    /** 兜底像素字体 */
-    fallbackFont(): Promise<BitmapFontTables | null>;
+    /** unihex 提供器的字形表（Unifont）：file 是 fontProviders 给的 zip 路径 */
+    unihexTables(file: string, overrides: UnihexOverrideInfo[]): Promise<UnihexTablesInfo | null>;
     /** 重新离线探测本机游戏和下载缓存 */
     detectMinecraft(): Promise<ResourceState>;
     setVanilla(patch: { consent?: boolean; enabled?: boolean }): Promise<ResourceState>;
@@ -111,6 +136,21 @@ export interface AllayApi {
     /** 资源包从下往上的新顺序 */
     reorder(ids: string[]): Promise<ResourceState>;
     setEnabled(id: string, enabled: boolean): Promise<ResourceState>;
+    /** 版本检索：本机、已下载、（取过的话）Mojang 版本清单。离线 */
+    versions(): Promise<VersionCatalog>;
+    /** 联网：取 Mojang 版本清单。只在用户点了“获取版本列表”后调用 */
+    fetchRemoteVersions(): Promise<RemoteVersionsResult>;
+    /** 把本机或已下载的某个版本加进资源栈，放在原版层最上面（成为基底） */
+    addVanillaSource(source: VanillaSourceArg): Promise<ResourceState>;
+    /** 联网：下载指定版本。只在用户点了按钮后调用 */
+    downloadVanillaVersion(versionId: string): Promise<DownloadResult>;
+    /** 本机 Minecraft 启动器的资源包文件夹和其中的资源包（只读） */
+    localPacks(): Promise<LocalPackFolderInfo[]>;
+    /** 把 localPacks 列出的某个资源包加进资源栈（zip 原地引用、不复制） */
+    addLocalPack(path: string): Promise<AddPackResult>;
+    /** 弹出主进程的文件对话框导入 .ogg / .wav 音效 */
+    importSounds(): Promise<ImportSoundsResult>;
+    removeImportedSound(eventId: string): Promise<ResourceState>;
     onChanged(callback: (state: ResourceState) => void): () => void;
   };
   templates: {
@@ -142,6 +182,15 @@ export interface AllayApi {
     writeDevFiles(id: string, version: string): Promise<TemplateDevResult>;
     /** 在系统文件管理器里打开用户模板的文件夹 */
     openFolder(id: string, version: string): Promise<TemplateDevResult>;
+    // ---- 2026-11：内嵌代码编辑与自建动画 ----
+    /** 读模板的 template.js 和内容版本；内置模板只读 */
+    readSource(id: string, version: string): Promise<ReadSourceResult>;
+    /** 写用户模板的 template.js（内容版本对不上时返回 conflict）；写完监视服务照常发现、走热重载 */
+    writeSource(req: WriteSourceRequest): Promise<WriteSourceResult>;
+    /** 把动画文档转成一个新的用户模板（manifest.json、template.js、animation.json） */
+    createFromAnimation(req: { text: string }): Promise<CreateFromAnimationResult>;
+    readAnimation(id: string, version: string): Promise<ReadAnimationResult>;
+    updateFromAnimation(req: { id: string; version: string; text: string }): Promise<CreateFromAnimationResult>;
     /** 用户模板文件夹在应用之外被改动（应用自己的写入不触发）；返回取消订阅的函数 */
     onChanged(callback: (change: TemplateDevChange) => void): () => void;
   };
@@ -191,6 +240,41 @@ export interface AllayApi {
     /** 运行下好的安装包并退出应用 */
     install(): Promise<UpdateState>;
     onChanged(callback: (state: UpdateState) => void): () => void;
+  };
+  /** 用户导入的字体（复制在应用数据目录里，按内容哈希登记） */
+  fonts: {
+    list(): Promise<UserFontInfo[]>;
+    /** 弹出主进程的文件对话框导入字体文件 */
+    import(): Promise<ImportFontResult>;
+    remove(id: string): Promise<UserFontInfo[]>;
+    read(id: string): Promise<UserFontData | null>;
+    /** 随应用内嵌的 Unifont 的字形表（第一次调用时主进程解析，之后给同一份）；读不了时为 null */
+    embeddedUnifont(): Promise<UnihexTablesInfo | null>;
+  };
+  /** 代码窗口（2026-11 第二轮反馈）。两个窗口用同一个 preload；代码窗口的调用只有 send 会被主进程接受 */
+  codeWindow: {
+    open(): Promise<void>;
+    close(): Promise<void>;
+    /** 主窗口 → 代码窗口 */
+    publish(message: CodeWindowDown): Promise<void>;
+    /** 代码窗口 → 主窗口 */
+    send(message: CodeWindowUp): Promise<void>;
+    /** 代码窗口收主窗口的消息 */
+    onDown(callback: (message: CodeWindowDown) => void): () => void;
+    /** 主窗口收代码窗口的消息 */
+    onUp(callback: (message: CodeWindowUp) => void): () => void;
+  };
+  /** 打开动画代码用的编辑器：应用自带 / 系统默认 / 指定程序（程序由主进程的对话框选，界面只看到文件名） */
+  editors: {
+    get(): Promise<EditorInfo>;
+    setKind(kind: CodeEditorKind): Promise<EditorInfo>;
+    chooseProgram(): Promise<EditorInfo & { canceled: boolean }>;
+  };
+  /** 动画文档文件：外部编辑器打开的就是它，改了推回主窗口 */
+  animations: {
+    openExternal(req: { key: string; text: string }): Promise<OpenExternalResult>;
+    syncFile(req: { key: string; text: string }): Promise<void>;
+    onFileChanged(callback: (change: AnimationFileChange) => void): () => void;
   };
   cache: {
     getThumb(stamp: string, key: string): Promise<Uint8Array | null>;

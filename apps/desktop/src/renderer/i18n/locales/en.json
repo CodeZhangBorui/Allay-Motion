@@ -132,7 +132,8 @@
     "hq": "High-quality preview",
     "hqHint": "Add motion blur to the preview too (slower)",
     "mute": "Mute",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "segmentEnd": "End of “{{name}}”"
   },
   "params": {
     "title": "Properties",
@@ -324,7 +325,7 @@
     "noRelease": "No Minecraft Java Edition release with a client jar was found in that folder.",
     "download": {
       "button": "Download vanilla assets (about 45 MB, from Mojang's official servers)",
-      "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com, resources.download.minecraft.net) and downloads the latest Minecraft Java Edition release client jar, plus a few dozen sound files the built-in templates commonly use (estimated under 2 MB), into this app's data folder on your computer. Only its textures and sounds are read. Later, the app fetches another sound's file from resources.download.minecraft.net only when you preview or pick that sound, or confirm fetching before an export. No personal information is sent, nothing updates automatically, and nothing is downloaded in bulk in the background.",
+      "note": "This connects to Mojang's official servers (piston-meta.mojang.com, piston-data.mojang.com, resources.download.minecraft.net) and downloads the latest Minecraft Java Edition release client jar, plus the sound files the built-in templates use by default (estimated at around 3 MB), into this app's data folder on your computer. Only its textures and sounds are read. Later, the app fetches another sound's file from resources.download.minecraft.net only when you preview or pick that sound, or confirm fetching before an export. No personal information is sent, nothing updates automatically, and nothing is downloaded in bulk in the background.",
       "progress": "Download progress",
       "cancel": "Cancel download",
       "errors": {
@@ -389,6 +390,67 @@
       "done": "Vanilla assets {{version}} are ready.",
       "bytes": "{{received}} of {{total}}",
       "speed": "{{speed}}/s"
+    },
+    "base": "Base",
+    "baseHint": "You can keep several vanilla versions. The topmost enabled one is the base: its files win, and resource packs are matched against its version. Lower vanilla layers only fill in files the base lacks. Resource packs always sit above vanilla.",
+    "vanillaLocalAt": "Local · {{dir}}",
+    "format": "Pack format {{format}}",
+    "noAssetIndex": "No asset index found: this layer has textures only, no sounds or Chinese language file.",
+    "missingLocal": "This version is gone ({{dir}}). It may have been moved or uninstalled.",
+    "missingDownloaded": "This version is no longer in the download cache.",
+    "compat": {
+      "madeFor": "Made for {{version}} (format {{format}})",
+      "formatOnly": "Pack format {{format}}",
+      "ok": "{{meta}}, matches the base",
+      "older": "{{meta}}, older than the base {{base}}; some content may not apply.",
+      "newer": "{{meta}}, newer than the base {{base}}; some content may not apply."
+    },
+    "versions": {
+      "button": "Add vanilla version…",
+      "title": "Minecraft versions",
+      "rules": "Versions come from three places: the versions folder of games on this computer (a client jar is required), versions you have already downloaded, and Mojang’s version manifest once you click “Get version list”. Newest first by release date. An added version goes on top of the vanilla layers and becomes the base; resource packs are compared with the base by the format number in pack.mcmeta, and you are told when they differ.",
+      "search": "Search version or path",
+      "sourceFilter": "Source",
+      "typeFilter": "Type",
+      "sources": {
+        "all": "All",
+        "local": "Local",
+        "downloaded": "Downloaded",
+        "remote": "Available"
+      },
+      "types": {
+        "release": "Releases",
+        "snapshot": "Snapshots",
+        "old": "Old",
+        "all": "All"
+      },
+      "latest": "Latest",
+      "empty": "No versions match.",
+      "add": "Add",
+      "added": "Added",
+      "download": "Download",
+      "fetch": "Get version list",
+      "refetch": "Refresh version list",
+      "fetching": "Getting…",
+      "fetchNote": "“Get version list” connects to piston-meta.mojang.com once to read the version manifest. No game files are downloaded and no personal data is sent. “Download” works like “Download vanilla assets”: it downloads that version’s client jar and common sounds from Mojang’s official servers."
+    },
+    "localPacks": {
+      "button": "Minecraft resource packs on this computer…",
+      "title": "Resource packs on this computer",
+      "rules": "These are the resourcepacks folders found in launchers on this computer. Only local files are read: nothing is downloaded or copied. Zips are referenced in place and folders by path, so changes made in the game show up here. Recognized: the official launcher, PCL and HMCL version isolation, Prism Launcher, CurseForge and Modrinth App. Use “Add folder…” for anything else.",
+      "search": "Search packs, versions or paths",
+      "scanning": "Looking…",
+      "none": "No Minecraft resource pack folders found on this computer.",
+      "empty": "No resource packs in this folder.",
+      "shared": "shared by all versions",
+      "unknownVersion": "unknown version",
+      "launchers": {
+        "official": "Official launcher",
+        "isolated": "Isolated version ({{instance}})",
+        "prism": "Prism Launcher · {{instance}}",
+        "curseforge": "CurseForge · {{instance}}",
+        "modrinth": "Modrinth App · {{instance}}"
+      }
     }
   },
   "common": {
@@ -479,7 +541,7 @@
     "thirdParty": "Third-party licenses",
     "licenses": {
       "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process (ffmpeg.exe in the install folder, which you may replace); the full license ships with the installer.",
-      "ark": "Ark Pixel Font: SIL Open Font License 1.1.",
+      "unifont": "GNU Unifont: SIL Open Font License 1.1 (dual-licensed with GPLv2+ with the font embedding exception), shipped unmodified.",
       "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
       "phosphor": "Phosphor Icons: MIT.",
@@ -634,7 +696,11 @@
       "projectOpenAssociated": "Open project from file",
       "templatesInstallAssociated": "Install template from file",
       "onboarding": "First-run setup",
-      "tour": "Editor tour"
+      "tour": "Editor tour",
+      "prevCue": "Go to previous sound",
+      "nextCue": "Go to next sound",
+      "toCut": "Go to cut point",
+      "mute": "Toggle preview mute"
     }
   },
   "editor": {
@@ -721,6 +787,39 @@
       "roll": "New random seed",
       "rollHint": "New random seed (R)"
     },
+    "font": {
+      "style": "Text style",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strikethrough": "Strikethrough",
+      "shadow": "Shadow",
+      "outline": "Outline",
+      "outlineColor": "Outline color",
+      "outlineHint": "Traced in all eight directions, like text on a glowing sign",
+      "outlineNoShadow": "Outlined text has no shadow, as in the game",
+      "import": "Import font…",
+      "missing": "Imported font not found",
+      "gameHint": "Read from the resource stack (vanilla assets or resource packs); falls back to the system font",
+      "embeddedHint": "Letters, digits and symbols use the game font (from the resource stack, including resource pack changes); characters it lacks, such as Chinese, use GNU Unifont, which ships with the app. Those glyphs look the same with or without vanilla assets and on any computer",
+      "forceUnicode": "Force Unicode font",
+      "forceUnicodeHint": "Draw all text with the bundled Unifont, like the game's “Force Unicode Font” setting",
+      "builtinHint": "A font installed on this computer (Microsoft YaHei, PingFang, Noto Sans CJK…), also used when there are no vanilla assets or a character is missing from the game font. It may look different on another computer",
+      "groups": { "game": "Game fonts", "embedded": "Bundled", "builtin": "System", "user": "Imported" },
+      "families": {
+        "embedded": "Game font + Unifont",
+        "default": "Default",
+        "uniform": "Unicode font (Unifont)",
+        "alt": "Standard Galactic Alphabet",
+        "illageralt": "Illager script",
+        "system": "System font"
+      },
+      "importError": {
+        "unsupported": "This font file isn't recognized. TTF, OTF, WOFF, WOFF2 and BDF are supported.",
+        "too-large": "The font file is over 32 MB and wasn't imported.",
+        "unreadable": "The font file couldn't be read."
+      }
+    },
     "angle": {
       "hint": "Drag the dial to set the direction; hold Shift to snap to 15°"
     },
@@ -746,7 +845,33 @@
       "remote": "Not downloaded yet; fetched from Mojang's official server when you preview or pick it",
       "unavailable": "No file for this sound in the current resources",
       "loading": "Reading the sound list…",
-      "noLibrary": "No assets yet, so there are no sounds to pick."
+      "noLibrary": "No assets yet, so there are no sounds to pick.",
+      "groupImported": "Imported sounds",
+      "import": "Import sound files…",
+      "removeImported": "Delete imported sound “{{name}}”",
+      "origin": {
+        "overridden": "Changed by resource pack: {{packs}}",
+        "added": "Added by resource pack: {{packs}}",
+        "imported": "Imported by you"
+      },
+      "categories": {
+        "block": "Blocks",
+        "entity": "Entities",
+        "item": "Items",
+        "ui": "Interface",
+        "music": "Music",
+        "music_disc": "Music discs",
+        "ambient": "Ambience",
+        "weather": "Weather",
+        "enchant": "Enchanting",
+        "event": "Events",
+        "particle": "Particles",
+        "other": "Other"
+      },
+      "spatial": "Spatial audio",
+      "spatialOn": "Attenuate and pan by source position",
+      "spatialOff": "Off",
+      "spatialHint": "Same as in the game: sounds fade linearly with distance (silent beyond 16 blocks by default) and are panned by where the source sits left or right on screen. Only applies to mono sounds the template gives a position; preview and export match."
     },
     "picker": {
       "recent": "Recent",
@@ -774,7 +899,8 @@
       "replace": "Replace “{{name}}”",
       "weight": "Weight of “{{name}}”",
       "remove": "Remove “{{name}}”",
-      "add": "Add block"
+      "add": "Add block",
+      "reorder": "Move “{{name}}” (drag, or use the up and down arrow keys)"
     },
     "texture": {
       "none": "(none)",
@@ -818,12 +944,42 @@
     "stages": "Stages",
     "sound": "Sound",
     "cut": "Cut point",
-    "toEnd": "Go to end"
+    "toEnd": "Go to end",
+    "menu": {
+      "setDuration": "Set duration…",
+      "endToPlayhead": "Move end to playhead",
+      "resetDuration": "Reset this duration",
+      "copyDuration": "Copy duration",
+      "pasteDuration": "Paste duration",
+      "toSegmentStart": "Go to stage start",
+      "toSegmentEnd": "Go to stage end",
+      "distribute": "Distribute stages evenly",
+      "resetAll": "Reset all stage durations",
+      "prevCue": "Go to previous sound",
+      "nextCue": "Go to next sound",
+      "mute": "Mute preview",
+      "toCut": "Go to cut point",
+      "seekHere": "Go here (frame {{frame}})",
+      "playHere": "Play from here",
+      "loop": "Loop playback"
+    },
+    "duration": {
+      "title": "Set duration of “{{name}}”",
+      "body": "Enter {{min}}–{{max}} seconds; it snaps to the nearest frame.",
+      "seconds": "Duration (seconds)",
+      "preview": "{{seconds}} s, {{frames}} frames",
+      "invalid": "Enter a number",
+      "apply": "Apply"
+    }
   },
   "audio": {
     "missing": "These sounds aren't in the current resources and are muted: {{list}}",
+    "notFetched": "These sounds haven't been downloaded yet and are muted for now: {{list}}. Preview a sound in the properties panel, or confirm fetching when you export, and they'll be fetched from Mojang's servers.",
     "peakNormalized": "The mix peaked above 0 dBFS, so it was turned down to −1 dBFS.",
-    "fetchFailed": "Some sounds couldn't be fetched from Mojang's server (you may be offline), so they're muted for now."
+    "fetchFailed": "Some sounds couldn't be fetched from Mojang's server (you may be offline), so they're muted for now.",
+    "imported": "Imported {{count}} sounds.",
+    "importedSome": "Imported {{count}} sounds and skipped {{skipped}} (only .ogg and .wav up to 32 MB are supported).",
+    "importFailed": "Nothing imported: only .ogg and .wav files up to 32 MB are supported."
   },
   "dev": {
     "overlay": {

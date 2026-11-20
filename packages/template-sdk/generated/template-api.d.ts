@@ -87,6 +87,11 @@ export interface SetupContext {
   resources: {
     /** 已设好过滤和色彩空间的贴图；缺失时返回占位图并记一条警告。.mcmeta 动画由引擎按 t 自动播放 */
     texture(id: string): Promise<THREE.Texture>;
+    /**
+     * 可选贴图：资源栈里没有时返回 null，不记警告。用来按游戏版本依次试几个路径
+     * （例如先试 1.20.2 起的 gui/sprites/…，没有再退回旧的图集），或者在缺素材时换一种画法
+     */
+    texture(id: string, opts: { optional: true }): Promise<THREE.Texture | null>;
     /** 方块目录里的方块；不认识的 ID 用占位贴图的立方体并记一条警告 */
     block(id: string, opts?: { shading?: boolean }): Promise<BlockHandle>;
     /** 物品目录里的物品（方块 ID 按方块渲染）；不认识的 ID 用占位贴图并记一条警告 */
@@ -107,9 +112,22 @@ export interface SetupContext {
   /** 时间工具 */
   time: { /** t 在 [start, start + duration] 里的进度，钳制到 [0, 1] */ segment(t: number, start: number, duration: number): number };
   /** 音频提示 */
-  audio: { /** 在时刻 at（秒）播放音效事件；只能在 setup 里调用。sound 为 null 时什么也不做 */ cue(sound: string | null, at: number, opts?: { gain?: number; rate?: number; pan?: number }): void };
+  audio: { /** 在时刻 at（秒）播放音效事件；只能在 setup 里调用。sound 为 null 时什么也不做 */ cue(sound: string | null, at: number, opts?: AudioCueOptions): void };
   /** 记一条警告，显示在应用里（一次装载最多 50 条） */
   warn(message: string): void;
+}
+
+/**
+ * ctx.audio.cue 的选项。position 是可选的空间音效字段（2026-11 反馈）：声源相对听者的位置，单位是格（方块），
+ * +x 右、+y 上、-z 正前方。宿主打开“空间音效”时按原版的规则处理：线性衰减（默认 16 格外听不到）、按左右方位定声像；
+ * 只对单声道音效生效。模板自己决定画面怎样对应到格（例如把舞台的半宽当作 8 格、听者站在画面前 6 格）。
+ * 不给 position 的 cue 和以前一样，不做空间处理。
+ */
+export interface AudioCueOptions {
+  gain?: number;
+  rate?: number;
+  pan?: number;
+  position?: { x: number; y: number; z: number };
 }
 
 /** 方块的六个面：上、下、北（-z）、南（+z，朝向默认相机）、东（+x）、西（-x） */
@@ -148,6 +166,25 @@ export interface ItemHandle {
   single(): THREE.Object3D;
 }
 
+/**
+ * 文字的字体和样式，也就是 font 参数的值（4.4）。family 的写法见 manifest 的 isFontFamily：
+ * minecraft:default、minecraft:uniform、minecraft:alt、minecraft:illageralt 等资源栈里的字体，system:sans（系统字体），
+ * user:<哈希>（用户导入的字体文件），以及随应用内嵌的 Unifont 的两种模式：
+ * embedded:default（普通模式：Mojangles 优先，它没有的字形如中文用内嵌 Unifont）和
+ * embedded:uniform（强制 Unicode 模式：所有字形都用内嵌 Unifont）。有没有原版素材、换不换机器，内嵌 Unifont 的字形都一样。样式与游戏的文字样式对应：粗体（向右重描一次）、斜体（错切）、下划线、删除线、
+ * 阴影（右下偏移、颜色 × 1/4），描边（发光墨囊告示牌的八方向描边；有描边时不画阴影）。
+ */
+export interface FontStyle {
+  family: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  shadow?: boolean;
+  /** 描边颜色 #RRGGBB；null 或不给为不描边 */
+  outline?: string | null;
+}
+
 export interface TextOptions {
   text: string;
   /** 一个字体像素对应多少设计单位 */
@@ -158,6 +195,22 @@ export interface TextOptions {
   align?: 'left' | 'center' | 'right';
   /** 设计单位；超过时按空格（中日韩字符逐字）换行 */
   maxWidth?: number;
+  /**
+   * 字体：字体族 ID，或者整个 font 参数的值。给对象时，对象里写了的样式优先于下面几个同名字段（用户在参数里选的为准）。
+   * 不给时用 minecraft:default。资源栈里没有这个字体时退回 minecraft:default，缺的字形再退回系统字体；
+   * 连 minecraft:default 都没有（没有原版素材）时整段用系统字体。
+   * embedded:default、embedded:uniform 不看资源栈里的 unihex：中日韩等字形一律取内嵌的 Unifont，内嵌的也没有才用系统字体；
+   * 没有原版素材时 embedded:default 等于全部用 Unifont。宿主没有内嵌字体（官网）时退回 minecraft:default 并记一条警告。
+   * 只有出现在 font 参数里（含默认值）和 minecraft:default 的字体会在 setup 之前载入（system:sans 不用载入）；
+   * 代码里临时写的其他字体族 ID 当作没载入，退回 minecraft:default 并记一条警告。
+   */
+  font?: string | FontStyle;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  /** 描边颜色 #RRGGBB */
+  outline?: string | null;
 }
 
 /** 文字对象。原点：水平方向按 align（左边、中点、右边），垂直方向在整段文字的中线 */
@@ -436,8 +489,10 @@ export declare namespace THREE {
     updateProjectionMatrix(): void;
   }
 
-  /** 只作类型用：模板不需要自己建顶点属性 */
-  interface BufferAttribute {
+  type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array;
+
+  /** 从几何体里取出来的属性（getAttribute、getIndex 的结果）：只读着用 */
+  interface GeometryAttribute {
     readonly count: number;
     readonly itemSize: number;
     needsUpdate: boolean;
@@ -448,12 +503,42 @@ export declare namespace THREE {
     setXYZ(index: number, x: number, y: number, z: number): this;
   }
 
+  /** 顶点属性：自己建几何体时用（位置 3 个一组、uv 2 个一组、颜色 3 或 4 个一组）。改了 array 之后把 needsUpdate 设为 true */
+  class BufferAttribute {
+    constructor(array: TypedArray, itemSize: number, normalized?: boolean);
+    array: TypedArray;
+    readonly count: number;
+    readonly itemSize: number;
+    needsUpdate: boolean;
+    getX(index: number): number;
+    getY(index: number): number;
+    getZ(index: number): number;
+    getW(index: number): number;
+    setX(index: number, x: number): this;
+    setY(index: number, y: number): this;
+    setXY(index: number, x: number, y: number): this;
+    setXYZ(index: number, x: number, y: number, z: number): this;
+    setXYZW(index: number, x: number, y: number, z: number, w: number): this;
+  }
+
+  /** 每个实例一份的属性（InstancedMesh 的矩阵和颜色，或自己写的实例化着色器的输入） */
+  class InstancedBufferAttribute extends BufferAttribute {
+    constructor(array: TypedArray, itemSize: number, normalized?: boolean, meshPerAttribute?: number);
+    readonly isInstancedBufferAttribute: boolean;
+  }
+
   class BufferGeometry {
     constructor();
     readonly isBufferGeometry: boolean;
     groups: Array<{ start: number; count: number; materialIndex?: number | undefined }>;
-    getAttribute(name: string): BufferAttribute | undefined;
-    getIndex(): BufferAttribute | null;
+    getAttribute(name: string): GeometryAttribute | undefined;
+    setAttribute(name: string, attribute: BufferAttribute): this;
+    getIndex(): GeometryAttribute | null;
+    /** 三角形的顶点序号；传数组时 three 自己选 16 位或 32 位 */
+    setIndex(index: BufferAttribute | number[] | null): this;
+    setDrawRange(start: number, count: number): void;
+    computeBoundingBox(): void;
+    computeBoundingSphere(): void;
     translate(x: number, y: number, z: number): this;
     scale(x: number, y: number, z: number): this;
     rotateX(angle: number): this;
@@ -541,6 +626,20 @@ export declare namespace THREE {
     readonly isMesh: boolean;
     geometry: BufferGeometry;
     material: Material | Material[];
+  }
+
+  /**
+   * 同一个几何体画很多份（一次绘制）。每帧用 setMatrixAt、setColorAt 改完后，
+   * 把 instanceMatrix.needsUpdate（以及 instanceColor.needsUpdate）设为 true。方块用 ctx.resources.block().instanced() 更省事
+   */
+  class InstancedMesh extends Mesh {
+    constructor(geometry: BufferGeometry | undefined, material: Material | Material[] | undefined, count: number);
+    readonly isInstancedMesh: boolean;
+    count: number;
+    instanceMatrix: InstancedBufferAttribute;
+    instanceColor: InstancedBufferAttribute | null;
+    setMatrixAt(index: number, matrix: Matrix4): void;
+    setColorAt(index: number, color: Color): void;
   }
 
   class Texture {

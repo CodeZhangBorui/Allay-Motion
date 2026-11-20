@@ -1,6 +1,6 @@
 // 参数值的校验与清洗（docs/04-templates.md 4.4）：类型不对的回到默认值，越界的钳制，多余的键丢弃，缺的补默认值。
 // 引擎（装载时）和界面（属性面板、预设、工程）共用这一份。纯函数，不抛错。
-import { COLOR_RE, EASING_NAMES, FILE_REF_RE, isAssetRef, isResourceId, localize, type ParamDef } from './manifest';
+import { COLOR_RE, EASING_NAMES, FILE_REF_RE, isAssetRef, isFontFamily, isResourceId, localize, type ParamDef, type ParamDefOf } from './manifest';
 import type { ParamValue, ParamValues } from './runtime';
 
 /** text 参数的多语言默认值按这个语言取；缺省英文 */
@@ -20,7 +20,38 @@ export function defaultValue(def: ParamDef, options: SanitizeOptions = {}): Para
   if (def.type === 'blockList') return def.default.map((e) => ({ id: e.id, weight: e.weight }));
   if (def.type === 'easing') return typeof def.default === 'string' ? def.default : [...def.default];
   if (def.type === 'color') return def.default.toUpperCase();
+  if (def.type === 'font') return fontDefault(def);
   return def.default;
+}
+
+const FONT_FLAGS = ['bold', 'italic', 'underline', 'strikethrough', 'shadow'] as const;
+const OUTLINE_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** font 参数的默认值，补全成完整的对象（样式缺省为关，描边为 null） */
+function fontDefault(def: ParamDefOf<'font'>): { [key: string]: ParamValue } {
+  const d = def.default;
+  return {
+    family: d.family,
+    bold: d.bold ?? false,
+    italic: d.italic ?? false,
+    underline: d.underline ?? false,
+    strikethrough: d.strikethrough ?? false,
+    shadow: d.shadow ?? false,
+    outline: d.outline ? d.outline.toUpperCase() : null,
+  };
+}
+
+/** font 参数值的清洗：不是对象回到默认；逐个字段检查，坏的字段取默认值的那一项 */
+function sanitizeFont(def: ParamDefOf<'font'>, value: unknown): { [key: string]: ParamValue } {
+  const d = fontDefault(def);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return d;
+  const v = value as Record<string, unknown>;
+  // 旧工程里的 allay:fallback（已删除的内置像素字体）换成系统字体
+  const family = v.family === 'allay:fallback' ? 'system:sans' : v.family;
+  const out: { [key: string]: ParamValue } = { family: typeof family === 'string' && isFontFamily(family) ? family : d.family! };
+  for (const k of FONT_FLAGS) out[k] = typeof v[k] === 'boolean' ? v[k] : d[k]!;
+  out.outline = v.outline === null ? null : typeof v.outline === 'string' && OUTLINE_RE.test(v.outline) ? v.outline.toUpperCase() : d.outline!;
+  return out;
 }
 
 function truncate(text: string, maxLength: number | undefined): string {
@@ -78,6 +109,8 @@ export function sanitizeValue(def: ParamDef, value: unknown, options: SanitizeOp
       }
       return fallback();
     }
+    case 'font':
+      return sanitizeFont(def, value);
     case 'blockList': {
       if (!Array.isArray(value)) return fallback();
       const max = def.max ?? 64;

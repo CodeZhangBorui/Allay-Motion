@@ -23,14 +23,19 @@ import { openRecent } from '../features/project/actions';
 import { installViaDialog } from '../features/templates/actions';
 import { useUiStore } from '../stores/uiStore';
 import { createEditorHost } from './editorHost';
+import { startWorkspaceMode } from './workspaceMode';
 import { installHostCommands } from './mainCommands';
 import { discoveredModules, OptionalModuleManager } from './optionalModules';
 import { AboutPage, AppearancePage, AssetsPage, ExportPage, FoldersPage, GeneralPage } from '../features/settings/pages';
 import { ShortcutsPage } from '../features/settings/ShortcutsPage';
 import { UpdatesPage } from '../features/updates/UpdatesPage';
+import { DEV_MODE_COMMANDS, DevModeMenuItem, effectiveModuleSwitches, startDevMode } from '../features/dev/devMode';
+import { DevSettingsPage, setAvailableModules } from '../features/dev/DevSettingsPage';
+import { ANIMATION_COMMANDS, ANIMATION_MENU_ITEMS, startAnimationWorkspace } from '../features/animation/workspace';
 import {
   ArrowSquareIn,
   Checkerboard,
+  Code,
   CircleHalf,
   ClockCounterClockwise,
   CloudArrowDown,
@@ -167,6 +172,8 @@ const MENU_ITEMS: MenuItemDef[] = [
   { id: 'view.guides', menu: 'view', group: 1, order: 1, command: 'guides', titleKey: 'preview.guides' },
   { id: 'view.toggleLeft', menu: 'view', group: 1, order: 2, command: 'toggleLeft' },
   { id: 'view.palette', menu: 'view', group: 2, order: 0, command: 'palette', titleKey: 'menu.commandPalette' },
+  // 开发模式的固定位置（6.15）：视图菜单最后一组
+  { id: 'view.devMode', menu: 'view', group: 3, order: 0, component: DevModeMenuItem },
   // 帮助
   { id: 'help.settings', menu: 'help', group: 0, order: 0, command: 'settings', titleKey: 'topbar.settings' },
   { id: 'help.shortcuts', menu: 'help', group: 0, order: 1, command: 'settings', titleKey: 'settings.pages.shortcuts', input: { page: 'shortcuts' }, icon: Keyboard },
@@ -184,6 +191,7 @@ const SETTINGS_PAGES: SettingsPageDef[] = [
   { id: 'export', titleKey: 'settings.pages.export', icon: Export, order: 40, component: ExportPage },
   { id: 'shortcuts', titleKey: 'settings.pages.shortcuts', icon: Keyboard, order: 50, component: ShortcutsPage },
   { id: 'updates', titleKey: 'settings.pages.updates', icon: CloudArrowDown, order: 55, component: UpdatesPage },
+  { id: 'developer', titleKey: 'devMode.settings.title', icon: Code, order: 58, component: DevSettingsPage },
   { id: 'about', titleKey: 'settings.pages.about', icon: Info, order: 60, component: AboutPage },
 ];
 
@@ -198,20 +206,31 @@ export function registerCore(): void {
   registered = true;
   for (const c of [...CORE_COMMANDS, ...DEV_COMMANDS, ...PROJECT_COMMANDS, ...OPEN_FILE_COMMANDS]) registerCommand(c);
   for (const c of EXPORT_TASK_COMMANDS) registerCommand(c);
-  registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions });
-  registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab });
-  registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions });
+  for (const c of [...DEV_MODE_COMMANDS, ...ANIMATION_COMMANDS]) registerCommand(c);
+  // 模板库、预设、模板参数只服务模板：进入动画编辑器时淡出收起（app/workspaceMode.ts）
+  registerPanel({ id: 'templates', titleKey: 'gallery.title', region: 'left', order: 0, component: TemplatesTab, actions: TemplatesActions, modes: ['template'] });
+  registerPanel({ id: 'presets', titleKey: 'params.presets.title', region: 'left', order: 10, component: PresetsTab, modes: ['template'] });
+  registerPanel({ id: 'props', titleKey: 'params.tabs.props', region: 'right', order: 0, component: PropsTab, actions: PropsActions, modes: ['template'] });
   registerPanel({ id: 'output', titleKey: 'params.tabs.output', region: 'right', order: 10, component: OutputTab });
-  for (const m of MENU_ITEMS) registerMenuItem(m);
+  for (const m of [...MENU_ITEMS, ...ANIMATION_MENU_ITEMS]) registerMenuItem(m);
   for (const p of SETTINGS_PAGES) registerSettingsPage(p);
   // 模板开发模式的热重载（H9）与主进程到界面的命令通道（H11）
   hotReloader.start();
   installHostCommands();
-  // 可选模块：开关表变了就启停（默认全关，关着的模块不加载代码块）
+  // 开发模式（6.15）与动画工作区
+  startWorkspaceMode();
+  startDevMode();
+  startAnimationWorkspace();
+  // 可选模块：随开发模式启用（开发模式关着时全关，关着的模块不加载代码块）；设置里可以单独关掉某一个
+  setAvailableModules(optionalModules.available);
   if (optionalModules.available.length > 0) {
-    void optionalModules.sync(useUiStore.getState().settings.optionalModules);
+    const switches = () => {
+      const st = useUiStore.getState().settings;
+      return effectiveModuleSwitches(optionalModules.available, st.devMode, st.optionalModules);
+    };
+    void optionalModules.sync(switches());
     useUiStore.subscribe((s, prev) => {
-      if (s.settings.optionalModules !== prev.settings.optionalModules) void optionalModules.sync(s.settings.optionalModules);
+      if (s.settings.optionalModules !== prev.settings.optionalModules || s.settings.devMode !== prev.settings.devMode) void optionalModules.sync(switches());
     });
   }
 }

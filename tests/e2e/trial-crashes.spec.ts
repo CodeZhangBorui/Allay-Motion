@@ -35,11 +35,13 @@ async function expectAlive(page: Page): Promise<void> {
   await expect(page.getByTestId('error-boundary')).toHaveCount(0);
 }
 
-test('缺陷 1：没有预设时点开属性面板的“预设”下拉，界面不崩', async () => {
+test('缺陷 1：没有用户预设时点开属性面板的“预设”下拉，界面不崩', async () => {
   const { page, errors } = await start();
   expect(await page.evaluate(() => window.__allayTest!.listPresets())).toEqual([]);
   await page.getByTestId('preset-menu').click();
-  await expect(page.getByTestId('preset-none')).toBeVisible();
+  // 默认模板（方块擦除）自带预设（decisions.md“方块排列顺序”），所以列表里只有自带的那几项
+  await expect(page.getByTestId('preset-builtin:rainbow-concrete-columns')).toBeVisible();
+  await expect(page.getByTestId('preset-none')).toHaveCount(0);
   await expect(page.getByTestId('preset-save')).toBeVisible();
   await expectAlive(page);
   expect(errors).toEqual([]);

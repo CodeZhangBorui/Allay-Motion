@@ -7,11 +7,15 @@
 // M6b 加上 export.writeAudio 和 resources.soundVariants、soundLibrary、soundFiles（音效，docs/decisions.md M6b）；
 // M7 在 export 下加上 probeEncoders，以及规格之外的 outputFolder、chooseFolder、reveal、copyDiagnostics（docs/decisions.md M7）；
 // MD-a 在 templates 下加上模板开发模式的 copyBuiltin、writeDevFiles、openFolder 和 changed 事件（docs/decisions.md MD-a）；
+// 2026-11 反馈在 templates 下加上 readSource、writeSource、createFromAnimation（内嵌代码编辑、自建动画转为模板）；
+// 第二轮反馈加上 codeWindow（第二个窗口，消息经主进程转发）、editors、animations（外部编辑器与动画文档文件）；
 // MD-b 加上 host：主进程到界面的命令通道（command 事件和交回结果的 commandResult，docs/decisions.md MD-b）；
 // M8 加上 host.ready（界面就绪）和文件关联用的 project.openRequested、templates.installRequested（docs/decisions.md M8）；
 // 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
 // 界面增强加上 folders：默认文件夹的查询、选择、清除（docs/decisions.md 界面增强）；
-// 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）。
+// 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）；
+// 2026-11 字体加上 resources.unihexTables 和 fonts（同时删掉 resources.fallbackFont：内置像素字体删了）：用户导入字体的列表、导入、删除、读取（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）；
+// 内嵌 Unifont 加上 fonts.embeddedUnifont：随应用分发的 Unifont 的字形表（docs/decisions.md“内嵌 Unifont 与两种字体模式”）。
 
 export const IPC = {
   app: {
@@ -55,7 +59,7 @@ export const IPC = {
     soundFiles: 'resources:soundFiles',
     list: 'resources:list',
     fontProviders: 'resources:fontProviders',
-    fallbackFont: 'resources:fallbackFont',
+    unihexTables: 'resources:unihexTables',
     detectMinecraft: 'resources:detectMinecraft',
     setVanilla: 'resources:setVanilla',
     chooseGameDir: 'resources:chooseGameDir',
@@ -66,6 +70,19 @@ export const IPC = {
     removeLayer: 'resources:removeLayer',
     reorder: 'resources:reorder',
     setEnabled: 'resources:setEnabled',
+    /** 版本检索（2026-11 反馈）：本机、已下载、取过的版本清单（离线） */
+    versions: 'resources:versions',
+    /** 联网：取 Mojang 版本清单（只在用户点了按钮后） */
+    fetchRemoteVersions: 'resources:fetchRemoteVersions',
+    addVanillaSource: 'resources:addVanillaSource',
+    /** 联网：下载指定版本（只在用户点了按钮后） */
+    downloadVanillaVersion: 'resources:downloadVanillaVersion',
+    /** 本机 Minecraft 的资源包文件夹（只读本机文件） */
+    localPacks: 'resources:localPacks',
+    addLocalPack: 'resources:addLocalPack',
+    /** 导入音效文件（主进程弹文件对话框） */
+    importSounds: 'resources:importSounds',
+    removeImportedSound: 'resources:removeImportedSound',
     /** 主进程 → 渲染进程的事件 */
     changed: 'resources:changed',
   },
@@ -85,6 +102,13 @@ export const IPC = {
     copyBuiltin: 'templates:copyBuiltin',
     writeDevFiles: 'templates:writeDevFiles',
     openFolder: 'templates:openFolder',
+    /** 2026-11：内嵌代码编辑器读写模板源码（带内容版本），自建动画转为模板 */
+    readSource: 'templates:readSource',
+    writeSource: 'templates:writeSource',
+    createFromAnimation: 'templates:createFromAnimation',
+    /** 第三轮：读用户模板里的 animation.json（重新打开继续编辑）、用动画更新这个模板 */
+    readAnimation: 'templates:readAnimation',
+    updateFromAnimation: 'templates:updateFromAnimation',
     /** 主进程 → 渲染进程的事件：用户模板文件夹在应用之外被改动 */
     changed: 'templates:changed',
   },
@@ -125,6 +149,38 @@ export const IPC = {
     install: 'updates:install',
     /** 主进程 → 渲染进程的事件 */
     changed: 'updates:changed',
+  },
+  fonts: {
+    list: 'fonts:list',
+    import: 'fonts:import',
+    remove: 'fonts:remove',
+    read: 'fonts:read',
+    embeddedUnifont: 'fonts:embeddedUnifont',
+  },
+  /** 代码窗口（2026-11 第二轮反馈）：两个窗口之间的消息都经主进程转发 */
+  codeWindow: {
+    open: 'codeWindow:open',
+    close: 'codeWindow:close',
+    /** 主窗口 → 代码窗口（主窗口调用） */
+    publish: 'codeWindow:publish',
+    /** 代码窗口 → 主窗口（代码窗口调用；代码窗口只能调这一个通道，见 main/ipc-guard.ts） */
+    send: 'codeWindow:send',
+    /** 主进程 → 代码窗口的事件 */
+    down: 'codeWindow:down',
+    /** 主进程 → 主窗口的事件 */
+    up: 'codeWindow:up',
+  },
+  /** 外部编辑器与动画文档文件（2026-11 第二轮反馈） */
+  editors: {
+    get: 'editors:get',
+    setKind: 'editors:setKind',
+    chooseProgram: 'editors:chooseProgram',
+  },
+  animations: {
+    openExternal: 'animations:openExternal',
+    syncFile: 'animations:syncFile',
+    /** 主进程 → 主窗口的事件：外部编辑器改了动画文件 */
+    fileChanged: 'animations:fileChanged',
   },
   cache: {
     getThumb: 'cache:getThumb',
@@ -168,7 +224,7 @@ export const INVOKE_CHANNELS = [
   IPC.resources.soundFiles,
   IPC.resources.list,
   IPC.resources.fontProviders,
-  IPC.resources.fallbackFont,
+  IPC.resources.unihexTables,
   IPC.resources.detectMinecraft,
   IPC.resources.setVanilla,
   IPC.resources.chooseGameDir,
@@ -179,6 +235,14 @@ export const INVOKE_CHANNELS = [
   IPC.resources.removeLayer,
   IPC.resources.reorder,
   IPC.resources.setEnabled,
+  IPC.resources.versions,
+  IPC.resources.fetchRemoteVersions,
+  IPC.resources.addVanillaSource,
+  IPC.resources.downloadVanillaVersion,
+  IPC.resources.localPacks,
+  IPC.resources.addLocalPack,
+  IPC.resources.importSounds,
+  IPC.resources.removeImportedSound,
   IPC.templates.list,
   IPC.templates.read,
   IPC.templates.readAsset,
@@ -193,6 +257,11 @@ export const INVOKE_CHANNELS = [
   IPC.templates.copyBuiltin,
   IPC.templates.writeDevFiles,
   IPC.templates.openFolder,
+  IPC.templates.readSource,
+  IPC.templates.writeSource,
+  IPC.templates.createFromAnimation,
+  IPC.templates.readAnimation,
+  IPC.templates.updateFromAnimation,
   IPC.presets.list,
   IPC.presets.save,
   IPC.presets.remove,
@@ -214,6 +283,20 @@ export const INVOKE_CHANNELS = [
   IPC.updates.download,
   IPC.updates.cancel,
   IPC.updates.install,
+  IPC.fonts.list,
+  IPC.fonts.import,
+  IPC.fonts.remove,
+  IPC.fonts.read,
+  IPC.fonts.embeddedUnifont,
+  IPC.codeWindow.open,
+  IPC.codeWindow.close,
+  IPC.codeWindow.publish,
+  IPC.codeWindow.send,
+  IPC.editors.get,
+  IPC.editors.setKind,
+  IPC.editors.chooseProgram,
+  IPC.animations.openExternal,
+  IPC.animations.syncFile,
   IPC.cache.getThumb,
   IPC.cache.putThumb,
   IPC.cache.clear,

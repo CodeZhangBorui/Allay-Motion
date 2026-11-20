@@ -1,10 +1,18 @@
-import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { cn } from 'cn';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger } from '../components/ui/select';
 import { beginGesture, useEditor } from './context';
 import { EASING_FUNCTIONS, easingFn, easingPath, type EasingValue } from './easing';
 
 // EasingField（6.5）：下拉里每个预设配一条小曲线；“自定义”展开一个 SVG 贝塞尔编辑器（两个可拖控制点）
 // 和一个按曲线运动的小圆点。小圆点只动 transform；减少动效时不动。
+//
+// 聚焦（docs/decisions.md“2026-11 反馈：时间线与曲线编辑”）：控制点的 y 可以拉出 0–1，拉出去的部分本来会被
+// 属性面板的折叠区、滚动区裁掉，或被下面的控件盖住。鼠标进入方格、按住控制点、或键盘焦点在控制点上时，
+// 编辑器“浮起”：原位留一个同高的占位，编辑器本身改成 position: fixed 停在原来的位置（同一个节点，拖动中的
+// 指针捕获不受影响），不再被裁剪、压在其他控件之上；属性面板的其余各行降到 35% 不透明度（ParamPanel 的聚焦层）。
+// 退出：EASING_FOCUS_IDLE_MS 内没有操作（拖动中不算无操作）、在编辑器外按下（这一下照常作用于被点的控件）、
+// Esc、键盘焦点离开、窗口失焦。
 
 export interface EasingFieldProps {
   value: EasingValue;
@@ -30,13 +38,121 @@ const SPAN = 1 + PAD * 2;
 const toX = (x: number) => x * BOX;
 const toY = (y: number) => BOX - ((y + PAD) / SPAN) * BOX;
 
+/** 没有操作多久之后退出聚焦（毫秒） */
+export const EASING_FOCUS_IDLE_MS = 3000;
+
+interface Lift {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** 浮起状态：进入或续期（touch）、退出（exit），以及给属性面板聚焦层打标记 */
+function useLift(slotRef: RefObject<HTMLDivElement | null>, layerRef: RefObject<HTMLDivElement | null>, isDragging: () => boolean) {
+  const [lift, setLift] = useState<Lift | null>(null);
+  const active = useRef(false);
+  const timer = useRef(0);
+  const mark = (on: boolean) => {
+    const el = slotRef.current;
+    el?.closest('[data-dim]')?.toggleAttribute('data-focus-owner', on);
+    el?.closest('[data-focus-scope]')?.toggleAttribute('data-focus-layer', on);
+  };
+  const exit = () => {
+    window.clearTimeout(timer.current);
+    if (!active.current) return;
+    active.current = false;
+    mark(false);
+    setLift(null);
+  };
+  const schedule = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => (isDragging() ? schedule() : exit()), EASING_FOCUS_IDLE_MS);
+  };
+  const touch = () => {
+    if (!active.current) {
+      const el = slotRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      active.current = true;
+      mark(true);
+      setLift({ left: r.left, top: r.top, width: r.width, height: layerRef.current?.offsetHeight ?? r.height });
+    }
+    schedule();
+  };
+  // window 上的监听读最新的 exit
+  const exitRef = useRef(exit);
+  exitRef.current = exit;
+  const lifted = lift !== null;
+
+  useEffect(() => {
+    if (!lifted) return;
+    // 在编辑器外按下：退出（捕获阶段，不拦截：这一下照常落到被点的控件上）
+    const down = (e: PointerEvent) => {
+      if (!layerRef.current?.contains(e.target as Node)) exitRef.current();
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') exitRef.current();
+    };
+    const blur = () => exitRef.current();
+    // 浮起期间面板滚动或窗口改尺寸：跟着原位走
+    let raf = 0;
+    const follow = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = slotRef.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        setLift((l) => (l && (l.left !== r.left || l.top !== r.top || l.width !== r.width) ? { ...l, left: r.left, top: r.top, width: r.width } : l));
+      });
+    };
+    document.addEventListener('pointerdown', down, true);
+    document.addEventListener('keydown', key, true);
+    window.addEventListener('blur', blur);
+    window.addEventListener('scroll', follow, true);
+    window.addEventListener('resize', follow);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('keydown', key, true);
+      window.removeEventListener('blur', blur);
+      window.removeEventListener('scroll', follow, true);
+      window.removeEventListener('resize', follow);
+    };
+  }, [lifted, slotRef, layerRef]);
+
+  // fixed 的包含块不一定是视口（祖先有 transform 时是那个祖先）：浮起后量一次，偏了就按差值挪回原位
+  useLayoutEffect(() => {
+    const layer = layerRef.current;
+    const slot = slotRef.current;
+    if (!lift || !layer || !slot) return;
+    const a = layer.getBoundingClientRect();
+    const b = slot.getBoundingClientRect();
+    const dx = b.left - a.left;
+    const dy = b.top - a.top;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) setLift({ ...lift, left: lift.left + dx, top: lift.top + dy });
+  }, [lift, slotRef, layerRef]);
+
+  // 卸载（切回预设曲线、换模板）时撤掉聚焦层的标记
+  useEffect(() => {
+    const latestExit = exitRef;
+    return () => latestExit.current();
+  }, []);
+
+  return { lift, touch, exit };
+}
+
 function BezierEditor({ value, onChange, label }: { value: readonly [number, number, number, number]; onChange(v: [number, number, number, number]): void; label: string }) {
   const editor = useEditor();
   const svgRef = useRef<SVGSVGElement>(null);
   const dotRef = useRef<SVGCircleElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<0 | 1 | null>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
+  const { lift, touch, exit } = useLift(slotRef, layerRef, () => dragging.current !== null);
 
   // 沿曲线运动的小圆点：一个 rAF 循环，只改 transform
   useEffect(() => {
@@ -61,6 +177,7 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
     return [Math.round(x * 100) / 100, Math.round(y * 100) / 100] as const;
   };
   const onMove = (e: ReactPointerEvent) => {
+    touch();
     const which = dragging.current;
     if (which === null) return;
     const [x, y] = pointFrom(e);
@@ -88,8 +205,11 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
           role="slider"
           aria-label={editor.t(which === 0 ? 'easing.handle1' : 'easing.handle2')}
           aria-valuetext={`${value[which * 2]}, ${value[which * 2 + 1]}`}
+          data-testid={`easing-handle-${which + 1}`}
           tabIndex={0}
           onKeyDown={(e) => {
+            if (e.key === 'Escape') return;
+            touch();
             const d = e.shiftKey ? 0.1 : 0.01;
             const next: [number, number, number, number] = [...value];
             const ix = which * 2;
@@ -104,23 +224,52 @@ function BezierEditor({ value, onChange, label }: { value: readonly [number, num
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId);
             dragging.current = which;
+            touch();
             beginGesture(editor);
           }}
-          onPointerUp={() => (dragging.current = null)}
+          onPointerUp={() => {
+            dragging.current = null;
+            touch();
+          }}
+          onLostPointerCapture={() => (dragging.current = null)}
         />
       </g>
     );
   };
   return (
-    <div className="flex flex-col gap-1">
-      <svg ref={svgRef} width={BOX} height={BOX} viewBox={`0 0 ${BOX} ${BOX}`} className="touch-none self-center overflow-visible rounded-lg bg-well" onPointerMove={onMove} role="group" aria-label={label}>
-        <rect x="0" y={toY(1)} width={BOX} height={toY(0) - toY(1)} fill="none" stroke="var(--control-hi)" strokeDasharray="3 3" />
-        <path d={easingPath(value, BOX, BOX, PAD, 64)} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        {handle(0)}
-        {handle(1)}
-        <circle ref={dotRef} r="4" fill="var(--primary)" />
-      </svg>
-      <span className="text-center num text-xs text-fg-subtle">[{value.map((n) => n.toFixed(2)).join(', ')}]</span>
+    // 占位：浮起时编辑器脱离文档流，这里保持原来的高度，下面的行不跳动
+    <div ref={slotRef} style={lift ? { height: lift.height } : undefined} data-testid="easing-editor-slot">
+      <div
+        ref={layerRef}
+        data-testid="easing-editor"
+        data-focused={lift ? 'true' : undefined}
+        className={cn('flex flex-col gap-1', lift && 'fixed z-40')}
+        style={lift ? { left: lift.left, top: lift.top, width: lift.width } : undefined}
+        onFocus={touch}
+        onBlur={(e) => {
+          // 焦点移到了编辑器外的控件（Tab 等）；点在方格的空白处只是失焦、指针还在这里，不算离开
+          if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) exit();
+        }}
+      >
+        <svg
+          ref={svgRef}
+          width={BOX}
+          height={BOX}
+          viewBox={`0 0 ${BOX} ${BOX}`}
+          className="touch-none self-center overflow-visible rounded-lg bg-well"
+          onPointerEnter={touch}
+          onPointerMove={onMove}
+          role="group"
+          aria-label={label}
+        >
+          <rect x="0" y={toY(1)} width={BOX} height={toY(0) - toY(1)} fill="none" stroke="var(--control-hi)" strokeDasharray="3 3" />
+          <path d={easingPath(value, BOX, BOX, PAD, 64)} fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          {handle(0)}
+          {handle(1)}
+          <circle ref={dotRef} r="4" fill="var(--primary)" />
+        </svg>
+        <span className="text-center num text-xs text-fg-subtle">[{value.map((n) => n.toFixed(2)).join(', ')}]</span>
+      </div>
     </div>
   );
 }

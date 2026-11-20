@@ -3,6 +3,7 @@ import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { CheckCircle, CircleNotch, Export, WarningCircle } from '@phosphor-icons/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DevModeIndicator } from '../features/dev/devMode';
 import { DevWatchStatus } from '../features/preview/DevWatchStatus';
 import { usePreviewStore } from '../stores/previewStore';
 import { useProjectStore } from '../stores/projectStore';
@@ -32,8 +33,9 @@ function useAssetSummary(): string | null {
   const { t } = useTranslation();
   const state = useResourceStore((s) => s.state);
   if (!state) return null;
-  const vanilla = state.layers.find((l) => l.kind === 'vanilla' && l.enabled);
-  const packs = state.layers.filter((l) => l.kind === 'pack' && l.enabled).length;
+  // 原版基底：最上面启用的原版层
+  const vanilla = state.layers.find((l) => l.base === true);
+  const packs = state.layers.filter((l) => l.kind === 'pack' && l.enabled && l.source !== 'imported').length;
   return vanilla ? t('status.assets', { version: vanilla.name, count: packs }) : t('status.assetsNoVanilla', { count: packs });
 }
 
@@ -53,6 +55,7 @@ export function StatusBar() {
         {status.icon}
         {status.text}
       </span>
+      <DevModeIndicator />
       {assets && <span className="truncate">{assets}</span>}
       <DevWatchStatus />
       <span className="flex-1" />

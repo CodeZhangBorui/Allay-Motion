@@ -48,7 +48,7 @@ describe.runIf(IS_WIN)('M8 安装包的内容', () => {
     expect(files.filter((f) => /default_app/i.test(f))).toEqual([]);
   });
 
-  it('随包附带许可与声明：FFmpeg 的 LGPL 全文和构建来源、方舟像素字体的 OFL、Chromium 与 Electron 的许可、第三方许可清单', () => {
+  it('随包附带许可与声明：FFmpeg 的 LGPL 全文和构建来源、Chromium 与 Electron 的许可、第三方许可清单、内嵌 Unifont 的 OFL', () => {
     const files = installerFiles();
     for (const f of [
       'THIRD_PARTY_NOTICES.txt',
@@ -57,9 +57,11 @@ describe.runIf(IS_WIN)('M8 安装包的内容', () => {
       'resources/ffmpeg/win32-x64/ffmpeg.exe',
       'resources/ffmpeg/win32-x64/LICENSE.txt',
       'resources/ffmpeg/win32-x64/build.json',
-      'resources/fonts/ark-pixel/OFL.txt',
     ])
       expect(files, f).toContain(f);
+    // T-FNT-11 内嵌的 Unifont 有且只有一份（模板包里不带字体），旁边是许可全文；字体目录里没有别的
+    expect(files.filter((f) => /\.(otf|ttf|woff2?|bdf|hex)$/i.test(f))).toEqual(['resources/fonts/unifont/unifont-18.0.01.otf']);
+    expect(files.filter((f) => f.startsWith('resources/fonts/')).sort()).toEqual(['resources/fonts/unifont/OFL.txt', 'resources/fonts/unifont/unifont-18.0.01.otf']);
     // ffprobe 只给测试用
     expect(files.some((f) => /ffprobe/i.test(f))).toBe(false);
     const notices = readFileSync(join(UNPACKED, 'THIRD_PARTY_NOTICES.txt'), 'utf8');
@@ -128,7 +130,7 @@ describe.runIf(IS_MAC)('M8 macOS 应用包的内容', () => {
     expect(files.filter((f) => /default_app/i.test(f))).toEqual([]);
   });
 
-  it('随包附带许可与声明：FFmpeg（LGPL 全文、libvpx 和 libopus 的 BSD、构建来源）、方舟像素字体的 OFL、Chromium 与 Electron 的许可、第三方许可清单', () => {
+  it('随包附带许可与声明：FFmpeg（LGPL 全文、libvpx 和 libopus 的 BSD、构建来源）、Chromium 与 Electron 的许可、第三方许可清单、内嵌 Unifont 的 OFL', () => {
     const files = macZipFiles().map((f) => f.replace(/^[^/]+\.app\/Contents\/Resources\//, ''));
     for (const f of [
       'THIRD_PARTY_NOTICES.txt',
@@ -137,9 +139,11 @@ describe.runIf(IS_MAC)('M8 macOS 应用包的内容', () => {
       `ffmpeg/${FFMPEG_TARGET}/ffmpeg`,
       `ffmpeg/${FFMPEG_TARGET}/LICENSE.txt`,
       `ffmpeg/${FFMPEG_TARGET}/build.json`,
-      'fonts/ark-pixel/OFL.txt',
     ])
       expect(files, f).toContain(f);
+    // T-FNT-11 内嵌的 Unifont 有且只有一份，旁边是许可全文
+    expect(files.filter((f) => /\.(otf|ttf|woff2?|bdf|hex)$/i.test(f))).toEqual(['fonts/unifont/unifont-18.0.01.otf']);
+    expect(files.filter((f) => f.startsWith('fonts/')).sort()).toEqual(['fonts/unifont/OFL.txt', 'fonts/unifont/unifont-18.0.01.otf']);
     // ffprobe 只给测试用
     expect(files.some((f) => /ffprobe/i.test(f))).toBe(false);
     const notices = readFileSync(join(resources(), 'THIRD_PARTY_NOTICES.txt'), 'utf8');

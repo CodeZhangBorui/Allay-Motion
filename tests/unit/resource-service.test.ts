@@ -26,6 +26,14 @@ afterEach(() => {
 function fakeDownloader(impl: Partial<VanillaDownloader> = {}): VanillaDownloader {
   return {
     findCached: async () => null,
+    // 多个原版来源（2026-11 反馈）之后服务读的是 listCached：默认由 findCached 推出
+    listCached: async () => {
+      const c = await (impl.findCached ?? (async () => null))();
+      return c ? [c] : [];
+    },
+    listRemoteVersions: async () => {
+      throw new DownloadError('offline in tests', 'network');
+    },
     downloadLatest: async () => {
       throw new DownloadError('offline in tests', 'network');
     },
@@ -37,7 +45,7 @@ function fakeDownloader(impl: Partial<VanillaDownloader> = {}): VanillaDownloade
   } as VanillaDownloader;
 }
 
-async function makeService(opts: { game?: boolean; downloader?: VanillaDownloader } = {}) {
+async function makeService(opts: { game?: boolean; downloader?: VanillaDownloader; prefetchSounds?: () => Promise<readonly string[]> | readonly string[] } = {}) {
   const appData = join(dir, 'appdata');
   if (opts.game) makeFakeMinecraft(join(appData, '.minecraft'), [{ id: '1.21.1', type: 'release', releaseTime: '2024-08-08T00:00:00+00:00', jar: true, assetIndex: '17' }], '#00ff00');
   const userData = join(dir, 'userData');
@@ -47,12 +55,12 @@ async function makeService(opts: { game?: boolean; downloader?: VanillaDownloade
   const svc = new ResourceService({
     userDataDir: userData,
     builtinDir: join(dir, 'no-builtin'),
-    fallbackFontFile: join(import.meta.dirname, '../../resources/fonts/ark-pixel/ark-pixel-12px-proportional-zh_hans.bdf'),
     settings,
     log,
     gameEnv: { platform: 'win32', appData, home: appData },
     downloader: opts.downloader ?? fakeDownloader(),
     onChanged: (s) => states.push(s),
+    ...(opts.prefetchSounds ? { prefetchSounds: opts.prefetchSounds } : {}),
   });
   await svc.init();
   await svc.detectMinecraft();
@@ -163,7 +171,6 @@ describe('ResourceService', () => {
     const again = new ResourceService({
       userDataDir: join(dir, 'userData'),
       builtinDir: join(dir, 'no-builtin'),
-      fallbackFontFile: join(dir, 'none.bdf'),
       settings,
       log,
       gameEnv: { platform: 'win32', appData: join(dir, 'appdata'), home: dir },
@@ -174,11 +181,10 @@ describe('ResourceService', () => {
     const s = again.state();
     expect(s.brokenPacks).toEqual([expect.objectContaining({ name: 'gone', problem: 'missing' })]);
     expect(s.layers.map((l) => l.kind)).toEqual(['builtin']);
-    expect(await again.fallbackFontTables()).toBeNull();
     again.close();
   });
 
-  it('字体：资源栈里的 default.json（reference 展开）；兜底字体是方舟像素字体', async () => {
+  it('字体：资源栈里的 default.json（reference 展开）', async () => {
     const { svc } = await makeService();
     const folder = join(dir, 'font-pack');
     writeFiles(folder, {
@@ -191,10 +197,9 @@ describe('ResourceService', () => {
       { type: 'space', advances: [[32, 4]] },
       { type: 'bitmap', file: 'assets/minecraft/textures/font/ascii.png', ascent: 7, height: 8, rows: [[65, 66]] },
     ]);
-    expect(f?.skipped).toContain('unihex');
+    // hex_file 不是 zip：记为无效的 unihex
+    expect(f?.skipped).toContain('unihex(invalid)');
     expect(await svc.fontProviders('minecraft:nope')).toBeNull();
-    const fallback = await svc.fallbackFontTables();
-    expect(fallback?.codepoints.length).toBeGreaterThan(20_000);
     svc.close();
   });
 
@@ -271,8 +276,8 @@ describe('ResourceService', () => {
     });
     expect(await svc.addPackFromPath(a)).toMatchObject({ ok: true });
     expect(await svc.soundVariants('minecraft:block.stone.place')).toEqual([
-      { file: 'minecraft:test/a1', volume: 1, pitch: 1, weight: 1 },
-      { file: 'minecraft:test/a2', volume: 0.5, pitch: 2, weight: 3 },
+      { file: 'minecraft:test/a1', volume: 1, pitch: 1, weight: 1, attenuation: 16 },
+      { file: 'minecraft:test/a2', volume: 0.5, pitch: 2, weight: 3, attenuation: 16 },
     ]);
     expect(await svc.addPackFromPath(b)).toMatchObject({ ok: true });
     // b 在上层：追加
@@ -296,7 +301,7 @@ describe('ResourceService', () => {
     expect(await svc.addPackFromPath(pack)).toMatchObject({ ok: true });
     const lib = await svc.soundLibrary();
     expect(lib.stamp).toBe(svc.resourceStamp);
-    expect(lib.events).toEqual([
+    expect(lib.events.map(({ id, state }) => ({ id, state }))).toEqual([
       { id: 'minecraft:ambient.cave', state: 'missing' },
       { id: 'minecraft:block.stone.place', state: 'local' },
       { id: 'mypack:fx.boom', state: 'local' },
@@ -305,6 +310,43 @@ describe('ResourceService', () => {
     await svc.setEnabled(id, false);
     expect((await svc.soundLibrary()).events).toEqual([]);
     svc.close();
+  });
+
+  it('下载时一并取回的音效 = 基础表 ∪ 调用方给的清单（内置模板的默认音效）；清单取不到时退回基础表，下载照常完成', async () => {
+    const fetches: string[][] = [];
+    const appData = join(dir, 'prefetch-game');
+    makeFakeMinecraft(appData, [{ id: '26.3', type: 'release', releaseTime: '2026-09-15T00:00:00+00:00', jar: true }], '#ffff00');
+    const cached: CachedVanilla = {
+      source: 'downloaded',
+      gameDir: appData,
+      versionId: '26.3',
+      releaseTime: '2026-09-15T00:00:00+00:00',
+      jarPath: join(appData, 'versions', '26.3', '26.3.jar'),
+      assetIndexPath: null,
+      objectsDir: join(appData, 'objects'),
+    };
+    const downloader = () =>
+      fakeDownloader({
+        findCached: async () => cached,
+        downloadLatest: async () => cached,
+        fetchSoundObjects: async (_install, ids) => {
+          fetches.push([...ids]);
+          return { fetched: 0, missing: [] };
+        },
+      });
+    // 模板里的默认音效排在基础表后面；和基础表重复的不重复取
+    const a = await makeService({ downloader: downloader(), prefetchSounds: async () => ['minecraft:block.chest.open', 'minecraft:ui.button.click', 'minecraft:block.bell.use'] });
+    expect(await a.svc.downloadVanilla()).toEqual({ ok: true });
+    expect(fetches[0]).toEqual([...SOUND_EVENTS, 'minecraft:block.chest.open', 'minecraft:block.bell.use']);
+    // 清单抛错：只取基础表，不让下载失败
+    const b = await makeService({
+      downloader: downloader(),
+      prefetchSounds: () => {
+        throw new Error('templates not ready');
+      },
+    });
+    expect(await b.svc.downloadVanilla()).toEqual({ ok: true });
+    expect(fetches[1]).toEqual([...SOUND_EVENTS]);
   });
 
   it('M6b 下载缓存的原版层：还没取回的音效是 remote，只有 soundFiles(…, true) 才经 fetchObject 取回；取不到时报错误类型、状态不变', async () => {
@@ -337,7 +379,7 @@ describe('ResourceService', () => {
     const { svc } = await makeService({ game: true, downloader });
     await svc.setVanilla({ consent: true });
     expect(svc.state().vanilla.active).toBe('cached');
-    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'remote' }]);
+    expect((await svc.soundLibrary()).events.map(({ id, state }) => ({ id, state }))).toEqual([{ id: 'minecraft:block.stone.place', state: 'remote' }]);
     expect(await svc.soundFiles(['minecraft:dig/stone1', 'minecraft:nope'], false)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'remote', 'minecraft:nope': 'missing' } });
     expect(fetched).toEqual([]);
     // 离线：取不到，报 network，状态仍是 remote，不报错
@@ -345,7 +387,7 @@ describe('ResourceService', () => {
     online = true;
     expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'local' } });
     expect(fetched).toEqual(['b'.repeat(40)]);
-    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
+    expect((await svc.soundLibrary()).events.map(({ id, state }) => ({ id, state }))).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
     svc.close();
   });
 
@@ -353,7 +395,7 @@ describe('ResourceService', () => {
     const { svc } = await makeService({ game: true });
     await svc.setVanilla({ consent: true });
     expect(svc.state().vanilla.active).toBe('local');
-    expect((await svc.soundLibrary()).events).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
+    expect((await svc.soundLibrary()).events.map(({ id, state }) => ({ id, state }))).toEqual([{ id: 'minecraft:block.stone.place', state: 'local' }]);
     rmSync(join(dir, 'appdata', '.minecraft', 'assets', 'objects', 'bb'), { recursive: true });
     expect(await svc.soundFiles(['minecraft:dig/stone1'], true)).toEqual({ ok: true, states: { 'minecraft:dig/stone1': 'missing' } });
     svc.close();

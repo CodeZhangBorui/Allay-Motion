@@ -2,7 +2,7 @@
 // 原版层在 vanilla.ts。层是普通对象（方法写成闭包），资源栈的纯逻辑在 @allay/assets 的 stack.ts。
 import { stat } from 'node:fs/promises';
 import { basename } from 'node:path';
-import { parsePackMeta, readPngHeader, type ResourceLayer } from '@allay/assets';
+import { parsePackFormatRange, parsePackMeta, readPngHeader, type PackFormatRange, type ResourceLayer } from '@allay/assets';
 import { scanDirectory } from './directory';
 import { openZip, type ZipArchive } from './zip';
 
@@ -22,6 +22,8 @@ export interface ClosableLayer extends ResourceLayer {
    * decisions.md M6b）；已在本地或不是索引里的对象时为 null。
    */
   remoteObject?(path: string): Promise<{ hash: string; size: number } | null>;
+  /** 资源包：pack.mcmeta 声明的格式范围（docs/03-assets.md 3.12）；没写时为 null */
+  formats?: PackFormatRange | null;
 }
 
 interface Source {
@@ -31,13 +33,14 @@ interface Source {
   warnings: readonly string[];
 }
 
-async function packInfo(src: Source): Promise<Pick<ResourceLayer, 'description' | 'packFormat' | 'icon' | 'legacyFormat'>> {
-  const out: Pick<ResourceLayer, 'description' | 'packFormat' | 'icon' | 'legacyFormat'> = {};
+async function packInfo(src: Source): Promise<Pick<ClosableLayer, 'description' | 'packFormat' | 'icon' | 'legacyFormat' | 'formats'>> {
+  const out: Pick<ClosableLayer, 'description' | 'packFormat' | 'icon' | 'legacyFormat' | 'formats'> = {};
   const meta = src.has('pack.mcmeta') ? await src.read('pack.mcmeta').catch(() => null) : null;
   if (meta) {
     const parsed = parsePackMeta(new TextDecoder().decode(meta));
     if (parsed.description !== undefined) out.description = parsed.description;
     if (parsed.packFormat !== undefined) out.packFormat = parsed.packFormat;
+    out.formats = parsePackFormatRange(new TextDecoder().decode(meta));
   }
   const icon = src.has('pack.png') ? await src.read('pack.png').catch(() => null) : null;
   if (icon && icon.length <= MAX_ICON_BYTES && readPngHeader(icon)) out.icon = icon;

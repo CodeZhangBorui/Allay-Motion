@@ -1,0 +1,16 @@
+{
+  "name": "@allay/template-firework-show",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "description": "096 烟花（allay.builtin.firework-show），由 pnpm templates:build 打成 .allaytpl",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@allay/template-sdk": "workspace:*",
+    "@types/three": "0.187.0",
+    "typescript": "~6.0.3"
+  }
+}

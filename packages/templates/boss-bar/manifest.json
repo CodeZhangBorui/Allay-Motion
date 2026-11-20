@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.boss-bar",
+  "version": "1.0.0",
+  "name": { "zh-CN": "Boss 栏", "en": "Boss Bar" },
+  "description": {
+    "zh-CN": "屏幕顶部中央的 Boss 栏，名字在栏的上方；停留期间进度从一个值匀速走到另一个值。可以同时显示几条。",
+    "en": "A boss bar at the top centre of the screen with its name above it; while it stays, the progress moves steadily from one value to another. Several bars can show at once."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "hud", "boss"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "progress", "label": { "zh-CN": "进度", "en": "Progress" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版的 Boss 栏。基岩版的栏（贴图和版式都不同）没有做", "en": "The Java Edition boss bar. The Bedrock bar (different textures and layout) is not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版", "en": "Java Edition" } }] },
+    { "key": "names", "type": "text", "label": { "zh-CN": "名字", "en": "Names" }, "hint": { "zh-CN": "一行一条栏，最多 4 条；和游戏一样，排到界面高度三分之一以下的不显示。留空则只有一条没有名字的栏", "en": "One bar per line, up to 4; as in the game, bars that would start below a third of the screen height are not shown. Leave empty for a single bar without a name" }, "group": "content", "default": { "zh-CN": "末影龙", "en": "Ender Dragon" }, "maxLength": 200, "multiline": true },
+    { "key": "color", "type": "enum", "label": { "zh-CN": "颜色", "en": "Color" }, "hint": { "zh-CN": "游戏里末影龙是粉色，凋灵是紫色，袭击是红色；/bossbar 新建的栏默认白色", "en": "In the game the Ender Dragon is pink, the Wither purple and raids red; bars made with /bossbar are white by default" }, "group": "content", "default": "pink", "options": [{ "value": "pink", "label": { "zh-CN": "粉色", "en": "Pink" } }, { "value": "blue", "label": { "zh-CN": "蓝色", "en": "Blue" } }, { "value": "red", "label": { "zh-CN": "红色", "en": "Red" } }, { "value": "green", "label": { "zh-CN": "绿色", "en": "Green" } }, { "value": "yellow", "label": { "zh-CN": "黄色", "en": "Yellow" } }, { "value": "purple", "label": { "zh-CN": "紫色", "en": "Purple" } }, { "value": "white", "label": { "zh-CN": "白色", "en": "White" } }] },
+    { "key": "notches", "type": "enum", "label": { "zh-CN": "分段", "en": "Notches" }, "hint": { "zh-CN": "把栏分成几段的刻度；游戏里袭击的栏是 10 段。没有原版素材时不画刻度", "en": "Notches that split the bar into segments; raid bars have 10 in the game. Not drawn without the vanilla assets" }, "group": "content", "default": "none", "options": [{ "value": "none", "label": { "zh-CN": "不分段", "en": "None" } }, { "value": "6", "label": { "zh-CN": "6 段", "en": "6 segments" } }, { "value": "10", "label": { "zh-CN": "10 段", "en": "10 segments" } }, { "value": "12", "label": { "zh-CN": "12 段", "en": "12 segments" } }, { "value": "20", "label": { "zh-CN": "20 段", "en": "20 segments" } }] },
+    { "key": "from", "type": "number", "label": { "zh-CN": "起始进度", "en": "Progress from" }, "hint": { "zh-CN": "第一条栏一开始的进度，0 是空、1 是满", "en": "Where the first bar starts: 0 is empty, 1 is full" }, "group": "progress", "default": 1, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "to", "type": "number", "label": { "zh-CN": "结束进度", "en": "Progress to" }, "hint": { "zh-CN": "第一条栏变化之后的进度", "en": "Where the first bar ends up" }, "group": "progress", "default": 0.35, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "changeAt", "type": "duration", "label": { "zh-CN": "开始变化", "en": "Change starts" }, "hint": { "zh-CN": "停留开始后多久进度开始变化", "en": "How long after the stay begins the progress starts to move" }, "group": "progress", "default": 1, "min": 0, "max": 20 },
+    { "key": "changeDuration", "type": "duration", "label": { "zh-CN": "变化时长", "en": "Change time" }, "hint": { "zh-CN": "进度匀速走完要多久。游戏里每次更新只用约 0.1 秒滑过去，一场战斗是很多次小更新；设成 0.1 就是一次更新的样子", "en": "How long the progress takes, at constant speed. The game slides each update over about 0.1 s and a fight is many small updates; set 0.1 for the look of a single update" }, "group": "progress", "default": 1, "min": 0, "max": 20 },
+    { "key": "otherProgress", "type": "number", "label": { "zh-CN": "其余栏的进度", "en": "Other bars" }, "hint": { "zh-CN": "名字有多行时，第二条起的栏停在这个进度不动", "en": "With several names, the bars after the first stay at this progress" }, "group": "progress", "default": 1, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "nameColor", "type": "color", "label": { "zh-CN": "名字颜色", "en": "Name color" }, "group": "text", "default": "#FFFFFF", "palette": "chat" },
+    { "key": "nameFont", "type": "font", "label": { "zh-CN": "名字字体", "en": "Name font" }, "hint": { "zh-CN": "游戏里名字带阴影", "en": "The name has a shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）。栏宽 182 个界面像素，画面放不下时自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto). The bar is 182 GUI pixels wide and shrinks automatically when it does not fit" }, "group": "layout", "default": 5, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏里 Boss 栏是直接出现的，这里用淡入代替", "en": "The bar simply appears in the game; a fade stands in for that here" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "group": "timing", "default": 4, "min": 0.1, "max": 24 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 3 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放。Boss 栏本身没有声音；袭击可以配 minecraft:event.raid.horn，凋灵可以配 minecraft:entity.wither.spawn", "en": "Plays at the start. The bar itself is silent; try minecraft:event.raid.horn for a raid or minecraft:entity.wither.spawn for the Wither" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "ender-dragon", "name": { "zh-CN": "末影龙（粉色，掉血）", "en": "Ender Dragon (pink, losing health)" }, "params": { "names": "末影龙", "color": "pink", "notches": "none", "from": 1, "to": 0.35, "changeAt": 1, "changeDuration": 1 } },
+    { "key": "wither", "name": { "zh-CN": "凋灵（紫色，生成时蓄满）", "en": "Wither (purple, charging up on spawn)" }, "params": { "names": "凋灵", "color": "purple", "notches": "none", "from": 0, "to": 1, "changeAt": 0, "changeDuration": 3.5, "hold": 4.5, "sound": "minecraft:entity.wither.spawn" } },
+    { "key": "raid", "name": { "zh-CN": "袭击（红色，10 段）", "en": "Raid (red, 10 segments)" }, "params": { "names": "袭击", "color": "red", "notches": "10", "from": 1, "to": 0.6, "changeAt": 1, "changeDuration": 1.5, "sound": "minecraft:event.raid.horn" } },
+    { "key": "video-progress", "name": { "zh-CN": "视频进度条（白色，从空到满）", "en": "Video progress (white, empty to full)" }, "params": { "names": "视频进度", "color": "white", "notches": "none", "from": 0, "to": 1, "changeAt": 0, "changeDuration": 10, "hold": 10 } },
+    { "key": "two-bosses", "name": { "zh-CN": "两条栏：末影龙和凋灵", "en": "Two bars: Ender Dragon and Wither" }, "params": { "names": "末影龙\n凋灵", "color": "pink", "from": 0.8, "to": 0.2, "otherProgress": 0.5 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"nameFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

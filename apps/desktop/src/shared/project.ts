@@ -3,6 +3,7 @@
 // 主进程保存时换成 files 里的本机路径，打开时再签发新的引用（1.6 第 6 条）。
 import { TemplateIdSchema } from '@allay/template-sdk';
 import { z } from 'zod';
+import { AnimationDocSchema, LAYER_ID_RE } from './animation/schema';
 import { DEFAULT_KEY_COLOR, ExportPresetSchema, KeyColorSchema } from './export';
 
 export const PROJECT_FORMAT_VERSION = 1;
@@ -32,6 +33,9 @@ export const ProjectPreviewSchema = z.strictObject({
   background: z.enum(['checker', 'sample', 'solid']),
 });
 
+/** 音频（2026-11 反馈）：空间音效开关。旧工程没有这一项，按关闭处理 */
+export const ProjectAudioSchema = z.strictObject({ spatial: z.boolean() });
+
 /** 渲染进程交给主进程保存的内容（不含 files：file: 引用留在 params 里，由主进程换成路径） */
 export const ProjectDataSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
@@ -40,8 +44,14 @@ export const ProjectDataSchema = z.strictObject({
   output: ProjectOutputSchema,
   export: ProjectExportSchema,
   preview: ProjectPreviewSchema,
+  audio: ProjectAudioSchema.optional(),
   /** 只是记一笔保存时启用了哪些层（1.9） */
   resourceHint: z.array(z.string().max(200)).max(64),
+  /**
+   * 自建动画的文档（docs/animation-editor.md 5.1）。有它时工程的模板就是从它生成的，template 只是它的标识；
+   * 没有它的是普通工程（旧工程都没有）
+   */
+  animation: AnimationDocSchema.optional(),
 });
 export type ProjectData = z.infer<typeof ProjectDataSchema>;
 
@@ -55,8 +65,13 @@ export const ProjectFileSchema = z.looseObject({
   output: ProjectOutputSchema.catch({ width: 1920, height: 1080, fps: 60 }).default({ width: 1920, height: 1080, fps: 60 }),
   export: ProjectExportSchema.catch({ preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: DEFAULT_KEY_COLOR }).default({ preset: 'prores4444', quality: 'standard', shutterAngle: 180, key: DEFAULT_KEY_COLOR }),
   preview: ProjectPreviewSchema.catch({ background: 'checker' }).default({ background: 'checker' }),
+  audio: ProjectAudioSchema.catch({ spatial: false }).default({ spatial: false }),
   files: z.record(ParamKey, z.string().max(4096)).catch({}).default({}),
   resourceHint: z.array(z.string().max(200)).max(64).catch([]).default([]),
+  /** 自建动画；坏了时整个工程打不开（catch 成 undefined 会把动画工程当成缺了模板的普通工程） */
+  animation: AnimationDocSchema.optional(),
+  /** 自建动画里图片图层用的本机图片：图层 id → 本机路径（同 files，文档里存成空，打开时重新签发引用；第三轮） */
+  animationFiles: z.record(z.string().regex(LAYER_ID_RE), z.string().max(4096)).catch({}).default({}),
 });
 export type ProjectFile = z.infer<typeof ProjectFileSchema>;
 

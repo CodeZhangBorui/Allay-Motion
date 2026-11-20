@@ -2,6 +2,7 @@
 // 只用公开的模板接口：THREE 和所有辅助函数都从 ctx 拿，只从 template-sdk 做类型导入（4.9）。
 // 构建时由 scripts/build-templates.ts 用 esbuild 打成不含 import 的单文件 ESM。
 import type { BlockInstances, ParamValue, SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
+import { arrangeCells, toArrangement } from './arrangement';
 
 type Pattern = 'leftToRight' | 'rightToLeft' | 'topToBottom' | 'bottomToTop' | 'centerOut' | 'edgesIn' | 'diagonal' | 'random' | 'noise';
 
@@ -109,25 +110,16 @@ const template: TemplateModule = {
     else if (outPattern === 'reverse') uOut = uIn.map((u) => 1 - u);
     else uOut = orderValues(ctx, outPattern as Pattern, px, py, jitter, 'out');
 
-    // 每个格子按权重随机分配一种方块；每种方块一组实例
+    // 每个格子放哪种方块由“方块排列”决定（默认按权重随机，arrangement.ts）；每种方块一组实例
     const entries = blockList(params.blocks);
-    const totalWeight = entries.reduce((a, e) => a + e.weight, 0);
-    const pick = ctx.random('blocks');
     const kinds = [...new Set(entries.map((e) => e.id))];
+    const entryKind = entries.map((e) => kinds.indexOf(e.id));
+    const arranged = arrangeCells(toArrangement(params.arrangement), entries, cols, rows, ctx.random('blocks'));
     const cellKind = new Uint8Array(count);
     const kindCount = new Array<number>(kinds.length).fill(0);
     const cellIndex = new Uint32Array(count);
     for (let i = 0; i < count; i++) {
-      let x = pick.next() * totalWeight;
-      let id = entries[entries.length - 1]!.id;
-      for (const e of entries) {
-        x -= e.weight;
-        if (x < 0) {
-          id = e.id;
-          break;
-        }
-      }
-      const k = kinds.indexOf(id);
+      const k = entryKind[arranged[i]!]!;
       cellKind[i] = k;
       cellIndex[i] = kindCount[k]!;
       kindCount[k] = kindCount[k]! + 1;
@@ -157,14 +149,16 @@ const template: TemplateModule = {
     const outLen = outEnd - outStart;
     const lag = 1 - overlap;
 
-    // 音效：在最多 12 个均匀抽样的方块起始时刻放（4.10）
+    // 音效：在最多 12 个均匀抽样的方块起始时刻放（4.10）。
+    // 声源位置（空间音效，宿主开关）：舞台半宽当作 8 格，听者站在画面正前方 6 格
+    const toBlocks = 8 / (stage.width / 2);
     const sampleCues = (sound: ParamValue | undefined, u: Float64Array, start: number, len: number) => {
       if (typeof sound !== 'string') return;
-      const sorted = Array.from(u).sort((a, b) => a - b);
-      const k = Math.min(12, sorted.length);
+      const order = Array.from(u, (_, i) => i).sort((a, b) => u[a]! - u[b]! || a - b);
+      const k = Math.min(12, order.length);
       for (let j = 0; j < k; j++) {
-        const idx = k === 1 ? 0 : Math.round((j * (sorted.length - 1)) / (k - 1));
-        ctx.audio.cue(sound, start + sorted[idx]! * lag * len, { gain: volume });
+        const i = order[k === 1 ? 0 : Math.round((j * (order.length - 1)) / (k - 1))]!;
+        ctx.audio.cue(sound, start + u[i]! * lag * len, { gain: volume, position: { x: px[i]! * toBlocks, y: py[i]! * toBlocks, z: -6 } });
       }
     };
     sampleCues(params.placeSound, uIn, inStart, inLen);

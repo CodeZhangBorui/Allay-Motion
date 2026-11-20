@@ -1,7 +1,9 @@
 // pnpm templates:build：把 packages/templates/<name>/ 打成 .allaytpl，输出到 resources/templates/（docs/04-templates.md 4.9）。
 //
-// - esbuild 把 src/index.ts 打成单文件 ESM。只有本目录内的相对导入会被打进去；任何包导入（包括 three、
-//   template-sdk 的运行时）都保持外部，随后被 es-module-lexer 的检查拦下——内置模板必须只用 ctx。
+// - esbuild 把 src/index.ts 打成单文件 ESM。只有本目录内和共用目录 packages/templates/_lib/ 里的相对导入会被打进去
+//   （够到别处的相对导入让构建失败）；任何包导入（包括 three、template-sdk 的运行时）都保持外部，
+//   随后被 es-module-lexer 的检查拦下——内置模板必须只用 ctx。
+// - 名字以 _ 开头的目录不是模板（_lib 是共用的源码），不打包。
 // - manifest 经 template-sdk 的 schema 校验，id 必须以 allay. 开头。
 // - 包里只有 manifest.json、template.js、README.md（若有）和 assets/ 下白名单扩展名的文件。
 // - 产物是确定的：同样的源码产出逐字节相同的 .allaytpl。
@@ -17,10 +19,15 @@ import { PACKAGE_EXTENSIONS, packageFileName } from '../apps/desktop/src/shared/
 const ROOT = resolve(import.meta.dirname, '..');
 export const TEMPLATES_SRC = join(ROOT, 'packages/templates');
 export const TEMPLATES_OUT = join(ROOT, 'resources/templates');
+/** 内置模板共用的源码：模板可以用相对路径导入这里的文件，打包时并进各自的单文件产物 */
+export const TEMPLATES_LIB = join(TEMPLATES_SRC, '_lib');
 
-/** packages/templates 下的模板目录（有 manifest.json 的） */
+const inside = (file: string, dir: string) => file === dir || file.startsWith(dir + sep);
+
+/** packages/templates 下的模板目录（有 manifest.json 的；_ 开头的目录和还没填内容的骨架目录不算） */
 export function templateDirs(): string[] {
   return readdirSync(TEMPLATES_SRC)
+    .filter((name) => !name.startsWith('_'))
     .map((name) => join(TEMPLATES_SRC, name))
     .filter((dir) => statSync(dir).isDirectory() && existsSync(join(dir, 'manifest.json')))
     .sort();
@@ -51,6 +58,12 @@ export async function bundleTemplate(dir: string): Promise<string> {
         setup(b) {
           // 非相对路径一律外部：留在产物里，交给下面的导入检查拒绝
           b.onResolve({ filter: /^[^./]/ }, (args) => (args.kind === 'entry-point' ? undefined : { path: args.path, external: true }));
+          // 相对路径只能落在本模板目录或 _lib 里：模板之间不互相导入
+          b.onResolve({ filter: /^\./ }, (args) => {
+            const target = resolve(args.resolveDir, args.path);
+            if (inside(target, dir) || inside(target, TEMPLATES_LIB)) return undefined;
+            return { errors: [{ text: `import "${args.path}" leaves the template directory; only files in this template and in packages/templates/_lib may be imported` }] };
+          });
         },
       },
     ],

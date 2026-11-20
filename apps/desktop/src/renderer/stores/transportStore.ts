@@ -10,6 +10,9 @@ interface TransportState {
   /** 模板装载后才知道；0 表示还没有 */
   duration: number;
   cutTime: number | null;
+  /** 预览循环播放的范围（动画的工作区，第三轮）；null 是整段 */
+  range: { from: number; to: number } | null;
+  setRange(range: { from: number; to: number } | null): void;
   setTime(time: number): void;
   setPlaying(playing: boolean): void;
   setLoop(loop: boolean): void;
@@ -22,6 +25,8 @@ export const useTransportStore = create<TransportState>((set, get) => ({
   loop: true,
   duration: 0,
   cutTime: null,
+  range: null,
+  setRange: (range) => set({ range }),
   setTime: (time) => set({ time: Math.min(get().duration, Math.max(0, Number.isFinite(time) ? time : 0)) }),
   setPlaying: (playing) => set({ playing }),
   setLoop: (loop) => set({ loop }),

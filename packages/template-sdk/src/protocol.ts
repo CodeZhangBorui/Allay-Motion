@@ -41,6 +41,8 @@ export const AudioCueVariantSchema = z.strictObject({
   file: z.string().min(1).max(256),
   volume: z.number().min(0).max(16),
   pitch: z.number().min(0).max(16),
+  /** 衰减距离（格），sounds.json 的 attenuation_distance，没写时游戏取 16（空间音效用） */
+  attenuation: z.number().min(1).max(1024).optional(),
 });
 export type AudioCueVariant = z.infer<typeof AudioCueVariantSchema>;
 
@@ -52,6 +54,11 @@ export const AudioCueSchema = z.strictObject({
   pan: z.number(),
   /** 选定的变体；资源栈里没有这个音效事件时为 null（宿主静音并给警告） */
   variant: AudioCueVariantSchema.nullable(),
+  /**
+   * 声源相对听者的位置，单位是格：+x 右、+y 上、-z 正前方（模板的 cue 选项 position）。模板给了才有；
+   * 宿主打开“空间音效”时据此做原版的线性衰减和左右定位（decisions.md“2026-11 反馈：素材与音效”）。
+   */
+  spatial: z.strictObject({ x: z.number(), y: z.number(), z: z.number() }).optional(),
 });
 export type AudioCue = z.infer<typeof AudioCueSchema>;
 
@@ -177,8 +184,22 @@ export const TexturePayloadSchema = z
   .refine(rgbaLengthOk, RGBA_LENGTH_MESSAGE);
 export type TexturePayload = z.infer<typeof TexturePayloadSchema>;
 
-/** 资源栈里的位图字体（原版 font/*.json 展开 reference 之后的 bitmap、space 提供器，3.9） */
+/** 定长字形表（BDF 和 Unifont 共用，@allay/assets 的 BitmapFontTables）；oversample 是几个表像素对应一个字体像素 */
+const GlyphTableShape = {
+  ascent: z.int().min(0).max(64),
+  descent: z.int().min(0).max(64),
+  oversample: z.union([z.literal(1), z.literal(2)]).optional(),
+  codepoints: typedArray<Uint32Array>(Uint32Array),
+  metrics: typedArray<Int16Array>(Int16Array),
+  offsets: typedArray<Uint32Array>(Uint32Array),
+  bits: typedArray<Uint8Array>(Uint8Array),
+};
+const glyphTableOk = (p: { codepoints: Uint32Array; metrics: Int16Array; offsets: Uint32Array }) => p.metrics.length === p.codepoints.length * 5 && p.offsets.length === p.codepoints.length;
+const GLYPH_TABLE_MESSAGE = { message: 'table lengths mismatch' };
+
+/** 资源栈里的字体（原版 font/*.json 展开 reference 之后的 bitmap、space、unihex 提供器，3.9）；unihex 已经读成字形表 */
 export const FontProviderPayloadSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('glyphs'), ...GlyphTableShape }).refine(glyphTableOk, GLYPH_TABLE_MESSAGE),
   z.strictObject({
     type: z.literal('bitmap'),
     ascent: z.int().min(-512).max(512),
@@ -198,19 +219,17 @@ export const FontPayloadSchema = z.strictObject({
 });
 export type FontPayload = z.infer<typeof FontPayloadSchema>;
 
-/** 兜底的 BDF 像素字体（@allay/assets 的 BitmapFontTables） */
-export const BitmapFontPayloadSchema = z
-  .strictObject({
-    kind: z.literal('bdf'),
-    ascent: z.int().min(0).max(64),
-    descent: z.int().min(0).max(64),
-    codepoints: typedArray<Uint32Array>(Uint32Array),
-    metrics: typedArray<Int16Array>(Int16Array),
-    offsets: typedArray<Uint32Array>(Uint32Array),
-    bits: typedArray<Uint8Array>(Uint8Array),
-  })
-  .refine((p) => p.metrics.length === p.codepoints.length * 5 && p.offsets.length === p.codepoints.length, { message: 'table lengths mismatch' });
+/** 兜底的 BDF 像素字体和用户导入的 BDF 字体（@allay/assets 的 BitmapFontTables） */
+export const BitmapFontPayloadSchema = z.strictObject({ kind: z.literal('bdf'), ...GlyphTableShape }).refine(glyphTableOk, GLYPH_TABLE_MESSAGE);
 export type BitmapFontPayload = z.infer<typeof BitmapFontPayloadSchema>;
+
+/** 用户导入的矢量字体（TTF、OTF、WOFF、WOFF2）：原样的字节，由 Worker 用 FontFace 载入、OffscreenCanvas 栅格化 */
+export const MAX_VECTOR_FONT_BYTES = 32 * 1024 * 1024;
+export const VectorFontPayloadSchema = z.strictObject({
+  kind: z.literal('vector'),
+  data: typedArray<Uint8Array>(Uint8Array).refine((d) => d.byteLength > 0 && d.byteLength <= MAX_VECTOR_FONT_BYTES, { message: 'font data size out of range' }),
+});
+export type VectorFontPayload = z.infer<typeof VectorFontPayloadSchema>;
 
 /** 音效事件的全部变体（resolveResource('sound-meta', 事件 ID)）：资源栈里合并后的 sounds.json 展开 event 引用之后 */
 export const SoundMetaVariantSchema = z.strictObject({
@@ -218,6 +237,7 @@ export const SoundMetaVariantSchema = z.strictObject({
   volume: z.number().min(0).max(16),
   pitch: z.number().min(0).max(16),
   weight: z.number().min(0).max(1_000_000),
+  attenuation: z.number().min(1).max(1024).optional(),
 });
 export type SoundMetaVariant = z.infer<typeof SoundMetaVariantSchema>;
 
@@ -227,12 +247,29 @@ export const SoundMetaPayloadSchema = z.strictObject({
 });
 export type SoundMetaPayload = z.infer<typeof SoundMetaPayloadSchema>;
 
-export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema, SoundMetaPayloadSchema]);
+export const ResourcePayloadSchema = z.union([TexturePayloadSchema, FontPayloadSchema, BitmapFontPayloadSchema, VectorFontPayloadSchema, SoundMetaPayloadSchema]);
 export type ResourcePayload = z.infer<typeof ResourcePayloadSchema>;
 
-/** 资源栈里的默认字体，和兜底字体的 ID（resolveResource('font', id)） */
+/** 资源栈里的默认字体（resolveResource('font', id)） */
 export const DEFAULT_FONT_ID = 'minecraft:default';
-export const FALLBACK_FONT_ID = 'allay:fallback';
+/** 系统字体（不经宿主：引擎在 Worker 里用 OffscreenCanvas 的系统字体栈画） */
+export const SYSTEM_FONT_ID = 'system:sans';
+/** 旧版本的“内置像素字体”（方舟像素字体，2026-11 删除）：读到时当作系统字体 */
+export const LEGACY_FALLBACK_FONT_ID = 'allay:fallback';
+/**
+ * 内嵌 Unifont 的两种模式（docs/04-templates.md 4.4“字体”）。字体文件随应用分发，所有模板共用一份：
+ * - 普通模式：资源栈里 minecraft:default 的 bitmap、space 字形优先（Mojangles，资源包改过的照样生效），没有的字形（中文等）用内嵌的 Unifont；
+ * - 强制 Unicode 模式：所有字形都用内嵌的 Unifont（游戏里的“强制使用 Unicode 字体”）。
+ * 内嵌 Unifont 也没有的字形落到系统字体。
+ */
+export const EMBEDDED_DEFAULT_FONT_ID = 'embedded:default';
+export const EMBEDDED_UNIFORM_FONT_ID = 'embedded:uniform';
+/** 宿主一侧取内嵌 Unifont 字形表的资源 ID（resolveResource('font', 它) 返回 kind: 'bdf'、oversample: 2 的表）；不是字体族 */
+export const EMBEDDED_UNIFONT_RESOURCE_ID = 'embedded:unifont';
+/** 两个内嵌字体族之一 */
+export function isEmbeddedFontFamily(family: string): boolean {
+  return family === EMBEDDED_DEFAULT_FONT_ID || family === EMBEDDED_UNIFORM_FONT_ID;
+}
 
 /** 缩略图请求（03-assets.md 3.10）：方块是带面明暗的等轴视角，物品正面平视 */
 export const ThumbRequestSchema = z.strictObject({

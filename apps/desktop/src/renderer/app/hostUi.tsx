@@ -1,7 +1,8 @@
 // 宿主接口里的界面部分（docs/code-editing-and-mcp-plan.md 3.3 的 ui）：可选模块经它把面板、命令、文案挂进界面注册表。
 // 模块的 id 是它的目录名；它注册的面板、命令、文案键都必须以“<id>.”开头，碰不到核心功能的同名项。
 // 模块停用时，经这里注册的东西全部注销。
-import type { CommandContribution, Disposable, HostLocale, PanelContribution } from '@allay/host-api';
+import type { CodeViewProvider, CommandContribution, Disposable, HostLocale, PanelContribution } from '@allay/host-api';
+import { registerCodeViewProvider } from './codeViews';
 import i18next from 'i18next';
 import { useEffect, useRef, type ComponentType } from 'react';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ export interface HostUi {
   registerPanel(p: PanelContribution): Disposable;
   registerCommand(c: CommandContribution): Disposable;
   registerMessages(locale: HostLocale, m: Record<string, string>): Disposable;
+  registerCodeView(provider: CodeViewProvider): Disposable;
   /** 注销这个模块注册过的全部东西 */
   disposeAll(): void;
 }
@@ -84,6 +86,10 @@ export function createHostUi(moduleId: string): HostUi {
         const bundle = i18next.getResourceBundle(locale, 'translation') as Record<string, unknown> | undefined;
         if (bundle) delete bundle[moduleId];
       });
+    },
+    registerCodeView(provider) {
+      if (typeof provider !== 'function') throw new Error('code view provider must be a function');
+      return own(registerCodeViewProvider(provider));
     },
     disposeAll() {
       for (const d of [...owned]) d();

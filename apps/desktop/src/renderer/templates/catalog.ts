@@ -1,6 +1,7 @@
 // 渲染进程里的模板来源：经 window.allay.templates 向主进程要（内置和用户模板走同一条路，AGENTS.md 硬性规则 5），
 // 交给引擎的是“生效 manifest + 源码文本”（派生模板已套上 overrides，代码来自基模板，04-templates.md 4.7）。
 import { effectiveManifest, localize, type LocalizedString, type ParamDef, type TemplateManifest } from '@allay/template-sdk';
+import type { AnimationDoc } from '../../shared/animation/schema';
 import type { TemplateBundle } from '../../shared/templates';
 
 /** asset: 引用从哪里读：已安装的模板，或正在试运行的暂存包 */
@@ -17,6 +18,20 @@ export interface TemplateSource {
   /** 模板的 ESM 源码文本 */
   code: string;
   assets: AssetSource | null;
+  /**
+   * 自建动画（docs/animation-editor.md）：有它时这个模板是从动画文档生成的（code 是生成物），
+   * 编辑器显示动画工作区。text 是文档的原文（唯一的真相），doc 是最后一份合法的文档（code 由它生成），
+   * issues 是 text 当前解析不过的原因（为空表示 text 与 doc 一致）
+   */
+  animation?: AnimationPayload;
+}
+
+export interface AnimationPayload {
+  text: string;
+  doc: AnimationDoc;
+  issues: readonly { message: string; path: string; line?: number; column?: number }[];
+  /** 从哪个用户模板重新打开的（第三轮，第 10 项）：有它时可以“更新原模板”。不存进工程文件 */
+  origin?: { id: string; version: string };
 }
 
 /** 旗舰模板，应用启动时默认选它 */

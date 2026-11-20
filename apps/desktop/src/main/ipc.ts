@@ -2,7 +2,7 @@ import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type { z } from 'zod';
 import { IPC_ARGS, type IpcArgs } from '../shared/ipc-contract';
 import type { InvokeChannel } from '../shared/ipc-channels';
-import { checkSender } from './ipc-guard';
+import { checkSenderFor } from './ipc-guard';
 import type { Logger } from './logger';
 
 // IPC 注册：每个处理函数先确认来源，再用 zod 校验整个参数列表，然后才执行。
@@ -17,6 +17,10 @@ export class IpcRejected extends Error {
 
 export interface IpcContext {
   getMainWindow(): BrowserWindow | null;
+  /**
+   * 应用自己创建、按 webContents id 登记的代码窗口（没有打开或已关闭时为 null）：只能调 ipc-guard.ts 的 CODE_WINDOW_CHANNELS
+   */
+  getCodeWindow?(): { window: BrowserWindow; id: number } | null;
   devOrigin: string | null;
   log: Logger;
 }
@@ -30,12 +34,10 @@ export function createIpcRegistrar(ctx: IpcContext) {
     const schema: z.ZodTuple = IPC_ARGS[channel];
     registered.add(channel);
     ipcMain.handle(channel, async (event, ...rawArgs: unknown[]) => {
-      const win = ctx.getMainWindow();
-      const sender = checkSender(
-        event,
-        win && !win.isDestroyed() ? { webContents: win.webContents, mainFrame: win.webContents.mainFrame } : null,
-        ctx.devOrigin,
-      );
+      const like = (w: BrowserWindow | null | undefined) => (w && !w.isDestroyed() ? { webContents: w.webContents, mainFrame: w.webContents.mainFrame } : null);
+      const reg = ctx.getCodeWindow?.() ?? null;
+      const codeLike = reg && !reg.window.isDestroyed() && reg.window.webContents.id === reg.id ? { webContents: reg.window.webContents, mainFrame: reg.window.webContents.mainFrame, id: reg.id } : null;
+      const sender = checkSenderFor(channel, event, like(ctx.getMainWindow()), codeLike, ctx.devOrigin);
       if (!sender.ok) {
         ctx.log.warn('ipc', 'rejected call from untrusted sender', { channel, reason: sender.reason });
         throw new IpcRejected('untrusted sender');

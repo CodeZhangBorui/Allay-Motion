@@ -1,3 +1,4 @@
+import type { AnimationFileChange, CodeWindowDown, CodeWindowUp } from '../shared/code-window';
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import { IPC, type InvokeChannel } from '../shared/ipc-channels';
 import type { AllayApi } from './api';
@@ -65,7 +66,7 @@ const api = {
     soundFiles: invoke(IPC.resources.soundFiles),
     list: invoke(IPC.resources.list),
     fontProviders: invoke(IPC.resources.fontProviders),
-    fallbackFont: invoke(IPC.resources.fallbackFont),
+    unihexTables: invoke(IPC.resources.unihexTables),
     detectMinecraft: invoke(IPC.resources.detectMinecraft),
     setVanilla: invoke(IPC.resources.setVanilla),
     chooseGameDir: invoke(IPC.resources.chooseGameDir),
@@ -75,6 +76,14 @@ const api = {
     removeLayer: invoke(IPC.resources.removeLayer),
     reorder: invoke(IPC.resources.reorder),
     setEnabled: invoke(IPC.resources.setEnabled),
+    versions: invoke(IPC.resources.versions),
+    fetchRemoteVersions: invoke(IPC.resources.fetchRemoteVersions),
+    addVanillaSource: invoke(IPC.resources.addVanillaSource),
+    downloadVanillaVersion: invoke(IPC.resources.downloadVanillaVersion),
+    localPacks: invoke(IPC.resources.localPacks),
+    addLocalPack: invoke(IPC.resources.addLocalPack),
+    importSounds: invoke(IPC.resources.importSounds),
+    removeImportedSound: invoke(IPC.resources.removeImportedSound),
     // 1.6 第 6 条：页面只能交来 File 对象，路径在这里用 webUtils 取。
     // 页面自己构造的 File 没有路径（返回空串），主进程会拒绝。
     addDroppedPack: (file: unknown): Promise<unknown> => {
@@ -102,6 +111,11 @@ const api = {
     copyBuiltin: invoke(IPC.templates.copyBuiltin),
     writeDevFiles: invoke(IPC.templates.writeDevFiles),
     openFolder: invoke(IPC.templates.openFolder),
+    readSource: invoke(IPC.templates.readSource),
+    writeSource: invoke(IPC.templates.writeSource),
+    createFromAnimation: invoke(IPC.templates.createFromAnimation),
+    readAnimation: invoke(IPC.templates.readAnimation),
+    updateFromAnimation: invoke(IPC.templates.updateFromAnimation),
     onChanged: subscribe<TemplateDevChange>(IPC.templates.changed),
   },
   presets: {
@@ -136,6 +150,31 @@ const api = {
     cancel: invoke(IPC.updates.cancel),
     install: invoke(IPC.updates.install),
     onChanged: subscribe<UpdateState>(IPC.updates.changed),
+  },
+  fonts: {
+    list: invoke(IPC.fonts.list),
+    import: invoke(IPC.fonts.import),
+    remove: invoke(IPC.fonts.remove),
+    read: invoke(IPC.fonts.read),
+    embeddedUnifont: invoke(IPC.fonts.embeddedUnifont),
+  },
+  codeWindow: {
+    open: invoke(IPC.codeWindow.open),
+    close: invoke(IPC.codeWindow.close),
+    publish: invoke(IPC.codeWindow.publish),
+    send: invoke(IPC.codeWindow.send),
+    onDown: subscribe<CodeWindowDown>(IPC.codeWindow.down),
+    onUp: subscribe<CodeWindowUp>(IPC.codeWindow.up),
+  },
+  editors: {
+    get: invoke(IPC.editors.get),
+    setKind: invoke(IPC.editors.setKind),
+    chooseProgram: invoke(IPC.editors.chooseProgram),
+  },
+  animations: {
+    openExternal: invoke(IPC.animations.openExternal),
+    syncFile: invoke(IPC.animations.syncFile),
+    onFileChanged: subscribe<AnimationFileChange>(IPC.animations.fileChanged),
   },
   cache: {
     getThumb: invoke(IPC.cache.getThumb),

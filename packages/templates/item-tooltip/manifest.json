@@ -1,0 +1,58 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.item-tooltip",
+  "version": "1.0.0",
+  "name": { "zh-CN": "物品提示框", "en": "Item tooltip" },
+  "description": {
+    "zh-CN": "鼠标停在物品上时的深色紫边提示框：第一行是带稀有度颜色的名字，下面是几行说明，旁边可以带一个物品图标。",
+    "en": "The dark, purple-bordered tooltip shown when hovering an item: the name in its rarity color on the first line, a few lines of description below, with an optional item icon beside it."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "items", "tooltip"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "motion", "label": { "zh-CN": "移动", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "1.21.2 起提示框是两张贴图，之前是代码画的渐变边框。“自动”在素材里有这两张贴图时用新样式，没有就用旧样式。基岩版的提示框没有做", "en": "Since 1.21.2 the tooltip is two sprites; before that it was a code-drawn gradient border. Auto uses the new style when the assets contain both sprites and the old one otherwise. The Bedrock tooltip is not implemented" }, "group": "layout", "default": "auto", "options": [{ "value": "auto", "label": { "zh-CN": "自动（按素材）", "en": "Auto (by assets)" } }, { "value": "javaClassic", "label": { "zh-CN": "Java 版 1.21.1 及更早", "en": "Java 1.21.1 and earlier" } }, { "value": "javaSprite", "label": { "zh-CN": "Java 版 1.21.2 起", "en": "Java 1.21.2+" } }] },
+    { "key": "name", "type": "text", "label": { "zh-CN": "名字", "en": "Name" }, "hint": { "zh-CN": "颜色由稀有度决定；写了 § 或 & 格式码就按格式码", "en": "Colored by rarity; § or & format codes take over when present" }, "group": "content", "default": { "zh-CN": "钻石剑", "en": "Diamond Sword" }, "maxLength": 60 },
+    { "key": "rarity", "type": "enum", "label": { "zh-CN": "稀有度", "en": "Rarity" }, "hint": { "zh-CN": "常见白色、少见黄色、稀有青色、史诗品红。附了魔的常见物品在游戏里显示为稀有", "en": "Common white, uncommon yellow, rare aqua, epic magenta. An enchanted common item shows as rare in the game" }, "group": "content", "default": "rare", "options": [{ "value": "common", "label": { "zh-CN": "常见", "en": "Common" } }, { "value": "uncommon", "label": { "zh-CN": "少见", "en": "Uncommon" } }, { "value": "rare", "label": { "zh-CN": "稀有", "en": "Rare" } }, { "value": "epic", "label": { "zh-CN": "史诗", "en": "Epic" } }] },
+    { "key": "lore", "type": "text", "label": { "zh-CN": "说明", "en": "Description" }, "hint": { "zh-CN": "每行一条，最多 12 行，可以留空行；可以用 § 或 & 格式码（§7 灰色、§9 蓝色、§2 深绿）", "en": "One per line, up to 12 lines, blank lines allowed; § or & format codes work (§7 gray, §9 blue, §2 dark green)" }, "group": "content", "default": { "zh-CN": "§7锋利 V\n§7耐久 III\n\n§7在主手时：\n §28 攻击伤害", "en": "§7Sharpness V\n§7Unbreaking III\n\n§7When in Main Hand:\n §28 Attack Damage" }, "maxLength": 600, "multiline": true },
+    { "key": "loreStyle", "type": "enum", "label": { "zh-CN": "说明的默认样式", "en": "Default description style" }, "hint": { "zh-CN": "没写格式码的行用它：物品的自定义说明在游戏里是深紫色斜体，附魔那样的行是灰色", "en": "Used by lines without format codes: custom item lore is dark purple italic in the game, enchantment-like lines are gray" }, "group": "text", "default": "lore", "options": [{ "value": "lore", "label": { "zh-CN": "深紫色斜体（自定义说明）", "en": "Dark purple italic (lore)" } }, { "value": "plain", "label": { "zh-CN": "灰色", "en": "Gray" } }] },
+    { "key": "showItem", "type": "boolean", "label": { "zh-CN": "显示物品", "en": "Show item" }, "hint": { "zh-CN": "物品在鼠标的位置，提示框在它的右上方（游戏里提示框相对鼠标偏移 12 个界面像素）", "en": "The item sits at the cursor and the tooltip to its upper right (the game offsets the tooltip 12 GUI pixels from the cursor)" }, "group": "content", "default": true },
+    { "key": "item", "type": "item", "label": { "zh-CN": "物品", "en": "Item" }, "group": "content", "default": "minecraft:diamond_sword", "visibleWhen": { "key": "showItem", "equals": true } },
+    { "key": "nameFont", "type": "font", "label": { "zh-CN": "名字字体", "en": "Name font" }, "hint": { "zh-CN": "游戏里提示框的字都带阴影", "en": "Tooltip text has a shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "loreFont", "type": "font", "label": { "zh-CN": "说明字体", "en": "Description font" }, "group": "text", "default": { "family": "embedded:default", "shadow": true } },
+    { "key": "anchor", "type": "enum", "label": { "zh-CN": "位置", "en": "Position" }, "group": "layout", "default": "center", "options": [{ "value": "topLeft", "label": { "zh-CN": "左上", "en": "Top left" } }, { "value": "top", "label": { "zh-CN": "上", "en": "Top" } }, { "value": "topRight", "label": { "zh-CN": "右上", "en": "Top right" } }, { "value": "left", "label": { "zh-CN": "左", "en": "Left" } }, { "value": "center", "label": { "zh-CN": "中央", "en": "Center" } }, { "value": "right", "label": { "zh-CN": "右", "en": "Right" } }, { "value": "bottomLeft", "label": { "zh-CN": "左下", "en": "Bottom left" } }, { "value": "bottom", "label": { "zh-CN": "下", "en": "Bottom" } }, { "value": "bottomRight", "label": { "zh-CN": "右下", "en": "Bottom right" } }] },
+    { "key": "margin", "type": "number", "label": { "zh-CN": "边距", "en": "Margin" }, "hint": { "zh-CN": "离画面边缘的距离，界面像素", "en": "Distance from the edge of the frame, in GUI pixels" }, "group": "layout", "default": 10, "min": 0, "max": 64, "step": 1, "ui": "slider", "visibleWhen": { "key": "anchor", "not": "center" } },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）；放不下时自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto); shrinks automatically when it does not fit" }, "group": "layout", "default": 5, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "motion", "type": "enum", "label": { "zh-CN": "移动方式", "en": "Motion" }, "hint": { "zh-CN": "游戏里提示框跟着鼠标走；这三种是这里加的：不动、小幅漂移、像鼠标在物品栏的格子之间移动（一格 18 个界面像素）", "en": "In the game the tooltip follows the mouse; these three are additions here: still, a small drift, or stepping between inventory slots (18 GUI pixels apart) like a moving mouse" }, "group": "motion", "default": "static", "options": [{ "value": "static", "label": { "zh-CN": "不动", "en": "Still" } }, { "value": "drift", "label": { "zh-CN": "漂移", "en": "Drift" } }, { "value": "follow", "label": { "zh-CN": "在格子之间移动", "en": "Step between slots" } }] },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "hint": { "zh-CN": "决定在格子之间怎么走", "en": "Decides the path between slots" }, "group": "motion", "default": 1, "visibleWhen": { "key": "motion", "equals": "follow" } },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏里提示框是直接出现的，这里加了淡入淡出", "en": "The tooltip simply appears in the game; the fades are added here" }, "group": "timing", "default": 0.2, "min": 0.05, "max": 5 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "group": "timing", "default": 3, "min": 0.1, "max": 20 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "group": "timing", "default": 0.2, "min": 0.05, "max": 5 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在开头播放；游戏里提示框出现没有声音", "en": "Plays at the start; the game shows tooltips silently" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "enchanted-sword", "name": { "zh-CN": "附魔钻石剑", "en": "Enchanted diamond sword" }, "params": { "name": "钻石剑", "rarity": "rare", "lore": "§7锋利 V\n§7耐久 III\n\n§7在主手时：\n §28 攻击伤害", "loreStyle": "lore", "showItem": true, "item": "minecraft:diamond_sword", "motion": "static" } },
+    { "key": "epic-lore", "name": { "zh-CN": "史诗物品和一段故事", "en": "Epic item with story lore" }, "params": { "name": "下界合金剑", "rarity": "epic", "lore": "它的上一任主人\n没能走出下界。", "loreStyle": "lore", "showItem": true, "item": "minecraft:netherite_sword", "motion": "drift" } },
+    { "key": "tip-card", "name": { "zh-CN": "提示卡（没有物品）", "en": "Tip card (no item)" }, "params": { "name": "小提示", "rarity": "common", "lore": "潜行时不会从方块边缘掉下去。\n搭桥、挖矿时都用得上。", "loreStyle": "plain", "showItem": false, "motion": "static", "hold": 4 } },
+    { "key": "inventory-hover", "name": { "zh-CN": "在物品栏里移动", "en": "Hovering across the inventory" }, "params": { "name": "不死图腾", "rarity": "uncommon", "lore": "", "showItem": true, "item": "minecraft:totem_of_undying", "motion": "follow", "anchor": "center", "hold": 3.5 } },
+    { "key": "classic-corner", "name": { "zh-CN": "旧样式，停在左下角", "en": "Classic style in the bottom-left corner" }, "params": { "style": "javaClassic", "anchor": "bottomLeft", "margin": 12, "motion": "static" } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"nameFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}, "loreFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

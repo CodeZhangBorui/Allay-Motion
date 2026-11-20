@@ -75,6 +75,11 @@ export interface PanelDef {
   /** 这个标签页激活时，放在面板标题行右侧的操作（可选） */
   actions?: ComponentType;
   testId?: string;
+  /**
+   * 在哪种工作区模式下出现（app/workspaceMode.ts）：只服务模板的写 ['template']，只服务动画的写 ['animation']；
+   * 不写就是两种都有。切换模式时不属于新模式的标签页淡出、收起
+   */
+  modes?: readonly ('template' | 'animation')[];
 }
 
 // ---------------------------------------------------------------- 菜单项

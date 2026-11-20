@@ -42,7 +42,7 @@ import { createRng } from './random';
 import { EngineResources } from './resources';
 import { createSprite } from './sprite';
 import { computeStage, createDefaultCamera, createStageCamera } from './stage';
-import { createGlyphSource, createText } from './text';
+import { FontRegistry, fontFamiliesIn } from './fonts';
 import { buildThumbScene } from './thumbnail';
 
 /** 宿主实现的回调，经 Comlink.proxy 传入（2.3） */
@@ -449,8 +449,8 @@ export class Engine implements EngineApi {
     let setupDone = false;
     const resources = this.resources!;
     const owned: THREE.Texture[] = [];
-    // text.create 是同步的，字体要在 setup 之前载好
-    const glyphs = createGlyphSource(await resources.fonts());
+    // text.create 是同步的，字体要在 setup 之前载好：默认字体、兜底字体和 font 参数里用到的字体族
+    const fonts = await FontRegistry.load(resources, fontFamiliesIn(loaded.manifest.params, loaded.params));
 
     const scene = new THREE.Scene();
     let camera: THREE.Camera = createDefaultCamera(loaded.stage);
@@ -473,11 +473,11 @@ export class Engine implements EngineApi {
       },
       createStageCamera: (opts) => createStageCamera(loaded.stage, opts.fov),
       resources: {
-        texture: (id) => resources.texture(id, warn),
+        texture: ((id: string, opts?: { optional?: boolean }) => resources.texture(id, warn, opts?.optional === true)) as SetupContext['resources']['texture'],
         block: (id, opts) => createBlockHandle(resources, id, opts, warn),
         item: (id) => createItemHandle(resources, id, warn),
       },
-      text: { create: (opts) => createText(opts, glyphs, warn, owned) },
+      text: { create: (opts) => fonts.create(opts, warn, owned, { pixelScale: loaded.stage.pixelScale }) },
       sprite: { create: (texture, opts) => createSprite(texture, opts) },
       random: (key = '') => createRng(seed, String(key)),
       noise2D: (x, y, key = '') => {
@@ -501,7 +501,10 @@ export class Engine implements EngineApi {
           }
           if (sound === null) return;
           if (typeof sound !== 'string' || typeof at !== 'number' || !Number.isFinite(at)) throw new TypeError('invalid audio cue');
-          cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0, variant: null });
+          // 空间音效的声源位置（相对听者，单位格；2026-11 反馈）：原样带给宿主
+          const p = opts.position;
+          if (p !== undefined && (typeof p !== 'object' || p === null || ![p.x, p.y, p.z].every((v) => typeof v === 'number' && Number.isFinite(v)))) throw new TypeError('invalid audio cue position');
+          cues.push({ sound, at, gain: opts.gain ?? 1, rate: opts.rate ?? 1, pan: opts.pan ?? 0, variant: null, ...(p ? { spatial: { x: p.x, y: p.y, z: p.z } } : {}) });
         },
       },
       warn,
@@ -546,7 +549,7 @@ export class Engine implements EngineApi {
       ordinal.set(cue.sound, n + 1);
       const variants = await resources.soundVariants(cue.sound);
       const picked = pickSoundVariant(variants, createRng(seed, `sound:${cue.sound}:${n}`).next());
-      out.push({ ...cue, variant: picked ? { file: picked.file, volume: picked.volume, pitch: picked.pitch } : null });
+      out.push({ ...cue, variant: picked ? { file: picked.file, volume: picked.volume, pitch: picked.pitch, ...(picked.attenuation !== undefined ? { attenuation: picked.attenuation } : {}) } : null });
     }
     return out;
   }

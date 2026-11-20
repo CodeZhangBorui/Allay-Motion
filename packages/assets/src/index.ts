@@ -8,5 +8,8 @@ export * from './bdf';
 export * from './stack';
 export * from './sounds';
 export * from './font';
+export * from './otf';
 export * from './gui';
 export * from './coverage';
+export * from './versions';
+export * from './sound-names';

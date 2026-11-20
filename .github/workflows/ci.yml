@@ -1,5 +1,10 @@
 # 每次推送或 PR 跑一遍完整检查；可选模块拆除检查按需手动运行。
 # 安装包由 release.yml 构建。这里只读仓库，第三方 action 固定到提交哈希。
+#
+# 内置模板的引擎测试（T-TPL-3、4、5）按模板分成 4 份（tests/engine/shard.ts，docs/decisions.md“内置模板扩到 100 个”）：
+# 第 1 份随 pnpm check 在 check 作业里跑，第 2–4 份在 templates 作业里并行跑。四份合起来是全部模板，每个模板的检查不变。
+# 改份数时三处一起改：check 作业的 ALLAY_TPL_SHARD、templates 作业的 matrix.shard 和它的 ALLAY_TPL_SHARD
+# （tests/unit/T-TPL-SHARD.template-shards.test.ts 核对这三处对得上）。
 name: ci
 
 on:
@@ -57,8 +62,11 @@ jobs:
         run: pnpm ffmpeg:fetch
 
       # 端到端测试自己设 ALLAY_E2E_HIDDEN：窗口不显示；测试不碰真实的游戏文件（假游戏目录、假下载服务器）
+      # 内置模板的引擎测试在这里只跑第 1 份，其余几份在 templates 作业里
       - name: pnpm check
         run: pnpm check
+        env:
+          ALLAY_TPL_SHARD: 1/4
 
       # 只有手动勾选时才重复跑完整测试，验证移除可选模块后的行为。
       - name: pnpm check:removable
@@ -70,6 +78,47 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-check
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  templates:
+    name: 模板引擎测试 ${{ matrix.shard }}/4
+    runs-on: windows-latest
+    # 同 check：软件渲染下引擎测试慢二三十倍
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [2, 3, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 取 Electron 二进制
+        run: pnpm exec tsx scripts/ensure-electron-dist.ts
+
+      - name: pnpm test:engine:templates
+        run: pnpm test:engine:templates
+        env:
+          ALLAY_TPL_SHARD: ${{ matrix.shard }}/4
+
+      - name: 上传失败时的测试记录
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-templates-${{ matrix.shard }}
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore

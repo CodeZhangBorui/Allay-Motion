@@ -4,13 +4,11 @@
 // 所以把这一个对象换掉，界面、引擎 Worker、内置模板就都是桌面版的同一份代码。这里只实现宿主层：
 // - 模板：构建时打包好的内置模板（templates.ts），和桌面版主进程读 .allaytpl 得到的数据相同；
 // - 资源：官网专用的原版贴图（mc-pack.ts，从本机正版游戏提取），缺的贴图退回页面里现场生成的纯色色块（demo-pack.ts）；
-//   文字的兜底字体是仓库里的像素字体；
+//   没有原版字体，文字由引擎用系统字体画（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）；
 // - 设置、预设、缩略图缓存：只在内存里，关掉页面就没了；
 // - 导出：真实的导出 Worker 照常逐帧渲染，帧交到这里后直接丢弃（浏览器里没有 FFmpeg），结束时通知落地页；
 // - 文件、工程、资源包、游戏目录这类需要本机文件系统的操作：不做，通知落地页给出“下载桌面版”的引导。
 // 这里不发任何网络请求（AGENTS.md 硬性规则 10）。
-import { type BitmapFontTables } from '@allay/assets';
-import { z } from 'zod';
 import type { AllayApi } from '../../../desktop/src/preload/api';
 import { EXPORT_PRESETS, type ExportPreset, type FfmpegInfo, type H264Probe, type PresetBlocker } from '../../../desktop/src/shared/export';
 import type { ResourceState } from '../../../desktop/src/shared/resources';
@@ -21,7 +19,6 @@ import desktopPackage from '../../../desktop/package.json';
 import type { DesktopOnlyFeature, SiteLanguage } from './bridge';
 import { demoTexture } from './demo-pack';
 import { mcGameVersion, mcTexture } from './mc-pack';
-import { PIXEL_FONT_PATH } from './paths';
 import { builtinBundle, builtinEntries } from './templates';
 
 /** 宿主里给人看的几句话（文案在官网的语言文件里，由调用方传入） */
@@ -76,54 +73,6 @@ function randomHex(bytes: number): string {
   return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-let fontTables: Promise<BitmapFontTables | null> | null = null;
-/** Worker 交回来的结果（线程之间的边界照样过 schema） */
-const FontReplySchema = z.union([
-  z.object({
-    ok: z.literal(true),
-    tables: z.object({
-      ascent: z.number(),
-      descent: z.number(),
-      codepoints: z.instanceof(Uint32Array),
-      metrics: z.instanceof(Int16Array),
-      offsets: z.instanceof(Uint32Array),
-      bits: z.instanceof(Uint8Array),
-    }),
-  }),
-  z.object({ ok: z.literal(false), error: z.string() }),
-]);
-
-/** 下载、解压、解析都在 pixel-font.worker.ts 里做：3.6 MB 的 BDF 在主线程上解析会让首屏预览掉帧 */
-function loadPixelFont(): Promise<BitmapFontTables> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./pixel-font.worker.ts', import.meta.url), { type: 'module', name: 'pixel-font' });
-    worker.addEventListener('message', (event: MessageEvent<unknown>) => {
-      worker.terminate();
-      const reply = FontReplySchema.safeParse(event.data);
-      if (!reply.success) reject(new Error('pixel font worker sent an unreadable reply'));
-      else if (reply.data.ok) resolve(reply.data.tables);
-      else reject(new Error(reply.data.error));
-    });
-    worker.addEventListener('error', (event) => {
-      worker.terminate();
-      reject(new Error(event.message || 'pixel font worker failed'));
-    });
-    worker.postMessage(new URL(PIXEL_FONT_PATH, document.baseURI).href);
-  });
-}
-
-/**
- * 兜底像素字体（方舟像素字体，OFL-1.1，仓库里已登记来源）：一个单独的字体文件，
- * 只在引擎第一次要它（带文字的模板）时才下载，不在首屏的关键路径上。
- */
-function fallbackFont(): Promise<BitmapFontTables | null> {
-  fontTables ??= loadPixelFont()
-    .catch((error: unknown) => {
-      console.warn('[web-host] fallback font unavailable', error);
-      return null;
-    });
-  return fontTables;
-}
 
 export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; applySettings(patch: UiSettingsPatch): void } {
   // 网页里默认静音（访客没点过任何东西就出声不礼貌）；用户可以在界面里打开
@@ -183,7 +132,7 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
             },
       ],
       brokenPacks: [],
-      vanilla: { consent: false, enabled: false, local: null, cached: null, active: null, problem: null },
+      vanilla: { consent: false, enabled: false, local: null, cached: null, active: null, problem: null, baseId: null, baseVersion: null, missingSources: [] },
       download: { status: 'idle' },
       detecting: false,
       hasAssets: true,
@@ -288,11 +237,11 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
         return png ? { png, mcmeta: null } : null;
       },
       soundVariants: async () => null,
-      soundLibrary: async () => ({ stamp: STAMP, events: [] }),
+      soundLibrary: async () => ({ stamp: STAMP, events: [], lang: { 'zh-CN': false, en: false } }),
       soundFiles: async (files) => ({ ok: true, states: Object.fromEntries(files.map((f) => [f, 'missing' as const])) }),
       list: async () => [],
       fontProviders: async () => null,
-      fallbackFont: () => fallbackFont(),
+      unihexTables: async () => null,
       detectMinecraft: async () => resourceState(),
       setVanilla: async () => {
         desktopOnly('vanilla');
@@ -319,7 +268,43 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       removeLayer: async () => resourceState(),
       reorder: async () => resourceState(),
       setEnabled: async () => resourceState(),
+      versions: async () => ({ local: [], downloaded: [], remote: null }),
+      // 不联网：网页里不取版本清单、不下载
+      fetchRemoteVersions: async () => {
+        desktopOnly('vanilla');
+        return { ok: false, error: 'network' };
+      },
+      addVanillaSource: async () => {
+        desktopOnly('vanilla');
+        return resourceState();
+      },
+      downloadVanillaVersion: async () => {
+        desktopOnly('vanilla');
+        return { canceled: true };
+      },
+      localPacks: async () => [],
+      addLocalPack: async () => {
+        desktopOnly('packs');
+        return { canceled: true };
+      },
+      importSounds: async () => {
+        desktopOnly('packs');
+        return { canceled: true };
+      },
+      removeImportedSound: async () => resourceState(),
       onChanged: (cb) => resourcesChanged.on(cb),
+    },
+    // 导入字体要读本机文件：网页里不做
+    fonts: {
+      list: async () => [],
+      import: async () => {
+        desktopOnly('files');
+        return { canceled: true };
+      },
+      remove: async () => [],
+      read: async () => null,
+      // 内嵌 Unifont（5 MB）不带进官网：embedded:default / embedded:uniform 在网页里退回 minecraft:default（docs/decisions.md“内嵌 Unifont 与两种字体模式”）
+      embeddedUnifont: async () => null,
     },
     templates: {
       list: async () => builtinEntries(),
@@ -357,6 +342,19 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       openFolder: async () => {
         desktopOnly('templates');
         return { ok: false, error: 'open-failed' };
+      },
+      // 内嵌代码编辑、自建动画转为模板（2026-11）：网页演示没有可写的模板文件夹
+      readSource: async () => ({ ok: false, error: 'not-found' }),
+      writeSource: async () => ({ ok: false, error: 'not-user' }),
+      createFromAnimation: async () => {
+        desktopOnly('templates');
+        return { ok: false, error: 'io', detail: 'web demo' };
+      },
+      // 重新打开转出来的模板、更新原模板（第三轮）：网页演示没有用户模板
+      readAnimation: async () => ({ ok: false, error: 'not-user' }),
+      updateFromAnimation: async () => {
+        desktopOnly('templates');
+        return { ok: false, error: 'io', detail: 'web demo' };
       },
       onChanged: () => () => undefined,
     },
@@ -428,6 +426,28 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       cancel: async () => undefined,
       install: async () => updateState(),
       onChanged: (cb) => updatesChanged.on(cb),
+    },
+    // 代码窗口与外部编辑器（2026-11 第二轮反馈）：桌面专属，网页演示里不可用
+    codeWindow: {
+      open: async () => desktopOnly('templates'),
+      close: async () => undefined,
+      publish: async () => undefined,
+      send: async () => undefined,
+      onDown: () => () => undefined,
+      onUp: () => () => undefined,
+    },
+    editors: {
+      get: async () => ({ kind: 'builtin', programName: null }),
+      setKind: async () => ({ kind: 'builtin', programName: null }),
+      chooseProgram: async () => ({ kind: 'builtin', programName: null, canceled: true }),
+    },
+    animations: {
+      openExternal: async () => {
+        desktopOnly('templates');
+        return { ok: false, error: 'open-failed' };
+      },
+      syncFile: async () => undefined,
+      onFileChanged: () => () => undefined,
     },
     cache: {
       getThumb: async (stamp, key) => thumbs.get(`${stamp}/${key}`)?.slice() ?? null,

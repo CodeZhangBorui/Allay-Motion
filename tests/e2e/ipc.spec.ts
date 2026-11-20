@@ -118,7 +118,7 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.soundVariants': [[], [42], [null], ['../x'], ['C:\\x'], ['no-namespace'], ['Minecraft:Block.Stone'], ['x'.repeat(300)]],
   'resources.list': [[42], ['../'], ['C:\\'], [null]],
   'resources.fontProviders': [[], [42], ['x'.repeat(600)]],
-  'resources.fallbackFont': [[1]],
+  'resources.unihexTables': [[], ['assets/minecraft/font/unifont.zip'], ['../x.zip', []], ['C:\\x.zip', []], ['assets/minecraft/font/unifont.zip', [{ from: -1, to: 1, left: 0, right: 1 }]], ['assets/minecraft/font/unifont.zip', 'all']],
   'resources.detectMinecraft': [[1], ['C:\\Games']],
   'resources.setVanilla': [[], [null], [{ consent: 'yes' }], [{ dir: 'C:\\Games' }], [{ enabled: true }, 'x']],
   // 合法的 chooseGameDir、addPack 会弹对话框，这里只有畸形参数
@@ -132,6 +132,16 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.removeLayer': [[], [42], ['x'.repeat(200)]],
   'resources.reorder': [['x'], [[1, 2]], [null], [Array.from({ length: 300 }, (_, i) => `p${i}`)]],
   'resources.setEnabled': [['vanilla'], ['vanilla', 'yes'], [42, true]],
+  'resources.versions': [[1]],
+  // 合法的 fetchRemoteVersions、downloadVanillaVersion 会联网，这里只有畸形参数
+  'resources.fetchRemoteVersions': [[1], ['https://evil.example/manifest.json']],
+  'resources.addVanillaSource': [[], [null], [{ kind: 'local', versionId: '1.21' }], [{ kind: 'downloaded', versionId: '../x' }], [{ kind: 'remote', versionId: '1.21' }], [{ kind: 'downloaded', versionId: '1.21' }, 'x']],
+  'resources.downloadVanillaVersion': [[], [42], ['../../x'], ['1.21 beta'], ['x'.repeat(100)]],
+  'resources.localPacks': [[1]],
+  'resources.addLocalPack': [[], [42], [null], ['x'.repeat(40_000)]],
+  // 合法的 importSounds 会弹对话框，这里只有畸形参数
+  'resources.importSounds': [[1], ['C:\\x.ogg']],
+  'resources.removeImportedSound': [[], [42], ['minecraft:block.stone.place'], ['allay_user:imported.../x']],
   'templates.list': [[1], ['all']],
   'templates.read': [[], ['allay.builtin.block-wipe'], [42, '1.0.0'], ['../../x', '1.0.0'], ['Allay.Builtin', '1.0.0'], ['allay.builtin.block-wipe', '1.0.0', 'x']],
   'templates.readAsset': [
@@ -179,6 +189,39 @@ const MALFORMED: Record<string, unknown[][]> = {
   ],
   'templates.writeDevFiles': [[], ['user.abc.x'], ['C:\\Windows', '1.0.0'], [{ path: 'C:\\x' }, '1.0.0'], ['user.abc.x', '1.0.0', 'C:\\x']],
   'templates.openFolder': [[], ['C:\\Windows'], ['C:\\Windows', '1.0.0'], ['..', '..'], ['user.abc.x', { path: 'C:\\x' }], ['user.abc.x', '1.0.0', 'template.js']],
+  // 内嵌代码编辑与自建动画（2026-11）：路径一律不收，只认 id 和版本
+  'templates.readSource': [[], ['C:\\Windows\\win.ini'], ['user.abc.x'], ['..', '..'], ['user.abc.x', '1.0.0', 'template.js']],
+  'templates.writeSource': [
+    [],
+    [null],
+    ['user.abc.x', '1.0.0', 'code'],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x' }],
+    [{ id: 'C:\\x', version: '1.0.0', source: 'x', baseVersion: 'a' }],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x', baseVersion: 'a', path: 'C:\\x.js' }],
+    [{ id: 'user.abc.x', version: '1.0.0', source: 'x'.repeat(1024 * 1024 + 1), baseVersion: 'a' }],
+  ],
+  'templates.createFromAnimation': [[], [null], ['{}'], [{ text: '' }], [{ text: '{}', path: 'C:\\x' }], [{ text: 'x'.repeat(512 * 1024 + 1) }]],
+  // 第三轮：重新打开转出来的模板、用动画更新它——只认 id 和版本，路径一律不收
+  'templates.readAnimation': [[], ['C:\\Windows\\win.ini'], ['user.abc.x'], ['..', '..'], ['user.abc.x', '1.0.0', 'animation.json']],
+  'templates.updateFromAnimation': [
+    [],
+    [null],
+    [{ text: '{}' }],
+    [{ id: '../x', version: '1.0.0', text: '{}' }],
+    [{ id: 'user.abc.x', version: '1.0.0', text: '' }],
+    [{ id: 'user.abc.x', version: '1.0.0', text: '{}', path: 'C:\\x' }],
+    [{ id: 'user.abc.x', version: '1.0.0', text: 'x'.repeat(512 * 1024 + 1) }],
+  ],
+  // 代码窗口与外部编辑器（第二轮反馈）：主窗口发 codeWindow.send 被拒（只收代码窗口的）；路径一律不收
+  'codeWindow.open': [[1], ['C:\\x']],
+  'codeWindow.close': [[1]],
+  'codeWindow.publish': [[], [null], [{ type: 'eval', code: 'x' }], [{ type: 'time', t: 99, playing: false }], [{ type: 'state', text: 'x' }]],
+  'codeWindow.send': [[{ type: 'ready' }], [{ type: 'edit', text: '{}', baseRevision: 0 }]],
+  'editors.get': [[1]],
+  'editors.setKind': [[], ['vim'], ['C:\\Windows\\notepad.exe']],
+  'editors.chooseProgram': [['C:\\Windows\\notepad.exe']],
+  'animations.openExternal': [[], [{ key: '..\\..\\x', text: '{}' }], [{ key: 'user.abc123.animation' }], [{ key: 'user.abc123.animation', text: '{}', program: 'C:\\x.exe' }]],
+  'animations.syncFile': [[], [{ key: 'C:\\x.json', text: '{}' }]],
   'presets.list': [[1]],
   'presets.save': [
     [],
@@ -221,6 +264,12 @@ const MALFORMED: Record<string, unknown[][]> = {
     [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true, output: 'x'.repeat(1_000_001) }],
     [{ requestId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301', ok: true }, 'extra'],
   ],
+  // 合法的 fonts.import 会弹文件对话框，这里只有畸形参数；读、删只接受 user:<32 位十六进制>，拼不出目录外的路径
+  'fonts.list': [[1]],
+  'fonts.import': [[1], ['C:\\x.ttf']],
+  'fonts.remove': [[], ['user:../../x'], ['minecraft:default'], [42]],
+  'fonts.read': [[], ['user:../../x'], ['user:0123'], ['C:\\Windows\\Fonts\\arial.ttf'], [null]],
+  'fonts.embeddedUnifont': [[1], ['C:\\Windows\\Fonts\\arial.ttf']],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],

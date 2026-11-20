@@ -1,21 +1,22 @@
 import { frameCount } from '@allay/engine/frames';
 import { localize } from '@allay/template-sdk';
 import { Button } from '@allay/ui/components/button';
-import { TimelineTrack, type TimelineSegment } from '@allay/ui/editor';
+import { TimelineTrack } from '@allay/ui/editor';
 import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { Pause, Play, Repeat, SkipBack, SkipForward, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import { cn } from '@allay/ui/lib/utils';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePreviewStore } from '../../stores/previewStore';
 import { beginGesture, endGesture, useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { useUiStore } from '../../stores/uiStore';
 import { togglePlay } from '../commands/commands';
+import { SegmentDurationDialog, TimelineMenu, type StageSegment } from './TimelineMenu';
 
 // 时间轴面板（6.4）：跨左、中两列。
 // 标题行 48 px：到开头、播放（圆角方块按钮）、到结尾、循环；大号时间码“当前 / 总时长”；右侧静音。
-// 下面是多轨时间轴（阶段、音效、剪辑点，见 TimelineTrack）。高质量预览在预览面板的悬浮工具条里，输出设置在右栏的“输出”页。
+// 下面是多轨时间轴（阶段、音效、剪辑点，见 TimelineTrack），右键菜单见 TimelineMenu。高质量预览在预览面板的悬浮工具条里，输出设置在右栏的“输出”页。
 
 /** 时间码：分:秒:帧（6.4），例如 00:00:36 是第 0 秒第 36 帧 */
 export function formatTimecode(t: number, fps: number): string {
@@ -26,7 +27,7 @@ export function formatTimecode(t: number, fps: number): string {
 }
 
 /** 播放：按真实时间推进当前时间（这是界面的时钟，模板的 update 只依赖传进去的 t） */
-function usePlayback() {
+export function usePlayback() {
   const playing = useTransportStore((s) => s.playing);
   useEffect(() => {
     if (!playing) {
@@ -39,7 +40,17 @@ function usePlayback() {
     const tick = (now: number) => {
       const s = useTransportStore.getState();
       if (last !== null && s.duration > 0) {
+        // 有工作区（动画编辑器，第三轮）时在这一段里循环：从范围外开始播时先跳到范围开头
+        const r = s.range && s.loop ? { from: Math.max(0, s.range.from), to: Math.min(s.duration, s.range.to) } : null;
         let next = s.time + (now - last) / 1000;
+        if (r && r.to > r.from) {
+          if (s.time < r.from - 1e-6 || s.time > r.to + 1e-6) next = r.from;
+          else if (next >= r.to) next = r.from + ((next - r.from) % (r.to - r.from));
+          s.setTime(next);
+          last = now;
+          raf = requestAnimationFrame(tick);
+          return;
+        }
         if (next >= s.duration) {
           if (s.loop) next = next % s.duration;
           else {
@@ -77,15 +88,18 @@ export function TimelinePanel() {
   const cues = useMemo(() => (ready ? audioCues.map((c) => c.at) : []), [audioCues, ready]);
 
   // timeline.segments：把几个 duration 参数画成首尾相接的色段（4.3）
-  const segments = useMemo<TimelineSegment[]>(() => {
+  const segments = useMemo<StageSegment[]>(() => {
     const segs = template?.manifest.timeline?.segments ?? [];
     return segs.flatMap((s) => {
       const def = template!.params.find((p) => p.key === s.param);
       if (!def || def.type !== 'duration') return [];
       const v = params[s.param];
-      return [{ key: s.param, label: localize(s.label ?? def.label, i18n.language), duration: typeof v === 'number' ? v : def.default, min: def.min, max: def.max }];
+      return [{ key: s.param, label: localize(s.label ?? def.label, i18n.language), duration: typeof v === 'number' ? v : def.default, min: def.min, max: def.max, default: def.default }];
     });
   }, [template, params, i18n.language]);
+  /** “设置时长…”弹窗正在改的段（key） */
+  const [editing, setEditing] = useState<string | null>(null);
+  const editingSegment = editing !== null ? segments.find((s) => s.key === editing) : undefined;
 
   return (
     <section aria-label={t('timeline.region')} className="flex h-timeline shrink-0 flex-col rounded-xl bg-surface-1" data-testid="timeline-panel">
@@ -150,6 +164,7 @@ export function TimelinePanel() {
           scrub: t('transport.scrub'),
           cut: t('transport.cut'),
           boundary: (a, b) => t('transport.boundary', { left: a, right: b }),
+          end: (name) => t('transport.segmentEnd', { name }),
           stages: t('timeline.stages'),
           sound: t('timeline.sound'),
           cutTrack: t('timeline.cut'),
@@ -159,7 +174,9 @@ export function TimelinePanel() {
         onSeek={(x) => useTransportStore.getState().setTime(x)}
         onSegmentChange={(key, d) => useProjectStore.getState().setParams({ [key]: d }, i18n.language)}
         onGesture={(phase) => (phase === 'start' ? beginGesture() : endGesture())}
+        renderMenu={(target) => <TimelineMenu target={target} segments={segments} fps={output.fps} cues={cues} cutTime={cutTime} onEditDuration={(i) => setEditing(segments[i]?.key ?? null)} />}
       />
+      {editingSegment && <SegmentDurationDialog segment={editingSegment} fps={output.fps} onClose={() => setEditing(null)} />}
     </section>
   );
 }

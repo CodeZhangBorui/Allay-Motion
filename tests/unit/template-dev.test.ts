@@ -13,6 +13,7 @@ import type { TemplateService } from '../../apps/desktop/src/main/templates/serv
 import { TEMPLATE_JSCONFIG, templateJsconfigText } from '../../apps/desktop/src/shared/template-dev';
 import type { TemplateDevChange } from '../../apps/desktop/src/shared/templates';
 import { analyzeTemplateCode } from '../../apps/desktop/src/shared/template-code';
+import { templateDirs } from '../../scripts/build-templates';
 import { BASE_CODE, baseManifest, buildBuiltins, log, makeService } from './helpers/template-fixtures';
 
 const DEBOUNCE = 60;
@@ -219,6 +220,86 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
     expect(again.list().some((e) => e.id === r.entry.id && e.source === 'user')).toBe(true);
   });
 
+  it('T-DEV-5 读写源码：内置只读；写用户模板要带对的内容版本（外部改过就是 conflict），语法错误不写；写完监视服务照常报改动', async () => {
+    const builtin = await dev.readSource({ id: 'allay.builtin.block-wipe', version: '1.0.0' });
+    expect(builtin).toMatchObject({ ok: true, readOnly: true, version: 'builtin:allay.builtin.block-wipe@1.0.0' });
+    expect(await dev.writeSource({ id: 'allay.builtin.block-wipe', version: '1.0.0', source: BASE_CODE, baseVersion: 'x' })).toEqual({ ok: false, error: 'not-user' });
+
+    const c = await dev.copyBuiltin({ id: 'allay.builtin.block-wipe', version: '1.0.0' });
+    if (!c.ok) throw new Error(c.error);
+    const ref = { id: c.entry.id, version: '1.0.0' };
+    const read = await dev.readSource(ref);
+    if (!read.ok) throw new Error(read.error);
+    expect(read.readOnly).toBe(false);
+    expect(read.version).toBe(await hashTemplateDir(svc.userTemplateDir(ref.id, ref.version)!));
+
+    expect(await dev.writeSource({ ...ref, source: 'export default {', baseVersion: read.version })).toMatchObject({ ok: false, error: 'invalid', diagnostic: { kind: 'compile' } });
+    expect(await dev.writeSource({ ...ref, source: BASE_CODE, baseVersion: 'stale' })).toEqual({ ok: false, error: 'conflict', currentVersion: read.version });
+
+    const w = await dev.writeSource({ ...ref, source: `${BASE_CODE}\n// edited\n`, baseVersion: read.version });
+    if (!w.ok) throw new Error(w.error);
+    expect(w.version).not.toBe(read.version);
+    expect(readFileSync(join(svc.userTemplateDir(ref.id, ref.version)!, 'template.js'), 'utf8')).toBe(`${BASE_CODE}\n// edited\n`);
+    // 不算“自己的写入”：监视服务照常报，热重载照常走
+    // 全量单元测试并行时文件系统事件可能来得慢：放宽到 15 秒
+    await waitFor(() => changes.find((e) => e.id === ref.id && e.hash === w.version), 15_000);
+  });
+
+  it('T-ANIM-4 自建动画转为模板：主进程自己校验文档，写出 manifest、template.js、animation.json 和类型定义，模板列表里有它', async () => {
+    const { newAnimationDoc, serializeAnimation } = await import('../../apps/desktop/src/shared/animation/schema');
+    expect(await dev.createFromAnimation('{ not json')).toMatchObject({ ok: false, error: 'invalid' });
+    const r = await dev.createFromAnimation(serializeAnimation(newAnimationDoc('My Intro!')));
+    if (!r.ok) throw new Error(r.error);
+    expect(r.entry.id).toMatch(/^user\.[0-9a-f]{6}\.my-intro$/);
+    expect(r.entry).toMatchObject({ version: '1.0.0', source: 'user', kind: 'script' });
+    const dir = svc.userTemplateDir(r.entry.id, '1.0.0')!;
+    for (const f of ['manifest.json', 'template.js', 'animation.json', 'template-api.d.ts', 'jsconfig.json']) expect(existsSync(join(dir, f))).toBe(true);
+    const bundle = await svc.read(r.entry.id, '1.0.0');
+    expect(await analyzeTemplateCode(bundle!.code)).toEqual([]);
+  });
+
+  it('T-ANIM-30 转为模板时图片图层的本机图片复制进 assets/，文档里换成 asset: 引用；读不出的图片拒绝转换', async () => {
+    const { AnimationDocSchema, newAnimationDoc, serializeAnimation } = await import('../../apps/desktop/src/shared/animation/schema');
+    const img = join(base, 'pic.png');
+    writeFileSync(img, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 1, 2, 3]));
+    const ref = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+    const doc = AnimationDocSchema.parse({ ...newAnimationDoc('Pic'), layers: [{ id: 'pic', name: 'P', type: 'image', image: `file:${ref}`, props: {} }] });
+    expect(await dev.createFromAnimation(serializeAnimation(doc), () => null)).toMatchObject({ ok: false, error: 'invalid' });
+    const r = await dev.createFromAnimation(serializeAnimation(doc), (x) => (x === ref ? img : null));
+    if (!r.ok) throw new Error(r.error);
+    const dir = svc.userTemplateDir(r.entry.id, '1.0.0')!;
+    expect(readFileSync(join(dir, 'assets', 'image-pic.png'))).toEqual(readFileSync(img));
+    expect(JSON.parse(readFileSync(join(dir, 'animation.json'), 'utf8')).layers[0].image).toBe('asset:image-pic.png');
+    expect(await svc.readAsset({ id: r.entry.id, version: '1.0.0' }, 'image-pic.png')).not.toBeNull();
+  });
+
+  it('T-ANIM-33 转出来的模板可以重新打开：读 animation.json（template.js 被外部改过时 inSync 为 false），用改过的动画更新原模板（id、版本不变）', async () => {
+    const { AnimationDocSchema, newAnimationDoc, serializeAnimation } = await import('../../apps/desktop/src/shared/animation/schema');
+    expect(await dev.readAnimation({ id: 'allay.builtin.block-wipe', version: '1.0.0' })).toMatchObject({ ok: false, error: 'not-user' });
+    const doc = newAnimationDoc('Round Trip');
+    const r = await dev.createFromAnimation(serializeAnimation(doc));
+    if (!r.ok) throw new Error(r.error);
+    const ref = { id: r.entry.id, version: r.entry.version };
+    const read = await dev.readAnimation(ref);
+    expect(read).toEqual({ ok: true, text: serializeAnimation(doc), inSync: true });
+    // 在外部改 template.js：inSync 为 false
+    const dir = svc.userTemplateDir(ref.id, ref.version)!;
+    writeFileSync(join(dir, 'template.js'), readFileSync(join(dir, 'template.js'), 'utf8') + '\n// edited\n');
+    expect(await dev.readAnimation(ref)).toMatchObject({ ok: true, inSync: false });
+    // 更新：名称和图层变了，id、版本不变；三个文件都重写，template.js 又和文档一致
+    const next = AnimationDocSchema.parse({ ...doc, name: 'Round Trip 2', layers: [...doc.layers, { id: 'r', name: 'R', type: 'rect', props: {} }] });
+    const u = await dev.updateFromAnimation({ ...ref, text: serializeAnimation(next) });
+    if (!u.ok) throw new Error(u.error);
+    expect(u.entry).toMatchObject({ id: ref.id, version: ref.version, source: 'user' });
+    expect(u.entry.manifest.name).toBe('Round Trip 2');
+    expect(await dev.readAnimation(ref)).toEqual({ ok: true, text: serializeAnimation(next), inSync: true });
+    expect(await analyzeTemplateCode((await svc.read(ref.id, ref.version))!.code)).toEqual([]);
+    // 不合法的文档、不是用户模板：拒绝，文件不动
+    expect(await dev.updateFromAnimation({ ...ref, text: '{ not json' })).toMatchObject({ ok: false, error: 'invalid' });
+    expect(await dev.updateFromAnimation({ id: 'allay.builtin.block-wipe', version: '1.0.0', text: serializeAnimation(next) })).toMatchObject({ ok: false, error: 'invalid' });
+    expect((await dev.readAnimation(ref)) as { text: string }).toMatchObject({ text: serializeAnimation(next) });
+  });
+
   it('复制出来的每个内置模板，按写进去的 jsconfig 做 checkJs：除了已知的一处都没有错误', async () => {
     const options = { ...ts.convertCompilerOptionsFromJson(TEMPLATE_JSCONFIG.compilerOptions, base).options, allowJs: true, noEmit: true };
     // 已知的例外：T3 的源码里有 `tex.image as { width?: number; height?: number }`，打包时类型断言被去掉了，
@@ -233,7 +314,9 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
       ],
     };
     const builtins = svc.list().filter((x) => x.source === 'builtin');
-    expect(builtins).toHaveLength(6);
+    // 和 packages/templates 下有 manifest 的目录一一对应（数量不写死，模板会越来越多）
+    expect(builtins).toHaveLength(templateDirs().length);
+    expect(builtins.length).toBeGreaterThanOrEqual(6);
     for (const e of builtins) {
       const r = await dev.copyBuiltin({ id: e.id, version: e.version });
       if (!r.ok) throw new Error(r.error);

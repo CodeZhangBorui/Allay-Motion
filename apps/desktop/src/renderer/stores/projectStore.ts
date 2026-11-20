@@ -3,6 +3,22 @@ import { temporal } from 'zundo';
 import { create } from 'zustand';
 import type { ExportPreset } from '../../shared/export';
 import type { TemplateSource } from '../templates/catalog';
+import { DOC_PARAM } from '../../shared/animation/schema';
+
+/**
+ * 自建动画的预览模板从隐藏参数 DOC_PARAM 读文档（docs/animation-editor.md 第 8 节）：参数值总是由 template.animation.doc 决定，
+ * 调用方传什么都以它为准，这样任何换模板、重置的地方都不会把文档弄丢
+ */
+function withDoc(template: TemplateSource, params: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  return template.animation ? { ...params, [DOC_PARAM]: JSON.stringify(template.animation.doc) } : params;
+}
+
+/** 两个模板来源在预览看来是不是同一份代码（同一份 manifest、代码、素材）：是的话撤销重做只是改参数 */
+function sameStructure(a: TemplateSource | null, b: TemplateSource | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || !a.animation || !b.animation) return false;
+  return a.code === b.code && a.assets === b.assets && JSON.stringify(a.manifest) === JSON.stringify(b.manifest);
+}
 
 // projectStore（1.7）：当前模板、参数、输出设置、工程名、是否有未保存改动。
 // 撤销用 zundo，只记录模板和参数。一次连续操作（拖滑块、拖数字、拖时间轴上的分界线）只算一步：
@@ -71,6 +87,11 @@ interface ProjectState {
   /** 产生当前状态的那次改动（撤销时显示“撤销什么”，H6） */
   origin: UndoOrigin;
   setTemplate(template: TemplateSource, params?: Readonly<Record<string, unknown>>, locale?: string): void;
+  /**
+   * 自建动画改了文档、但预览模板的 manifest 和代码没变（第 9 项）：换 template（文档在上面）和参数，
+   * 不加 structureRevision，预览走 setParams。调用方保证 sameStructure
+   */
+  setAnimationSource(template: TemplateSource): void;
   /** 改一部分参数（多余的键丢弃，越界的钳制） */
   setParams(patch: Readonly<Record<string, unknown>>, locale?: string): void;
   setOutput(output: OutputSettings): void;
@@ -103,9 +124,16 @@ export const useProjectStore = create<ProjectState>()(
       setTemplate: (template, params = {}, locale = 'en') =>
         set((s) => ({
           template,
-          params: sanitizeParams(template.params, params, { locale }),
+          params: sanitizeParams(template.params, withDoc(template, params), { locale }),
           revision: s.revision + 1,
           structureRevision: s.structureRevision + 1,
+          origin: originFor('history.template'),
+        })),
+      setAnimationSource: (template) =>
+        set((s) => ({
+          template,
+          params: { ...s.params, ...withDoc(template, {}) } as ParamValues,
+          revision: s.revision + 1,
           origin: originFor('history.template'),
         })),
       setParams: (patch, locale = 'en') =>
@@ -124,7 +152,7 @@ export const useProjectStore = create<ProjectState>()(
           const revision = s.revision + 1;
           return {
             template,
-            params: sanitizeParams(template.params, params, { locale }),
+            params: sanitizeParams(template.params, withDoc(template, params), { locale }),
             output,
             exportSettings,
             name,
@@ -177,7 +205,7 @@ export function endGesture(): void {
 function afterHistoryJump(prevTemplate: TemplateSource | null): void {
   useProjectStore.setState((s) => ({
     revision: s.revision + 1,
-    structureRevision: s.template !== prevTemplate ? s.structureRevision + 1 : s.structureRevision,
+    structureRevision: sameStructure(s.template, prevTemplate) ? s.structureRevision : s.structureRevision + 1,
   }));
 }
 
@@ -195,6 +223,31 @@ export function redo(): void {
   const prev = useProjectStore.getState().template;
   t.redo();
   afterHistoryJump(prev);
+}
+
+/**
+ * 撤销历史的列表（第三轮第 11 项）：每一步是产生那个状态的改动（最早的在前）。current 是现在所在的那一步在列表里的下标，
+ * 列表最前面一项是历史开始时的状态（没有对应的改动，labelKey 为 null）
+ */
+export function historyList(): { entries: { labelKey: string | null; source: UndoOrigin['source'] | null }[]; current: number } {
+  const t = useProjectStore.temporal.getState();
+  const past = t.pastStates;
+  const future = [...t.futureStates].reverse();
+  const entries: { labelKey: string | null; source: UndoOrigin['source'] | null }[] = [];
+  // 第 i 个状态是第 i 次改动的结果：它的 origin 记的是那次改动
+  past.forEach((p, i) => entries.push(i === 0 ? { labelKey: null, source: null } : { labelKey: p.origin?.labelKey ?? null, source: p.origin?.source ?? null }));
+  const cur = useProjectStore.getState().origin;
+  entries.push(past.length === 0 ? { labelKey: null, source: null } : { labelKey: cur.labelKey, source: cur.source });
+  for (const f of future) entries.push({ labelKey: f.origin?.labelKey ?? null, source: f.origin?.source ?? null });
+  return { entries, current: past.length };
+}
+
+/** 跳到历史列表里的第 index 步（往前是连着撤销，往后是连着重做；拖动中不动） */
+export function jumpHistory(index: number): void {
+  const { current, entries } = historyList();
+  const target = Math.max(0, Math.min(entries.length - 1, index));
+  for (let i = current; i > target; i--) undo();
+  for (let i = current; i < target; i++) redo();
 }
 
 export function clearHistory(): void {
