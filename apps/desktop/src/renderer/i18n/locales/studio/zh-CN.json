@@ -128,7 +128,8 @@
       "prevMarker": "上一个标记",
       "nextMarker": "下一个标记",
       "stepBack": "上一帧（←，Shift 十帧）",
-      "stepForward": "下一帧（→，Shift 十帧）"
+      "stepForward": "下一帧（→，Shift 十帧）",
+      "setKeysEase": "设置关键帧的缓动"
     },
     "history": {
       "new": "新建动画",
@@ -447,6 +448,26 @@
     "markers": {
       "unnamed": "标记 {{n}}",
       "at": "{{name}}（{{t}} 秒）"
+    },
+    "menu": {
+      "eases": {
+        "linear": "缓动：线性",
+        "smooth": "缓动：缓入缓出",
+        "out": "缓动：缓出",
+        "in": "缓动：缓入",
+        "back": "缓动：回弹",
+        "hold": "缓动：保持（跳变）"
+      },
+      "unsolo": "取消独显",
+      "seekMarker": "跳到这个标记",
+      "seekHere": "跳到这里（{{t}} 秒）",
+      "markerHere": "在这里加标记",
+      "workStartHere": "工作区从这里开始",
+      "workEndHere": "工作区到这里结束",
+      "pasteHere": "把关键帧粘贴到这里",
+      "markerName": "标记名称",
+      "cancel": "取消",
+      "ok": "确定"
     }
   }
 }

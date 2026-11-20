@@ -11,7 +11,7 @@ import { ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
 import { ICON, ICON_WEIGHT } from '@allay/ui/lib/icons';
 import { cn } from '@allay/ui/lib/utils';
 import { ArrowsOutLineHorizontal, CaretRight, MagnetStraight, MagnifyingGlassMinus, MagnifyingGlassPlus, Pause, Play, Plus, Repeat, SkipBack, SkipForward, SpeakerHigh } from '@phosphor-icons/react';
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { KEY_EPSILON, keysOf, layerKeyTimes, sameKey, scaleKeys, shiftKeys, snapTime, type KeyRef } from '../../../shared/animation/edit';
 import { resolveDoc } from '../../../shared/animation/resolve';
@@ -26,6 +26,7 @@ import { togglePlay } from '../commands/commands';
 import { formatTimecode, usePlayback } from '../transport/TransportBar';
 import { GraphEditor } from './GraphEditor';
 import { HistoryList } from './HistoryList';
+import { keyRefsOf, TimelineContextMenu, type MenuTarget } from './TimelineContextMenu';
 import { LAYER_ICONS } from './LayersPanel';
 import { currentAnimation, replaceDoc } from './source';
 import { trackPointer } from './pointer';
@@ -403,6 +404,29 @@ export function AnimTimeline() {
     });
   };
 
+  // ---- 右键菜单：按点中的东西给目标 ----
+  const menuTarget = (e: ReactMouseEvent): MenuTarget | null => {
+    const el = e.target as HTMLElement;
+    const mk = el.closest<HTMLElement>('[data-marker]');
+    if (mk) {
+      const i = markers.findIndex((m) => m.id === mk.dataset.marker);
+      const m = markers[i];
+      return m ? { kind: 'marker', id: m.id, t: m.t, label: m.label ?? '' } : null;
+    }
+    const key = el.closest<HTMLElement>('[data-key-layer]');
+    if (key) {
+      const locked = doc.layers.find((l) => l.id === key.dataset.keyLayer)?.locked;
+      if (locked) return null;
+      const refs = keyRefsOf(key, (layer, kt) => ANIM_PROPS.filter((p) => keysOf(resolved.layers.find((x) => x.id === layer)?.props[p]).some((k) => Math.abs(k.t - kt) < KEY_EPSILON)));
+      return refs.length > 0 ? { kind: 'key', refs } : null;
+    }
+    const row = el.closest<HTMLElement>('[data-layer-row]');
+    if (row) return { kind: 'layer', layer: row.dataset.layerRow! };
+    const lane = laneRef.current?.getBoundingClientRect();
+    if (lane && e.clientX >= lane.left && e.clientX <= lane.right) return { kind: 'time', t: timeAt(e.clientX) };
+    return null;
+  };
+
   // ---- 音效轨 ----
   const dragSound = (id: string, at: number) => (e: ReactPointerEvent) => {
     if (e.button !== 0) return;
@@ -530,6 +554,7 @@ export function AnimTimeline() {
       {view === 'graph' ? (
         <GraphEditor />
       ) : (
+        <TimelineContextMenu resolve={menuTarget}>
         <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-2" onKeyDown={nudge} data-testid="anim-timeline-body">
           {/* 刻度行 */}
           <div className="sticky top-0 z-10 flex h-6 bg-surface-1">
@@ -623,6 +648,7 @@ export function AnimTimeline() {
                   <div className={cn('flex items-center rounded-sm', isSelLayer && 'bg-control')} style={{ height: ROW_H }}>
                     <button
                       type="button"
+                      data-layer-row={layer.id}
                       className={cn('flex min-w-0 shrink-0 items-center gap-1.5 pr-2 text-left text-xs text-fg-muted hover:text-foreground', layer.hidden && 'opacity-60')}
                       style={{ width: NAME_W, paddingLeft: depth * 12 }}
                       onClick={() => useAnimationUi.getState().select({ layer: layer.id, key: null })}
@@ -751,6 +777,7 @@ export function AnimTimeline() {
             <span className="absolute top-0 bottom-0 w-px bg-primary" data-testid="anim-playhead" />
           </div>
         </div>
+        </TimelineContextMenu>
       )}
     </section>
   );

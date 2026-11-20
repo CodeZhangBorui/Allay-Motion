@@ -669,3 +669,46 @@ test('T-ANIM-38 撤销历史列表：每一步列出来，点开头回到开始�
   await list.locator(`[data-testid="anim-history-entry"][data-index="${total - 1}"]`).click();
   await expect.poll(count).toBe(n0 + 2);
 });
+
+test('T-ANIM-39 时间轴的右键菜单：刻度上加标记和设工作区，标记上重命名和删除，关键帧上改缓动，图层上隐藏', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  type D = { markers?: { id: string; t: number; label?: string }[]; workArea?: { from: number; to: number }; layers: { hidden?: boolean; props: Record<string, { keys?: { ease?: unknown }[] }> }[] };
+  const d = async () => (await docJson(page)) as unknown as D;
+  const ruler = (await page.getByTestId('anim-ruler').boundingBox())!;
+  const menu = page.getByTestId('anim-context-menu');
+  // 刻度中间右键 → 在这里加标记
+  await page.mouse.click(ruler.x + ruler.width / 2, ruler.y + ruler.height / 2, { button: 'right' });
+  await expect(menu).toHaveAttribute('data-kind', 'time');
+  await page.getByTestId('anim-menu-add-marker').click();
+  await expect.poll(async () => (await d()).markers?.length).toBe(1);
+  // 刻度四分之一处右键 → 工作区从这里开始
+  await page.mouse.click(ruler.x + ruler.width / 4, ruler.y + ruler.height / 2, { button: 'right' });
+  await page.getByTestId('anim-menu-work-start').click();
+  await expect.poll(async () => (await d()).workArea?.from).toBeGreaterThan(0);
+  // 标记右键 → 重命名
+  await page.getByTestId('anim-marker').click({ button: 'right' });
+  await expect(menu).toHaveAttribute('data-kind', 'marker');
+  await page.getByTestId('anim-menu-rename-marker').click();
+  const dialog = page.getByTestId('anim-rename-marker');
+  await dialog.getByRole('textbox').fill('Impact');
+  await dialog.getByRole('textbox').press('Enter');
+  await expect.poll(async () => (await d()).markers![0]!.label).toBe('Impact');
+  // 关键帧右键 → 缓动：保持
+  await page.getByTestId('anim-track-expand').first().click();
+  await page.getByTestId('anim-key').first().click({ button: 'right' });
+  await expect(menu).toHaveAttribute('data-kind', 'key');
+  await page.getByTestId('anim-menu-ease-hold').click();
+  await expect.poll(async () => JSON.stringify((await d()).layers[0]!.props)).toContain('"hold"');
+  // 图层名右键 → 隐藏
+  await page.locator('[data-layer-row]').first().click({ button: 'right' });
+  await expect(menu).toHaveAttribute('data-kind', 'layer');
+  await page.getByTestId('anim-menu-hide').click();
+  await expect.poll(async () => (await d()).layers.some((l) => l.hidden)).toBe(true);
+  // 标记右键 → 删除
+  await page.getByTestId('anim-marker').click({ button: 'right' });
+  await page.getByTestId('anim-menu-remove-marker').click();
+  await expect.poll(async () => (await d()).markers).toBeUndefined();
+});

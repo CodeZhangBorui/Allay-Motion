@@ -6,9 +6,9 @@
 import i18next from 'i18next';
 import { z } from 'zod';
 import { addMarker, adjacentTime, moveMarker, removeMarker, renameMarker, setWorkArea } from '../../../shared/animation/markers';
-import { layerKeyTimes } from '../../../shared/animation/edit';
+import { layerKeyTimes, setKeysEase } from '../../../shared/animation/edit';
 import { docDuration, resolveDoc } from '../../../shared/animation/resolve';
-import { LAYER_ID_RE, type AnimationDoc } from '../../../shared/animation/schema';
+import { AnimEasingSchema, ANIM_PROPS, LAYER_ID_RE, type AnimationDoc } from '../../../shared/animation/schema';
 import { defineCommand, type AnyCommand } from '../../app/registry';
 import { useTransportStore } from '../../stores/transportStore';
 import { stepFrames } from '../commands/commands';
@@ -59,6 +59,18 @@ export const TIMELINE_COMMANDS: AnyCommand[] = [
   defineCommand({ id: 'animNextMarker', titleKey: 'anim.commands.nextMarker', shortcut: 'Shift+K', category: 'playback', effect: 'read', enabled: hasMarkers, output: z.boolean(), run: () => jump((currentAnimation()?.doc.markers ?? []).map((m) => m.t), 1) }),
   defineCommand({ id: 'animStepBack', titleKey: 'anim.commands.stepBack', category: 'playback', effect: 'read', enabled: isAnimationActive, run: () => stepFrames(-1) }),
   defineCommand({ id: 'animStepForward', titleKey: 'anim.commands.stepForward', category: 'playback', effect: 'read', enabled: isAnimationActive, run: () => stepFrames(1) }),
+  defineCommand({
+    id: 'animSetKeysEase',
+    titleKey: 'anim.commands.setKeysEase',
+    effect: 'write',
+    undoLabelKey: 'anim.history.keyframe',
+    hideInPalette: true,
+    enabled: isAnimationActive,
+    // 一组关键帧的缓动（到下一个关键帧的那一段）；ease 不给是线性
+    input: z.strictObject({ keys: z.array(z.strictObject({ layer: z.string().regex(LAYER_ID_RE), prop: z.enum(ANIM_PROPS), t: Time })).min(1).max(4096), ease: AnimEasingSchema.optional() }),
+    output: z.boolean(),
+    run: ({ keys, ease }) => apply((doc) => setKeysEase(doc, keys, ease)),
+  }),
   defineCommand({
     id: 'animAddMarker',
     titleKey: 'anim.commands.addMarker',

@@ -128,7 +128,8 @@
       "prevMarker": "Previous marker",
       "nextMarker": "Next marker",
       "stepBack": "Previous frame (←, Shift for 10)",
-      "stepForward": "Next frame (→, Shift for 10)"
+      "stepForward": "Next frame (→, Shift for 10)",
+      "setKeysEase": "Set keyframe easing"
     },
     "history": {
       "new": "New animation",
@@ -447,6 +448,26 @@
     "markers": {
       "unnamed": "Marker {{n}}",
       "at": "{{name}} ({{t}} s)"
+    },
+    "menu": {
+      "eases": {
+        "linear": "Easing: linear",
+        "smooth": "Easing: ease in and out",
+        "out": "Easing: ease out",
+        "in": "Easing: ease in",
+        "back": "Easing: overshoot",
+        "hold": "Easing: hold (jump)"
+      },
+      "unsolo": "Stop solo",
+      "seekMarker": "Go to this marker",
+      "seekHere": "Go here ({{t}} s)",
+      "markerHere": "Add marker here",
+      "workStartHere": "Start work area here",
+      "workEndHere": "End work area here",
+      "pasteHere": "Paste keyframes here",
+      "markerName": "Marker name",
+      "cancel": "Cancel",
+      "ok": "OK"
     }
   }
 }

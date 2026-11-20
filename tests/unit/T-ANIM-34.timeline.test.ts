@@ -2,6 +2,7 @@
 // 平移到头就停、播放头跑出去时翻页、时刻到位置的换算；标记点和工作区。
 import { describe, expect, it } from 'vitest';
 import { addMarker, adjacentTime, moveMarker, removeMarker, renameMarker, setWorkArea } from '../../apps/desktop/src/shared/animation/markers';
+import { setKeysEase } from '../../apps/desktop/src/shared/animation/edit';
 import { AnimationDocSchema, newAnimationDoc } from '../../apps/desktop/src/shared/animation/schema';
 import { clampView, fracOf, MIN_SPAN, panBy, revealTime, viewRange, zoomAt } from '../../apps/desktop/src/shared/animation/time-view';
 
@@ -73,5 +74,17 @@ describe('T-ANIM-34 标记点和工作区', () => {
     expect(adjacentTime([0, 1, 2], 1, 1)).toBe(2);
     expect(adjacentTime([0, 1, 2], 1, -1)).toBe(0);
     expect(adjacentTime([0, 1, 2], 2, 1)).toBeNull();
+  });
+});
+
+describe('T-ANIM-34 右键菜单的缓动', () => {
+  it('一组关键帧一起改缓动；线性去掉 ease；找不到的跳过，一个都没改到时 null', () => {
+    const d = AnimationDocSchema.parse({ ...newAnimationDoc('E', 'B'), layers: [{ id: 'r', name: 'R', type: 'rect', props: { x: { keys: [{ t: 0, v: 0 }, { t: 1, v: 1, ease: 'cubicIn' }] }, y: { keys: [{ t: 0, v: 0 }] } } }] });
+    const held = setKeysEase(d, [{ layer: 'r', prop: 'x', t: 0 }, { layer: 'r', prop: 'y', t: 0 }], 'hold')!;
+    expect((held.layers[0]!.props.x as { keys: { ease?: unknown }[] }).keys[0]!.ease).toBe('hold');
+    expect((held.layers[0]!.props.y as { keys: { ease?: unknown }[] }).keys[0]!.ease).toBe('hold');
+    const lin = setKeysEase(d, [{ layer: 'r', prop: 'x', t: 1 }], undefined)!;
+    expect('ease' in (lin.layers[0]!.props.x as { keys: object[] }).keys[1]!).toBe(false);
+    expect(setKeysEase(d, [{ layer: 'nope', prop: 'x', t: 0 }], 'hold')).toBeNull();
   });
 });

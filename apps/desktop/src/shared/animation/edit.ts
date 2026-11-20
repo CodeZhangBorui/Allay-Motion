@@ -95,6 +95,23 @@ export function setKeyEase(track: Track | undefined, index: number, ease: AnimEa
   };
 }
 
+/** 一组关键帧的缓动（到下一个关键帧的那一段）一起改；绑定到参数的、找不到的跳过。一个都没改到时 null */
+export function setKeysEase(doc: AnimationDoc, refs: readonly KeyRef[], ease: AnimEasing | undefined): AnimationDoc | null {
+  const next = structuredClone(doc);
+  let changed = 0;
+  for (const r of refs) {
+    const l = next.layers.find((x) => x.id === r.layer);
+    const track = l?.props[r.prop];
+    if (!l || !isKeyed(track)) continue;
+    const i = track.keys.findIndex((k) => Math.abs(k.t - r.t) < KEY_EPSILON);
+    const t2 = i >= 0 ? setKeyEase(track, i, ease) : null;
+    if (!t2) continue;
+    l.props[r.prop] = t2;
+    changed++;
+  }
+  return changed > 0 ? next : null;
+}
+
 export function removeKey(track: Track | undefined, index: number): Track | undefined {
   const keys = keysOf(track);
   if (!keys[index]) return track;
