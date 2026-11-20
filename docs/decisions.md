@@ -2,6 +2,12 @@
 
 规格没说清、或与现实对不上的地方，在这里记一笔：偏离了什么、为什么。按里程碑分节。
 
+## 补齐 T-ARC-6 的畸形参数表（2026-11-20）
+
+- T-ARC-6 要求 `window.allay` 的每个方法都在 `tests/e2e/ipc.spec.ts` 的畸形参数表里有条目。`folders.*`（get/choose/reset）和 `updates.*`（state/check/download/cancel/install）共 8 个方法是在这两组通道（6.11 文件夹、自动更新）加进来时漏补的，测试在 main 上也失败。
+- 补齐 8 个方法的畸形参数：`folders.get` 和 `updates.*` 都是无参数（`z.tuple([])`），只发带多余参数的用例；`folders.choose`/`reset` 只收枚举 `'project' | 'export'`，发空参、数字、路径、别的枚举值和多余参数。合法的 `choose` 会弹对话框、`updates.check/download` 会联网、`install` 会重启，所以表里绝不放合法参数（沿用表头的约定）。
+- 验证：用 `IPC_ARGS` 的 zod schema 逐个核对，8 个方法共 30 个用例全部 `safeParse` 失败（会返回 `invalid arguments`，命中测试的判定正则）；合法参数（`['project']`、`[]`）能通过，确认用例确实畸形。preload 暴露的 104 个方法与表的 104 个键一一对应。`pnpm typecheck`、`pnpm lint`、`check:provenance`、`check:licenses`、网站构建通过；完整 e2e 以 CI 为准。
+
 ## GitCode 镜像与自动发布（2026-11-14）
 
 - 用户要求 GitCode `Mystic-Stars/Allay-Motion` 作为镜像分发源，使用 GitHub Actions 单向同步代码、标签及正式 Release 附件，不依赖开发者电脑登录或推送。
