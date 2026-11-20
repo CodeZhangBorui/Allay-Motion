@@ -96,13 +96,20 @@ async function sample(frame: Frame): Promise<string> {
 test.describe.configure({ mode: 'serial' });
 
 let s: Session;
+let wideClosed = false;
+
+async function closeWideSession(): Promise<void> {
+  if (wideClosed) return;
+  await closeSession(s);
+  wideClosed = true;
+}
 
 test.beforeAll(async () => {
   s = await launch();
 });
 
 test.afterAll(async () => {
-  await closeSession(s);
+  await closeWideSession();
 });
 
 test('T-WEB-1 页面能加载：首屏实时预览就绪，模板按钮一个不少、模板一节只放精选，滚完全页无报错、无外部请求', async () => {
@@ -423,7 +430,13 @@ test('T-WEB-13 悦灵：首屏是方块拼成的体素悦灵，往下由带路�
       const g = document.querySelector<HTMLElement>('[data-testid="allay-guide"]');
       const in3d = g?.dataset.render === '3d' && g.dataset.shown === 'true' ? 1 : 0;
       const voxel = document.querySelector<HTMLElement>('[data-testid="world"]')?.dataset.sculpture === 'true' ? 1 : 0;
-      const dom = [...document.querySelectorAll('[data-allay="body"]')].map((e) => e.closest<HTMLElement>('[data-testid]')?.dataset.testid ?? '?');
+      const dom = [...document.querySelectorAll('[data-allay="body"]')]
+        .filter((e) => {
+          if (!e.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
+          const { top, bottom, left, right } = e.getBoundingClientRect();
+          return bottom > 0 && top < innerHeight && right > 0 && left < innerWidth;
+        })
+        .map((e) => e.closest<HTMLElement>('[data-testid]')?.dataset.testid ?? '?');
       return { n: dom.length + in3d + voxel, what: `y=${Math.round(window.scrollY)} dom=[${dom.join(',')}] guide3d=${in3d} voxel=${voxel}` };
     });
   let max = 0;
@@ -676,7 +689,14 @@ test('T-WEB-14 文案不强调模板数量；开发者三张真实头像都是�
   }
 });
 
+test('T-WEB-9 以上全部操作之后：控制台没有报错，没有外部请求', async () => {
+  expect(s.errors).toEqual([]);
+  expect(await externalRequests(s.app)).toEqual([]);
+});
+
 test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被拦、requestAnimationFrame 不跑（像后台标签页）', async () => {
+  // 窄屏与禁用动画帧的用例各用独立实例，避免多个软件渲染器争抢资源。
+  await closeWideSession();
   const bad = await launch();
   try {
     const { page } = bad;
@@ -700,25 +720,21 @@ test('T-WEB-10 标题在任何情况下都很快可见：字体请求全部被�
       }, selector);
     const t0 = Date.now();
     await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('html')).not.toHaveClass(/\bmotion-ok\b/);
     await expect.poll(() => covered('h1'), { timeout: 2500 }).toBe(false);
     test.info().annotations.push({ type: 'T-WEB-10', description: `首屏标题 ${Date.now() - t0} ms 内可见（字体被拦、rAF 不跑）` });
     // 滚到页面中段的节标题也一样
     await page.evaluate(() => document.getElementById('features')?.scrollIntoView({ behavior: 'instant' }));
     await expect.poll(() => covered('#features h2'), { timeout: 3500 }).toBe(false);
     expect(bad.errors.filter((e) => !/woff2|Failed to load resource|net::ERR_FAILED/.test(e))).toEqual([]);
+    expect(await externalRequests(bad.app)).toEqual([]);
   } finally {
     await closeSession(bad);
   }
 });
 
-test('T-WEB-9 以上全部操作之后：控制台没有报错，没有外部请求', async () => {
-  expect(s.errors).toEqual([]);
-  expect(await externalRequests(s.app)).toEqual([]);
-});
-
 test('T-WEB-7 窄屏降级：不加载完整编辑器，留实时预览和模板切换，没有横向溢出', async () => {
-  // 宽屏仿真器使用软件渲染，先关闭它，避免与窄屏实例同时争抢 CI 的 GPU 资源。
-  await closeSession(s);
+  await closeWideSession();
   const narrow = await launch(390);
   try {
     const { page } = narrow;
