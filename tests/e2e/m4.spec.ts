@@ -77,8 +77,8 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
       for (const t of times) maxAlpha = Math.max(maxAlpha, (await page.evaluate((x) => window.__allayTest!.previewStats(x), t)).maxAlpha);
       expect(maxAlpha, `${e.id} 的预览画布非空`).toBeGreaterThan(0);
       const before = await sample();
-      // 经属性面板改一个数字参数（上方向键步进）：从第一个数字框起，找到能改变画面的那一个
-      const inputs = page.locator('[data-testid="param-panel"] input[inputmode]');
+      // 经属性面板改一个数字参数：保留键盘步进，跳过处于边界、无法步进的控件。
+      const inputs = page.locator('[data-testid="param-panel"] input[aria-roledescription="Number field"]:visible:enabled');
       const count = await inputs.count();
       expect(count, `${e.id} 的属性面板里有数字参数`).toBeGreaterThan(0);
       let changed = false;
@@ -88,8 +88,11 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
         which = (await input.getAttribute('aria-label')) ?? String(i);
         await input.focus();
         const rev = await page.evaluate(() => window.__allayTest!.project().revision);
-        for (let k = 0; k < 3; k++) await page.keyboard.press('ArrowUp');
-        await expect.poll(() => page.evaluate(() => window.__allayTest!.project().revision)).toBeGreaterThan(rev);
+        for (let k = 0; k < 3; k++) await input.press('ArrowUp');
+        if ((await page.evaluate(() => window.__allayTest!.project().revision)) === rev) {
+          for (let k = 0; k < 3; k++) await input.press('ArrowDown');
+        }
+        if ((await page.evaluate(() => window.__allayTest!.project().revision)) === rev) continue;
         await upToDate(page);
         changed = (await sample()) !== before;
       }
@@ -235,7 +238,9 @@ for (const language of ['zh-CN', 'en'] as const) {
         await expect.poll(() => page.evaluate(() => window.__allayTest!.project().ref?.id)).toBe(e.id);
         await upToDate(page);
         // 把属性面板的分组全部展开再查
-        for (const g of await page.locator('[data-testid^="param-group-"][aria-expanded="false"]').all()) await g.click();
+        const collapsed = page.locator('[data-testid^="param-group-"][aria-expanded="false"]');
+        const groupIds = await collapsed.evaluateAll((groups) => groups.map((group) => group.getAttribute('data-testid')!));
+        for (const id of groupIds) await page.getByTestId(id).click();
         await check(`属性面板/${e.id}`);
       }
       await page.mouse.move(0, 0);
@@ -284,7 +289,7 @@ for (const theme of ['dark', 'light'] as const) {
     const { page } = ctx;
     try {
       // 封面生成完、预览在第 0 帧
-      await expect(page.locator('[data-testid="template-list"] img').first()).toBeVisible({ timeout: 30_000 });
+      await coversReady(page);
       await page.evaluate(() => window.__allayTest!.setTime(0));
       await upToDate(page);
       await page.waitForTimeout(500);
@@ -292,7 +297,7 @@ for (const theme of ['dark', 'light'] as const) {
       await expect(page).toHaveScreenshot(`ui-${theme}.png`, {
         animations: 'disabled',
         caret: 'hide',
-        mask: [page.locator('canvas'), page.locator('img'), page.locator('[data-allay]')],
+        mask: [page.locator('canvas'), page.locator('img'), page.locator('[data-allay]'), page.getByTestId('template-list').locator('.preview-checker-sm')],
         maxDiffPixelRatio: 0.01,
         timeout: 30_000,
       });

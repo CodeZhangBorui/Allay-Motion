@@ -235,7 +235,7 @@ test('资源栈弹层：拖入资源包，叠加顺序、开关、重排都会�
     await row('Blue').getByTestId('layer-remove').click();
     await expectSpot(page, 'green');
     // 关掉原版层 → 占位
-    await row('1.21.1').getByTestId('layer-toggle').click();
+    await row('Minecraft 1.21.1').getByTestId('layer-toggle').click();
     await expectSpot(page, 'placeholder');
     expect(await layerIds(page)).toEqual(['builtin:builtin:true', 'vanilla:1.21.1:false', 'pack:Red:false']);
     // 键盘：Escape 关闭弹层

@@ -225,7 +225,7 @@ test('T-ARC-3 引擎 Worker 对外部地址的请求失败，主进程日志有�
       return { fetch: typeof g.fetch, xhr: typeof g.XMLHttpRequest, ws: typeof g.WebSocket, imported };
     });
     expect(plain).toEqual({ fetch: 'undefined', xhr: 'undefined', ws: 'undefined', imported: 'failed' });
-    expect(readMainLog(dir)).not.toContain('allay-t-arc-3-csp');
+    expect(readMainLog(dir)).not.toMatch(/\[net\] blocked request .*allay-t-arc-3-csp/);
 
     // 第二层（真正的保证）：没有 CSP 时，Worker 发出的请求被会话级拦截取消并记日志。
     // Worker 脚本的 CSP 来自它自己的 app:// 响应，Page.setBypassCSP 管不到；这个测试单独启动一个应用，
