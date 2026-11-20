@@ -271,27 +271,6 @@ test('T-WEB-6 仿真导出：走一遍真实的导出对话框和进度，结束
   await expect(card).toBeHidden();
 });
 
-test('T-WEB-7 窄屏降级：不加载完整编辑器，留实时预览和模板切换，没有横向溢出', async () => {
-  const narrow = await launch(390);
-  try {
-    const { page } = narrow;
-    await page.evaluate(() => document.getElementById('try')?.scrollIntoView({ behavior: 'instant' }));
-    const viewer = page.getByTestId('compact-viewer');
-    await expect(viewer).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
-    await expect(page.getByTestId('sim-window')).toHaveCount(0);
-    expect(page.frames().some((f) => f.url().includes('simulator.html'))).toBe(false);
-    const chip = viewer.locator('[data-testid="live-chip"][data-template="allay.builtin.item-stinger"]');
-    await chip.click();
-    await expect(chip).toHaveAttribute('aria-pressed', 'true');
-    await scrollThrough(page);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
-    expect(narrow.errors).toEqual([]);
-    expect(await externalRequests(narrow.app)).toEqual([]);
-  } finally {
-    await closeSession(narrow);
-  }
-});
-
 test('T-WEB-8 减少动效：没有出场动画和剪辑点的转场，悦灵不飞，内容一开始就完整可读', async () => {
   const { page } = s;
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -686,3 +665,27 @@ test('T-WEB-9 以上全部操作之后：控制台没有报错，没有外部请
   expect(s.errors).toEqual([]);
   expect(await externalRequests(s.app)).toEqual([]);
 });
+
+test('T-WEB-7 窄屏降级：不加载完整编辑器，留实时预览和模板切换，没有横向溢出', async () => {
+  // 宽屏仿真器使用软件渲染，先关闭它，避免与窄屏实例同时争抢 CI 的 GPU 资源。
+  await closeSession(s);
+  const narrow = await launch(390);
+  try {
+    const { page } = narrow;
+    await page.evaluate(() => document.getElementById('try')?.scrollIntoView({ behavior: 'instant' }));
+    const viewer = page.getByTestId('compact-viewer');
+    await expect(viewer).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
+    await expect(page.getByTestId('sim-window')).toHaveCount(0);
+    expect(page.frames().some((f) => f.url().includes('simulator.html'))).toBe(false);
+    const chip = viewer.locator('[data-testid="live-chip"][data-template="allay.builtin.item-stinger"]');
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
+    await scrollThrough(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    expect(narrow.errors).toEqual([]);
+    expect(await externalRequests(narrow.app)).toEqual([]);
+  } finally {
+    await closeSession(narrow);
+  }
+});
+
