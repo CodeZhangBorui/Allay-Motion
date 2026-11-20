@@ -1,9 +1,9 @@
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { writeZip } from '../../apps/desktop/src/main/templates/zip-writer';
 import { solidPng } from '../unit/helpers/resource-fixtures';
-import { launchApp, makeUserDataDir, removeUserDataDir, type Launched } from './helpers';
+import { launchApp, makeUserDataDir, removeUserDataDir, ROOT, type Launched } from './helpers';
 
 // M3 模板系统的端到端测试：内置模板从 resources/templates/ 装载；安装（含试运行）、派生模板的自带图片、
 // 预设的保存与套用都走真实的界面路径和 IPC。窗口不显示、不抢焦点。模板包和图片都在测试时生成（纯色色块）。
@@ -98,7 +98,8 @@ test('启动时从 resources/templates/ 装载内置的 T1，参数是默认值'
   const p = await page.evaluate(() => window.__allayTest!.project());
   expect(p.ref).toEqual({ id: 'allay.builtin.block-wipe', version: '1.0.0' });
   expect(p.params).toMatchObject({ cols: 12, style: '3d', inPattern: 'centerOut', outPattern: 'reverse', inDuration: 0.5, hold: 0.1, outDuration: 0.5, easing: 'backOut', spin: 'flipY', seed: 1 });
-  expect(Object.keys(p.params)).toHaveLength(16);
+  const manifest = JSON.parse(readFileSync(join(ROOT, 'packages/templates/block-wipe/manifest.json'), 'utf8')) as { params: { key: string }[] };
+  expect(Object.keys(p.params).sort()).toEqual(manifest.params.map(({ key }) => key).sort());
   await expect(page.getByTestId('template-allay.builtin.block-wipe')).toHaveAttribute('aria-pressed', 'true');
 });
 
