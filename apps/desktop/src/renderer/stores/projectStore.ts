@@ -225,6 +225,31 @@ export function redo(): void {
   afterHistoryJump(prev);
 }
 
+/**
+ * 撤销历史的列表（第三轮第 11 项）：每一步是产生那个状态的改动（最早的在前）。current 是现在所在的那一步在列表里的下标，
+ * 列表最前面一项是历史开始时的状态（没有对应的改动，labelKey 为 null）
+ */
+export function historyList(): { entries: { labelKey: string | null; source: UndoOrigin['source'] | null }[]; current: number } {
+  const t = useProjectStore.temporal.getState();
+  const past = t.pastStates;
+  const future = [...t.futureStates].reverse();
+  const entries: { labelKey: string | null; source: UndoOrigin['source'] | null }[] = [];
+  // 第 i 个状态是第 i 次改动的结果：它的 origin 记的是那次改动
+  past.forEach((p, i) => entries.push(i === 0 ? { labelKey: null, source: null } : { labelKey: p.origin?.labelKey ?? null, source: p.origin?.source ?? null }));
+  const cur = useProjectStore.getState().origin;
+  entries.push(past.length === 0 ? { labelKey: null, source: null } : { labelKey: cur.labelKey, source: cur.source });
+  for (const f of future) entries.push({ labelKey: f.origin?.labelKey ?? null, source: f.origin?.source ?? null });
+  return { entries, current: past.length };
+}
+
+/** 跳到历史列表里的第 index 步（往前是连着撤销，往后是连着重做；拖动中不动） */
+export function jumpHistory(index: number): void {
+  const { current, entries } = historyList();
+  const target = Math.max(0, Math.min(entries.length - 1, index));
+  for (let i = current; i > target; i--) undo();
+  for (let i = current; i < target; i++) redo();
+}
+
 export function clearHistory(): void {
   useProjectStore.temporal.getState().clear();
 }

@@ -25,6 +25,7 @@ import { useTransportStore } from '../../stores/transportStore';
 import { togglePlay } from '../commands/commands';
 import { formatTimecode, usePlayback } from '../transport/TransportBar';
 import { GraphEditor } from './GraphEditor';
+import { HistoryList } from './HistoryList';
 import { LAYER_ICONS } from './LayersPanel';
 import { currentAnimation, replaceDoc } from './source';
 import { trackPointer } from './pointer';
@@ -495,6 +496,7 @@ export function AnimTimeline() {
             </ToggleGroupItem>
           </ToggleGroup>
         )}
+        <HistoryList />
         <Button variant="ghost" size="icon" aria-label={t('anim.timeline.zoomOut')} title={t('anim.timeline.zoomOut')} disabled={!zoom} data-testid="anim-zoom-out" onClick={() => zoomBy(ZOOM_STEP)}>
           <MagnifyingGlassMinus size={ICON.md} />
         </Button>

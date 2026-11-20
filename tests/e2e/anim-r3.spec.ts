@@ -647,3 +647,25 @@ test('T-ANIM-37 跳转快捷键：K / J 跳到下一个 / 上一个关键帧，S
   await page.keyboard.press('ArrowRight');
   await expect.poll(now).toBeCloseTo(1.5 + 1 / 60, 5);
 });
+
+test('T-ANIM-38 撤销历史列表：每一步列出来，点开头回到开始，再点最新一步回来', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  const count = async () => (await docJson(page)).layers.length;
+  const n0 = await count();
+  await dispatch(page, 'animAddLayer', { type: 'rect' });
+  await dispatch(page, 'animAddLayer', { type: 'ellipse' });
+  await page.getByTestId('anim-history').click();
+  const list = page.getByTestId('anim-history-list');
+  await expect(list).toBeVisible();
+  const entries = list.getByTestId('anim-history-entry');
+  const total = await entries.count();
+  expect(total).toBeGreaterThanOrEqual(3);
+  await list.locator('[data-testid="anim-history-entry"][data-index="0"]').click();
+  await expect.poll(count).toBeLessThan(n0 + 2);
+  await page.getByTestId('anim-history').click();
+  await list.locator(`[data-testid="anim-history-entry"][data-index="${total - 1}"]`).click();
+  await expect.poll(count).toBe(n0 + 2);
+});

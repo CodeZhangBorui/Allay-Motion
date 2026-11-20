@@ -140,7 +140,11 @@
       "sound": "Edit sound",
       "layer": "Edit layer",
       "marker": "Marker",
-      "workArea": "Work area"
+      "workArea": "Work area",
+      "title": "Undo history",
+      "hint": "Click a step to go back to it; you can still redo afterwards.",
+      "start": "Start",
+      "byAgent": "Assistant"
     },
     "errors": {
       "invalidEdit": "That change isn't valid and wasn't applied: {{reason}}",

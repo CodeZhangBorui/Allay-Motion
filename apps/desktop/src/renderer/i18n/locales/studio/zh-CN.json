@@ -140,7 +140,11 @@
       "sound": "修改音效",
       "layer": "修改图层",
       "marker": "标记",
-      "workArea": "工作区"
+      "workArea": "工作区",
+      "title": "撤销历史",
+      "hint": "点哪一步就回到那一步，之后还能重做回来。",
+      "start": "开始",
+      "byAgent": "助手"
     },
     "errors": {
       "invalidEdit": "这个修改不合规，没有生效：{{reason}}",
