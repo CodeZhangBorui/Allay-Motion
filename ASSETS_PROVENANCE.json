@@ -14,12 +14,12 @@
     "note": "T-TPL-5 的渲染基准图：内置模板用测试脚本生成的纯色假资源栈渲染（不含任何原版贴图），只给测试用，不进安装包。基准图在真实显卡上生成，不同显卡的输出不逐字节相同，所以不做逐字节比对（docs/decisions.md M3）"
   },
   {
-    "path": "resources/fonts/unifont/unifont_t-18.0.01.otf",
+    "path": "resources/fonts/unifont/unifont-18.0.01.otf",
     "origin": "third-party",
-    "source": "https://unifoundry.com/unifont/",
+    "source": "https://unifoundry.com/pub/unifont/unifont-18.0.01/font-builds/unifont-18.0.01.otf",
     "author": "Roman Czyborra, Paul Hardy, Qianqian Fang, Andrew Miller, Johnnie Weaver, David Corbett, Ælla Chiana Moskopp, Rebecca Bettencourt, Ho-Seok Ee, et al.",
     "license": "OFL-1.1 OR GPL-2.0-or-later WITH Font-exception-2.0",
-    "note": "GNU Unifont 18.0.01 的 Unicode T 源中文 OpenType 版本（unifont_t，汉字用台湾来源的字形，name 表 Version 18.0.01），sha256 f8bb29657956eeb7e395332c545d7329ae9e2aae0b241eda7361888cd7b74000，5,240,260 字节，未做任何修改；按 OFL-1.1 分发，许可全文 resources/fonts/unifont/OFL.txt 同包附带。文字的 embedded:default / embedded:uniform 字体族用它（docs/decisions.md“内嵌 Unifont 与两种字体模式”）"
+    "note": "GNU Unifont 18.0.01 的标准版 OpenType 文件（name 表 Unifont / Version 18.0.01，汉字是 G 源即中国大陆来源的字形），sha256 88d0a14d4aa9a96419720b39ba5da921a59560d76d4ec7d523acc06ed85cd3c2，5,320,148 字节，未做任何修改；与 https://ftp.gnu.org/gnu/unifont/unifont-18.0.01/unifont-18.0.01.otf 逐字节相同。按 OFL-1.1 分发，许可全文 resources/fonts/unifont/OFL.txt 同包附带。文字的 embedded:default / embedded:uniform 字体族用它（docs/decisions.md“内嵌 Unifont 与两种字体模式”）"
   },
   {
     "path": "tests/fixtures/ui-baselines/*.png",

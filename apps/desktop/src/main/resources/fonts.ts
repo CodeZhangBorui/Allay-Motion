@@ -117,7 +117,7 @@ export class UnihexCache {
 // ---- 内嵌的 Unifont ----
 
 /** 随应用分发的 Unifont 在资源目录里的位置（打包后是 process.resourcesPath 下，开发时是仓库的 resources/ 下） */
-export const EMBEDDED_UNIFONT_FILE = ['fonts', 'unifont', 'unifont_t-18.0.01.otf'] as const;
+export const EMBEDDED_UNIFONT_FILE = ['fonts', 'unifont', 'unifont-18.0.01.otf'] as const;
 
 /** 内嵌 Unifont 的字形表：第一次调用时读文件、分块解析（约 1.5 秒），之后都给同一份；读不了时为 null 并记日志 */
 export class EmbeddedUnifont {

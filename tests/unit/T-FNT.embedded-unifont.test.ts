@@ -54,12 +54,12 @@ function fakeVanilla(withUnihex: boolean): FontPayload {
 }
 
 describe('T-FNT-5 内嵌 Unifont 的 OTF 还原成点阵', () => {
-  it('文件是 GNU Unifont 18.0.01（Unifont-T），sha256 与登记的一致', async () => {
+  it('文件是 GNU Unifont 18.0.01（标准版，汉字是 G 源字形），sha256 与登记的一致', async () => {
     const { createHash } = await import('node:crypto');
     const bytes = fontBytes();
-    expect(createHash('sha256').update(bytes).digest('hex')).toBe('f8bb29657956eeb7e395332c545d7329ae9e2aae0b241eda7361888cd7b74000');
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe('88d0a14d4aa9a96419720b39ba5da921a59560d76d4ec7d523acc06ed85cd3c2');
     const provenance = JSON.parse(readFileSync(join(ROOT, 'ASSETS_PROVENANCE.json'), 'utf8')) as { path: string; note?: string }[];
-    expect(provenance.find((e) => e.path === 'resources/fonts/unifont/unifont_t-18.0.01.otf')?.note).toContain('f8bb29657956eeb7e395332c545d7329ae9e2aae0b241eda7361888cd7b74000');
+    expect(provenance.find((e) => e.path === 'resources/fonts/unifont/unifont-18.0.01.otf')?.note).toContain('88d0a14d4aa9a96419720b39ba5da921a59560d76d4ec7d523acc06ed85cd3c2');
   });
 
   it('字形和 .hex 一样：8 或 16 列 × 16 行，“A”与 Unifont 的 .hex 逐位相同；全部基本多文种平面的字形都读得出来', () => {

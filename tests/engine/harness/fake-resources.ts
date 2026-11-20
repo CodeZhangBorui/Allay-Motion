@@ -3,7 +3,7 @@
 import { parseUnifontOtf, parseUnihex } from '../../../packages/assets/src/index';
 import { EMBEDDED_UNIFONT_RESOURCE_ID, type BitmapFontPayload, type ResourceKind, type ResourcePayload } from '../../../packages/template-sdk/src/index';
 // 内嵌的 GNU Unifont 就用仓库里那一份（它是 GNU 的字体，不是 Mojang 的文件）：和桌面版一样解析成字形表交给引擎
-import unifontUrl from '../../../resources/fonts/unifont/unifont_t-18.0.01.otf?url';
+import unifontUrl from '../../../resources/fonts/unifont/unifont-18.0.01.otf?url';
 
 export const FAKE_STAMP = 'test-fake-1';
 

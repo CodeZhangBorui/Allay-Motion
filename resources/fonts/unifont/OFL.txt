@@ -1,4 +1,4 @@
-GNU Unifont 18.0.01 (Unifont-T, unifont_t-18.0.01.otf)
+GNU Unifont 18.0.01 (unifont-18.0.01.otf)
 https://unifoundry.com/unifont/
 
 Copyright (C) 1998-2026 Roman Czyborra, Paul Hardy, Qianqian Fang, Andrew Miller,

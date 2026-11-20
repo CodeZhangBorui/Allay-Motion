@@ -23,7 +23,7 @@ extraResources:
   - from: ../../resources/fonts
     to: fonts
     filter:
-      - unifont/unifont_t-18.0.01.otf
+      - unifont/unifont-18.0.01.otf
       - unifont/OFL.txt
   # 内置模板包（pnpm templates:build 的产物，docs/04-templates.md 4.9）：应用把它当作只读的模板来源
   - from: ../../resources/templates
