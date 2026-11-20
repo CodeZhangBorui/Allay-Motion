@@ -1,4 +1,4 @@
-// 动画工作区的类型化命令（docs/code-editing-and-mcp-plan.md H2；docs/animation-editor.md 第 6 节）。
+// 动画工作区的类型化命令（docs/code-editing-and-mcp-plan.md H2；docs/animation-editor.md 第 7 节）。
 // 界面按钮、命令面板、将来内置的 agent 或 MCP 调的是同一套命令：入参、返回值都有 zod schema，write 命令进撤销历史。
 // 这里不做 MCP（H-MCP 未批准），只把命令层准备好。
 import { AppWindow, ArrowSquareOut, ArrowsClockwise, Code, FilmSlate, Plus, Stack, TreeStructure } from '@phosphor-icons/react';
@@ -354,7 +354,7 @@ export async function updateOriginTemplate(): Promise<boolean> {
   return true;
 }
 
-/** 手动转为模板（docs/animation-editor.md 第 7 节）：主进程生成一个标准的用户模板目录，模板库里就有了 */
+/** 手动转为模板（docs/animation-editor.md 5.3）：主进程生成一个标准的用户模板目录，模板库里就有了 */
 export async function convertToTemplate(): Promise<{ id: string; version: string } | null> {
   const cur = currentAnimation();
   if (!cur || cur.issues.length > 0) return null;

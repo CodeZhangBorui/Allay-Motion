@@ -1,4 +1,4 @@
-// 动画工作区（docs/animation-editor.md 第 5 节）：当前模板是自建动画时，主界面换成编辑动画的布局——
+// 动画工作区（docs/animation-editor.md 第 6 节）：当前模板是自建动画时，主界面换成编辑动画的布局——
 // 左栏多“图层”、右栏多“动画”（属性与关键帧）、时间轴换成图层与关键帧的时间轴（AnimTimeline）、可选的“动画代码”停靠面板。
 // 全部经界面注册表挂上，退出动画（选了别的模板）就撤掉。预览区不变：画面由引擎按生成的模板代码渲染。
 import { useProjectStore } from '../../stores/projectStore';

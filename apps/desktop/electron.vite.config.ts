@@ -35,7 +35,7 @@ export default defineConfig({
       outDir: 'out/renderer',
       // CSP 的 font-src 只允许 'self'，不要把字体等资源内联成 data: URI
       assetsInlineLimit: 0,
-      // 代码窗口（docs/animation-editor.md 第 9 节）是第二个页面，同一份 CSP、同一个 app:// 协议
+      // 代码窗口（docs/animation-editor.md 6.11）是第二个页面，同一份 CSP、同一个 app:// 协议
       rollupOptions: { input: { index: resolve(import.meta.dirname, 'src/renderer/index.html'), code: resolve(import.meta.dirname, 'src/renderer/code.html') } },
     },
     server: { port: 5173, strictPort: true, host: 'localhost' },

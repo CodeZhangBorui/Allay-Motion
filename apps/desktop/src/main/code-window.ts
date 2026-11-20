@@ -1,4 +1,4 @@
-// 代码窗口（docs/animation-editor.md 第 9 节）：动画文档的代码单独开一个窗口，和主窗口实时双向同步。
+// 代码窗口（docs/animation-editor.md 6.11）：动画文档的代码单独开一个窗口，和主窗口实时双向同步。
 // 安全设置与主窗口完全相同（1.6）：同一份 webPreferences（window.ts 的 secureWebPreferences）、同一个 preload、
 // app:// 页面与同一份 CSP（app-protocol.ts 对所有页面一样）、导航和新窗口拦截（security.ts 对所有 webContents 生效）。
 // IPC 来源校验多认一个窗口：只认这里创建的那一个（按 webContents id 登记，关闭时注销），只放行一个通道

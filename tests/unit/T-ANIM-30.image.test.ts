@@ -1,4 +1,4 @@
-// T-ANIM-30：图片图层（docs/animation-editor.md 10.13）——按贴图 ID 取贴图、建精灵、设宽高；九宫格边框和像素大小传给精灵；
+// T-ANIM-30：图片图层（docs/animation-editor.md 4.7）——按贴图 ID 取贴图、建精灵、设宽高；九宫格边框和像素大小传给精灵；
 // 没选图片时不画；可以绑定到贴图参数（参数值换图片）；转为模板时贴图参数允许选本机图片（allowFile）。
 // 本机图片在工程文件里的保存、转为模板时的复制见 project-service.test.ts 和 template-dev.test.ts 的 T-ANIM-30。
 import { describe, expect, it } from 'vitest';

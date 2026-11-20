@@ -236,7 +236,7 @@ const harness = {
   },
 
   /**
-   * 文字缓存（docs/animation-editor.md 第 9 项）：同一个 Worker 里装载文字场景、渲染，再用同样的参数 setParams（命中缓存）、
+   * 文字缓存（docs/animation-editor.md 第 8 节）：同一个 Worker 里装载文字场景、渲染，再用同样的参数 setParams（命中缓存）、
    * 换一段文字再换回来，各渲染一帧。返回每次的整帧哈希和 warnings
    */
   async textCache(text: string, other: string, output: OutputSettings) {
@@ -262,7 +262,7 @@ const harness = {
   },
 
   /**
-   * 逐字动画的排版（docs/animation-editor.md 10.14，第三轮补）：同一段文字整段画一次、逐字（不错开、没有动画）画一次，
+   * 逐字动画的排版（docs/animation-editor.md 3.8，第三轮补）：同一段文字整段画一次、逐字（不错开、没有动画）画一次，
    * 比较两帧：不一样的像素数、有墨迹的像素数。用测试字体（位图字体，和 unihex 的中文字形）
    */
   async charsLayout(text: string, align: 'left' | 'center' | 'right', output: OutputSettings) {

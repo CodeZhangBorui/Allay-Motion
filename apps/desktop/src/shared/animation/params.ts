@@ -1,4 +1,4 @@
-// 暴露为参数与音效轨的文档操作（docs/animation-editor.md 10.1、10.2）。纯函数，界面和类型化命令共用。
+// 暴露为参数与音效轨的文档操作（docs/animation-editor.md 3.4、3.5）。纯函数，界面和类型化命令共用。
 // 绑定的目标按“图层 id + 字段”寻址（不是数组下标）：图层排序、增删后照样指得对。
 import { z } from 'zod';
 import { keyIndexAt, setValueAt } from './edit';

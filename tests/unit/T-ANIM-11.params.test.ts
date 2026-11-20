@@ -1,4 +1,4 @@
-// 第三轮（docs/animation-editor.md 第 10 节）：
+// 第三轮（docs/animation-editor.md 3.4）：
 // T-ANIM-11 格式第 2 版：第 1 版的文档迁移、绑定的校验、编辑器里的求值与 Worker 里的求值一致（resolve.ts ↔ runtime.template.js）；
 // T-ANIM-12 暴露为参数：新建、绑定、解除、删参数，生成的 manifest 带参数，转成模板后改参数画面跟着变；
 // T-ANIM-13 音效轨：id、改动、速率与空间位置进 ctx.audio.cue。

@@ -1,4 +1,4 @@
-// T-ANIM-41：透视相机、带 z 的图层时预览里选择框的位置（docs/animation-editor.md 10.9，第三轮补）——
+// T-ANIM-41：透视相机、带 z 的图层时预览里选择框的位置（docs/animation-editor.md 6.10，第三轮补）——
 // 编辑器算出的画面位置与 three.js 用引擎同样的相机（createStageCamera 的规则）投影 Worker 里的世界位置一致；
 // 子图层的 z 沿父级累加；正交相机时 z 不影响位置；框随深度缩放；点选按缩放后的框。
 import { describe, expect, it } from 'vitest';

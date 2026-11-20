@@ -1,4 +1,4 @@
-// T-ANIM-24：预览里直接变换图层的平面几何（docs/animation-editor.md 10.9）——框跟着父级、点选取最前面的、
+// T-ANIM-24：预览里直接变换图层的平面几何（docs/animation-editor.md 6.10）——框跟着父级、点选取最前面的、
 // 隐藏和锁定的不被点中、吸附到中线和别的图层；在当前时刻写回 x、y、scale、rotZ（有关键帧的自动落关键帧、绑定的改参数）。
 import { describe, expect, it } from 'vitest';
 import { setPropValues } from '../../apps/desktop/src/shared/animation/params';

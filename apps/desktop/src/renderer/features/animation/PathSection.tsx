@@ -1,4 +1,4 @@
-// 检查器里的“路径”一组（docs/animation-editor.md 10.11）：打开时给一条缓弧，并让 progress 在整段里从 0 走到 1；
+// 检查器里的“路径”一组（docs/animation-editor.md 3.7）：打开时给一条缓弧，并让 progress 在整段里从 0 走到 1；
 // 首尾相接、自动朝向；加点、删点。点和手柄在预览里拖（StageOverlay）。改动都经 animSetPath 命令。
 import { Button } from '@allay/ui/components/button';
 import { Switch } from '@allay/ui/components/switch';

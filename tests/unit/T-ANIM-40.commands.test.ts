@@ -1,4 +1,4 @@
-// T-ANIM-40：第三轮新功能的类型化命令（docs/animation-editor.md 第 12 项）——检查器里的修改都有命令（图层字段、某一刻的属性值、
+// T-ANIM-40：第三轮新功能的类型化命令（docs/animation-editor.md 第 7 节）——检查器里的修改都有命令（图层字段、某一刻的属性值、
 // 整段设置），经注册表执行、校验输入、不合法的文档整条拒绝；新功能的命令都注册了；代码窗口的实时标记覆盖复制器、路径和逐字动画。
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { initI18n } from '../../apps/desktop/src/renderer/i18n';

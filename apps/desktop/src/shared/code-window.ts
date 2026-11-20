@@ -1,4 +1,4 @@
-// 代码窗口与外部编辑器（docs/animation-editor.md 第 9 节；docs/decisions.md“动画编辑器的第二轮反馈”）。
+// 代码窗口与外部编辑器（docs/animation-editor.md 6.11；docs/decisions.md“动画编辑器的第二轮反馈”）。
 // 代码窗口是第二个 BrowserWindow，和主窗口用同一份安全设置（1.6）；两个窗口之间不直接通信，
 // 消息都经主进程转发，两端各按这里的 schema 校验。动画文档的唯一主人仍是主窗口的工程状态：
 // 代码窗口只显示文本、交回编辑（经主窗口的命令层，进同一份撤销历史）。

@@ -1,4 +1,4 @@
-// 代码窗口的页面（docs/animation-editor.md 第 9 节）：动画文档的代码，和主窗口实时双向同步。
+// 代码窗口的页面（docs/animation-editor.md 6.11）：动画文档的代码，和主窗口实时双向同步。
 // 这个页面很小：不启动引擎、不注册核心功能。编辑器来自可选模块（经宿主接口 ui.registerCodeView 注册代码视图），
 // 主程序不认识具体的模块——按目录发现、按设置的开关表加载，和主窗口同一个发现函数。
 // 两个窗口之间的消息都经主进程转发：收 codeWindow.onDown，发 codeWindow.send（主进程只收这个页面的这一个通道和 app.info）。

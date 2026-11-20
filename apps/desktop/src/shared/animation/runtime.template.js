@@ -319,7 +319,7 @@ async function createAnimation(ctx, source) {
     return list;
   }
 
-  // ---- 形状（第三轮）：圆角矩形、椭圆、线段；纯色或渐变填充、描边；混合方式（docs/animation-editor.md 10.12）----
+  // ---- 形状（第三轮）：圆角矩形、椭圆、线段；纯色或渐变填充、描边；混合方式（docs/animation-editor.md 4.6）----
   function boxPath(path, w, h, r) {
     const x = -w / 2;
     const y = -h / 2;

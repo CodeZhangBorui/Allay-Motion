@@ -1,4 +1,4 @@
-// T-ANIM-34：时间轴的缩放和滚动（docs/animation-editor.md 第 11 项）——以指针处为中心缩放、放大的上限、缩小回整段、
+// T-ANIM-34：时间轴的缩放和滚动（docs/animation-editor.md 6.7）——以指针处为中心缩放、放大的上限、缩小回整段、
 // 平移到头就停、播放头跑出去时翻页、时刻到位置的换算；标记点和工作区。
 import { describe, expect, it } from 'vitest';
 import { addMarker, adjacentTime, moveMarker, removeMarker, renameMarker, setWorkArea } from '../../apps/desktop/src/shared/animation/markers';

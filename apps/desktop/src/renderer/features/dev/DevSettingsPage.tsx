@@ -16,7 +16,7 @@ export function setAvailableModules(ids: readonly string[]): void {
   availableModules = ids;
 }
 
-/** 打开动画代码用什么（docs/animation-editor.md 9.4）：程序只由主进程的对话框选，这里只看到文件名 */
+/** 打开动画代码用什么（docs/animation-editor.md 6.12）：程序只由主进程的对话框选，这里只看到文件名 */
 function CodeEditorChoice() {
   const { t } = useTranslation();
   const [info, setInfo] = useState<EditorInfo | null>(null);

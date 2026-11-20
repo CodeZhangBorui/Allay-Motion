@@ -66,7 +66,7 @@ async function applyOpened(result: ProjectOpenResult): Promise<boolean> {
     return false;
   }
   const { data } = result;
-  // 自建动画（docs/animation-editor.md 3.3）：模板从工程里的文档生成，不去模板库里找
+  // 自建动画（docs/animation-editor.md 5.1）：模板从工程里的文档生成，不去模板库里找
   if (data.animation) {
     useProjectStore.getState().reset({ template: sourceFromDoc(data.template, data.animation), params: {}, output: data.output, exportSettings: data.export, name: result.name, handle: result.handle, locale: i18next.language });
     clearHistory();

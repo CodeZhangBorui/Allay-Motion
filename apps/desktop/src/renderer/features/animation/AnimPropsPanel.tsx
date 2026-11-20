@@ -1,4 +1,4 @@
-// 右栏的“动画”标签页（docs/animation-editor.md 5.2、10.1、10.2）。
+// 右栏的“动画”标签页（docs/animation-editor.md 6.3、3.4、3.5）。
 // - 没选图层：整段动画的设置（名字、类别、时长、剪辑点、相机）、参数表、“转为模板”。
 // - 选了图层：内容（方块、物品、文字、字体、色块）和八个可动画属性；属性行左边的菱形是“在当前时刻加或删关键帧”，
 //   有关键帧的属性改数值时自动在当前时刻落一个关键帧（After Effects 的做法）。
@@ -417,7 +417,7 @@ function LayerContent({ doc, layer, resolvedLayer, duration }: { doc: AnimationD
   );
 }
 
-/** 逐字动画（docs/animation-editor.md 10.14）：开关、每个字晚多少秒、名次、种子。和复制器不能同时开 */
+/** 逐字动画（docs/animation-editor.md 3.8）：开关、每个字晚多少秒、名次、种子。和复制器不能同时开 */
 function CharsFields({ layer, set }: { layer: Extract<Layer, { type: 'text' }>; set(patch: Record<string, unknown>): void }) {
   const { t } = useTranslation();
   const c = layer.chars;
@@ -457,7 +457,7 @@ function CharsFields({ layer, set }: { layer: Extract<Layer, { type: 'text' }>; 
 type FieldName = 'block' | 'item' | 'text' | 'color' | 'font' | 'size' | 'width' | 'height' | 'radius' | 'image';
 
 /**
- * 图片图层（docs/animation-editor.md 10.13）：从资源栈选贴图（原版贴图、GUI 精灵），或导入本机图片；
+ * 图片图层（docs/animation-editor.md 4.7）：从资源栈选贴图（原版贴图、GUI 精灵），或导入本机图片；
  * 宽高；九宫格（GUI 面板、按钮拉伸时边框不变形）。
  */
 function ImageFields({
@@ -518,7 +518,7 @@ function ImageFields({
 }
 type ShapeLayer = Extract<Layer, { type: 'rect' | 'ellipse' | 'line' }>;
 
-/** 形状（矩形、椭圆、线段）的大小、圆角、填充（纯色或渐变）、描边、线端（docs/animation-editor.md 10.12） */
+/** 形状（矩形、椭圆、线段）的大小、圆角、填充（纯色或渐变）、描边、线端（docs/animation-editor.md 4.6） */
 function ShapeFields({
   layer,
   resolved: r,

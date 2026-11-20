@@ -1,4 +1,4 @@
-// T-ANIM-8：外部编辑器（docs/animation-editor.md 9.4）——文件写在应用自己的目录里、名字由键决定，
+// T-ANIM-8：外部编辑器（docs/animation-editor.md 6.12）——文件写在应用自己的目录里、名字由键决定，
 // 外部改了推回来、自己写的不回推，三种打开方式（指定程序时按参数数组启动）。
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

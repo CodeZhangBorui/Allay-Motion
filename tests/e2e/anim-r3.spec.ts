@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { launchApp, makeUserDataDir, removeUserDataDir, type Launched } from './helpers';
 
-// 动画编辑器第三轮（docs/animation-editor.md 第 10 节）的交互：暴露为参数、音效轨、多个关键帧、曲线视图。
+// 动画编辑器第三轮（docs/animation-editor.md 第 6 节）的交互：暴露为参数、音效轨、多个关键帧、曲线视图。
 // 判定看文档本身（animGet 的原文）和预览画面的哈希，不依赖固定的等待时间。窗口不显示、不抢焦点。
 
 let launched: Launched | null = null;

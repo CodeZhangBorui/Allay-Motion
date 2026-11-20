@@ -1,4 +1,4 @@
-// 把文档里绑定到参数的值换成参数的取值（docs/animation-editor.md 10.1）。
+// 把文档里绑定到参数的值换成参数的取值（docs/animation-editor.md 3.4）。
 // 编辑器里用参数的默认值求值（画曲线、显示当前值、实时预览）；Worker 里 runtime.template.js 的 resolveAnimation
 // 用 ctx.params 做同样的事。两份写法不同、规则相同，T-ANIM-11 核对两者的结果一致。
 //

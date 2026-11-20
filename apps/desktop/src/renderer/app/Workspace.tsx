@@ -35,7 +35,7 @@ export function Workspace() {
   const setPanel = useUiStore((s) => s.setPanel);
   // 主区里可停靠的额外面板（注册表的 dock 区域；核心功能目前没有）
   const docked = usePanels('dock');
-  // 当前模板是自建动画时，时间轴换成图层与关键帧的时间轴（docs/animation-editor.md 5.3）：
+  // 当前模板是自建动画时，时间轴换成图层与关键帧的时间轴（docs/animation-editor.md 6.4）：
   // 换的时候先淡出、高度平滑长到动画时间轴的高度，再淡入（workspaceMode.ts）
   const mode = useWorkspaceMode((s) => s.shown);
   const phase = useWorkspaceMode((s) => s.phase);

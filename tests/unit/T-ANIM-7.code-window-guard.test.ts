@@ -1,4 +1,4 @@
-// T-ANIM-7：代码窗口的 IPC 来源校验（docs/animation-editor.md 9.2；docs/01-product-architecture.md 1.6 第 5 条）——
+// T-ANIM-7：代码窗口的 IPC 来源校验（docs/animation-editor.md 6.11；docs/01-product-architecture.md 1.6 第 5 条）——
 // 只认应用登记的那个 webContents（不按 URL 放行），只放行 codeWindow:send 一个通道，主窗口不能冒充；消息按 schema 校验。
 import { describe, expect, it } from 'vitest';
 import { CODE_WINDOW_CHANNELS, checkSenderFor } from '../../apps/desktop/src/main/ipc-guard';

@@ -1,4 +1,4 @@
-// 撤销历史列表（docs/animation-editor.md 第 11 项）：时间轴标题行的一个按钮，点开是这次编辑的每一步（最新的在上面），
+// 撤销历史列表（docs/animation-editor.md 6.7）：时间轴标题行的一个按钮，点开是这次编辑的每一步（最新的在上面），
 // 点哪一步就回到那一步（连着撤销或重做，一步也不丢：之后还能重做回来）。每一步的名字就是撤销菜单里的那个名字。
 import { Button } from '@allay/ui/components/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@allay/ui/components/popover';

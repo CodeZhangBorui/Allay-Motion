@@ -6,7 +6,7 @@ import type { TemplateSource } from '../templates/catalog';
 import { DOC_PARAM } from '../../shared/animation/schema';
 
 /**
- * 自建动画的预览模板从隐藏参数 DOC_PARAM 读文档（docs/animation-editor.md 第 9 项）：参数值总是由 template.animation.doc 决定，
+ * 自建动画的预览模板从隐藏参数 DOC_PARAM 读文档（docs/animation-editor.md 第 8 节）：参数值总是由 template.animation.doc 决定，
  * 调用方传什么都以它为准，这样任何换模板、重置的地方都不会把文档弄丢
  */
 function withDoc(template: TemplateSource, params: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {

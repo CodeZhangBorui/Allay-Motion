@@ -1,4 +1,4 @@
-// 路径动画的几何（docs/animation-editor.md 10.11）：一条由点和贝塞尔手柄组成的路径，按“走过的长度的比例”取位置，
+// 路径动画的几何（docs/animation-editor.md 3.7）：一条由点和贝塞尔手柄组成的路径，按“走过的长度的比例”取位置，
 // 这样 progress 匀速变化时图层也匀速走（不按参数 t，参数 t 在弯的地方会忽快忽慢）。
 // 编辑器（预览里画路径、算框）用这里；Worker 里 runtime.template.js 有同样规则的一份（T-ANIM-28 核对两边一致）。
 import { z } from 'zod';

@@ -1,4 +1,4 @@
-// T-ANIM-34（撤销历史列表，docs/animation-editor.md 第 11 项）：每一步的名字是产生它的那次改动；跳到某一步是连着撤销 / 重做，
+// T-ANIM-34（撤销历史列表，docs/animation-editor.md 6.7）：每一步的名字是产生它的那次改动；跳到某一步是连着撤销 / 重做，
 // 跳回去之后还能重做回来；拖动中不动。
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { initI18n } from '../../apps/desktop/src/renderer/i18n';

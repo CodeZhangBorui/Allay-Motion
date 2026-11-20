@@ -1,4 +1,4 @@
-// 图层的类型化命令（docs/animation-editor.md 10.8）：隐藏 / 独显 / 锁定、重命名、复制、成组 / 解组、父级、排序、可见区间。
+// 图层的类型化命令（docs/animation-editor.md 4.3）：隐藏 / 独显 / 锁定、重命名、复制、成组 / 解组、父级、排序、可见区间。
 // 都只接受明确的图层 id；另有几条带快捷键的命令作用于当前选中的图层（复制 Ctrl+D、成组 Ctrl+G、解组 Ctrl+Shift+G）。
 import i18next from 'i18next';
 import { z } from 'zod';

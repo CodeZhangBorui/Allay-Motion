@@ -48,7 +48,7 @@ export const ProjectDataSchema = z.strictObject({
   /** 只是记一笔保存时启用了哪些层（1.9） */
   resourceHint: z.array(z.string().max(200)).max(64),
   /**
-   * 自建动画的文档（docs/animation-editor.md 3.3）。有它时工程的模板就是从它生成的，template 只是它的标识；
+   * 自建动画的文档（docs/animation-editor.md 5.1）。有它时工程的模板就是从它生成的，template 只是它的标识；
    * 没有它的是普通工程（旧工程都没有）
    */
   animation: AnimationDocSchema.optional(),

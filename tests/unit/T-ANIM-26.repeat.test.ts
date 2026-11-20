@@ -1,4 +1,4 @@
-// T-ANIM-26：复制器（docs/animation-editor.md 10.10）——网格、一条线、一圈的位置与朝向；按名次错开播放；
+// T-ANIM-26：复制器（docs/animation-editor.md 3.6）——网格、一条线、一圈的位置与朝向；按名次错开播放；
 // 同一个种子结果相同、换种子结果不同（确定性随机，硬性规则 2）；方块列表按“方块排列”放，与模板的排列规则一致。
 import { describe, expect, it } from 'vitest';
 import { arrangeCells } from '../../packages/templates/block-wipe/src/arrangement';

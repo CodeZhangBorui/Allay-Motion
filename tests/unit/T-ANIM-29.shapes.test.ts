@@ -1,4 +1,4 @@
-// T-ANIM-29：形状与混合方式（docs/animation-editor.md 10.12）——圆角矩形、椭圆、线段的轮廓；描边是画在里面的一圈；
+// T-ANIM-29：形状与混合方式（docs/animation-editor.md 4.6）——圆角矩形、椭圆、线段的轮廓；描边是画在里面的一圈；
 // 线性、径向渐变的颜色按外框分布；混合方式改的是预乘 alpha 下的混合因子；方块和组不能设混合方式，线段没有描边。
 import { describe, expect, it } from 'vitest';
 import { AnimationDocSchema, newAnimationDoc, type AnimationDoc } from '../../apps/desktop/src/shared/animation/schema';

@@ -1,4 +1,4 @@
-// 图层的文档操作（docs/animation-editor.md 10.8）：层级、成组、复制、排序、可见区间、隐藏 / 独显 / 锁定。
+// 图层的文档操作（docs/animation-editor.md 4.3）：层级、成组、复制、排序、可见区间、隐藏 / 独显 / 锁定。
 // 纯函数，界面和类型化命令共用。doc.layers 的顺序就是画的顺序（后面的画在前面）；层级只由 parent 表示。
 import { ANIM_PROPS, PROP_DEFAULTS, type AnimationDoc, type Layer } from './schema';
 

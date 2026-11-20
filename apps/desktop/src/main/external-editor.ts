@@ -1,4 +1,4 @@
-// 用外部编辑器打开动画文档（docs/animation-editor.md 9.4；docs/decisions.md“动画编辑器的第二轮反馈”）。
+// 用外部编辑器打开动画文档（docs/animation-editor.md 6.12；docs/decisions.md“动画编辑器的第二轮反馈”）。
 //
 // - 动画文档平时只在工程里。用户点“在外部编辑器中打开”时，主进程把它写成 userData/animations/<键>.json
 //   （应用自己的数据目录，路径由主进程按键决定，渲染进程碰不到路径），然后打开它：

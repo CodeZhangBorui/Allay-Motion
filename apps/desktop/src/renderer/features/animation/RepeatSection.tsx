@@ -1,4 +1,4 @@
-// 检查器里的“复制器”一组（docs/animation-editor.md 10.10）：开关、方式（网格 / 一条线 / 一圈）、份数和间距、错开与名次、种子、
+// 检查器里的“复制器”一组（docs/animation-editor.md 3.6）：开关、方式（网格 / 一条线 / 一圈）、份数和间距、错开与名次、种子、
 // 随机抖动；方块图层还有方块列表和方块排列（同方块擦除模板的“方块排列”）。改动都经 animSetRepeat 命令。
 import { Switch } from '@allay/ui/components/switch';
 import { BlockListField, BooleanField, EnumField, ParamGroup, ScrubNumberField, SeedField } from '@allay/ui/editor';

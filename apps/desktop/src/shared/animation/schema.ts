@@ -14,7 +14,7 @@ export const ANIMATION_KIND = 'allay-animation';
 export const ANIMATION_FORMAT_VERSION = 2;
 export const MAX_PARAMS = 32;
 /**
- * 编辑时的预览模板把文档放在这个隐藏的参数里（docs/animation-editor.md 第 9 项）：改文档只是改参数值，
+ * 编辑时的预览模板把文档放在这个隐藏的参数里（docs/animation-editor.md 第 8 节）：改文档只是改参数值，
  * 预览走 setParams 快速路径，不重新装载代码。动画自己的参数不能用这个键
  */
 export const DOC_PARAM = 'animationSource';
@@ -143,7 +143,7 @@ export const GradientSchema = z.strictObject({ type: z.enum(['linear', 'radial']
 export type Gradient = z.infer<typeof GradientSchema>;
 /** 描边：画在形状里面（不改变外框），width 是设计单位 */
 export const StrokeSchema = z.strictObject({ color: hex, width: finite.min(0.5).max(400) });
-/** 混合方式：在线性、预乘 alpha 的画面上算（docs/animation-editor.md 10.12）。方块和组没有 */
+/** 混合方式：在线性、预乘 alpha 的画面上算（docs/animation-editor.md 4.6）。方块和组没有 */
 export const BLEND_MODES = ['normal', 'add', 'multiply', 'screen'] as const;
 const blend = z.enum(BLEND_MODES).optional();
 const shapeFill = { color: bindable(hex).default('#3CB7F4'), gradient: GradientSchema.optional(), stroke: StrokeSchema.optional() };

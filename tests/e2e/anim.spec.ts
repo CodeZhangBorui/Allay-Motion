@@ -144,7 +144,7 @@ test('T-ANIM-4 转为模板：模板库里出现一个普通的用户模板，�
   expect(await hash(page, 0.6)).toBe(h);
 });
 
-// ---- 第二轮反馈：界面变形、代码窗口、实时预览（docs/animation-editor.md 第 9 节）----
+// ---- 第二轮反馈：界面变形、代码窗口、实时预览（docs/animation-editor.md 6.11）----
 
 test('T-ANIM-9 进入动画编辑器时界面原地变形：模板库、预设、模板参数收起，图层、检查器、关键帧时间轴出现；退出时变回去', async () => {
   dir = makeUserDataDir();

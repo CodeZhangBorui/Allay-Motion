@@ -1,4 +1,4 @@
-// 第三轮第二批（docs/animation-editor.md 10.8）：
+// 第三轮第二批（docs/animation-editor.md 4.3）：
 // T-ANIM-21 图层的文档操作：显示顺序（树）、复制（连同子孙）、成组与解组、父级（不成环）、删除时子图层改挂、排序、可见区间、开关；
 // T-ANIM-22 Worker 里的层级：子图层接在父级的变换后面、大小不传给子图层、不透明度相乘、父级隐藏时子图层也隐藏、独显。
 import { describe, expect, it } from 'vitest';

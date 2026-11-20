@@ -1,4 +1,4 @@
-// T-ANIM-28：路径动画（docs/animation-editor.md 10.11）——编辑器的 path.ts 与 Worker 里的运行时算出同样的位置和朝向；
+// T-ANIM-28：路径动画（docs/animation-editor.md 3.7）——编辑器的 path.ts 与 Worker 里的运行时算出同样的位置和朝向；
 // progress 匀速时沿路径按长度匀速走；自动朝向把切线方向加到 rotZ；x、y 是相对路径的偏移；预览里的框（stage-geometry）跟着走。
 import { describe, expect, it } from 'vitest';
 import { pathAt, pathTable, type AnimPath } from '../../apps/desktop/src/shared/animation/path';

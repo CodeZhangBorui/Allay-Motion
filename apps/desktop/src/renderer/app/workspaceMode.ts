@@ -1,4 +1,4 @@
-// 工作区的模式（docs/animation-editor.md 9.1；docs/06-ui-design.md 6.15）：做模板（template）还是做动画（animation）。
+// 工作区的模式（docs/animation-editor.md 6.1；docs/06-ui-design.md 6.15）：做模板（template）还是做动画（animation）。
 // 进入动画编辑器时界面不跳到另一页，而是在原地逐步变成专业软件的布局：
 //   1. 只服务模板的东西（模板库、预设、模板参数）淡出（out，120 ms）；
 //   2. 换成动画的东西（图层、检查器、关键帧时间轴），时间轴同时长高；

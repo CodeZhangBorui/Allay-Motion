@@ -228,7 +228,7 @@ export class ProjectService {
         ...(data.audio ? { audio: data.audio } : {}),
         files,
         resourceHint: data.resourceHint,
-        // 自建动画（docs/animation-editor.md 3.3）：旧工程没有这一项
+        // 自建动画（docs/animation-editor.md 5.1）：旧工程没有这一项
         ...(animation ? { animation } : {}),
         ...(Object.keys(animationFiles).length > 0 ? { animationFiles } : {}),
       };

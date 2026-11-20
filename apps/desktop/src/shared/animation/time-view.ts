@@ -1,4 +1,4 @@
-// 时间轴的可见范围（docs/animation-editor.md 第 11 项）：缩放和滚动。null 表示整段（不缩放）。
+// 时间轴的可见范围（docs/animation-editor.md 6.7）：缩放和滚动。null 表示整段（不缩放）。
 // 关键帧视图和曲线视图共用同一个范围；纯函数，界面只管把滚轮、按钮换成这里的调用。
 
 export interface TimeView {

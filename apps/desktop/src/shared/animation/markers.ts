@@ -1,4 +1,4 @@
-// 时间轴的标记点和工作区范围（docs/animation-editor.md 第 11 项）。都只是编辑用的：存在文档里（跟着工程、撤销、代码视图），
+// 时间轴的标记点和工作区范围（docs/animation-editor.md 6.7）。都只是编辑用的：存在文档里（跟着工程、撤销、代码视图），
 // 画面不用它们（Worker 里的运行时不读）。标记是吸附点、可以跳过去；工作区是预览循环播放的范围。纯函数。
 import type { AnimationDoc } from './schema';
 

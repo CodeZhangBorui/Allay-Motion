@@ -1,4 +1,4 @@
-// T-ANIM-31：逐字动画（docs/animation-editor.md 10.14）——每个字一份（空格不画），摆在它在整段里的位置；
+// T-ANIM-31：逐字动画（docs/animation-editor.md 3.8）——每个字一份（空格不画），摆在它在整段里的位置；
 // 按名次晚 stagger 秒播放图层自己的动画；随机名次只取决于种子；不能和复制器同时用。
 // 测试里的假文字每个字 6 个字体像素宽，没有间隔，所以位置可以手算。
 import { describe, expect, it } from 'vitest';

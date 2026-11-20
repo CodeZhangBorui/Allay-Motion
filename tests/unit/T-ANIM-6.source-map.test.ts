@@ -1,4 +1,4 @@
-// T-ANIM-6：实时预览的“代码 ↔ 时刻”映射（docs/animation-editor.md 9.3）——某一时刻在生效的代码、点代码跳到的时刻，全部从文档结构推出来。
+// T-ANIM-6：实时预览的“代码 ↔ 时刻”映射（docs/animation-editor.md 6.11）——某一时刻在生效的代码、点代码跳到的时刻，全部从文档结构推出来。
 import { describe, expect, it } from 'vitest';
 import { liveMarks, locateJson, timeAtOffset } from '../../apps/desktop/src/shared/animation/source-map';
 import { AnimationDocSchema, newAnimationDoc, serializeAnimation } from '../../apps/desktop/src/shared/animation/schema';

@@ -1,4 +1,4 @@
-// 第三轮（docs/animation-editor.md 10.3、10.4）：
+// 第三轮（docs/animation-editor.md 6.5、6.6）：
 // T-ANIM-14 多个关键帧：整体挪动、缩放时间、对齐到播放头与帧、删除、复制粘贴（跨图层、跨属性）、吸附；
 // T-ANIM-15 曲线：预设缓动对应的贝塞尔控制点、改一段的控制点、速度曲线。
 import { describe, expect, it } from 'vitest';

@@ -1,4 +1,4 @@
-// T-ANIM-32（快速路径部分，docs/animation-editor.md 第 9 项）：编辑时的预览模板把文档放在隐藏参数里，
+// T-ANIM-32（快速路径部分，docs/animation-editor.md 第 8 节）：编辑时的预览模板把文档放在隐藏参数里，
 // 改文档（manifest 不变）只改参数值、不加 structureRevision（预览走 setParams）；改了名称、参数表这类会改 manifest 的才重新装载；
 // 撤销重做同样；保存的工程里不存这个参数；预览模板的代码与文档无关，从参数里读文档、画出来与转成模板的代码相同。
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
