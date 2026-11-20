@@ -274,6 +274,16 @@ const MALFORMED: Record<string, unknown[][]> = {
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],
   'cache.usage': [[1]],
+  // 文件夹（6.11）：只收 'project' | 'export'，从不收路径；合法的 choose 会弹对话框，这里只有畸形参数
+  'folders.get': [[1], ['x'], [null], [{}]],
+  'folders.choose': [[], [null], [42], ['C:\\Windows'], ['downloads'], [{ kind: 'project' }], ['project', 'extra']],
+  'folders.reset': [[], [null], [42], ['C:\\Windows'], ['downloads'], ['project', 'extra']],
+  // 自动更新：全部无参数；合法的 check/download 会联网、install 会重启，这里只发畸形参数
+  'updates.state': [[1], ['x'], [null]],
+  'updates.check': [[1], [true], ['force']],
+  'updates.download': [[1], [null], [{}]],
+  'updates.cancel': [[1], ['x']],
+  'updates.install': [[1], [{}]],
 };
 
 test('T-ARC-6 每个 IPC 方法都拒绝畸形参数，未授权的路径读不到，主进程不崩溃', async () => {
