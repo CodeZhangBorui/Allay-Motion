@@ -58,8 +58,11 @@ export interface Quads {
   hide(i: number): void;
   /** 颜色（#RRGGBB）和不透明度；贴图矩形是与贴图相乘 */
   color(i: number, hex: string, alpha?: number): void;
-  /** 贴图的一块；atlas 是图集的逻辑边长（默认 256） */
-  region(i: number, region: Region, atlas?: number): void;
+  /**
+   * 贴图的一块（[x, y, w, h]，见 Region）；atlas 是图集的逻辑边长（默认 256）。
+   * 参数写成 readonly number[]：打包后的 JS 没有类型标注，数组字面量在 checkJs 下推不成四元组。
+   */
+  region(i: number, region: readonly number[], atlas?: number): void;
   /** 贴图坐标（0–1，v 从上往下） */
   uv(i: number, u0: number, v0: number, u1: number, v1: number): void;
   /** 改完之后调用一次 */
@@ -129,7 +132,8 @@ export function createGui(ctx: SetupContext, unit: number): Gui {
           scratch.set(hex);
           for (let k = 0; k < 4; k++) col.set([scratch.r, scratch.g, scratch.b, alpha], i * 16 + k * 4);
         },
-        region(i, [x, y, w, h], atlas = 256) {
+        region(i, region, atlas = 256) {
+          const [x = 0, y = 0, w = 0, h = 0] = region;
           setUv(i, x / atlas, y / atlas, (x + w) / atlas, (y + h) / atlas);
         },
         uv: setUv,
