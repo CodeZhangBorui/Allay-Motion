@@ -776,7 +776,7 @@ export class Sculpture {
     if (this.disposed) return;
     this.t0 ||= f.now;
     const t = f.still ? 0 : (f.now - this.t0) / 1000;
-    const dt = Math.min(0.1, f.dt);
+    const dt = f.dt;
     const u = this.mat.uniforms;
     // 没有原版悦灵贴图时拼不出体素悦灵（不拿近似的颜色凑），首屏散成细尘
     const target = f.target === 'allay' && !this.hasAllay ? FORM_INDEX.rest : FORM_INDEX[f.target];

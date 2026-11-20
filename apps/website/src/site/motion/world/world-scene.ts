@@ -1035,7 +1035,7 @@ export class World {
     this.t0 ||= f.now;
     const ms = f.still ? 1e6 : f.now - this.t0;
     const t = ms / 1000;
-    const dt = f.still ? 1 : f.dt;
+    const dt = f.still ? 1 : Math.min(0.1, f.dt);
     this.now = f.now;
 
     // 相机：机位由滚动决定，位置用弹簧追过去（第一帧、减少动效时直接到位）
@@ -1061,8 +1061,8 @@ export class World {
         this.camVel.set(0, 0, 0);
         this.lookVel.set(0, 0, 0);
       }
-      springVec(this.camPos, this.camVel, target, 4.4, dt);
-      springVec(this.lookPos, this.lookVel, look, 4.4, dt);
+      springVec(this.camPos, this.camVel, target, 4.4, f.dt);
+      springVec(this.lookPos, this.lookVel, look, 4.4, f.dt);
       if (this.camPos.distanceTo(target) < 0.12 && this.camVel.length() < 0.2) {
         this.camPos.copy(target);
         this.lookPos.copy(look);

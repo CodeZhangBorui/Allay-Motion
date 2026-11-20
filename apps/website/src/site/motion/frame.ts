@@ -7,7 +7,7 @@
 
 export interface FrameState {
   now: number;
-  /** 距上一帧的秒数（最多 0.1） */
+  /** 距上一帧的实际秒数；数值积分在使用处限制步长 */
   dt: number;
   /** 页面滚动位置（CSS 像素） */
   y: number;
@@ -27,7 +27,7 @@ const state: FrameState = { now: 0, dt: 0, y: 0, vw: 1, vh: 1, pointer: null };
 
 function loop(now: number): void {
   handle = 0;
-  state.dt = last ? Math.min(0.1, Math.max(0, (now - last) / 1000)) : 0;
+  state.dt = last ? Math.max(0, (now - last) / 1000) : 0;
   last = now;
   state.now = now;
   state.y = window.scrollY;
