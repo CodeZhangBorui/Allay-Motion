@@ -71,7 +71,8 @@ export function StageOverlay() {
   const primary = useAnimationUi((s) => s.layer);
   const [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const resolved = useMemo(() => (doc ? resolveDoc(doc) : null), [doc]);
-  const frames = useMemo(() => (resolved ? layerFrames(resolved, time, easeEval) : []), [resolved, time]);
+  const stageH = stageSize(output).height;
+  const frames = useMemo(() => (resolved ? layerFrames(resolved, time, easeEval, stageH) : []), [resolved, time, stageH]);
   if (!doc || !resolved || !box) return <div ref={hostRef} className="hidden" />;
   const stage = stageSize(output);
   const k = box.width / stage.width;
@@ -79,7 +80,8 @@ export function StageOverlay() {
   const toStageIn = (r: DOMRect, clientX: number, clientY: number) => ({ x: (clientX - r.left) / k - stage.width / 2, y: stage.height / 2 - (clientY - r.top) / k });
   const toStage = (clientX: number, clientY: number) => toStageIn(hostRef.current!.getBoundingClientRect(), clientX, clientY);
   const frameOf = (id: string) => frames.find((f) => f.id === id);
-  const centerOf = (f: LayerFrame) => apply(f.world, 0, 0);
+  /** 图层中心在画面上的位置（透视时已按深度缩放） */
+  const centerOf = (f: LayerFrame) => apply(f.screen, 0, 0);
 
   /** 拖动：从按下时的那份文档重新算（一次手势、一步撤销） */
   const startDrag = (e: ReactPointerEvent, kind: 'move' | 'scale' | 'rotate', id: string) => {
@@ -119,7 +121,8 @@ export function StageOverlay() {
             target = { x: s.x, y: s.y };
             setGuides({ x: s.guideX, y: s.guideY });
           } else setGuides({ x: null, y: null });
-          const local = apply(invert(f.parent), target.x, target.y);
+          // 画面上的位置 ÷ 透视缩放 = 图层所在深度的平面上的位置
+          const local = apply(invert(f.parent), target.x / f.k, target.y / f.k);
           // 有路径时 x、y 是相对路径的偏移
           values = { x: round(local.x - f.onPath.x, 2), y: round(local.y - f.onPath.y, 2) };
         } else if (kind === 'scale') {
@@ -157,7 +160,7 @@ export function StageOverlay() {
     // 舞台坐标 → 路径坐标（父级坐标减去 x、y 偏移）
     const toPath = (cx: number, cy: number) => {
       const s = toStageIn(rect0, cx, cy);
-      const l = apply(inv, s.x, s.y);
+      const l = apply(inv, s.x / f.k, s.y / f.k);
       return { x: l.x - f.offset.x, y: l.y - f.offset.y };
     };
     const start = toPath(e.clientX, e.clientY);
@@ -222,7 +225,10 @@ export function StageOverlay() {
   // 主选中图层的路径（没锁定、可见时）
   const pathLayer = primaryFrame && !primaryFrame.locked ? doc.layers[primaryFrame.index] : undefined;
   const path = pathLayer?.path;
-  const pathToScreen = (x: number, y: number) => toScreen(apply(primaryFrame!.parent, x + primaryFrame!.offset.x, y + primaryFrame!.offset.y));
+  const pathToScreen = (x: number, y: number) => {
+    const p = apply(primaryFrame!.parent, x + primaryFrame!.offset.x, y + primaryFrame!.offset.y);
+    return toScreen({ x: p.x * primaryFrame!.k, y: p.y * primaryFrame!.k });
+  };
 
   return (
     <div

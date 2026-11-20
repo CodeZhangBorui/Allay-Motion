@@ -712,3 +712,43 @@ test('T-ANIM-39 时间轴的右键菜单：刻度上加标记和设工作区，�
   await page.getByTestId('anim-menu-remove-marker').click();
   await expect.poll(async () => (await d()).markers).toBeUndefined();
 });
+
+test('T-ANIM-41 透视相机、带 z 的图层：点它在画面上的位置能选中，拖动时框跟着指针', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  const text = ((await dispatch(page, 'animGet')) as { text: string }).text;
+  const d = JSON.parse(text) as Record<string, unknown>;
+  d.camera = { type: 'perspective', fov: 30 };
+  d.layers = [{ id: 'near', name: 'Near', type: 'rect', width: 160, height: 160, color: '#3CB7F4', props: { x: 300, y: 100, z: 400 } }];
+  expect(((await dispatch(page, 'animSetText', { text: JSON.stringify(d, null, 2) })) as { ok: boolean }).ok).toBe(true);
+  await ready(page);
+  const ob = (await page.getByTestId('anim-stage-overlay').boundingBox())!;
+  // z = 400、fov 30 时 k = D / (D − 400)
+  const D = 540 / Math.tan((30 * Math.PI) / 360);
+  const k = D / (D - 400);
+  // 舞台短边 1080，宽按画框的比例
+  const SW = (1080 * ob.width) / ob.height;
+  const toPx = (x: number, y: number) => ({ x: ob.x + ((x + SW / 2) / SW) * ob.width, y: ob.y + ((540 - y) / 1080) * ob.height });
+  const c = toPx(300 * k, 100 * k);
+  await page.mouse.click(c.x, c.y);
+  const outline = page.locator('[data-testid="anim-stage-outline"][data-layer="near"]');
+  await expect(outline).toBeVisible();
+  const box = (await outline.boundingBox())!;
+  // 框的中心就在投影的位置，大小是 160 × k
+  expect(Math.abs(box.x + box.width / 2 - c.x)).toBeLessThan(3);
+  // 宽度按多边形的顶点量（元素的外框含描边）
+  const xs = ((await outline.getAttribute('points')) ?? '').split(' ').map((p) => Number(p.split(',')[0]));
+  expect(Math.abs(Math.max(...xs) - Math.min(...xs) - (160 * k * ob.width) / SW)).toBeLessThan(1);
+  expect(Math.abs(box.y + box.height / 2 - c.y)).toBeLessThan(3);
+  // 拖动 60 像素：框的中心跟着指针走 60 像素
+  await page.mouse.move(c.x, c.y);
+  await page.mouse.down();
+  await page.mouse.move(c.x + 60, c.y, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => {
+    const b = (await outline.boundingBox())!;
+    return Math.round(b.x + b.width / 2 - c.x);
+  }).toBeGreaterThan(55);
+});

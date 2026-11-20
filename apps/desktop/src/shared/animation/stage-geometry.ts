@@ -2,7 +2,8 @@
 // 每个图层在舞台平面上的位置、旋转、缩放（沿父级相乘），以及它在自己坐标里的半宽半高。
 // 坐标是舞台的设计单位（原点在中心、+y 向上），与 ctx.stage 和动画文档一致。
 //
-// 这是一个平面近似：只取 x、y、rotZ、scale 组成平面变换；z 和透视不算（透视相机下框会偏），
+// 这是一个平面近似：只取 x、y、rotZ、scale 组成平面变换；透视相机下按图层原点的深度整体缩放（D / (D − z)，第三轮），
+// 图层自己的厚度和 rotX / rotY 造成的透视变形不算，
 // rotX / rotY 只用来算方块、物品在画面上投影出来的外框。文字的宽高按字数估（一个字 6 个字体像素宽、9 个高），
 // 与引擎排出来的会有出入。这些都写进 10.9。
 import type { EaseEval } from './edit';
@@ -60,6 +61,15 @@ export interface LayerFrame {
   offset: { x: number; y: number };
   /** 路径在这一刻贡献的位置和朝向（没有路径时是 0）：预览里移动、旋转时要先减掉 */
   onPath: { x: number; y: number; angle: number };
+  /** 图层原点在世界里的 z（沿父级累加，乘父级的缩放） */
+  z: number;
+  /**
+   * 透视的缩放（第三轮）：透视相机下，深度 z 处的平面在画面上按 D / (D − z) 以画面中心缩放（D 是相机到 z = 0 平面的距离，
+   * 同引擎的 createStageCamera）；正交相机时是 1。画面上的位置 = k × 平面上的位置
+   */
+  k: number;
+  /** 画面上的变换 = 缩放 k · world（框、点选、手柄用它） */
+  screen: Affine;
 }
 
 /** 边长 1 的立方体按 rotX / rotY 转过之后（YXZ 顺序，同 Worker 里的 Euler）在画面上的半宽、半高 */
@@ -106,8 +116,16 @@ export function layerExtent(layer: ResolvedLayer, rotX: number, rotY: number): {
   }
 }
 
-/** 某一刻每个图层的平面框（按 doc.layers 的顺序） */
-export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval): LayerFrame[] {
+/** 透视相机到 z = 0 平面的距离（同引擎的 createStageCamera：z = 0 平面恰好填满舞台）；正交相机时 null */
+export function cameraDistance(doc: Pick<ResolvedDoc, 'camera'>, stageHeight: number): number | null {
+  if (doc.camera.type !== 'perspective') return null;
+  const f = Math.min(170, Math.max(1, doc.camera.fov));
+  return stageHeight / 2 / Math.tan((f * Math.PI) / 360);
+}
+
+/** 某一刻每个图层的平面框（按 doc.layers 的顺序）。stageHeight 是舞台的设计高度（透视相机时用来算相机距离） */
+export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval, stageHeight = 1080): LayerFrame[] {
+  const D = cameraDistance(doc, stageHeight);
   const byId = new Map(doc.layers.map((l, i) => [l.id, i]));
   const out: (LayerFrame | undefined)[] = new Array(doc.layers.length);
   const visit = (i: number, depth: number): LayerFrame => {
@@ -121,6 +139,10 @@ export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval): LayerF
     const on = l.path ? pathAt(l.path, pathTable(l.path), v('progress')) : null;
     const world = multiply(parentFrame ? parentFrame.world : IDENTITY, trs(v('x') + (on?.x ?? 0), v('y') + (on?.y ?? 0), v('rotZ') + (on && l.path?.orient ? on.angle : 0), v('scale')));
     const { hw, hh } = layerExtent(l, v('rotX'), v('rotY'));
+    const parentScale = parentFrame ? Math.hypot(parentFrame.world.a, parentFrame.world.b) : 1;
+    const z = (parentFrame ? parentFrame.z : 0) + parentScale * v('z');
+    // 透视：越近越大；到了相机后面（z ≥ D）就不画了，这里钳住免得除以零
+    const k = D === null ? 1 : D / Math.max(D * 0.02, D - z);
     const inside = t >= (l.from ?? 0) && t < (l.to ?? Infinity) && l.hidden !== true;
     const frame: LayerFrame = {
       id: l.id,
@@ -133,6 +155,9 @@ export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval): LayerF
       index: i,
       offset: { x: v('x'), y: v('y') },
       onPath: on ? { x: on.x, y: on.y, angle: l.path?.orient ? on.angle : 0 } : { x: 0, y: 0, angle: 0 },
+      z,
+      k,
+      screen: multiply({ a: k, b: 0, c: 0, d: k, e: 0, f: 0 }, world),
     };
     out[i] = frame;
     return frame;
@@ -144,10 +169,10 @@ export function layerFrames(doc: ResolvedDoc, t: number, ease: EaseEval): LayerF
 /** 一个框在舞台上的四个角（设计单位）：左上、右上、右下、左下 */
 export function corners(f: LayerFrame): { x: number; y: number }[] {
   return [
-    apply(f.world, -f.halfW, f.halfH),
-    apply(f.world, f.halfW, f.halfH),
-    apply(f.world, f.halfW, -f.halfH),
-    apply(f.world, -f.halfW, -f.halfH),
+    apply(f.screen, -f.halfW, f.halfH),
+    apply(f.screen, f.halfW, f.halfH),
+    apply(f.screen, f.halfW, -f.halfH),
+    apply(f.screen, -f.halfW, -f.halfH),
   ];
 }
 
@@ -156,7 +181,7 @@ export function hitTest(frames: readonly LayerFrame[], doc: ResolvedDoc, x: numb
   const sorted = [...frames].sort((p, q) => q.index - p.index);
   for (const f of sorted) {
     if (!f.visible || f.locked || doc.layers[f.index]!.type === 'group') continue;
-    const local = apply(invert(f.world), x, y);
+    const local = apply(invert(f.screen), x, y);
     if (Math.abs(local.x) <= f.halfW && Math.abs(local.y) <= f.halfH) return f.id;
   }
   return null;
