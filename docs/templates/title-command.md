@@ -22,7 +22,7 @@
 | `subtitle` | text | “生存开始” / “Survival begins” | 最长 60 字，可为空 |
 | `actionbar` | text | 空 | 最长 80 字 |
 | `titleColor` / `subtitleColor` / `actionbarColor` | color | `#FFFFFF` | 色板 `chat` |
-| `titleFont` / `subtitleFont` / `actionbarFont` | font | `minecraft:default`，带阴影 | — |
+| `titleFont` / `subtitleFont` / `actionbarFont` | font | `embedded:default`（普通模式），带阴影 | — |
 | `textBackground` | boolean | false | — |
 | `backgroundOpacity` | number | 0.5 | 0–1，`textBackground` 打开时显示 |
 | `guiScale` | number | 4 | 1–8 |
@@ -54,7 +54,7 @@
 
 | 素材 | 26.3 | 1.21.1 | 没有时 |
 |---|---|---|---|
-| 字体 `minecraft:default`（`assets/minecraft/font/default.json`） | 有 | 有 | 文字走系统字体，位置和字号不变，字形和宽度不同 |
+| 字体 `embedded:default`（普通模式）：ASCII 等用资源栈 `minecraft:default` 的位图字形（`assets/minecraft/font/default.json`），资源栈里没有的字形（中文等）用随应用内嵌的 GNU Unifont 18.0.01；预设“强制 Unicode 字体”用 `embedded:uniform`，全部用内嵌 Unifont | 有 | 有 | 没有原版素材时普通模式全部用内嵌 Unifont（字形和宽度与 Mojangles 不同），位置公式不变；按文字宽度定的尺寸用实际量出的宽度。模板不加载、不引用任何字体文件 |
 
 不用任何贴图和音效文件。
 
@@ -66,6 +66,6 @@
 
 ## 6. 没验证的
 
-- 没有在真实的原版字体上看过画面：测试和基准图用的是假资源栈，文字走系统字体。
+- 没有在真实的原版字体上看过画面：测试和基准图用的是假资源栈，没有原版字体，文字全部是内嵌 Unifont 的字形，Mojangles 下的样子没看过。
 - 没有和游戏的实际画面逐帧对照过。
 - 没有在剪辑软件里看过导出结果。
