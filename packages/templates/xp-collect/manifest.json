@@ -1,0 +1,59 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.xp-collect",
+  "version": "1.0.0",
+  "name": { "zh-CN": "经验收集", "en": "XP Collect" },
+  "description": {
+    "zh-CN": "经验球飞向画面底部的经验条，每到一个条就涨一份；涨满时等级数字加一，条从头再涨。",
+    "en": "Experience orbs fly to the experience bar at the bottom of the screen and each one adds its share; when the bar fills, the level number goes up by one and the bar starts over."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "hud", "experience"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "经验", "en": "Experience" } },
+    { "key": "orbs", "label": { "zh-CN": "经验球", "en": "Orbs" } },
+    { "key": "text", "label": { "zh-CN": "等级数字", "en": "Level number" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版的经验条和等级数字。基岩版的经验条没有做", "en": "The Java Edition experience bar and level number. The Bedrock bar is not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版", "en": "Java Edition" } }] },
+    { "key": "levelFrom", "type": "integer", "label": { "zh-CN": "起始等级", "en": "Starting level" }, "hint": { "zh-CN": "0 级时不显示数字（和游戏一样）", "en": "No number is shown at level 0, as in the game" }, "group": "content", "default": 29, "min": 0, "max": 999 },
+    { "key": "levels", "type": "integer", "label": { "zh-CN": "升几级", "en": "Levels gained" }, "hint": { "zh-CN": "0 表示不升级，条只从起始进度涨到结束进度", "en": "0 means no level-up: the bar only grows from the starting to the final progress" }, "group": "content", "default": 1, "min": 0, "max": 10, "ui": "slider" },
+    { "key": "startProgress", "type": "number", "label": { "zh-CN": "起始进度", "en": "Starting progress" }, "hint": { "zh-CN": "一开始经验条在当前等级里的位置", "en": "Where the bar starts within the current level" }, "group": "content", "default": 0.35, "min": 0, "max": 0.99, "step": 0.01, "ui": "slider" },
+    { "key": "endProgress", "type": "number", "label": { "zh-CN": "结束进度", "en": "Final progress" }, "hint": { "zh-CN": "收完之后经验条在最后那一级里的位置；不升级时小于起始进度的话条不动", "en": "Where the bar ends within the last level; with no level-up, a value below the starting progress leaves the bar unchanged" }, "group": "content", "default": 0.2, "min": 0, "max": 0.99, "step": 0.01, "ui": "slider" },
+    { "key": "orbs", "type": "integer", "label": { "zh-CN": "经验球个数", "en": "Orbs" }, "hint": { "zh-CN": "要涨的经验平均分给每个球；每个球的大小按它分到的经验值选（游戏里有 11 种大小）", "en": "The experience to gain is split evenly between the orbs; each orb's size follows its value (11 sizes in the game)" }, "group": "orbs", "default": 12, "min": 1, "max": 40, "ui": "slider" },
+    { "key": "orbOrigin", "type": "enum", "label": { "zh-CN": "从哪里飞来", "en": "Orbs come from" }, "hint": { "zh-CN": "游戏里经验球在世界里飞向玩家，不会飞到经验条上；这段飞行是为叠加层设计的", "en": "In the game orbs fly to the player in the world, not to the bar; this flight is designed for the overlay" }, "group": "orbs", "default": "around", "options": [{ "value": "top", "label": { "zh-CN": "上方", "en": "Top" } }, { "value": "sides", "label": { "zh-CN": "左右两侧", "en": "Both sides" } }, { "value": "around", "label": { "zh-CN": "上方和两侧", "en": "Top and sides" } }, { "value": "center", "label": { "zh-CN": "画面中央", "en": "Screen centre" } }] },
+    { "key": "orbSize", "type": "number", "label": { "zh-CN": "经验球大小", "en": "Orb size" }, "hint": { "zh-CN": "贴图那一格的边长，界面像素", "en": "Side of the orb's texture cell, in GUI pixels" }, "group": "orbs", "default": 9, "min": 4, "max": 24, "step": 1, "unit": "px", "ui": "slider" },
+    { "key": "orbOpacity", "type": "number", "label": { "zh-CN": "经验球不透明度", "en": "Orb opacity" }, "hint": { "zh-CN": "游戏里经验球是半透明的，大约 50%", "en": "Orbs are translucent in the game, about 50%" }, "group": "orbs", "default": 0.5, "min": 0.1, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "orbs", "default": 1 },
+    { "key": "levelColor", "type": "color", "label": { "zh-CN": "数字颜色", "en": "Number color" }, "group": "text", "default": "#80FF20", "palette": "chat" },
+    { "key": "levelFont", "type": "font", "label": { "zh-CN": "数字字体", "en": "Number font" }, "hint": { "zh-CN": "游戏里是黑色描边、没有阴影", "en": "Black outline and no shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": false, "outline": "#000000" } },
+    { "key": "levelPop", "type": "boolean", "label": { "zh-CN": "升级时跳一下", "en": "Pop on level-up" }, "hint": { "zh-CN": "数字变化时短暂放大。游戏里没有这个动作，数字是直接换的", "en": "Briefly enlarges the number when it changes. The game has no such motion; the number simply switches" }, "group": "text", "default": false },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）。经验条宽 182 个界面像素，画面放不下时自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto). The bar is 182 GUI pixels wide and shrinks automatically when it does not fit" }, "group": "layout", "default": 5, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏里经验条一直在，这里用淡入代替", "en": "The bar is always there in the game; a fade stands in for that here" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "收集", "en": "Collect" }, "hint": { "zh-CN": "经验球在这一段的 15%–80% 之间陆续到达，剩下的时间留给看结果", "en": "Orbs arrive between 15% and 80% of this stretch; the rest is left to read the result" }, "group": "timing", "default": 3, "min": 0.5, "max": 24 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 3 },
+    { "key": "pickupSound", "type": "sound", "label": { "zh-CN": "拾取音效", "en": "Pickup sound" }, "hint": { "zh-CN": "每个经验球到达时播放，音高像游戏里一样每次不同；球多时最多 12 声", "en": "Plays as each orb arrives, at a different pitch each time as in the game; at most 12 with many orbs" }, "group": "sound", "default": "minecraft:entity.experience_orb.pickup" },
+    { "key": "levelupSound", "type": "sound", "label": { "zh-CN": "升级音效", "en": "Level-up sound" }, "hint": { "zh-CN": "每次升级时播放。游戏里只在等级是 5 的倍数时才响", "en": "Plays on every level-up. The game only plays it when the level is a multiple of 5" }, "group": "sound", "default": "minecraft:entity.player.levelup" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "收集", "en": "Collect" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "level-30", "name": { "zh-CN": "升到 30 级（附魔等级）", "en": "Reaching level 30 (enchanting)" }, "params": { "levelFrom": 29, "levels": 1, "startProgress": 0.35, "endProgress": 0.1, "orbs": 12, "orbOrigin": "around" } },
+    { "key": "big-haul", "name": { "zh-CN": "大丰收：连升 5 级", "en": "Big haul: five levels at once" }, "params": { "levelFrom": 12, "levels": 5, "startProgress": 0.5, "endProgress": 0.4, "orbs": 30, "orbOrigin": "around", "hold": 4 } },
+    { "key": "small-pickup", "name": { "zh-CN": "小额拾取：不升级", "en": "Small pickup, no level-up" }, "params": { "levelFrom": 7, "levels": 0, "startProgress": 0.2, "endProgress": 0.6, "orbs": 5, "orbOrigin": "sides", "hold": 2 } },
+    { "key": "mob-drop", "name": { "zh-CN": "击杀掉落：从画面中央飞来", "en": "Mob drop: from the screen centre" }, "params": { "levelFrom": 4, "levels": 1, "startProgress": 0.7, "endProgress": 0.15, "orbs": 6, "orbOrigin": "center", "hold": 2.5 } },
+    { "key": "first-level", "name": { "zh-CN": "从 0 级升到 1 级（数字出现）", "en": "Level 0 to 1 (the number appears)" }, "params": { "levelFrom": 0, "levels": 1, "startProgress": 0, "endProgress": 0.3, "orbs": 4, "orbOrigin": "top", "hold": 2.5 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"levelFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": "#000000"}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
