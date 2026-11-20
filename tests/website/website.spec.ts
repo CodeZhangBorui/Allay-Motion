@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
-import { _electron as electron, expect, test, type ElectronApplication, type Frame, type Page } from '@playwright/test';
+import { _electron as electron, expect, test, type ElectronApplication, type Frame, type Locator, type Page } from '@playwright/test';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
 import { isSoftwareRenderer } from '../engine/software';
 
@@ -345,17 +345,21 @@ test('T-WEB-12 剪辑点：往下越过分界线时自动完整播一遍（引�
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
 
-test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点导航锚点跳转，每次停手后各段都落到完整的终态', async () => {
-  const { page } = s;
-  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
-  const renderer = await page.getByTestId('world').evaluate((canvas: HTMLCanvasElement) => {
+async function worldUsesSoftwareRenderer(world: Locator): Promise<boolean> {
+  const renderer = await world.evaluate((canvas: HTMLCanvasElement) => {
     const gl = canvas.getContext('webgl2');
     if (!gl) return '';
     const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
     return String(gl.getParameter(debugInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
   });
-  const software = isSoftwareRenderer(renderer);
+  return isSoftwareRenderer(renderer);
+}
+
+test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点导航锚点跳转，每次停手后各段都落到完整的终态', async () => {
+  const { page } = s;
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
+  const software = await worldUsesSoftwareRenderer(page.getByTestId('world'));
   // 软件渲染下每次输入与取样都更慢，同时保留实际落定的断言。
   if (software) test.setTimeout(300_000);
   const settleTimeout = software ? 12_000 : 3000;
@@ -574,7 +578,10 @@ test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到与另一�
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   const world = page.getByTestId('world');
+  await page.waitForFunction(() => typeof (window as unknown as { __siteWorld?: { blocks?: unknown } }).__siteWorld?.blocks === 'function', undefined, { timeout: 20_000 });
   await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 20_000 });
+  // 方块惯性按受限步长积分，软件渲染掉帧时需要更久才能真正停止。
+  const settleTimeout = (await worldUsesSoftwareRenderer(world)) ? 20_000 : 6000;
   type Blk = { id: number; x: number; y: number; r: number; group: number | null; size: number };
   type SW = { blocks: () => Blk[]; groupOf: (id: number) => { id: number; size: number } | null; pos: (id: number) => { x: number; y: number } | null };
   const blocks = () => page.evaluate(() => (window as unknown as { __siteWorld: SW }).__siteWorld.blocks());
@@ -604,7 +611,7 @@ test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到与另一�
   await page.waitForTimeout(250);
   await page.mouse.up();
   await expect(html).toHaveAttribute('data-world-drag', 'false');
-  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: settleTimeout });
   const a1 = (await pos(A.id))!;
   const b1 = (await pos(B.id))!;
   expect(Math.hypot(b1.x - B.x, b1.y - B.y)).toBeGreaterThan(80);
@@ -618,7 +625,7 @@ test('T-WEB-19 背景方块（真实的鼠标输入）：按住拖到与另一�
   expect(Math.hypot(b2.x - b1.x, b2.y - b1.y)).toBeGreaterThan(60);
   expect(Math.hypot(a2.x - a1.x - (b2.x - b1.x), a2.y - a1.y - (b2.y - b1.y))).toBeLessThan(40);
   await page.mouse.up();
-  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: 6000 });
+  await expect(world).toHaveAttribute('data-settled', 'true', { timeout: settleTimeout });
   // 双击一块：从组里弹出去，组变小
   const before = (await groupOf(A.id))!.size;
   const target = (await pos(A.id))!;
