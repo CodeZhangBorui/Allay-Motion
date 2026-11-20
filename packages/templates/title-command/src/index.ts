@@ -2,7 +2,7 @@
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
 import { overlayWindows, progress } from '../../_lib/src/timing';
-import { bool, createGui, fontOf, num, rgbOf, str } from './kit';
+import { bool, createGui, fontOf, num, rgbOf, str } from '../../_lib/src/gui-kit';
 import { ACTIONBAR_FADE_TICKS, actionbarAlpha, BACKDROP_PAD, LINE_H, SUBTITLE_SCALE, TICK, TITLE_SCALE, titleLayout } from './layout';
 
 const template: TemplateModule = {

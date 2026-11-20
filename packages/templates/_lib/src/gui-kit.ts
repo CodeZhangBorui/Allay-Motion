@@ -1,5 +1,5 @@
 // 界面类模板的小工具：参数读取、可选贴图、成批的矩形（纯色或贴图的一块）、按界面坐标摆放、带 § 格式码的一行文字。
-// 第 1 批（docs/templates/batch-1.md）的每个模板目录里各有一份逐字相同的副本：批次不能改 _lib，等主控沉淀进去后删掉这些副本。
+// 第 1 批（docs/templates/batch-1.md）加入，界面类模板共用；用法见 title-command、boss-bar 等。
 // 只用 ctx 给的东西；不含任何模板自己的数值。
 import type { FontStyle, ParamValue, SetupContext, TextObject } from '@allay/template-sdk';
 
