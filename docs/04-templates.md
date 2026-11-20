@@ -87,7 +87,7 @@ interface ParamBase {
 | `duration` | 秒 | `default` `min` `max` | 数字框，同时显示帧数，吸附到帧 |
 | `angle` | 度 | `default` `snap?` | 方向盘 |
 | `seed` | 整数 | `default` | 数字框 + 骰子按钮 |
-| `font` | `{ family, bold, italic, underline, strikethrough, shadow, outline }` | `default`（至少给 `family`） | 字体族下拉（游戏字体、内置字体、导入的字体、“导入字体…”）+ 样式开关 + 描边颜色 |
+| `font` | `{ family, bold, italic, underline, strikethrough, shadow, outline }` | `default`（至少给 `family`） | 字体族下拉（游戏字体、内嵌字体、系统字体、导入的字体、“导入字体…”）+ 内嵌字体的“强制使用 Unicode 字体”开关 + 样式开关 + 描边颜色 |
 
 **enum 的图案选择器**（可选的界面提示，只影响属性面板的画法，不影响参数的值和校验）：在 enum 参数上写 `ui: 'pattern'`，并给每个选项一个 `pattern`——16 个 0–1 之间的数，按行从左上到右下对应一个 4×4 的小格，表示这一格出现的先后（0 最先）。控件把每个选项画成一个小方格图，越早出现越亮，当前项的名称显示在右上。`pattern` 必须正好 16 个、每个在 0–1 之间；声明了 `ui: 'pattern'` 却有选项缺 `pattern` 时 manifest 不合法（T-TPL-1 有夹具）。适合“顺序”“图案”这类能画成一张小图的选项；没声明的照旧走分段控件或下拉。
 
@@ -97,7 +97,7 @@ interface ParamBase {
 - `text` 的 `default` 是多语言时，新建工程按界面语言取一次，之后值就是普通字符串。
 - `visibleWhen` 只做界面显隐，不影响值。
 - 模板有 `seed` 参数时，`ctx.random` 以它为种子。
-- `font`（2026-11 加入）：`family` 是资源栈里的字体 ID（`minecraft:default`、`minecraft:uniform`、`minecraft:alt`、`minecraft:illageralt` 或资源包自己的字体）、`system:sans`（系统字体；旧工程里的 `allay:fallback` 读成它）或 `user:<sha256 前 32 位>`（用户导入、复制在 `userData/fonts/` 的字体文件）。清洗时逐个字段检查，坏的字段取默认值的那一项；`outline` 是 `#RRGGBB` 或 `null`。值原样交给 `ctx.text.create({ font })`。属性面板里的字体名不用该字体预览（应用自己的界面不用游戏字体，`09-compliance.md` 9.3）。
+- `font`（2026-11 加入）：`family` 是资源栈里的字体 ID（`minecraft:default`、`minecraft:uniform`、`minecraft:alt`、`minecraft:illageralt` 或资源包自己的字体）、`system:sans`（系统字体；旧工程里的 `allay:fallback` 读成它）、`user:<sha256 前 32 位>`（用户导入、复制在 `userData/fonts/` 的字体文件），或随应用内嵌的 GNU Unifont 的两种模式：`embedded:default`（普通模式：Mojangles 优先，它没有的字形如中文用内嵌 Unifont）和 `embedded:uniform`（强制 Unicode 模式：所有字形都用内嵌 Unifont）。两种模式都不用资源栈里的 unihex，中日韩字形不随原版素材和机器变化；内嵌 Unifont 也没有的字形落到系统字体；没有原版素材时普通模式等于全部用 Unifont。属性面板里两者是一项加一个“强制使用 Unicode 字体”开关。字体文件只有一份，由宿主读取、经资源通道交给引擎 Worker，模板包里不带（docs/decisions.md“内嵌 Unifont 与两种字体模式”）。清洗时逐个字段检查，坏的字段取默认值的那一项；`outline` 是 `#RRGGBB` 或 `null`。值原样交给 `ctx.text.create({ font })`。属性面板里的字体名不用该字体预览（应用自己的界面不用游戏字体，`09-compliance.md` 9.3）。
 
 ## 4.5 运行时契约
 
@@ -468,3 +468,11 @@ packages/templates/_lib/
 | T-FNT-2 | Unifont 的 .hex 解析 | 宽度按墨迹（或覆盖），前进宽度 floor(列数 / 2) + 1 个字体像素，同一码位先出现的胜出 |
 | T-FNT-3 | 主进程从资源栈的 zip 里读 unihex 字形表 | 读出全部 .hex；条目名不安全的 zip 整个拒绝 |
 | T-FNT-4 | 用户导入字体 | 按文件头认格式，复制进 `userData/fonts/` 并按内容哈希命名；认不出的文件、目录外的 ID 被拒绝 |
+| T-FNT-5 | 内嵌 Unifont 的 OTF 还原成点阵 | 版本 18.0.01、哈希与来源登记一致；字形与 .hex 逐位相同；全宽区间的中文前进 9 像素；两次解析逐字节相同 |
+| T-FNT-6 | 两种字体模式的字形来源 | 普通模式：ASCII 取原版 bitmap、中文取内嵌 Unifont（不用资源栈的 unihex）；强制 Unicode 模式全部取内嵌 Unifont；没有原版素材时普通模式等于全部 Unifont；内嵌也没有的落到系统字体 |
+| T-FNT-7 | 内嵌 Unifont 文字的确定性 | 同一输入两次栅格化逐字节相同，硬边像素 |
+| T-FNT-8 | 内嵌字体族 ID | `embedded:` 只认 `default`、`uniform`；参数清洗保留它们 |
+| T-FNT-9 | 内嵌 Unifont 只加载一次 | 主进程第一次调用才读文件；引擎换资源栈也不再要；不用时不要 |
+| T-FNT-10 | 文字对象与缓存 | 两种模式的宽度符合预期、缓存键分开；宿主没有内嵌字体时退回 `minecraft:default` 并警告 |
+| T-FNT-11 | 安装包里的字体 | Windows、macOS 包里字体文件有且只有一份 `fonts/unifont/unifont_t-18.0.01.otf`，旁边是 `OFL.txt` |
+| T-FNT-12 | 引擎里的两种模式（导出路径） | 有无原版素材时两种模式的文字尺寸符合预期；同一画面画两次逐点相同 |

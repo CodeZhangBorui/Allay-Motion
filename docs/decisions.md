@@ -2301,3 +2301,47 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 - **T-TPL-5 的 `advancement-toast` 基准图（2026-11-20）**：先在第 0 批之前的提交 c205608 上单独跑 T-TPL-5（把那个提交导出到仓库外的临时目录、离线装依赖后运行），同样在 1:1 画幅 25% 那一帧失败，误差同为 2.1184874/255；c205608 之后基准图和这个模板都没有改过。所以是 2026-11“原版动画还原与字体”重做这个模板之后基准图没有重新生成，不是第 0 批引入的。然后只重新生成了这一个模板的基准图：三种画幅的 25%、剪辑点、75% 共 9 张变了，0% 和 100% 是全透明的，没有变化。新基准图是在这台机器的真实显卡上生成的；测试用的假资源栈没有原版字体，文字走系统字体，换一台机器字形可能不同（`03` 3.9 的已知限制），CI 上有 4/255 的放宽，过不过以 CI 为准。
   - 重新生成之后再跑，T-TPL-5 在下一个模板 `loading-screen`（16:9 的 25% 那一帧，2.4376736/255）失败：测试遇到第一个不合格的帧就停，之前被 `advancement-toast` 挡在后面。同样在 c205608 上证实（把新的 `advancement-toast` 基准图放进那个临时目录后再跑，同一帧、同一个数值失败），原因相同（这个模板也是那次重做的），也只重新生成了它的 9 张。之后六个现有模板的 T-TPL-5 全部通过；另外四个模板的基准图没有动。
 - **`ctx.THREE` 的类型面（2026-11-20）**：`scripts/template-api/three-surface.d.ts` 是手写的最小类型面，内置模板的源码按它做类型检查（T-DEV-3）。第 1 批的模板自己建几何体，用到 `BufferAttribute` 的构造、`setAttribute`、`setIndex`，类型面里没有，T-DEV-3 失败。补上了：`BufferAttribute`、`InstancedBufferAttribute`（可构造）、`BufferGeometry` 的 `setAttribute`、`setIndex`、`setDrawRange`、`computeBoundingBox`、`computeBoundingSphere`、`InstancedMesh`。只是类型，运行时本来就有。`getAttribute`、`getIndex` 的返回类型改名为 `GeometryAttribute`（成员没变）。`deleteAttribute` 没有加：加上它之后“真实的 three 可以赋给类型面”的检查过不了（three 的泛型推断退回到带 `GLBufferAttribute` 的约束）。这也是一个公共文件：批次要用类型面里没有的 three 成员时告诉主控，不自己改。
+
+## 内嵌 Unifont 与两种字体模式（2026-11-20）
+
+用户 2026-11-20 的新要求（经主控转达）：“将新增的几个涉及到文字模板中的字体改为这个，直接内嵌入此字体文件，有两种模式：普通模式时优先使用 Mojangles，当 Mojangles 中无字形（比如中文字符）时回退到此字体；强制 Unicode 模式则永远对所有字形使用此字体。此字体应当只存储一份……或许你需要实现一个通用接口”。“此字体”是用户给的 `unifont_t-18.0.01.otf`。这是对上面“删除内置像素字体，改用原版字体和系统字体”的补充：方舟像素字体仍然删着，系统字体仍是最后一环，新加的是一份随应用分发的 Unifont 和两个用它的字体族；已有的字体族行为不变。
+
+### 这个文件是什么
+
+- name 表：家族名 `Unifont-T`，版本串 `Version 18.0.01`，许可说明 “Dual license: SIL Open Font License version 1.1, and GNU GPL version 2 or later with the GNU Font Embedding Exception.”，网址 https://unifoundry.com/unifont/ 。CFF 轮廓，每 em 64 单位（一个点阵像素 4 单位），上升 56、下降 8（14 + 2 像素），57,088 个字形，只有基本多文种平面。sha256 `f8bb2965…7b74000`，5,240,260 字节，原样未改。
+- **`unifont_t` 是 Unicode T 源（台湾来源）的中文变体**：Unifont 17.0.04（2026-03-13）加入，2.8 万多个 T 源汉字字形，与标准版 `unifont` 用的 G 源（中国大陆，文泉驿）字形平行（unifoundry.com 的发布说明）。还原出来的字形也对得上：`、` 在格子正中（大陆规范在左下），`骨` 里面的折笔朝右。**简体字都有，但写法是台湾的**；用户主要显示简体中文时，标准版 `unifont-18.0.01.otf`（G 源，和游戏 jar 里的 `unifont.zip` 同源）可能更合适。换文件只要改 `apps/desktop/src/main/resources/fonts.ts` 的 `EMBEDDED_UNIFONT_FILE`、来源登记、打包配置和 T-FNT-5 的哈希；这次按用户给的文件做，没有替换。
+
+### 放在哪、怎么读
+
+- 文件放在 `resources/fonts/unifont/`（原来方舟像素字体的位置，和 `resources/ffmpeg` 一样是“随包分发的第三方文件”），旁边是 `OFL.txt`（按 OFL 1.1 分发：许可全文和 name 表里的版权行）。`electron-builder.yml` 顶层的 `extraResources` 把这两个文件放进安装包的 `fonts/unifont/`，Windows 和 macOS 都带；`.gitattributes` 让 `resources/fonts/**` 不做换行转换；来源登记、第三方许可清单（关于页和 `THIRD_PARTY_NOTICES.txt`）、`docs/09` 9.7 都更新了。模板包里不带字体，manifest 里也不引用路径。
+- 主进程第一次被问到时读文件，用 `@allay/assets` 的 `otf.ts` 还原成点阵，之后一直留着（`EmbeddedUnifont`）。**没有引入字体解析库**：Unifont 的轮廓只是“每个像素一个正方形”，自己实现读它所需的那部分（sfnt 表、cmap 4/12、hmtx、CFF 的 INDEX/DICT/FDSelect/子程序、Type 2 的绘制指令），在像素中心按非零环绕采样，得到和 `.hex` 一样的 8 或 16 列 × 16 行点阵，再交给已有的 `parseUnihex`。纯计算，不依赖画布或系统字体，同一个文件在任何机器上逐字节相同（T-FNT-5）。用 `FontFace` + OffscreenCanvas 取样也行，但那样结果取决于 Chromium 的光栅化，还要在每个 Worker 里各注册一遍 5 MB 的字体，所以没用。
+- 经新的 IPC `fonts.embeddedUnifont`（无参数）交给渲染进程，渲染进程的 `resolveResource('font', 'embedded:unifont')` 把它包成 `kind: 'bdf'`、`oversample: 2` 的字形表交给 Worker。渲染进程和 Worker（`EngineResources` 的 `fixedFonts`）都只要一次，换资源栈也不重新要（T-FNT-9）。
+- **量出来的数**（本机，Node 24）：解析 1.4–1.5 秒（三次分别为 1466、1395、1435 ms），字形表 2.7 MB（位图 1.68 MB、度量 0.57 MB、码位和偏移各 0.23 MB），还原过程中的 `.hex` 中间文本约 3.7 MB，用完即弃。主进程里分块解析（每 2000 个字形 `setImmediate` 一次），这一秒多里照常响应别的 IPC。只有用到 `embedded:*` 字体族时才加载，不用就不读文件。
+- **安装包增加约 5.25 MB**（字体 5,240,260 字节 + OFL 约 4.5 KB；安装包压缩后会小一些，没有实测）。
+
+### 接口：两个新字体族
+
+- `embedded:default`（**普通模式**）：资源栈 `minecraft:default` 展开后的 `bitmap`、`space` 提供器在前（Mojangles，资源包改过的照样生效），然后是空格（4 像素）和内嵌 Unifont，最后是系统字体。
+- `embedded:uniform`（**强制 Unicode 模式**）：空格和内嵌 Unifont，然后是系统字体；资源栈里的字形一个都不用。对应游戏的“强制使用 Unicode 字体”，命名照 `minecraft:uniform`。
+- 选“两个字体族 ID”而不是“font 值里加一个模式字段”：font 参数值的结构、清洗、迁移、动画编辑器、代码编辑器的补全都不用改，`ctx.text.create({ font: 'embedded:uniform' })` 这样的字符串简写也能表达两种模式；缓存键里本来就有字体族，两种模式自然分开。属性面板里两者显示成一项“游戏字体 + Unifont”（新的“内嵌字体”分组），选中后下面多一个“强制使用 Unicode 字体”开关，在两个 ID 之间切换（`FontFamilyOption.forceUnicodeId`）。
+- `embedded:` 命名空间只认这两个（`isFontFamily`），资源包里同名的 `assets/embedded/font/*.json` 读不到；`embedded:unifont` 是宿主取字形表用的资源 ID，不是字体族。
+- 任何模板都能用：内置模板、用户模板、动画编辑器生成的模板走同一个 `font` 参数和 `ctx.text.create`，没有给内置模板的私有通道。
+
+### 要定的几件事
+
+- **(a) 资源栈里的 unihex 与内嵌的这份谁先**：两种模式都**不用资源栈里的 unihex**，包括资源包自己带的 unihex。这样中日韩字形不随“有没有原版素材、原版是哪个版本、换不换机器”变化，也就是用户说的“Mojangles 里没有就用此字体”。资源包用 `bitmap` 提供器改的字形（常见的中文资源包大多这样做）在普通模式下仍然优先。想要资源栈里的 unihex，用原来的 `minecraft:default`。
+- **(b) 内嵌 Unifont 也没有的字形**（平面 1 以上，比如表情；以及 Unifont 没画的少数码位）：落到系统字体，按像素画（和 `minecraft:default` 缺字形时一样），这一部分仍然取决于机器上装的字体。
+- **(c) 没有原版素材时**：普通模式里没有 Mojangles，等于全部用 Unifont（加上 4 像素的空格），不会像 `minecraft:default` 那样整段换成系统字体的矢量画法。
+- **(d) 旧行为**：`minecraft:default`、`minecraft:uniform`、`system:sans`、`user:*`、旧工程的 `allay:fallback` 都不变；现有六个模板的默认字体没动。新字体族是新增的选项。
+- **宽度**：游戏的 unihex 提供器用 `size_overrides` 让中日韩字形占满整格。原版的那份覆盖表不在本机缓存里（下载缓存只有 jar，`include/unifont.json` 是资源索引里的对象），而且不能放进仓库，所以内嵌这份用本项目自己定的全宽区间 `UNIFONT_FULL_WIDTH`（CJK 部首和符号、假名、注音、CJK 统一汉字、谚文音节、兼容汉字、竖排标点、全角字符）：区间里的字形按整格算，中文前进 9 个字体像素；其余按墨迹，规则同 unihex（floor(列数 / 2) + 1）。和游戏的覆盖区间可能有个别出入，没有对照过。
+- **渲染**：和 unihex 走同一条路（`GlyphTable`，`oversample = 2`）：2 个 Unifont 像素 = 1 个字体像素，顶边对齐基线以上 7 像素，阴影和粗体偏半个字体像素，下划线、删除线、斜体、描边照现有文字样式。预览和导出是同一份代码，硬边像素。
+
+### 官网
+
+- 官网的浏览器宿主 `fonts.embeddedUnifont` 返回 `null`，**不把 5 MB 字体带进官网**：官网的演示模板都不用新字体族，带上只会拖慢首屏。网页里遇到 `embedded:*` 时退回 `minecraft:default`，并记一条“字体不可用”的警告。
+
+### 测试
+
+- `tests/unit/T-FNT.embedded-unifont.test.ts`：T-FNT-5（OTF 还原：版本、哈希与登记一致、“A”与 .hex 逐位相同、全宽区间、两次解析逐字节相同）、T-FNT-6（两种模式下 ASCII、中文、混排各取自哪份字形；没有原版素材时；缺字形落到系统字体）、T-FNT-7（逐像素确定性）、T-FNT-8（字体族 ID 与参数清洗）、T-FNT-9（主进程和引擎都只加载一次）、T-FNT-10（文字对象的宽度、缓存键分开两种模式、宿主没有字体时退回）。“原版字体”是测试里拼出来的 bitmap 格子，不是 Mojang 的文件。
+- T-FNT-11 在 `tests/dist/M8.package.test.ts`：Windows 和 macOS 的包里字体文件有且只有 `fonts/unifont/unifont_t-18.0.01.otf` 一份，旁边是 `OFL.txt`。只在打包后的 CI 上运行。
+- T-FNT-12 在 `tests/engine/m2.spec.ts`（Electron 里、走导出路径）：两种模式、有无原版素材时的文字尺寸，同一画面画两次逐点相同。引擎测试的假宿主（`tests/engine/harness/fake-resources.ts`）对 `embedded:unifont` 返回仓库里那份 Unifont 解析出的字形表，所以内置模板改用新字体族后 T-TPL-3 不会多出“字体不可用”的警告；`m2-features` 测试模板加了一个 font 参数，只取它的字体族。
