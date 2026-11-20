@@ -1,0 +1,64 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.hud-status",
+  "version": "1.0.0",
+  "name": { "zh-CN": "状态栏", "en": "Status bars" },
+  "description": {
+    "zh-CN": "快捷栏上方的生命、护甲、饥饿、空气几排图标。生命值在中途从一个值变到另一个值：掉血时闪白，低血量时心上下抖，有生命恢复时一颗颗依次跳起。",
+    "en": "The rows of health, armor, hunger and air icons above the hotbar. Health changes from one value to another midway: hearts flash white on damage, shake at low health and hop one after another with Regeneration."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "hud", "health"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "数值", "en": "Values" } },
+    { "key": "look", "label": { "zh-CN": "状态", "en": "States" } },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版 1.9 起的版式。基岩版经典界面的排法几乎相同；基岩版的口袋界面没有做", "en": "The Java layout since 1.9. Bedrock's Classic UI is laid out almost the same; Bedrock's Pocket UI is not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版 1.9 起", "en": "Java 1.9+" } }] },
+    { "key": "healthFrom", "type": "integer", "label": { "zh-CN": "开始的生命值", "en": "Health at start" }, "hint": { "zh-CN": "一颗心是 2 点；超过生命上限时按上限算", "en": "One heart is 2 points; capped at max health" }, "group": "content", "default": 20, "min": 0, "max": 40, "ui": "slider" },
+    { "key": "healthTo", "type": "integer", "label": { "zh-CN": "变化后的生命值", "en": "Health after change" }, "hint": { "zh-CN": "和开始的值相同时生命值不变、不闪", "en": "No change and no flash when equal to the starting value" }, "group": "content", "default": 7, "min": 0, "max": 40, "ui": "slider" },
+    { "key": "maxHealth", "type": "integer", "label": { "zh-CN": "生命上限", "en": "Max health" }, "hint": { "zh-CN": "游戏里默认 20（10 颗心）；超过 10 颗会多出一排", "en": "20 (10 hearts) by default in the game; more than 10 hearts adds a row" }, "group": "content", "default": 20, "min": 2, "max": 40, "ui": "slider" },
+    { "key": "absorption", "type": "integer", "label": { "zh-CN": "伤害吸收", "en": "Absorption" }, "hint": { "zh-CN": "接在生命后面的黄色的心，2 点一颗", "en": "Yellow hearts after the normal ones, 2 points each" }, "group": "content", "default": 0, "min": 0, "max": 20, "ui": "slider" },
+    { "key": "armor", "type": "integer", "label": { "zh-CN": "护甲值", "en": "Armor" }, "hint": { "zh-CN": "0 时不显示护甲那一排（和游戏一样）", "en": "The armor row is hidden at 0, as in the game" }, "group": "content", "default": 15, "min": 0, "max": 20, "ui": "slider" },
+    { "key": "food", "type": "integer", "label": { "zh-CN": "饥饿值", "en": "Food" }, "group": "content", "default": 17, "min": 0, "max": 20, "ui": "slider" },
+    { "key": "air", "type": "integer", "label": { "zh-CN": "空气值", "en": "Air" }, "hint": { "zh-CN": "单位是刻，300 是满的；满的时候不显示空气泡", "en": "In ticks, 300 is full; the bubbles are hidden when full" }, "group": "content", "default": 300, "min": 0, "max": 300, "ui": "slider" },
+    { "key": "heartStyle", "type": "enum", "label": { "zh-CN": "心的样子", "en": "Heart type" }, "group": "look", "default": "normal", "options": [{ "value": "normal", "label": { "zh-CN": "普通", "en": "Normal" } }, { "value": "poisoned", "label": { "zh-CN": "中毒", "en": "Poisoned" } }, { "value": "withered", "label": { "zh-CN": "凋零", "en": "Withered" } }, { "value": "frozen", "label": { "zh-CN": "冰冻", "en": "Frozen" } }] },
+    { "key": "hardcore", "type": "boolean", "label": { "zh-CN": "极限模式", "en": "Hardcore" }, "hint": { "zh-CN": "换成极限模式的心", "en": "Uses the Hardcore heart textures" }, "group": "look", "default": false },
+    { "key": "regeneration", "type": "boolean", "label": { "zh-CN": "生命恢复", "en": "Regeneration" }, "hint": { "zh-CN": "心从左到右依次跳起 2 个像素", "en": "Hearts hop up 2 pixels one after another, left to right" }, "group": "look", "default": false },
+    { "key": "hunger", "type": "boolean", "label": { "zh-CN": "饥饿效果", "en": "Hunger effect" }, "hint": { "zh-CN": "饥饿图标换成发绿的那一套", "en": "Switches the food icons to the green set" }, "group": "look", "default": false },
+    { "key": "starving", "type": "boolean", "label": { "zh-CN": "饱和度耗尽", "en": "No saturation" }, "hint": { "zh-CN": "饥饿图标每隔一会儿上下抖一下；饥饿值越低抖得越勤", "en": "Food icons jitter now and then; more often the lower the food value" }, "group": "look", "default": false },
+    { "key": "anchor", "type": "enum", "label": { "zh-CN": "位置", "en": "Position" }, "hint": { "zh-CN": "“游戏里的位置”是底部居中、快捷栏的上方；其余选项把整块摆到别处", "en": "“Game position” is bottom center, right above the hotbar; the others move the whole block elsewhere" }, "group": "layout", "default": "game", "options": [{ "value": "game", "label": { "zh-CN": "游戏里的位置", "en": "Game position" } }, { "value": "bottom", "label": { "zh-CN": "底部", "en": "Bottom" } }, { "value": "bottomLeft", "label": { "zh-CN": "左下", "en": "Bottom left" } }, { "value": "bottomRight", "label": { "zh-CN": "右下", "en": "Bottom right" } }, { "value": "center", "label": { "zh-CN": "居中", "en": "Center" } }, { "value": "top", "label": { "zh-CN": "顶部", "en": "Top" } }, { "value": "topLeft", "label": { "zh-CN": "左上", "en": "Top left" } }, { "value": "topRight", "label": { "zh-CN": "右上", "en": "Top right" } }] },
+    { "key": "margin", "type": "number", "label": { "zh-CN": "边距", "en": "Margin" }, "hint": { "zh-CN": "整块离画面边缘多少个界面像素", "en": "GUI pixels between the block and the screen edges" }, "group": "layout", "default": 4, "min": 0, "max": 40, "step": 1, "unit": "px", "visibleWhen": { "key": "anchor", "not": "game" } },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）；画面宽度不够时会自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto); shrinks automatically when the frame is too narrow" }, "group": "layout", "default": 6, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "hint": { "zh-CN": "决定低血量和饱和度耗尽时每一刻怎么抖", "en": "Decides the per-tick jitter at low health and with no saturation" }, "group": "look", "default": 1 },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏里状态栏一直都在，没有淡入淡出", "en": "The bars are always there in the game; it has no fade" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 3.5, "min": 0.1, "max": 20 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 3 },
+    { "key": "changeAt", "type": "duration", "label": { "zh-CN": "生命值变化的时刻", "en": "Health changes at" }, "hint": { "zh-CN": "从停留开始算起；超过停留时长时落在停留的末尾", "en": "Counted from the start of the hold; clamped to the end of the hold" }, "group": "timing", "default": 1, "min": 0, "max": 20 },
+    { "key": "hurtSound", "type": "sound", "label": { "zh-CN": "受伤音效", "en": "Hurt sound" }, "hint": { "zh-CN": "生命值降低的那一刻播放；游戏里是玩家受伤的声音（minecraft:entity.player.hurt）", "en": "Plays when health drops; the game plays the player hurt sound (minecraft:entity.player.hurt)" }, "group": "sound", "default": "minecraft:entity.player.hurt" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "damage", "name": { "zh-CN": "受伤（20 → 7）", "en": "Taking damage (20 → 7)" }, "params": { "healthFrom": 20, "healthTo": 7, "heartStyle": "normal", "hardcore": false, "regeneration": false } },
+    { "key": "low-health", "name": { "zh-CN": "低血量抖动（6 → 3）", "en": "Low health shaking (6 → 3)" }, "params": { "healthFrom": 6, "healthTo": 3, "food": 6, "starving": true } },
+    { "key": "hardcore", "name": { "zh-CN": "极限模式", "en": "Hardcore" }, "params": { "hardcore": true, "healthFrom": 20, "healthTo": 11 } },
+    { "key": "poisoned", "name": { "zh-CN": "中毒", "en": "Poisoned" }, "params": { "heartStyle": "poisoned", "healthFrom": 9, "healthTo": 8 } },
+    { "key": "withered", "name": { "zh-CN": "凋零", "en": "Withered" }, "params": { "heartStyle": "withered", "healthFrom": 12, "healthTo": 11 } },
+    { "key": "frozen", "name": { "zh-CN": "冰冻", "en": "Frozen" }, "params": { "heartStyle": "frozen", "healthFrom": 14, "healthTo": 13 } },
+    { "key": "regeneration", "name": { "zh-CN": "生命恢复回血（8 → 20）", "en": "Regeneration healing (8 → 20)" }, "params": { "healthFrom": 8, "healthTo": 20, "regeneration": true } },
+    { "key": "drowning", "name": { "zh-CN": "水下快没气", "en": "Running out of air" }, "params": { "air": 90, "healthFrom": 20, "healthTo": 18, "armor": 0 } },
+    { "key": "golden-apple", "name": { "zh-CN": "金苹果（吸收 + 恢复）", "en": "Golden apple (absorption + regeneration)" }, "params": { "healthFrom": 12, "healthTo": 16, "absorption": 4, "regeneration": true } }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
