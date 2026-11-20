@@ -143,7 +143,7 @@ describe.runIf(IS_MAC)('M8 macOS 应用包的内容', () => {
       expect(files, f).toContain(f);
     // T-FNT-11 内嵌的 Unifont 有且只有一份，旁边是许可全文
     expect(files.filter((f) => /\.(otf|ttf|woff2?|bdf|hex)$/i.test(f))).toEqual(['fonts/unifont/unifont-18.0.01.otf']);
-    expect(files.filter((f) => f.startsWith('fonts/')).sort()).toEqual(['fonts/unifont/OFL.txt', 'fonts/unifont/unifont-18.0.01.otf']);
+    expect(files.filter((f) => f.startsWith('fonts/') && !f.endsWith('/')).sort()).toEqual(['fonts/unifont/OFL.txt', 'fonts/unifont/unifont-18.0.01.otf']);
     // ffprobe 只给测试用
     expect(files.some((f) => /ffprobe/i.test(f))).toBe(false);
     const notices = readFileSync(join(resources(), 'THIRD_PARTY_NOTICES.txt'), 'utf8');
