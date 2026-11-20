@@ -122,7 +122,13 @@
       "setWorkArea": "设置工作区",
       "workAreaStart": "工作区从播放头开始",
       "workAreaEnd": "工作区到播放头结束",
-      "clearWorkArea": "清除工作区"
+      "clearWorkArea": "清除工作区",
+      "prevKey": "上一个关键帧",
+      "nextKey": "下一个关键帧",
+      "prevMarker": "上一个标记",
+      "nextMarker": "下一个标记",
+      "stepBack": "上一帧（←，Shift 十帧）",
+      "stepForward": "下一帧（→，Shift 十帧）"
     },
     "history": {
       "new": "新建动画",

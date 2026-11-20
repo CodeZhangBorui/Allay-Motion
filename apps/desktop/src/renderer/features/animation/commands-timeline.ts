@@ -1,14 +1,19 @@
 // 时间轴的类型化命令（docs/animation-editor.md 第 11 项）：标记点、工作区范围。
 // 标记和工作区存在文档里（撤销、代码视图、工程文件都照常），画面不用它们。带快捷键的：
-// Shift+M 在播放头处加标记；B / N 把工作区的开头 / 结尾设在播放头。
+// Shift+M 在播放头处加标记；B / N 把工作区的开头 / 结尾设在播放头；
+// J / K 跳到上一个 / 下一个关键帧（选中的图层的，没选时是全部图层），Shift+J / Shift+K 跳到上一个 / 下一个标记；
+// 上一帧 / 下一帧（方向键，Shift 十帧）也有命令，可以在命令面板里找到。
 import i18next from 'i18next';
 import { z } from 'zod';
-import { addMarker, moveMarker, removeMarker, renameMarker, setWorkArea } from '../../../shared/animation/markers';
-import { docDuration } from '../../../shared/animation/resolve';
+import { addMarker, adjacentTime, moveMarker, removeMarker, renameMarker, setWorkArea } from '../../../shared/animation/markers';
+import { layerKeyTimes } from '../../../shared/animation/edit';
+import { docDuration, resolveDoc } from '../../../shared/animation/resolve';
 import { LAYER_ID_RE, type AnimationDoc } from '../../../shared/animation/schema';
 import { defineCommand, type AnyCommand } from '../../app/registry';
 import { useTransportStore } from '../../stores/transportStore';
+import { stepFrames } from '../commands/commands';
 import { currentAnimation, isAnimationActive, replaceDoc } from './source';
+import { useAnimationUi } from './uiState';
 
 const MarkerId = z.string().regex(LAYER_ID_RE);
 const Time = z.number().min(0).max(30);
@@ -29,7 +34,31 @@ export function addMarkerAt(t = playhead(), label?: string): string | null {
   return r.doc === cur.doc || replaceDoc(r.doc) ? r.id : null;
 }
 
+/** 关键帧的时刻：选中的图层（没选时全部图层）有关键帧的所有时刻 */
+function keyTimes(): number[] {
+  const cur = currentAnimation();
+  if (!cur) return [];
+  const sel = useAnimationUi.getState().layers;
+  const out = new Set<number>();
+  for (const l of resolveDoc(cur.doc).layers) if (sel.length === 0 || sel.includes(l.id)) for (const t of layerKeyTimes(l)) out.add(t);
+  return [...out];
+}
+
+function jump(times: number[], dir: 1 | -1): boolean {
+  const t = adjacentTime(times, playhead(), dir);
+  if (t === null) return false;
+  useTransportStore.getState().setPlaying(false);
+  useTransportStore.getState().setTime(t);
+  return true;
+}
+
 export const TIMELINE_COMMANDS: AnyCommand[] = [
+  defineCommand({ id: 'animPrevKey', titleKey: 'anim.commands.prevKey', shortcut: 'J', category: 'playback', effect: 'read', enabled: isAnimationActive, output: z.boolean(), run: () => jump(keyTimes(), -1) }),
+  defineCommand({ id: 'animNextKey', titleKey: 'anim.commands.nextKey', shortcut: 'K', category: 'playback', effect: 'read', enabled: isAnimationActive, output: z.boolean(), run: () => jump(keyTimes(), 1) }),
+  defineCommand({ id: 'animPrevMarker', titleKey: 'anim.commands.prevMarker', shortcut: 'Shift+J', category: 'playback', effect: 'read', enabled: hasMarkers, output: z.boolean(), run: () => jump((currentAnimation()?.doc.markers ?? []).map((m) => m.t), -1) }),
+  defineCommand({ id: 'animNextMarker', titleKey: 'anim.commands.nextMarker', shortcut: 'Shift+K', category: 'playback', effect: 'read', enabled: hasMarkers, output: z.boolean(), run: () => jump((currentAnimation()?.doc.markers ?? []).map((m) => m.t), 1) }),
+  defineCommand({ id: 'animStepBack', titleKey: 'anim.commands.stepBack', category: 'playback', effect: 'read', enabled: isAnimationActive, run: () => stepFrames(-1) }),
+  defineCommand({ id: 'animStepForward', titleKey: 'anim.commands.stepForward', category: 'playback', effect: 'read', enabled: isAnimationActive, run: () => stepFrames(1) }),
   defineCommand({
     id: 'animAddMarker',
     titleKey: 'anim.commands.addMarker',

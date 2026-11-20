@@ -122,7 +122,13 @@
       "setWorkArea": "Set work area",
       "workAreaStart": "Start work area at playhead",
       "workAreaEnd": "End work area at playhead",
-      "clearWorkArea": "Clear work area"
+      "clearWorkArea": "Clear work area",
+      "prevKey": "Previous keyframe",
+      "nextKey": "Next keyframe",
+      "prevMarker": "Previous marker",
+      "nextMarker": "Next marker",
+      "stepBack": "Previous frame (←, Shift for 10)",
+      "stepForward": "Next frame (→, Shift for 10)"
     },
     "history": {
       "new": "New animation",

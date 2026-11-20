@@ -624,3 +624,26 @@ test('T-ANIM-36 标记点和工作区：Shift+M 加标记、拖动改时刻、�
   // 绕回过（播放超过 0.75 秒）
   expect(seen.some((t, i) => i > 0 && t < seen[i - 1]!)).toBe(true);
 });
+
+test('T-ANIM-37 跳转快捷键：K / J 跳到下一个 / 上一个关键帧，Shift+K 跳到下一个标记；方向键一帧一帧走', async () => {
+  dir = makeUserDataDir();
+  launched = await launchApp(dir);
+  const { page } = launched;
+  await newAnimation(page);
+  const now = async () => (await page.evaluate(() => window.__allayTest!.transport())).time;
+  await page.evaluate(() => window.__allayTest!.setTime(0));
+  await page.getByTestId('anim-timeline').click({ position: { x: 5, y: 5 } });
+  // 新动画的关键帧时刻（从文档里取）
+  const times = [...new Set((await docJson(page)).layers.flatMap((l) => Object.values(l.props).flatMap((p) => (p && typeof p === 'object' && 'keys' in p ? (p as { keys: { t: number }[] }).keys.map((k) => k.t) : []))))].sort((a, b) => a - b);
+  const after0 = times.find((t) => t > 1e-6)!;
+  await page.keyboard.press('K');
+  await expect.poll(now).toBeCloseTo(after0, 5);
+  await page.keyboard.press('J');
+  await expect.poll(now).toBeCloseTo(times.filter((t) => t < after0 - 1e-6).at(-1) ?? after0, 5);
+  await dispatch(page, 'animAddMarker', { t: 1.5 });
+  await page.keyboard.press('Shift+K');
+  await expect.poll(now).toBeCloseTo(1.5, 5);
+  // 方向键一帧（输出默认 60 帧每秒）
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(now).toBeCloseTo(1.5 + 1 / 60, 5);
+});
