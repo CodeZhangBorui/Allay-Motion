@@ -131,6 +131,23 @@ test('T-ANIM-32 文字缓存：同样的参数再 setup 一次（命中缓存）
   }
 });
 
+test('T-ANIM-31 逐字动画的排版与整段文字一致：位图字体（含空格、多行、三种对齐）和 unihex 的中文字形', async () => {
+  for (const mode of [true, 'unihex'] as const) {
+    await call('setFakeVanillaFont', mode);
+    try {
+      const texts = mode === 'unihex' ? ['A中国B', '中 国\nDA'] : ['ABCD', 'AB CD', 'AB C\nDA B'];
+      for (const text of texts)
+        for (const align of ['left', 'center', 'right'] as const) {
+          const r = await call('charsLayout', text, align, HD);
+          expect(r.ink, `${text} ${align}`).toBeGreaterThan(100);
+          expect(r.diff, `${text} ${align}`).toBe(0);
+        }
+    } finally {
+      await call('setFakeVanillaFont', false);
+    }
+  }
+});
+
 test('文字：原版字体里缺的字形用系统字体按像素补上（前进宽度同游戏的 Unifont 字形）', async () => {
   await call('setFakeVanillaFont', true);
   try {

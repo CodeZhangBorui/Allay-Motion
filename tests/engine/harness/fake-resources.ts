@@ -1,5 +1,6 @@
 // test:engine 的假资源栈：纯色色块和几张拼出来的测试图，只是测试数据，不是产品素材（docs/09-compliance.md 9.6）。
 // 原版字体用拼出来的测试字体（setFakeVanillaFont）；不打开时资源栈里没有字体，文字走系统字体。
+import { parseUnihex } from '../../../packages/assets/src/index';
 import { type ResourceKind, type ResourcePayload } from '../../../packages/template-sdk/src/index';
 
 export const FAKE_STAMP = 'test-fake-1';
@@ -29,10 +30,24 @@ export const ANIM_COLORS: [number, number, number][] = [
   [255, 255, 255],
 ];
 
-let vanillaFont = false;
-/** 打开后 minecraft:default 返回一套拼出来的测试字体（每个字形是宽度不同的实心矩形） */
-export function setFakeVanillaFont(on: boolean): void {
+let vanillaFont: boolean | 'unihex' = false;
+/**
+ * 打开后 minecraft:default 返回一套拼出来的测试字体（每个字形是宽度不同的实心矩形）。
+ * 'unihex' 时再加一个 unihex 提供器（脚本拼出来的 .hex：“中”“国”两个 16 × 16 的字形，墨迹宽度不同），测中日韩文字的排版
+ */
+export function setFakeVanillaFont(on: boolean | 'unihex'): void {
   vanillaFont = on;
+}
+
+/** 一个 16 × 16 的 .hex 字形：从 left 到 right 列、top 到 bottom 行是实心的 */
+function hexGlyph(cp: number, left: number, right: number, top: number, bottom: number): string {
+  let hex = '';
+  for (let y = 0; y < 16; y++) {
+    let row = 0;
+    for (let x = 0; x < 16; x++) if (x >= left && x <= right && y >= top && y <= bottom) row |= 1 << (15 - x);
+    hex += row.toString(16).toUpperCase().padStart(4, '0');
+  }
+  return `${cp.toString(16).toUpperCase().padStart(4, '0')}:${hex}`;
 }
 
 /** 测试字体：2×2 个 8×8 的格子，A B C D 的墨水宽度分别是 2、3、4、5 列，高 7 行 */
@@ -47,6 +62,7 @@ function testFont(): ResourcePayload {
     providers: [
       { type: 'space', advances: [[0x20, 4]] },
       { type: 'bitmap', ascent: 7, height: 8, rows: [[0x41, 0x42], [0x43, 0x44]], image: { width: 16, height: 16, data } },
+      ...(vanillaFont === 'unihex' ? [{ type: 'glyphs' as const, ...parseUnihex([`${hexGlyph(0x4e2d, 1, 13, 1, 14)}\n${hexGlyph(0x56fd, 0, 14, 0, 15)}\n`]), oversample: 2 as const }] : []),
     ],
     skipped: [],
   };

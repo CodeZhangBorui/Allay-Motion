@@ -243,10 +243,14 @@ async function createAnimation(ctx, source) {
     const spaceStep = measure(probe + ' ' + probe).w - measure(probe + probe).w;
     const lineStep = lines.length > 1 ? measure(probe + '\n' + probe).h - measure(probe).h : 0;
     const list = [];
+    const stepsOf = (chars) => chars.map((c) => (c.trim() === '' ? spaceStep : measure(c).w + gap));
+    const widthOf = (chars, steps) => steps.reduce((a, b) => a + b, 0) - (chars.length > 0 && chars[chars.length - 1].trim() !== '' ? gap : 0);
+    // 整段的宽是最宽的一行；居中时每行相对整段左边的偏移取整到字体像素（同引擎的位图文字）
+    const full = Math.max(0, ...lines.map((chars) => widthOf(chars, stepsOf(chars))));
     lines.forEach((chars, li) => {
-      const steps = chars.map((c) => (c.trim() === '' ? spaceStep : measure(c).w + gap));
-      const width = steps.reduce((a, b) => a + b, 0) - (chars.length > 0 && chars[chars.length - 1].trim() !== '' ? gap : 0);
-      const left = def.align === 'left' ? 0 : def.align === 'right' ? -width : -width / 2;
+      const steps = stepsOf(chars);
+      const width = widthOf(chars, steps);
+      const left = def.align === 'left' ? 0 : def.align === 'right' ? -width : -full / 2 + Math.floor((full - width) / 2 / def.size + 1e-9) * def.size;
       const y = ((lines.length - 1) / 2 - li) * lineStep;
       let x = left;
       chars.forEach((c, k) => {
