@@ -130,6 +130,12 @@ export function liveMarks(doc: ResolvedDoc, text: string, t: number, spans = loc
       const n = layer.repeat.mode === 'grid' ? layer.repeat.cols * layer.repeat.rows : layer.repeat.count;
       marks.push({ kind: 'param', line: lineOf(text, rs.start), endLine: lineOf(text, rs.end), label: `${layer.name} · repeat ×${n}${layer.repeat.stagger > 0 ? ` · +${layer.repeat.stagger}s` : ''}` });
     }
+    // 逐字动画（第三轮）：可见时标出整个 chars，说明写字数和错开
+    const cs = layer.type === 'text' && layer.chars ? spans.get(`layers.${li}.chars`) : undefined;
+    if (cs && layer.type === 'text' && layer.chars) {
+      const n = Array.from(String(layer.text)).filter((c) => c.trim() !== '').length;
+      marks.push({ kind: 'param', line: lineOf(text, cs.start), endLine: lineOf(text, cs.end), label: `${layer.name} · chars ×${n}${layer.chars.stagger > 0 ? ` · +${layer.chars.stagger}s` : ''}` });
+    }
     // 路径（第三轮）：可见时标出整个 path
     const ps = layer.path ? spans.get(`layers.${li}.path`) : undefined;
     if (ps && layer.path) {

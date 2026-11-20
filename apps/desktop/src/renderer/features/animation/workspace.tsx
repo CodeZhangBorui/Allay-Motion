@@ -15,8 +15,9 @@ import { ANIMATION_COMMANDS as BASE_COMMANDS } from './commands';
 import { LAYER_COMMANDS } from './commands-layers';
 import { ANIMATION_R3_COMMANDS } from './commands-r3';
 import { TIMELINE_COMMANDS } from './commands-timeline';
+import { EDIT_COMMANDS } from './commands-edit';
 
-export const ANIMATION_COMMANDS = [...BASE_COMMANDS, ...ANIMATION_R3_COMMANDS, ...LAYER_COMMANDS, ...TIMELINE_COMMANDS];
+export const ANIMATION_COMMANDS = [...BASE_COMMANDS, ...ANIMATION_R3_COMMANDS, ...LAYER_COMMANDS, ...TIMELINE_COMMANDS, ...EDIT_COMMANDS];
 
 export const ANIMATION_MENU_ITEMS: MenuItemDef[] = [
   { id: 'file.newAnimation', menu: 'file', group: 0, order: 1, command: 'animNew', testId: 'menu-anim-new' },

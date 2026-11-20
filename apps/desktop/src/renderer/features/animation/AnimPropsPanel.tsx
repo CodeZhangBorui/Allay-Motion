@@ -35,9 +35,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { descendants } from '../../../shared/animation/layers';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { keyIndexAt, keysOf, propValue, setKeyEase } from '../../../shared/animation/edit';
+import { keyIndexAt, keysOf, propValue } from '../../../shared/animation/edit';
 import { compatibleTypes, paramUsage, readTarget, type BindTarget } from '../../../shared/animation/params';
-import { docDuration, resolveDoc, type ResolvedDoc, type ResolvedLayer } from '../../../shared/animation/resolve';
+import { resolveDoc, type ResolvedDoc, type ResolvedLayer } from '../../../shared/animation/resolve';
 import { ANIM_PROPS, BLEND_MODES, isParamRef, REPEAT_ORDERS, type AnimationDoc, type AnimEasing, type AnimParam, type AnimProp, type Layer } from '../../../shared/animation/schema';
 import { commandEnabled, trigger, useRegistry } from '../../app/registry';
 import { useProjectStore } from '../../stores/projectStore';
@@ -45,9 +45,8 @@ import { useTemplateStore } from '../../stores/templateStore';
 import { useTransportStore } from '../../stores/transportStore';
 import { localized } from '../../templates/catalog';
 import { EditorServicesProvider } from '../params/editorServices';
-import { setProp, toggleKey } from './commands';
+import { toggleKey } from './commands';
 import { easeEval } from './easeEval';
-import { editDoc } from './source';
 import { useAnimationUi } from './uiState';
 import { useCodeWindow } from './codeWindow';
 import { RepeatSection } from './RepeatSection';
@@ -157,11 +156,9 @@ function BindButton({ doc, target, label }: { doc: AnimationDoc; target: BindTar
 }
 
 /** 改当前图层的一个内容字段（不是可动画属性） */
+/** 改图层的内容字段：经 animUpdateLayer 命令（undefined 是去掉那个字段） */
 function patchLayer(id: string, patch: Record<string, unknown>): void {
-  editDoc((doc) => {
-    const i = doc.layers.findIndex((l) => l.id === id);
-    if (i >= 0) doc.layers[i] = { ...doc.layers[i]!, ...patch } as Layer;
-  });
+  trigger('animUpdateLayer', { layer: id, fields: Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? null : v])) });
 }
 
 const fullFont = (f: Partial<FontValue> | undefined): FontValue => ({ family: 'minecraft:default', bold: false, italic: false, underline: false, strikethrough: false, shadow: false, outline: null, ...f });
@@ -271,7 +268,7 @@ function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: Reso
     <>
       <Group id="doc" title={t('anim.props.document')}>
         <Row label={t('anim.props.name')}>
-          <TextField value={doc.name} maxLength={60} label={t('anim.props.name')} testId="anim-doc-name" onChange={(v) => v.trim() && editDoc((d) => void (d.name = v.trim()))} />
+          <TextField value={doc.name} maxLength={60} label={t('anim.props.name')} testId="anim-doc-name" onChange={(v) => v.trim() && trigger('animUpdateDoc', { name: v.trim() })} />
         </Row>
         <Row label={t('anim.props.category')}>
           <EnumField
@@ -279,12 +276,7 @@ function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: Reso
             label={t('anim.props.category')}
             testId="anim-doc-category"
             options={(['overlay', 'transition', 'title'] as const).map((c) => ({ value: c, label: t(`gallery.categories.${c}`) }))}
-            onChange={(v) =>
-              editDoc((d) => {
-                d.category = v as AnimationDoc['category'];
-                if (d.category === 'transition' && d.cutTime === null) d.cutTime = Math.round((docDuration(d) / 2) * 1000) / 1000;
-              })
-            }
+            onChange={(v) => trigger('animUpdateDoc', { category: v })}
           />
         </Row>
         <Row label={t('anim.props.duration')} bind={<BindButton doc={doc} target={{ kind: 'duration' }} label={t('anim.props.duration')} />}>
@@ -298,12 +290,12 @@ function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: Reso
             unit="s"
             label={t('anim.props.duration')}
             testId="anim-doc-duration"
-            onChange={(v) => setBindable(doc, { kind: 'duration' }, v, () => editDoc((d) => void (d.duration = v)))}
+            onChange={(v) => setBindable(doc, { kind: 'duration' }, v, () => trigger('animUpdateDoc', { duration: v }))}
           />
         </Row>
         {doc.category === 'transition' && (
           <Row label={t('anim.props.cutTime')}>
-            <ScrubNumberField value={doc.cutTime ?? 0} min={0} max={duration} step={1 / fps} decimals={3} minDecimals={2} unit="s" label={t('anim.props.cutTime')} onChange={(v) => editDoc((d) => void (d.cutTime = v))} />
+            <ScrubNumberField value={doc.cutTime ?? 0} min={0} max={duration} step={1 / fps} decimals={3} minDecimals={2} unit="s" label={t('anim.props.cutTime')} onChange={(v) => trigger('animUpdateDoc', { cutTime: v })} />
           </Row>
         )}
         <Row label={t('anim.props.camera')}>
@@ -314,12 +306,12 @@ function DocumentSettings({ doc, resolved }: { doc: AnimationDoc; resolved: Reso
               { value: 'ortho', label: t('anim.props.cameras.ortho') },
               { value: 'perspective', label: t('anim.props.cameras.perspective') },
             ]}
-            onChange={(v) => editDoc((d) => void (d.camera = v === 'perspective' ? { type: 'perspective', fov: 30 } : { type: 'ortho' }))}
+            onChange={(v) => trigger('animUpdateDoc', { camera: v === 'perspective' ? { type: 'perspective', fov: 30 } : { type: 'ortho' } })}
           />
         </Row>
         {doc.camera.type === 'perspective' && (
           <Row label={t('anim.props.fov')}>
-            <ScrubNumberField value={doc.camera.fov} min={5} max={120} step={1} unit="°" label={t('anim.props.fov')} onChange={(v) => editDoc((d) => void (d.camera = { type: 'perspective', fov: v }))} />
+            <ScrubNumberField value={doc.camera.fov} min={5} max={120} step={1} unit="°" label={t('anim.props.fov')} onChange={(v) => trigger('animUpdateDoc', { camera: { type: 'perspective', fov: v } })} />
           </Row>
         )}
       </Group>
@@ -650,7 +642,7 @@ function PropRow({ doc, layer, resolvedLayer, prop }: { doc: AnimationDoc; layer
         {...(meta.unit ? { unit: meta.unit } : {})}
         label={label}
         testId={`anim-prop-value-${prop}`}
-        onChange={(v) => (isParamRef(raw) ? trigger('animUpdateParam', { key: raw.$param, patch: { default: v } }) : setProp(layer.id, prop, v))}
+        onChange={(v) => (isParamRef(raw) ? trigger('animUpdateParam', { key: raw.$param, patch: { default: v } }) : trigger('animSetPropValues', { layer: layer.id, values: { [prop]: v }, t: time }))}
       />
     </Row>
   );
@@ -672,14 +664,7 @@ function KeyframeSettings({ doc, layer, resolvedLayer, duration }: { doc: Animat
   const hold = key.ease === 'hold';
   const target: BindTarget = { kind: 'key', layer: layer.id, prop: sel.prop, t: key.t };
   // 只改缓动（不经 animSetKeyframe：那会把绑定到参数的值换成数）
-  const setEase = (ease: EasingValue | 'hold' | undefined) =>
-    editDoc((d) => {
-      const l = d.layers.find((x) => x.id === layer.id);
-      const tr = l?.props[sel.prop];
-      if (!l || !tr) return;
-      const next = setKeyEase(tr, keyIndexAt(tr, key.t), ease === undefined ? undefined : (ease as AnimEasing));
-      if (next) l.props[sel.prop] = next;
-    });
+  const setEase = (ease: EasingValue | 'hold' | undefined) => trigger('animSetKeysEase', { keys: [{ layer: layer.id, prop: sel.prop, t: key.t }], ...(ease !== undefined ? { ease: ease as AnimEasing } : {}) });
   return (
     <Group id="key" title={t('anim.props.keyframe')} extra={t(`anim.propNames.${sel.prop}`)}>
       <Row label={t('anim.props.keyTime')}>
