@@ -1,0 +1,56 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.scoreboard-sidebar",
+  "version": "1.0.0",
+  "name": { "zh-CN": "记分板", "en": "Scoreboard" },
+  "description": {
+    "zh-CN": "屏幕右侧的记分板侧边栏：半透明黑底上一行标题，下面是按分数排序的名字和红色分数；可以在中途换成另一组分数并重新排序。",
+    "en": "The scoreboard sidebar on the right of the screen: a title over translucent black, then names with red scores sorted by score; the scores can change to a second set midway and re-sort."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["ui", "text", "scoreboard"],
+  "groups": [
+    { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },
+    { "key": "change", "label": { "zh-CN": "分数变化", "en": "Score change" } },
+    { "key": "text", "label": { "zh-CN": "文字样式", "en": "Text style" }, "collapsed": true },
+    { "key": "layout", "label": { "zh-CN": "版式", "en": "Layout" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "style", "type": "enum", "label": { "zh-CN": "版本样式", "en": "Version style" }, "hint": { "zh-CN": "Java 版的侧边栏。基岩版的侧边栏、Java 版 1.20.3 起的自定义数字样式（fixed、styled）没有做", "en": "The Java sidebar. The Bedrock sidebar and the custom number formats of Java 1.20.3+ (fixed, styled) are not implemented" }, "group": "layout", "default": "java", "options": [{ "value": "java", "label": { "zh-CN": "Java 版", "en": "Java" } }] },
+    { "key": "title", "type": "text", "label": { "zh-CN": "标题", "en": "Title" }, "hint": { "zh-CN": "可以用 § 或 & 格式码（§e 黄色、§l 粗体）；留空则不画标题那一行", "en": "§ or & format codes work (§e yellow, §l bold); leave empty to drop the title row" }, "group": "content", "default": { "zh-CN": "§e§l击杀榜", "en": "§e§lKills" }, "maxLength": 60 },
+    { "key": "rows", "type": "text", "label": { "zh-CN": "各行", "en": "Rows" }, "hint": { "zh-CN": "每行“名字 分数”，最后一个词是整数时当分数，否则分数为 0。自动按分数从高到低排，最多显示 15 行；名字可以用格式码", "en": "One “name score” per line; the last word is the score when it is an integer, otherwise the score is 0. Sorted by score, highest first, 15 rows at most; names accept format codes" }, "group": "content", "default": "Steve 12\nAlex 9\nSunny 7\nKai 4\nNoor 2", "maxLength": 800, "multiline": true },
+    { "key": "showNumbers", "type": "boolean", "label": { "zh-CN": "显示分数", "en": "Show numbers" }, "hint": { "zh-CN": "关掉是 Java 版 1.20.3 起的“空白”数字样式：没有分数那一列，宽度只看名字（分数仍然决定顺序）", "en": "Off is the “blank” number format of Java 1.20.3+: no score column, the width follows the names only (scores still decide the order)" }, "group": "content", "default": true },
+    { "key": "rowsAfter", "type": "text", "label": { "zh-CN": "变化后的各行", "en": "Rows after the change" }, "hint": { "zh-CN": "写法同上，按名字和上面的行配对；留空则不变化", "en": "Same format, matched to the rows above by name; leave empty for no change" }, "group": "change", "default": "Alex 13\nSteve 12\nSunny 7\nKai 5\nNoor 2", "maxLength": 800, "multiline": true },
+    { "key": "changeAt", "type": "duration", "label": { "zh-CN": "变化时刻", "en": "Change at" }, "hint": { "zh-CN": "从开头算起；超过总时长就看不到变化", "en": "Measured from the start; past the total length the change is never seen" }, "group": "change", "default": 1.5, "min": 0.1, "max": 30 },
+    { "key": "reorder", "type": "enum", "label": { "zh-CN": "换位方式", "en": "Reorder" }, "hint": { "zh-CN": "游戏里是直接重画：分数和顺序瞬间变。“滑动”是这里加的，行在 0.3 秒里滑到新位置，新增和消失的行同时淡入淡出", "en": "The game simply redraws: values and order change at once. “Slide” is an addition here: rows glide to their new slots over 0.3 s while added and removed rows fade" }, "group": "change", "default": "instant", "options": [{ "value": "instant", "label": { "zh-CN": "瞬间（游戏）", "en": "Instant (game)" } }, { "value": "slide", "label": { "zh-CN": "滑动", "en": "Slide" } }] },
+    { "key": "scoreColor", "type": "color", "label": { "zh-CN": "分数颜色", "en": "Score color" }, "hint": { "zh-CN": "游戏里是红色 #FF5555", "en": "Red #FF5555 in the game" }, "group": "text", "default": "#FF5555", "palette": "chat", "visibleWhen": { "key": "showNumbers", "equals": true } },
+    { "key": "titleFont", "type": "font", "label": { "zh-CN": "标题字体", "en": "Title font" }, "hint": { "zh-CN": "游戏里记分板的字都不带阴影", "en": "Scoreboard text has no shadow in the game" }, "group": "text", "default": { "family": "embedded:default", "shadow": false } },
+    { "key": "rowFont", "type": "font", "label": { "zh-CN": "各行字体", "en": "Row font" }, "hint": { "zh-CN": "名字和分数共用", "en": "Shared by names and scores" }, "group": "text", "default": { "family": "embedded:default", "shadow": false } },
+    { "key": "side", "type": "enum", "label": { "zh-CN": "位置", "en": "Side" }, "hint": { "zh-CN": "游戏里在右侧、竖直方向大致居中；左侧是镜像过去的", "en": "On the right and roughly centered vertically in the game; the left side is a mirror of it" }, "group": "layout", "default": "right", "options": [{ "value": "right", "label": { "zh-CN": "右侧（游戏）", "en": "Right (game)" } }, { "value": "left", "label": { "zh-CN": "左侧", "en": "Left" } }] },
+    { "key": "guiScale", "type": "number", "label": { "zh-CN": "界面缩放", "en": "GUI scale" }, "hint": { "zh-CN": "一个界面像素对应的设计单位（1080p 的游戏窗口在自动缩放下是 4）；放不下时自动缩小", "en": "Design units per GUI pixel (4 for a 1080p window at Auto); shrinks automatically when it does not fit" }, "group": "layout", "default": 5, "min": 1, "max": 8, "step": 1, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "淡入", "en": "Fade in" }, "hint": { "zh-CN": "游戏里记分板是直接出现的，这里加了淡入淡出", "en": "The sidebar simply appears in the game; the fades are added here" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 5 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Stay" }, "group": "timing", "default": 4, "min": 0.1, "max": 20 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "淡出", "en": "Fade out" }, "group": "timing", "default": 0.25, "min": 0.05, "max": 5 },
+    { "key": "sound", "type": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "hint": { "zh-CN": "在分数变化的那一刻播放；游戏里记分板变化没有声音", "en": "Plays when the scores change; the game changes the sidebar silently" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "淡入", "en": "Fade in" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Stay" } },
+      { "param": "outDuration", "label": { "zh-CN": "淡出", "en": "Fade out" } }
+    ]
+  },
+  "presets": [
+    { "key": "kill-board", "name": { "zh-CN": "击杀榜：第二名反超", "en": "Kill board: second place takes the lead" }, "params": { "title": "§e§l击杀榜", "rows": "Steve 12\nAlex 9\nSunny 7\nKai 4\nNoor 2", "rowsAfter": "Alex 13\nSteve 12\nSunny 7\nKai 5\nNoor 2", "changeAt": 2.25, "reorder": "slide", "showNumbers": true, "sound": "minecraft:entity.experience_orb.pickup" } },
+    { "key": "objectives", "name": { "zh-CN": "目标清单（不显示分数）", "en": "Objectives list (numbers hidden)" }, "params": { "title": "§6§l今日目标", "rows": "§f找到村庄 4\n§f挖到钻石 3\n§f造好下界传送门 2\n§f击败末影龙 1", "rowsAfter": "§a§m找到村庄§r 4\n§a§m挖到钻石§r 3\n§f造好下界传送门 2\n§f击败末影龙 1", "changeAt": 2, "reorder": "instant", "showNumbers": false, "sound": "minecraft:entity.experience_orb.pickup" } },
+    { "key": "players-left", "name": { "zh-CN": "剩余玩家", "en": "Players left" }, "params": { "title": "§c§l生存战", "rows": "§f剩余玩家 8\n§7已淘汰 4", "rowsAfter": "§f剩余玩家 7\n§7已淘汰 5", "changeAt": 2, "reorder": "instant", "showNumbers": true, "hold": 3.5 } },
+    { "key": "team-scores", "name": { "zh-CN": "队伍比分（左侧）", "en": "Team scores (left side)" }, "params": { "title": "§b§l比分", "rows": "§c红队 3\n§9蓝队 2\n§a绿队 2\n§e黄队 1", "rowsAfter": "§9蓝队 4\n§c红队 3\n§a绿队 2\n§e黄队 1", "changeAt": 2.25, "reorder": "slide", "side": "left", "showNumbers": true } },
+    { "key": "static", "name": { "zh-CN": "静态榜单（不变化）", "en": "Static board (no change)" }, "params": { "rowsAfter": "", "hold": 3 } },
+    { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"titleFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": null}, "rowFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": null}} }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
