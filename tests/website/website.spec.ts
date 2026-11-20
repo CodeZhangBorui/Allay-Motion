@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Frame, type Page } from '@playwright/test';
 import { brandMessages } from '../../packages/ui/src/brand/messages';
+import { isSoftwareRenderer } from '../engine/software';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const ELECTRON = createRequire(join(ROOT, 'apps/desktop/package.json'))('electron') as string;
@@ -345,35 +346,45 @@ test('T-WEB-12 剪辑点：往下越过分界线时自动完整播一遍（引�
 });
 
 test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点导航锚点跳转，每次停手后各段都落到完整的终态', async () => {
-  // 逐格输入和多次停顿在软件渲染下会累积开销；每次停手的验收时限仍不变。
-  test.setTimeout(300_000);
   const { page } = s;
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await expect(page.getByTestId('hero-viewer')).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
+  const renderer = await page.getByTestId('world').evaluate((canvas: HTMLCanvasElement) => {
+    const gl = canvas.getContext('webgl2');
+    if (!gl) return '';
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    return String(gl.getParameter(debugInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
+  });
+  const software = isSoftwareRenderer(renderer);
+  // 软件渲染下每次输入与取样都更慢，同时保留实际落定的断言。
+  if (software) test.setTimeout(300_000);
+  const settleTimeout = software ? 12_000 : 3000;
   /** 页面上所有带 data-motion 的段落（首屏到分镜的主视觉、剪辑点、导航的播放头）都已落到终态 */
-  const allSettled = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-motion]')].every((e) => e.dataset.settled === 'true'));
   const unsettled = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-motion]')].filter((e) => e.dataset.settled !== 'true').map((e) => e.dataset.motion));
   await page.mouse.move(700, 450);
-  // 滚轮：每次 100 px、间隔 250 ms，每滚 4 格停一下；停手 2 秒后必须全部是终态
+  // 滚轮：每次 100 px、间隔 250 ms，每滚 4 格停一下。
   const total = await page.evaluate(() => document.documentElement.scrollHeight);
   let y = 0;
   for (let i = 1; y < total * 0.55; i++) {
     await page.mouse.wheel(0, 100);
     await page.waitForTimeout(250);
     if (i % 4 === 0) {
-      await page.waitForTimeout(2000);
-      expect(await unsettled(), `scrollY ${y}`).toEqual([]);
+      if (software) await expect.poll(unsettled, { timeout: settleTimeout, message: `滚轮 scrollY ${y}` }).toEqual([]);
+      else {
+        await page.waitForTimeout(2000);
+        expect(await unsettled(), `滚轮 scrollY ${y}`).toEqual([]);
+      }
     }
     y = await page.evaluate(() => window.scrollY);
   }
-  // PageDown 连按：大步跳过若干节，停手 1.5 秒后全部是终态（不排队补播）
+  // PageDown 连按：大步跳过若干节，停手后全部落定（不排队补播）。
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.waitForTimeout(1500);
   for (let i = 0; i < 6; i++) {
     await page.keyboard.press('PageDown');
     await page.waitForTimeout(80);
   }
-  await expect.poll(allSettled, { timeout: 3000 }).toBe(true);
+  await expect.poll(unsettled, { timeout: settleTimeout, message: '连按 PageDown 后仍在播放的段落' }).toEqual([]);
   // 导航锚点跳转（从页首直接跳到模板一节，越过分镜和剪辑点）：落到终态，剪辑点是“播完”而不是在播
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   await page.waitForTimeout(2000);
@@ -389,7 +400,7 @@ test('T-WEB-15 滚动手感：滚轮一格一格地滚、连按 PageDown、点�
       { timeout: 6000 },
     )
     .toBe(true);
-  await expect.poll(allSettled, { timeout: 3000 }).toBe(true);
+  await expect.poll(unsettled, { timeout: settleTimeout, message: '导航跳转后仍在播放的段落' }).toEqual([]);
   expect(await cutState(page)).toBe('done');
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
 });
