@@ -2304,20 +2304,20 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 
 ## 内嵌 Unifont 与两种字体模式（2026-11-20）
 
-用户 2026-11-20 的新要求（经主控转达）：“将新增的几个涉及到文字模板中的字体改为这个，直接内嵌入此字体文件，有两种模式：普通模式时优先使用 Mojangles，当 Mojangles 中无字形（比如中文字符）时回退到此字体；强制 Unicode 模式则永远对所有字形使用此字体。此字体应当只存储一份……或许你需要实现一个通用接口”。“此字体”是用户给的 `unifont_t-18.0.01.otf`。这是对上面“删除内置像素字体，改用原版字体和系统字体”的补充：方舟像素字体仍然删着，系统字体仍是最后一环，新加的是一份随应用分发的 Unifont 和两个用它的字体族；已有的字体族行为不变。
+用户 2026-11-20 的新要求（经主控转达）：“将新增的几个涉及到文字模板中的字体改为这个，直接内嵌入此字体文件，有两种模式：普通模式时优先使用 Mojangles，当 Mojangles 中无字形（比如中文字符）时回退到此字体；强制 Unicode 模式则永远对所有字形使用此字体。此字体应当只存储一份……或许你需要实现一个通用接口”。“此字体”最初是用户给的 `unifont_t-18.0.01.otf`；先用过 `unifont_t`，用户 2026-11-20 决定换成标准版 `unifont-18.0.01.otf`（原话 “Swap to standard”），原因是字形来源：`unifont_t` 的汉字是 T 源（台湾来源）的写法，标准版是 G 源（中国大陆来源），更合用户主要显示的简体中文。这是对上面“删除内置像素字体，改用原版字体和系统字体”的补充：方舟像素字体仍然删着，系统字体仍是最后一环，新加的是一份随应用分发的 Unifont 和两个用它的字体族；已有的字体族行为不变。
 
 ### 这个文件是什么
 
-- name 表：家族名 `Unifont-T`，版本串 `Version 18.0.01`，许可说明 “Dual license: SIL Open Font License version 1.1, and GNU GPL version 2 or later with the GNU Font Embedding Exception.”，网址 https://unifoundry.com/unifont/ 。CFF 轮廓，每 em 64 单位（一个点阵像素 4 单位），上升 56、下降 8（14 + 2 像素），57,088 个字形，只有基本多文种平面。sha256 `f8bb2965…7b74000`，5,240,260 字节，原样未改。
-- **`unifont_t` 是 Unicode T 源（台湾来源）的中文变体**：Unifont 17.0.04（2026-03-13）加入，2.8 万多个 T 源汉字字形，与标准版 `unifont` 用的 G 源（中国大陆，文泉驿）字形平行（unifoundry.com 的发布说明）。还原出来的字形也对得上：`、` 在格子正中（大陆规范在左下），`骨` 里面的折笔朝右。**简体字都有，但写法是台湾的**；用户主要显示简体中文时，标准版 `unifont-18.0.01.otf`（G 源，和游戏 jar 里的 `unifont.zip` 同源）可能更合适。换文件只要改 `apps/desktop/src/main/resources/fonts.ts` 的 `EMBEDDED_UNIFONT_FILE`、来源登记、打包配置和 T-FNT-5 的哈希；这次按用户给的文件做，没有替换。
+- name 表：家族名 `Unifont`，版本串 `Version 18.0.01`，许可说明 “Dual license: SIL Open Font License version 1.1, and GNU GPL version 2 or later with the GNU Font Embedding Exception.”，网址 https://unifoundry.com/unifont/ 。CFF 轮廓，每 em 64 单位（一个点阵像素 4 单位），上升 56、下降 8（14 + 2 像素），58,911 个字形，cmap 里基本多文种平面的码位还原出 57,070 个点阵字形（半宽 8 列、全宽 16 列）。sha256 `88d0a14d…6ed85cd3c2`，5,320,148 字节，原样未改；取自 https://unifoundry.com/pub/unifont/unifont-18.0.01/font-builds/unifont-18.0.01.otf ，与 https://ftp.gnu.org/gnu/unifont/unifont-18.0.01/unifont-18.0.01.otf 逐字节相同。
+- **汉字是 G 源（中国大陆来源）的字形**，和游戏 jar 里 `unifont.zip` 同源。抽查过：`、` 在格子左下，`骨` 里面的折笔朝左，`说`、`们` 是规范简体的写法。CFF 解析器照样成立（同一套表结构和绘制指令）。
 
 ### 放在哪、怎么读
 
 - 文件放在 `resources/fonts/unifont/`（原来方舟像素字体的位置，和 `resources/ffmpeg` 一样是“随包分发的第三方文件”），旁边是 `OFL.txt`（按 OFL 1.1 分发：许可全文和 name 表里的版权行）。`electron-builder.yml` 顶层的 `extraResources` 把这两个文件放进安装包的 `fonts/unifont/`，Windows 和 macOS 都带；`.gitattributes` 让 `resources/fonts/**` 不做换行转换；来源登记、第三方许可清单（关于页和 `THIRD_PARTY_NOTICES.txt`）、`docs/09` 9.7 都更新了。模板包里不带字体，manifest 里也不引用路径。
 - 主进程第一次被问到时读文件，用 `@allay/assets` 的 `otf.ts` 还原成点阵，之后一直留着（`EmbeddedUnifont`）。**没有引入字体解析库**：Unifont 的轮廓只是“每个像素一个正方形”，自己实现读它所需的那部分（sfnt 表、cmap 4/12、hmtx、CFF 的 INDEX/DICT/FDSelect/子程序、Type 2 的绘制指令），在像素中心按非零环绕采样，得到和 `.hex` 一样的 8 或 16 列 × 16 行点阵，再交给已有的 `parseUnihex`。纯计算，不依赖画布或系统字体，同一个文件在任何机器上逐字节相同（T-FNT-5）。用 `FontFace` + OffscreenCanvas 取样也行，但那样结果取决于 Chromium 的光栅化，还要在每个 Worker 里各注册一遍 5 MB 的字体，所以没用。
 - 经新的 IPC `fonts.embeddedUnifont`（无参数）交给渲染进程，渲染进程的 `resolveResource('font', 'embedded:unifont')` 把它包成 `kind: 'bdf'`、`oversample: 2` 的字形表交给 Worker。渲染进程和 Worker（`EngineResources` 的 `fixedFonts`）都只要一次，换资源栈也不重新要（T-FNT-9）。
-- **量出来的数**（本机，Node 24）：解析 1.4–1.5 秒（三次分别为 1466、1395、1435 ms），字形表 2.7 MB（位图 1.68 MB、度量 0.57 MB、码位和偏移各 0.23 MB），还原过程中的 `.hex` 中间文本约 3.7 MB，用完即弃。主进程里分块解析（每 2000 个字形 `setImmediate` 一次），这一秒多里照常响应别的 IPC。只有用到 `embedded:*` 字体族时才加载，不用就不读文件。
-- **安装包增加约 5.25 MB**（字体 5,240,260 字节 + OFL 约 4.5 KB；安装包压缩后会小一些，没有实测）。
+- **量出来的数**（本机，Node 24）：解析 1.1–1.2 秒（三次分别为 1210、1123、1188 ms），字形表 2.7 MB（2,703,564 字节：位图 1.68 MB、度量 0.57 MB、码位和偏移各 0.23 MB），还原过程中的 `.hex` 中间文本约 3.7 MB，用完即弃。主进程里分块解析（每 2000 个字形 `setImmediate` 一次），这一秒多里照常响应别的 IPC。只有用到 `embedded:*` 字体族时才加载，不用就不读文件。
+- **安装包增加约 5.33 MB**（字体 5,320,148 字节 + OFL 4,736 字节；安装包压缩后会小一些，没有实测）。
 
 ### 接口：两个新字体族
 
@@ -2343,5 +2343,5 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
 ### 测试
 
 - `tests/unit/T-FNT.embedded-unifont.test.ts`：T-FNT-5（OTF 还原：版本、哈希与登记一致、“A”与 .hex 逐位相同、全宽区间、两次解析逐字节相同）、T-FNT-6（两种模式下 ASCII、中文、混排各取自哪份字形；没有原版素材时；缺字形落到系统字体）、T-FNT-7（逐像素确定性）、T-FNT-8（字体族 ID 与参数清洗）、T-FNT-9（主进程和引擎都只加载一次）、T-FNT-10（文字对象的宽度、缓存键分开两种模式、宿主没有字体时退回）。“原版字体”是测试里拼出来的 bitmap 格子，不是 Mojang 的文件。
-- T-FNT-11 在 `tests/dist/M8.package.test.ts`：Windows 和 macOS 的包里字体文件有且只有 `fonts/unifont/unifont_t-18.0.01.otf` 一份，旁边是 `OFL.txt`。只在打包后的 CI 上运行。
+- T-FNT-11 在 `tests/dist/M8.package.test.ts`：Windows 和 macOS 的包里字体文件有且只有 `fonts/unifont/unifont-18.0.01.otf` 一份，旁边是 `OFL.txt`。只在打包后的 CI 上运行。
 - T-FNT-12 在 `tests/engine/m2.spec.ts`（Electron 里、走导出路径）：两种模式、有无原版素材时的文字尺寸，同一画面画两次逐点相同。引擎测试的假宿主（`tests/engine/harness/fake-resources.ts`）对 `embedded:unifont` 返回仓库里那份 Unifont 解析出的字形表，所以内置模板改用新字体族后 T-TPL-3 不会多出“字体不可用”的警告；`m2-features` 测试模板加了一个 font 参数，只取它的字体族。

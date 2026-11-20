@@ -474,5 +474,5 @@ packages/templates/_lib/
 | T-FNT-8 | 内嵌字体族 ID | `embedded:` 只认 `default`、`uniform`；参数清洗保留它们 |
 | T-FNT-9 | 内嵌 Unifont 只加载一次 | 主进程第一次调用才读文件；引擎换资源栈也不再要；不用时不要 |
 | T-FNT-10 | 文字对象与缓存 | 两种模式的宽度符合预期、缓存键分开；宿主没有内嵌字体时退回 `minecraft:default` 并警告 |
-| T-FNT-11 | 安装包里的字体 | Windows、macOS 包里字体文件有且只有一份 `fonts/unifont/unifont_t-18.0.01.otf`，旁边是 `OFL.txt` |
+| T-FNT-11 | 安装包里的字体 | Windows、macOS 包里字体文件有且只有一份 `fonts/unifont/unifont-18.0.01.otf`，旁边是 `OFL.txt` |
 | T-FNT-12 | 引擎里的两种模式（导出路径） | 有无原版素材时两种模式的文字尺寸符合预期；同一画面画两次逐点相同 |

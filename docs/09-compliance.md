@@ -109,7 +109,7 @@
 | ProgrammerArt（deathcap） | CC BY 4.0 | 只到 1.9 的命名，不适用 |
 | Faithful、Bare Bones、Unity 等常见资源包 | 自定义许可、保留所有权利或禁止商用 | 不能内置 |
 | 方舟像素字体（Ark Pixel Font）、缝合像素字体（Fusion Pixel Font） | 字体 OFL 1.1 | 曾作为内置像素字体（方舟），**2026-11 按用户要求删除**：文字改用运行时取得的原版字体，没有时用系统字体（docs/decisions.md“2026-11 反馈：原版动画还原与字体”） |
-| GNU Unifont | OFL 1.1 与 GPLv2+（带字体嵌入例外）双许可 | **内嵌**（2026-11-20 用户要求）：18.0.01 的 `unifont_t-18.0.01.otf`（Unicode T 源，即台湾来源的汉字字形）原样放在 `resources/fonts/unifont/`，按 OFL 1.1 分发并附许可全文，安装包里只有这一份；文字的 `embedded:default`、`embedded:uniform` 字体族用它（docs/decisions.md“内嵌 Unifont 与两种字体模式”） |
+| GNU Unifont | OFL 1.1 与 GPLv2+（带字体嵌入例外）双许可 | **内嵌**（2026-11-20 用户要求）：18.0.01 的标准版 `unifont-18.0.01.otf`（汉字是 G 源，即中国大陆来源的字形；先用过 T 源的变体，用户当天决定换成标准版）原样放在 `resources/fonts/unifont/`，按 OFL 1.1 分发并附许可全文，安装包里只有这一份；文字的 `embedded:default`、`embedded:uniform` 字体族用它（docs/decisions.md“内嵌 Unifont 与两种字体模式”） |
 | Monocraft | OFL 1.1 | 不用。它模仿的是 Minecraft 的字体 |
 | IBM Plex Sans、IBM Plex Mono | OFL 1.1 | 界面字体（英文与数字、等宽数字与时间码）。用 `@fontsource/ibm-plex-sans`、`@fontsource/ibm-plex-mono`，只引用 400/500/600 与 400/500。用户于 2026-11-13 同意引入 |
 | Noto Sans SC（思源黑体） | OFL 1.1 | 界面的中文字体。用 `@fontsource/noto-sans-sc`（按 unicode-range 分片），只引用 400/500/600。用户于 2026-11-13 同意引入 |

@@ -162,7 +162,7 @@ Mojang 的模型和方块状态 JSON 不能随包分发，所以应用自带一�
   - `unihex`（游戏里中日韩等字形来自它加载的 Unifont）：主进程在内存里解开 `hex_file` 指的 zip（原版是 jar 里的 `assets/minecraft/font/unifont.zip`），解析其中的 `.hex`，按游戏的规则画成一半大小（2 个 Unifont 像素 = 1 个字体像素），前进宽度 floor(列数 / 2) + 1，阴影和粗体只偏半个字体像素。
   - `ttf` 和 `legacy_unicode` 不解析。
   - 所选字体里找不到的字形依次回退到 `minecraft:default` 和系统字体；资源栈里一个原版字形都没有（没有原版素材）时，整段文字用系统字体。
-- **内嵌 Unifont**（2026-11-20 起）：随应用分发一份 GNU Unifont 18.0.01 的 `unifont_t-18.0.01.otf`（`resources/fonts/unifont/`，T 源即台湾来源的汉字字形），主进程第一次用到时还原成点阵字形表（和 unihex 同一套度量），所有模板共用。字体族 `embedded:default`（普通模式：Mojangles 优先、缺的用它）和 `embedded:uniform`（强制 Unicode 模式：全部用它），见 `04-templates.md` 4.4 和 docs/decisions.md“内嵌 Unifont 与两种字体模式”。
+- **内嵌 Unifont**（2026-11-20 起）：随应用分发一份 GNU Unifont 18.0.01 的标准版 `unifont-18.0.01.otf`（`resources/fonts/unifont/`，汉字是 G 源即中国大陆来源的字形），主进程第一次用到时还原成点阵字形表（和 unihex 同一套度量），所有模板共用。字体族 `embedded:default`（普通模式：Mojangles 优先、缺的用它）和 `embedded:uniform`（强制 Unicode 模式：全部用它），见 `04-templates.md` 4.4 和 docs/decisions.md“内嵌 Unifont 与两种字体模式”。
 - **不内置别的像素字体**（2026-11 起删除了方舟像素字体）。系统字体是 Worker 里 OffscreenCanvas 的字体栈 `"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", sans-serif`：原版字体里缺的字形按子像素画、按 alpha 二值化，和原版字形一样是硬边像素；整段用系统字体时按输出分辨率抗锯齿。同一台机器上预览和导出一致，换一台机器装的字体不同，字形可能不同。
 - 用户可以导入自己的字体文件（TTF、OTF、WOFF、WOFF2、BDF）：复制进 `userData/fonts/<sha256>.<格式>`，字体族 ID 是 `user:<sha256 前 32 位>`。BDF 和内置字体一样按像素画；矢量字体在 Worker 里用 FontFace 载入、按输出分辨率抗锯齿栅格化。
 - 文字一律在引擎 Worker 里栅格化（预览和导出走同一份代码），位图字按子像素（一个字体像素 2 × 2）拼贴、最近邻放大，结果只取决于文字、字体和样式。
