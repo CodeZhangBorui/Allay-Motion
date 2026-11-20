@@ -9,6 +9,11 @@ const origin = new URL(SITE_URL).origin;
 // 用户数据目录由测试指定（测试结束时删掉，不在 %TEMP% 里越积越多）
 app.setPath('userData', process.env.ALLAY_SITE_USERDATA ?? join(app.getPath('temp'), `allay-website-test-${process.pid}`));
 
+if (['d3d11-warp', 'swiftshader'].includes(process.env.ALLAY_ENGINE_ANGLE)) {
+  app.commandLine.appendSwitch('use-gl', 'angle');
+  app.commandLine.appendSwitch('use-angle', process.env.ALLAY_ENGINE_ANGLE);
+}
+
 /** 不是本机地址的请求（devtools、blob、data 不算） */
 globalThis.externalRequests = [];
 
