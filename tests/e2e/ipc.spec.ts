@@ -269,6 +269,7 @@ const MALFORMED: Record<string, unknown[][]> = {
   'fonts.import': [[1], ['C:\\x.ttf']],
   'fonts.remove': [[], ['user:../../x'], ['minecraft:default'], [42]],
   'fonts.read': [[], ['user:../../x'], ['user:0123'], ['C:\\Windows\\Fonts\\arial.ttf'], [null]],
+  'fonts.embeddedUnifont': [[1], ['C:\\Windows\\Fonts\\arial.ttf']],
   'cache.getThumb': [[], ['zz', 'k'], ['0123456789abcdef', '../x'], ['0123456789abcdef', 'a/b'], ['0123456789ABCDEF', 'k']],
   'cache.putThumb': [['0123456789abcdef', 'k'], ['0123456789abcdef', 'k', 'png'], ['0123456789abcdef', 'k', [137, 80, 78, 71]], ['../x', 'k', {}]],
   'cache.clear': [[1]],

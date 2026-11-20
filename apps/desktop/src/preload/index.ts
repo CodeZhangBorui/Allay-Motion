@@ -156,6 +156,7 @@ const api = {
     import: invoke(IPC.fonts.import),
     remove: invoke(IPC.fonts.remove),
     read: invoke(IPC.fonts.read),
+    embeddedUnifont: invoke(IPC.fonts.embeddedUnifont),
   },
   codeWindow: {
     open: invoke(IPC.codeWindow.open),

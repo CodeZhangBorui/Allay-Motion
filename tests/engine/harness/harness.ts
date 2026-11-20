@@ -48,6 +48,7 @@ const SOURCES = {
     manifest: fixture([
       { key: 'scenario', type: 'text', label: 'scenario', default: '' },
       { key: 'text', type: 'text', label: 'text', default: 'AB' },
+      { key: 'font', type: 'font', label: 'font', default: { family: 'minecraft:default' } },
     ]),
   },
   m6bFeatures: {

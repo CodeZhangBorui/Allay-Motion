@@ -14,7 +14,8 @@
 // 修试用版崩溃时加上 window.reload（错误页的“重新载入”，docs/decisions.md “试用版的三个崩溃”）；
 // 界面增强加上 folders：默认文件夹的查询、选择、清除（docs/decisions.md 界面增强）；
 // 自动更新加上 updates：状态、检查、下载、取消、安装和 changed 事件（docs/decisions.md“自动更新”）；
-// 2026-11 字体加上 resources.unihexTables 和 fonts（同时删掉 resources.fallbackFont：内置像素字体删了）：用户导入字体的列表、导入、删除、读取（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）。
+// 2026-11 字体加上 resources.unihexTables 和 fonts（同时删掉 resources.fallbackFont：内置像素字体删了）：用户导入字体的列表、导入、删除、读取（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）；
+// 内嵌 Unifont 加上 fonts.embeddedUnifont：随应用分发的 Unifont 的字形表（docs/decisions.md“内嵌 Unifont 与两种字体模式”）。
 
 export const IPC = {
   app: {
@@ -154,6 +155,7 @@ export const IPC = {
     import: 'fonts:import',
     remove: 'fonts:remove',
     read: 'fonts:read',
+    embeddedUnifont: 'fonts:embeddedUnifont',
   },
   /** 代码窗口（2026-11 第二轮反馈）：两个窗口之间的消息都经主进程转发 */
   codeWindow: {
@@ -285,6 +287,7 @@ export const INVOKE_CHANNELS = [
   IPC.fonts.import,
   IPC.fonts.remove,
   IPC.fonts.read,
+  IPC.fonts.embeddedUnifont,
   IPC.codeWindow.open,
   IPC.codeWindow.close,
   IPC.codeWindow.publish,

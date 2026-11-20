@@ -140,13 +140,16 @@ const SeedParam = z.looseObject({ ...base, type: z.literal('seed'), default: z.i
  * - 资源栈里的字体 ID，如 minecraft:default（游戏默认字体）、minecraft:uniform（Unifont）、minecraft:alt（标准银河字母）、
  *   minecraft:illageralt（灾厄村民文字），以及资源包自己加的字体；
  * - system:sans：系统字体（Worker 里 OffscreenCanvas 的系统字体栈）；旧版本的 allay:fallback（已删除的内置像素字体）当作它；
- * - user:<32 位十六进制>：用户导入的字体文件（内容哈希，文件在应用数据目录里，由主进程读取）。
+ * - user:<32 位十六进制>：用户导入的字体文件（内容哈希，文件在应用数据目录里，由主进程读取）；
+ * - embedded:default、embedded:uniform：内嵌 Unifont 的普通模式和强制 Unicode 模式（protocol.ts 的 EMBEDDED_*_FONT_ID）。
+ *   embedded: 命名空间只认这两个，别的不是字体族（资源包里同名的字体不会被读到）。
  */
 export const USER_FONT_RE = /^user:[0-9a-f]{32}$/;
 export function isFontFamily(value: string): boolean {
+  if (value.startsWith('embedded:')) return value === 'embedded:default' || value === 'embedded:uniform';
   return USER_FONT_RE.test(value) || isResourceId(value);
 }
-const fontFamily = z.string().max(256).refine(isFontFamily, 'must be a font id like minecraft:default, system:sans or user:<hash>');
+const fontFamily = z.string().max(256).refine(isFontFamily, 'must be a font id like minecraft:default, embedded:default, system:sans or user:<hash>');
 /** font 参数的默认值：只给 family 也行，样式缺省为关、描边为 null */
 export const FontDefaultSchema = z.strictObject({
   family: fontFamily,

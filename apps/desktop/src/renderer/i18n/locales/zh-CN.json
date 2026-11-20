@@ -541,6 +541,7 @@
     "thirdParty": "第三方许可",
     "licenses": {
       "ffmpeg": "FFmpeg：LGPL 3.0，以独立进程调用（安装目录里的 ffmpeg.exe，可以自行替换），许可全文随安装包附带。",
+      "unifont": "GNU Unifont 字体：SIL Open Font License 1.1（与 GPLv2+ 带字体嵌入例外双许可），原样随应用附带。",
       "plex": "IBM Plex Sans、IBM Plex Mono 字体：SIL Open Font License 1.1。",
       "noto": "Noto Sans SC（思源黑体）字体：SIL Open Font License 1.1。",
       "phosphor": "Phosphor 图标：MIT。",
@@ -800,9 +801,13 @@
       "import": "导入字体…",
       "missing": "找不到导入的字体",
       "gameHint": "从资源栈（原版素材或资源包）读取；没有时用系统字体",
+      "embeddedHint": "英文、数字和符号用游戏字体（资源栈里的原版字体，资源包改过的照样生效），游戏字体里没有的字（中文等）用随应用附带的 GNU Unifont。中文字形不随原版素材和电脑变化",
+      "forceUnicode": "强制使用 Unicode 字体",
+      "forceUnicodeHint": "所有文字都用随应用附带的 Unifont，和游戏设置里的“强制使用 Unicode 字体”一样",
       "builtinHint": "这台机器上装的字体（微软雅黑、苹方、Noto Sans CJK……）；没有原版素材、或原版字体里没有某个字时也用它。换一台机器字形可能不同",
-      "groups": { "game": "游戏字体", "builtin": "系统字体", "user": "导入的字体" },
+      "groups": { "game": "游戏字体", "embedded": "内嵌字体", "builtin": "系统字体", "user": "导入的字体" },
       "families": {
+        "embedded": "游戏字体 + Unifont",
         "default": "默认",
         "uniform": "Unicode 字体（Unifont）",
         "alt": "标准银河字母",

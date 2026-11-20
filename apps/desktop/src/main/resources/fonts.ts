@@ -2,12 +2,14 @@
 // 1. unihex 提供器（1.20 起游戏里中日韩等字形的来源）：hex_file 是资源栈里的一个 zip（原版是 jar 里的 assets/minecraft/font/unifont.zip），
 //    在内存里解开其中的 .hex，解析成定长字形表交给渲染进程（docs/03-assets.md 3.9，decisions.md“2026-11 反馈：原版动画还原与字体”）。
 //    不往磁盘写任何东西，zip 的安全规则同 zip.ts：不安全的条目名整个拒绝，单个条目、条目数都有上限。
-// 2. 用户导入的字体文件：复制进 userData/fonts/<sha256>.<扩展名>，字体族 ID 是 user:<sha256 前 32 位>。
+// 2. 内嵌的 GNU Unifont（随应用分发的 resources/fonts/unifont/ 里那一份 OTF）：第一次用到时读出来、还原成点阵字形表，之后一直留着
+//    （docs/decisions.md“内嵌 Unifont 与两种字体模式”）。所有模板共用这一份，模板包里不带字体。
+// 3. 用户导入的字体文件：复制进 userData/fonts/<sha256>.<扩展名>，字体族 ID 是 user:<sha256 前 32 位>。
 //    渲染进程只拿到 ID；读文件时主进程按 ID 在这个目录里找，ID 的格式由正则限定，拼不出目录外的路径（01 1.6 第 6 条）。
 import { createHash, randomUUID } from 'node:crypto';
 import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
-import { isSafeRelativePath, parseBdf, parseUnihex, type BitmapFontTables, type UnihexOverride, type UnihexTables } from '@allay/assets';
+import { isSafeRelativePath, parseBdf, parseUnifontOtfChunked, parseUnihex, type BitmapFontTables, type UnihexOverride, type UnihexTables } from '@allay/assets';
 import yauzl, { type Entry, type ZipFile } from 'yauzl';
 import { z } from 'zod';
 
@@ -109,6 +111,38 @@ export class UnihexCache {
       this.entries.set(key, p);
     }
     return p;
+  }
+}
+
+// ---- 内嵌的 Unifont ----
+
+/** 随应用分发的 Unifont 在资源目录里的位置（打包后是 process.resourcesPath 下，开发时是仓库的 resources/ 下） */
+export const EMBEDDED_UNIFONT_FILE = ['fonts', 'unifont', 'unifont_t-18.0.01.otf'] as const;
+
+/** 内嵌 Unifont 的字形表：第一次调用时读文件、分块解析（约 1.5 秒），之后都给同一份；读不了时为 null 并记日志 */
+export class EmbeddedUnifont {
+  private tables: Promise<UnihexTables | null> | null = null;
+
+  constructor(
+    private readonly file: string,
+    private readonly log: (message: string, data?: Record<string, unknown>) => void,
+  ) {}
+
+  get(): Promise<UnihexTables | null> {
+    this.tables ??= readFile(this.file).then(
+      async (bytes) => {
+        const t0 = performance.now();
+        // 分块解析，块与块之间把事件循环让出去：主进程在这 1–2 秒里照常响应别的 IPC
+        const t = await parseUnifontOtfChunked(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), () => new Promise<void>((r) => setImmediate(r)));
+        this.log('embedded unifont loaded', { version: t.version, glyphs: t.codepoints.length, ms: Math.round(performance.now() - t0), bytes: t.bits.byteLength + t.metrics.byteLength + t.codepoints.byteLength + t.offsets.byteLength });
+        return { ascent: t.ascent, descent: t.descent, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits, oversample: t.oversample };
+      },
+      (error: unknown) => {
+        this.log('embedded unifont unavailable', { error: error instanceof Error ? error.message : String(error) });
+        return null;
+      },
+    );
+    return this.tables;
   }
 }
 

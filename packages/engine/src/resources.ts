@@ -4,6 +4,7 @@ import { animationFrameAt, frameRect, layoutAnimation, parseAnimationMeta, parse
 import {
   BitmapFontPayloadSchema,
   DEFAULT_FONT_ID,
+  EMBEDDED_UNIFONT_RESOURCE_ID,
   FontPayloadSchema,
   SoundMetaPayloadSchema,
   TexturePayloadSchema,
@@ -119,7 +120,7 @@ export class EngineResources {
   private placeholder: THREE.Texture | null = null;
   /** 资源栈字体，随 stamp 清空 */
   private readonly stackFonts = new Map<string, Promise<FontAsset | null>>();
-  /** 用户导入的字体（按内容哈希命名，不随资源栈变） */
+  /** 用户导入的字体（按内容哈希命名）和内嵌 Unifont 的字形表：不随资源栈变，整个 Worker 只要一次 */
   private readonly fixedFonts = new Map<string, Promise<FontAsset | null>>();
   /**
    * 栅格化过的文字（fonts.ts 的 TextCache）：每次 setup（改参数）都要重画所有文字，同样的输入画出同样的像素，
@@ -275,7 +276,7 @@ export class EngineResources {
    * 取不到（资源栈里没有、文件丢了、解析失败）时为 null，由调用方退回默认字体。
    */
   font(family: string): Promise<FontAsset | null> {
-    const fixed = USER_FONT_RE.test(family);
+    const fixed = USER_FONT_RE.test(family) || family === EMBEDDED_UNIFONT_RESOURCE_ID;
     const cache = fixed ? this.fixedFonts : this.stackFonts;
     let p = cache.get(family);
     if (!p) {
@@ -305,6 +306,12 @@ export class EngineResources {
       cache.set(family, p);
     }
     return p;
+  }
+
+  /** 内嵌 Unifont 的字形表（第一次用到时向宿主要，之后一直留着）；宿主没有时为 null */
+  async embeddedUnifont(): Promise<BitmapFontPayload | null> {
+    const v = await this.font(EMBEDDED_UNIFONT_RESOURCE_ID);
+    return v?.kind === 'table' ? v.payload : null;
   }
 
   /** 资源栈里的默认字体；没有时为 null */

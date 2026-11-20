@@ -165,6 +165,7 @@ export const IPC_ARGS = {
   [IPC.fonts.import]: z.tuple([]),
   [IPC.fonts.remove]: z.tuple([UserFontIdSchema]),
   [IPC.fonts.read]: z.tuple([UserFontIdSchema]),
+  [IPC.fonts.embeddedUnifont]: z.tuple([]),
   [IPC.cache.getThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema]),
   [IPC.cache.putThumb]: z.tuple([ResourceStampSchema, ThumbKeySchema, ThumbPngSchema]),
   [IPC.cache.clear]: z.tuple([]),

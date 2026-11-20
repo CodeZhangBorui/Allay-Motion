@@ -159,6 +159,25 @@ test('文字：原版字体里缺的字形用系统字体按像素补上（前�
   }
 });
 
+test('T-FNT-12 内嵌 Unifont 的两种模式（引擎里、导出路径）：普通模式 ASCII 用原版、中文用 Unifont，强制 Unicode 全用 Unifont，没有原版素材时普通模式全用 Unifont；两次画面相同', async () => {
+  // 测试字体的 A 前进 3；Unifont 的 A 前进 4、中文 9；Unifont 字形高 8 个字体像素；size 10
+  const size = async (text: string, family: string) => (await call('scenario', 'text', { text, font: { family } }, HD, [0], [])).warnings;
+  await call('setFakeVanillaFont', true);
+  try {
+    expect(await size('AA', 'embedded:default')).toEqual(['text-size:60x80']);
+    expect(await size('A中', 'embedded:default')).toEqual(['text-size:120x80']);
+    expect(await size('A中', 'embedded:uniform')).toEqual(['text-size:130x80']);
+    const pts: [number, number][] = [[70, 240], [75, 245], [80, 250], [90, 255], [100, 260], [110, 245], [150, 250], [170, 255]];
+    const a = await call('scenario', 'text', { text: 'A中文', font: { family: 'embedded:default' } }, HD, [0], pts);
+    const b = await call('scenario', 'text', { text: 'A中文', font: { family: 'embedded:default' } }, HD, [0], pts);
+    expect(b.frames).toEqual(a.frames);
+  } finally {
+    await call('setFakeVanillaFont', false);
+  }
+  // 没有原版素材：普通模式等于全部用 Unifont（不是 minecraft:default 那样整段换成系统字体）
+  expect(await size('A中', 'embedded:default')).toEqual(['text-size:130x80']);
+});
+
 test('精灵：九宫格的边框不拉伸，中间拉伸', async () => {
   // 800×400、边框 4 像素 × pixelSize 10 = 40：x 560–1360，y 340–740
   const r = await call('scenario', 'sprite', {}, HD, [0], [[570, 540], [590, 540], [610, 540], [960, 540], [1350, 540], [960, 350], [960, 730], [550, 540]]);

@@ -1,6 +1,7 @@
 // 交给编辑器控件（@allay/ui/editor）的服务：翻译、方块与物品目录、缩略图、贴图预览、图片选择、最近使用、连续操作的起止。
 import { BLOCKS, ITEMS, NAMES, SOUND_EVENTS } from '@allay/assets';
 import { AllayLoader } from '@allay/mascot';
+import { EMBEDDED_DEFAULT_FONT_ID, EMBEDDED_UNIFORM_FONT_ID } from '@allay/template-sdk';
 import { EditorProvider, type CatalogEntry, type CatalogGroup, type EditorServices, type FontFamilyOption } from '@allay/ui/editor';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { UserFontInfo } from '../../../shared/resources';
@@ -162,6 +163,8 @@ export function EditorServicesProvider({ children }: { children: ReactNode }) {
       fonts: {
         families: [
           ...GAME_FONTS.map((id): FontFamilyOption => ({ id, label: t(`editor.font.families.${id.slice('minecraft:'.length)}`), group: 'game', hint: t('editor.font.gameHint') })),
+          // 内嵌 Unifont：一项加一个“强制 Unicode 字体”开关（docs/decisions.md“内嵌 Unifont 与两种字体模式”）
+          { id: EMBEDDED_DEFAULT_FONT_ID, forceUnicodeId: EMBEDDED_UNIFORM_FONT_ID, label: t('editor.font.families.embedded'), group: 'embedded', hint: t('editor.font.embeddedHint') },
           { id: 'system:sans', label: t('editor.font.families.system'), group: 'builtin', hint: t('editor.font.builtinHint') },
           ...userFonts.map((f): FontFamilyOption => ({ id: f.id, label: f.name, group: 'user' })),
         ],

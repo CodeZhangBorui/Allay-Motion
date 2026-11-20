@@ -1,7 +1,9 @@
 // test:engine 的假资源栈：纯色色块和几张拼出来的测试图，只是测试数据，不是产品素材（docs/09-compliance.md 9.6）。
 // 原版字体用拼出来的测试字体（setFakeVanillaFont）；不打开时资源栈里没有字体，文字走系统字体。
-import { parseUnihex } from '../../../packages/assets/src/index';
-import { type ResourceKind, type ResourcePayload } from '../../../packages/template-sdk/src/index';
+import { parseUnifontOtf, parseUnihex } from '../../../packages/assets/src/index';
+import { EMBEDDED_UNIFONT_RESOURCE_ID, type BitmapFontPayload, type ResourceKind, type ResourcePayload } from '../../../packages/template-sdk/src/index';
+// 内嵌的 GNU Unifont 就用仓库里那一份（它是 GNU 的字体，不是 Mojang 的文件）：和桌面版一样解析成字形表交给引擎
+import unifontUrl from '../../../resources/fonts/unifont/unifont_t-18.0.01.otf?url';
 
 export const FAKE_STAMP = 'test-fake-1';
 
@@ -68,7 +70,19 @@ function testFont(): ResourcePayload {
   };
 }
 
+let unifont: Promise<BitmapFontPayload> | null = null;
+function embeddedUnifont(): Promise<BitmapFontPayload> {
+  unifont ??= fetch(unifontUrl)
+    .then((r) => r.arrayBuffer())
+    .then((buf) => {
+      const t = parseUnifontOtf(new Uint8Array(buf));
+      return { kind: 'bdf', ascent: t.ascent, descent: t.descent, oversample: 2, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits };
+    });
+  return unifont;
+}
+
 export async function fakeResolveResource(kind: ResourceKind, id: string): Promise<ResourcePayload | null> {
+  if (kind === 'font' && id === EMBEDDED_UNIFONT_RESOURCE_ID) return structuredClone(await embeddedUnifont());
   if (kind === 'font') {
     return vanillaFont && id === 'minecraft:default' ? testFont() : null;
   }

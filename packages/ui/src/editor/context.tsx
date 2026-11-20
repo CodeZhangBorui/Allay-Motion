@@ -36,9 +36,14 @@ export interface SoundLibraryItem {
 export interface FontFamilyOption {
   id: string;
   label: string;
-  group: 'game' | 'builtin' | 'user';
+  group: 'game' | 'embedded' | 'builtin' | 'user';
   /** 悬停说明 */
   hint?: string;
+  /**
+   * 这个字体族的“强制 Unicode 字体”模式对应的另一个字体族 ID（内嵌 Unifont：embedded:default ↔ embedded:uniform）。
+   * 给了时下拉里只列这一项，选中后字段下面多一个开关，在两个 ID 之间切换
+   */
+  forceUnicodeId?: string;
 }
 
 export type RecentKind = 'color' | 'block' | 'item' | 'texture';

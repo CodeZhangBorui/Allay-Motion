@@ -11,7 +11,7 @@ import { ExportService } from './export/export-service';
 import { createIpcRegistrar } from './ipc';
 import { createLogger } from './logger';
 import { createVanillaDownloader, MOJANG_HOSTS } from './resources/download';
-import { UserFontStore } from './resources/fonts';
+import { EMBEDDED_UNIFONT_FILE, EmbeddedUnifont, UserFontStore } from './resources/fonts';
 import { ResourceService } from './resources/service';
 import { APP_ENTRY_URL, APP_ORIGIN, assertLocalDevOrigin } from './security-policy';
 import { hardenSession, installGlobalHardening } from './security';
@@ -116,6 +116,8 @@ if (!app.requestSingleInstanceLock()) {
   });
   // 用户导入的字体：复制在 userData/fonts 下（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）
   const fonts = new UserFontStore(userData);
+  // 内嵌的 Unifont：随应用分发、只有一份，第一次有文字用到时才读（docs/decisions.md“内嵌 Unifont 与两种字体模式”）
+  const embeddedUnifont = new EmbeddedUnifont(join(bundledResources, ...EMBEDDED_UNIFONT_FILE), (message, data) => log.info('fonts', message, data));
   const thumbs = new ThumbCache(userData);
   // 自动更新（docs/decisions.md“自动更新”）：只有打包后的应用会自动检查；安装时运行安装包或打开 dmg，然后退出
   const updates = new UpdateService({
@@ -248,6 +250,7 @@ if (!app.requestSingleInstanceLock()) {
       exports,
       resources,
       fonts,
+      embeddedUnifont,
       thumbs,
       templates,
       templateDev,

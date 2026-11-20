@@ -3,6 +3,7 @@
 // Worker 自己不能读任何东西。解码结果按 resourceStamp 缓存；资源栈一变就清空。
 import { decodePng, type DecodedImage } from '@allay/assets';
 import {
+  EMBEDDED_UNIFONT_RESOURCE_ID,
   MAX_TEXTURE_SIZE,
   type BitmapFontPayload,
   type FontPayload,
@@ -30,6 +31,13 @@ let cacheStamp = '';
 const cache = new Map<string, Promise<ResourcePayload | null>>();
 /** 用户导入的字体按内容哈希命名，不随资源栈变 */
 const userFonts = new Map<string, Promise<BitmapFontPayload | VectorFontPayload | null>>();
+/** 内嵌 Unifont 的字形表：随应用分发，不随资源栈变，整个窗口只向主进程要一次 */
+let embeddedUnifont: Promise<BitmapFontPayload | null> | null = null;
+
+async function loadEmbeddedUnifont(): Promise<BitmapFontPayload | null> {
+  const t = await window.allay.fonts.embeddedUnifont();
+  return t ? { kind: 'bdf', ascent: t.ascent, descent: t.descent, oversample: t.oversample === 2 ? 2 : 1, codepoints: t.codepoints, metrics: t.metrics, offsets: t.offsets, bits: t.bits } : null;
+}
 
 function checkStamp(): void {
   const stamp = currentStamp();
@@ -162,7 +170,10 @@ export function loadStamp(assets: AssetSource | null): string {
 
 async function resolveWith(kind: ResourceKind, id: string, assets: AssetSource | null): Promise<ResourcePayload | null> {
   let p: Promise<ResourcePayload | null>;
-  if (kind === 'font' && USER_FONT_RE.test(id)) {
+  if (kind === 'font' && id === EMBEDDED_UNIFONT_RESOURCE_ID) {
+    embeddedUnifont ??= loadEmbeddedUnifont().catch(() => null);
+    p = embeddedUnifont;
+  } else if (kind === 'font' && USER_FONT_RE.test(id)) {
     let entry = userFonts.get(id);
     if (!entry) {
       entry = loadUserFont(id).catch(() => null);

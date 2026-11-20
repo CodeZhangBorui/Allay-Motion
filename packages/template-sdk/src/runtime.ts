@@ -137,7 +137,9 @@ export interface ItemHandle {
 /**
  * 文字的字体和样式，也就是 font 参数的值（4.4）。family 的写法见 manifest 的 isFontFamily：
  * minecraft:default、minecraft:uniform、minecraft:alt、minecraft:illageralt 等资源栈里的字体，system:sans（系统字体），
- * user:<哈希>（用户导入的字体文件）。样式与游戏的文字样式对应：粗体（向右重描一次）、斜体（错切）、下划线、删除线、
+ * user:<哈希>（用户导入的字体文件），以及随应用内嵌的 Unifont 的两种模式：
+ * embedded:default（普通模式：Mojangles 优先，它没有的字形如中文用内嵌 Unifont）和
+ * embedded:uniform（强制 Unicode 模式：所有字形都用内嵌 Unifont）。有没有原版素材、换不换机器，内嵌 Unifont 的字形都一样。样式与游戏的文字样式对应：粗体（向右重描一次）、斜体（错切）、下划线、删除线、
  * 阴影（右下偏移、颜色 × 1/4），描边（发光墨囊告示牌的八方向描边；有描边时不画阴影）。
  */
 export interface FontStyle {
@@ -165,6 +167,8 @@ export interface TextOptions {
    * 字体：字体族 ID，或者整个 font 参数的值。给对象时，对象里写了的样式优先于下面几个同名字段（用户在参数里选的为准）。
    * 不给时用 minecraft:default。资源栈里没有这个字体时退回 minecraft:default，缺的字形再退回系统字体；
    * 连 minecraft:default 都没有（没有原版素材）时整段用系统字体。
+   * embedded:default、embedded:uniform 不看资源栈里的 unihex：中日韩等字形一律取内嵌的 Unifont，内嵌的也没有才用系统字体；
+   * 没有原版素材时 embedded:default 等于全部用 Unifont。宿主没有内嵌字体（官网）时退回 minecraft:default 并记一条警告。
    * 只有出现在 font 参数里（含默认值）和 minecraft:default 的字体会在 setup 之前载入（system:sans 不用载入）；
    * 代码里临时写的其他字体族 ID 当作没载入，退回 minecraft:default 并记一条警告。
    */

@@ -8,7 +8,7 @@ import { TITLEBAR_OVERLAY_HEIGHT } from '../shared/theme-colors';
 import { UnknownJobError, type ExportService } from './export/export-service';
 import type { FileGrants } from './file-grants';
 import { IpcRejected, type createIpcRegistrar } from './ipc';
-import type { UserFontStore } from './resources/fonts';
+import type { EmbeddedUnifont, UserFontStore } from './resources/fonts';
 import type { ResourceService } from './resources/service';
 import type { SettingsStore } from './settings-store';
 import type { ThumbCache } from './thumb-cache';
@@ -36,6 +36,8 @@ export interface HandlerDeps {
   resources: ResourceService;
   /** 用户导入的字体（2026-11） */
   fonts: UserFontStore;
+  /** 内嵌的 Unifont（不给时 fonts.embeddedUnifont 返回 null） */
+  embeddedUnifont?: EmbeddedUnifont;
   thumbs: ThumbCache;
   templates: TemplateService;
   templateDev: TemplateDevService;
@@ -76,7 +78,7 @@ async function knownJob<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export function registerHandlers({ registrar, settings, grants, exports, resources, fonts, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow, codeWindow, externalEditor }: HandlerDeps): void {
+export function registerHandlers({ registrar, settings, grants, exports, resources, fonts, embeddedUnifont, thumbs, templates, templateDev, hostCommands, openFiles, folders, updates, onRendererReady, presets, projects, projectPathForTests, testHooks, getMainWindow, codeWindow, externalEditor }: HandlerDeps): void {
   const { handle } = registrar;
 
   handle(IPC.app.info, (): AppInfo => ({
@@ -142,6 +144,7 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
 
   // ---- fonts：用户导入的字体（docs/decisions.md“2026-11 反馈：原版动画还原与字体”）----
   handle(IPC.fonts.list, () => fonts.list());
+  handle(IPC.fonts.embeddedUnifont, () => embeddedUnifont?.get() ?? null);
   handle(IPC.fonts.import, async (): Promise<ImportFontResult> => {
     const win = getMainWindow();
     if (!win) return { canceled: true };

@@ -199,7 +199,11 @@ ctx 交出来的对象：
 - `texture` 参数的值可以原样交给 `ctx.resources.texture()`；`easing` 参数的值交给 `ctx.ease.from()`。
 - `font` 参数的值可以原样交给 `ctx.text.create({ ..., font: ctx.params.titleFont })`：用户在属性面板里选的字体和样式优先于你在同一次调用里写的 `shadow` 等字段。
   `family` 可以是资源栈里的字体（`minecraft:default` 游戏默认字体、`minecraft:uniform` Unifont、`minecraft:alt` 标准银河字母、`minecraft:illageralt` 灾厄村民文字，或者资源包自己加的字体 ID）、
-  `system:sans`（这台机器的系统字体），或者 `user:<哈希>`（用户导入的字体文件）。资源栈里没有的字体退回 `minecraft:default`，缺的字形再用系统字体补；
+  `system:sans`（这台机器的系统字体）、`user:<哈希>`（用户导入的字体文件），或者随应用内嵌的 GNU Unifont 的两种模式：
+  `embedded:default`（普通模式：英文和符号用 Mojangles，它没有的字形如中文用内嵌 Unifont）、`embedded:uniform`（强制 Unicode 模式：全部用内嵌 Unifont）。
+  想让中文在任何机器上、有没有原版素材都一样，用 `embedded:default`，例如 manifest 里写 `{ "key": "titleFont", "type": "font", "default": { "family": "embedded:default", "shadow": true } }`，
+  代码里 `ctx.text.create({ text: ctx.params.title, size: 4, font: ctx.params.titleFont })`。字体文件由应用提供，模板包里不用带。
+  资源栈里没有的字体退回 `minecraft:default`，缺的字形再用系统字体补；
   没有原版素材时整段用系统字体。系统字体取决于机器上装了什么，换一台机器可能不同。
   只有 font 参数里出现的字体会在 `setup` 之前载入；在代码里临时写别的字体 ID 会退回默认字体并记一条警告。
 - 样式照游戏的文字效果：粗体向右重描一次（前进宽度加 1），斜体把每一行错切（顶边右移、底边左移），阴影在右下 1 个字体像素、颜色取正文的 1/4，

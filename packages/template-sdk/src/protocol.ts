@@ -256,6 +256,20 @@ export const DEFAULT_FONT_ID = 'minecraft:default';
 export const SYSTEM_FONT_ID = 'system:sans';
 /** 旧版本的“内置像素字体”（方舟像素字体，2026-11 删除）：读到时当作系统字体 */
 export const LEGACY_FALLBACK_FONT_ID = 'allay:fallback';
+/**
+ * 内嵌 Unifont 的两种模式（docs/04-templates.md 4.4“字体”）。字体文件随应用分发，所有模板共用一份：
+ * - 普通模式：资源栈里 minecraft:default 的 bitmap、space 字形优先（Mojangles，资源包改过的照样生效），没有的字形（中文等）用内嵌的 Unifont；
+ * - 强制 Unicode 模式：所有字形都用内嵌的 Unifont（游戏里的“强制使用 Unicode 字体”）。
+ * 内嵌 Unifont 也没有的字形落到系统字体。
+ */
+export const EMBEDDED_DEFAULT_FONT_ID = 'embedded:default';
+export const EMBEDDED_UNIFORM_FONT_ID = 'embedded:uniform';
+/** 宿主一侧取内嵌 Unifont 字形表的资源 ID（resolveResource('font', 它) 返回 kind: 'bdf'、oversample: 2 的表）；不是字体族 */
+export const EMBEDDED_UNIFONT_RESOURCE_ID = 'embedded:unifont';
+/** 两个内嵌字体族之一 */
+export function isEmbeddedFontFamily(family: string): boolean {
+  return family === EMBEDDED_DEFAULT_FONT_ID || family === EMBEDDED_UNIFORM_FONT_ID;
+}
 
 /** 缩略图请求（03-assets.md 3.10）：方块是带面明暗的等轴视角，物品正面平视 */
 export const ThumbRequestSchema = z.strictObject({

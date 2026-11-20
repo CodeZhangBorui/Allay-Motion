@@ -1,6 +1,6 @@
 // 文字（docs/02-engine.md 2.8、03-assets.md 3.9）：位图字，像素对齐，不做平滑。
 // 字形来源按字体族（font 参数，4.4）：资源栈里的字体（bitmap、space、unihex 提供器）、用户导入的 BDF；
-// 找不到的字形依次退回 minecraft:default 和系统字体（SystemGlyphs）。整段用系统字体、用户导入的矢量字体另走 vector-text.ts。
+// 找不到的字形依次退回 minecraft:default 和系统字体（SystemGlyphs）；内嵌 Unifont 的两种模式见 embeddedGlyphSource。整段用系统字体、用户导入的矢量字体另走 vector-text.ts。
 //
 // 一段文字栅格化成一张贴图、按行配四边形。为了表示游戏里的半像素（Unifont 画成一半大小、它的阴影和粗体只偏 0.5 像素），
 // 栅格在“子像素”上做：一个字体像素 = SUB × SUB 个子像素。阴影、描边、粗体、下划线、删除线都直接画进贴图（颜色也烘进去），
@@ -258,6 +258,30 @@ let systemGlyphs: GlyphSource | null = null;
 export function systemGlyphSource(): GlyphSource {
   systemGlyphs ??= new GlyphSource([new SystemGlyphs()]);
   return systemGlyphs;
+}
+
+/** 游戏 include/space 的两个空白：空格 4 个字体像素、零宽不连字 0（Unifont 里的空格没有墨迹，按 unihex 的规则只有 1 像素宽） */
+const EMBEDDED_SPACES: [number, number][] = [
+  [0x20, 4],
+  [0x200c, 0],
+];
+
+/**
+ * 内嵌 Unifont 的两种模式（protocol.ts 的 EMBEDDED_*_FONT_ID）：
+ * - 普通模式：资源栈 minecraft:default 的 bitmap、space 提供器在前（资源栈里的 unihex 不用：中日韩等字形一律取内嵌的这份，
+ *   有没有原版素材、换不换机器结果都一样），然后是空格、内嵌 Unifont；
+ * - 强制 Unicode 模式（uniform）：只有空格和内嵌 Unifont。
+ * 两种都是内嵌 Unifont 也没有的字形退回系统字体。
+ */
+export function embeddedGlyphSource(vanilla: FontPayload | null, unifont: BitmapFontPayload, uniform: boolean): GlyphSource {
+  const providers: Provider[] = [];
+  if (!uniform)
+    for (const p of vanilla?.providers ?? []) {
+      if (p.type === 'space') providers.push(new SpaceProvider(new Map(p.advances)));
+      else if (p.type === 'bitmap') providers.push(new BitmapSheet(p));
+    }
+  providers.push(new SpaceProvider(new Map(EMBEDDED_SPACES)), new GlyphTable(unifont));
+  return new GlyphSource(providers, [systemGlyphSource()]);
 }
 
 /** minecraft:default，缺的字形退回系统字体 */

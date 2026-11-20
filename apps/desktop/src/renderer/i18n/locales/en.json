@@ -541,6 +541,7 @@
     "thirdParty": "Third-party licenses",
     "licenses": {
       "ffmpeg": "FFmpeg: LGPL 3.0, run as a separate process (ffmpeg.exe in the install folder, which you may replace); the full license ships with the installer.",
+      "unifont": "GNU Unifont: SIL Open Font License 1.1 (dual-licensed with GPLv2+ with the font embedding exception), shipped unmodified.",
       "plex": "IBM Plex Sans and IBM Plex Mono typefaces: SIL Open Font License 1.1.",
       "noto": "Noto Sans SC typeface: SIL Open Font License 1.1.",
       "phosphor": "Phosphor Icons: MIT.",
@@ -800,9 +801,13 @@
       "import": "Import font…",
       "missing": "Imported font not found",
       "gameHint": "Read from the resource stack (vanilla assets or resource packs); falls back to the system font",
+      "embeddedHint": "Letters, digits and symbols use the game font (from the resource stack, including resource pack changes); characters it lacks, such as Chinese, use GNU Unifont, which ships with the app. Those glyphs look the same with or without vanilla assets and on any computer",
+      "forceUnicode": "Force Unicode font",
+      "forceUnicodeHint": "Draw all text with the bundled Unifont, like the game's “Force Unicode Font” setting",
       "builtinHint": "A font installed on this computer (Microsoft YaHei, PingFang, Noto Sans CJK…), also used when there are no vanilla assets or a character is missing from the game font. It may look different on another computer",
-      "groups": { "game": "Game fonts", "builtin": "System", "user": "Imported" },
+      "groups": { "game": "Game fonts", "embedded": "Bundled", "builtin": "System", "user": "Imported" },
       "families": {
+        "embedded": "Game font + Unifont",
         "default": "Default",
         "uniform": "Unicode font (Unifont)",
         "alt": "Standard Galactic Alphabet",

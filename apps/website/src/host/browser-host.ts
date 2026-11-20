@@ -303,6 +303,8 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
       },
       remove: async () => [],
       read: async () => null,
+      // 内嵌 Unifont（5 MB）不带进官网：embedded:default / embedded:uniform 在网页里退回 minecraft:default（docs/decisions.md“内嵌 Unifont 与两种字体模式”）
+      embeddedUnifont: async () => null,
     },
     templates: {
       list: async () => builtinEntries(),

@@ -41,7 +41,8 @@ const template = {
       item.scale.setScalar(320);
       scene.add(item);
     } else if (scenario === 'text') {
-      const a = ctx.text.create({ text: String(params.text ?? 'AB'), size: 10, color: '#ffffff', shadow: true, align: 'left' });
+      // 只取 font 参数的字体族（样式仍用这里写的阴影），让同一个场景能换字体测
+      const a = ctx.text.create({ text: String(params.text ?? 'AB'), size: 10, color: '#ffffff', shadow: true, align: 'left', font: params.font?.family ?? 'minecraft:default' });
       a.object.position.set(-900, 300, 0);
       scene.add(a.object);
       ctx.warn(`text-size:${a.width}x${a.height}`);

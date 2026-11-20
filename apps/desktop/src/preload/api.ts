@@ -248,6 +248,8 @@ export interface AllayApi {
     import(): Promise<ImportFontResult>;
     remove(id: string): Promise<UserFontInfo[]>;
     read(id: string): Promise<UserFontData | null>;
+    /** 随应用内嵌的 Unifont 的字形表（第一次调用时主进程解析，之后给同一份）；读不了时为 null */
+    embeddedUnifont(): Promise<UnihexTablesInfo | null>;
   };
   /** 代码窗口（2026-11 第二轮反馈）。两个窗口用同一个 preload；代码窗口的调用只有 send 会被主进程接受 */
   codeWindow: {

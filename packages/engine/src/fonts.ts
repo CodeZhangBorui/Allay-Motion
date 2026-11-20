@@ -2,9 +2,13 @@
 // 后备顺序：所选字体 → minecraft:default → 系统字体。
 // - 资源栈里一个原版字形都没有（没有原版素材、也没有资源包提供字体）时，整段文字用系统字体的矢量画法（vector-text.ts）；
 // - 有原版字体、只是缺某些字形时，缺的字形用系统字体按像素画（text.ts 的 SystemGlyphs），和原版字形混排；
-// - system:sans（以及旧版本的 allay:fallback）整段用系统字体的矢量画法。
+// - system:sans（以及旧版本的 allay:fallback）整段用系统字体的矢量画法；
+// - embedded:default、embedded:uniform（内嵌 Unifont 的普通模式、强制 Unicode 模式）：字形链见 text.ts 的 embeddedGlyphSource，
+//   不向宿主要这两个 ID，只要一次内嵌 Unifont 的字形表（EngineResources.embeddedUnifont）；宿主没有时当作字体不在。
 import {
   DEFAULT_FONT_ID,
+  EMBEDDED_UNIFORM_FONT_ID,
+  isEmbeddedFontFamily,
   isFontFamily,
   LEGACY_FALLBACK_FONT_ID,
   SYSTEM_FONT_ID,
@@ -15,7 +19,7 @@ import {
 } from '@allay/template-sdk';
 import * as THREE from 'three';
 import type { CachedText, EngineResources, Warn } from './resources';
-import { createText, resolveStyle, stackGlyphSource, SYSTEM_FONT_STACK, systemGlyphSource, tableGlyphSource, textObjectFrom, type GlyphSource } from './text';
+import { createText, embeddedGlyphSource, resolveStyle, stackGlyphSource, SYSTEM_FONT_STACK, systemGlyphSource, tableGlyphSource, textObjectFrom, type GlyphSource } from './text';
 import { createVectorText, type VectorTextEnv } from './vector-text';
 
 type Loaded = { kind: 'glyphs'; source: GlyphSource } | { kind: 'vector'; css: string };
@@ -75,10 +79,16 @@ export class FontRegistry {
   ) {}
 
   static async load(resources: EngineResources, families: readonly string[]): Promise<FontRegistry> {
-    const assets = new Map(await Promise.all(families.map(async (f) => [f, await resources.font(f)] as const)));
+    const embedded = families.filter(isEmbeddedFontFamily);
+    const [assets, unifont] = await Promise.all([
+      Promise.all(families.filter((f) => !isEmbeddedFontFamily(f)).map(async (f) => [f, await resources.font(f)] as const)).then((list) => new Map(list)),
+      embedded.length > 0 ? resources.embeddedUnifont() : Promise.resolve(null),
+    ]);
     const def = assets.get(DEFAULT_FONT_ID);
-    const defaultSource = stackGlyphSource(def?.kind === 'stack' ? def.payload : null, [systemGlyphSource()]);
+    const vanilla = def?.kind === 'stack' ? def.payload : null;
+    const defaultSource = stackGlyphSource(vanilla, [systemGlyphSource()]);
     const fonts = new Map<string, Loaded>([[DEFAULT_FONT_ID, { kind: 'glyphs', source: defaultSource }]]);
+    if (unifont) for (const family of embedded) fonts.set(family, { kind: 'glyphs', source: embeddedGlyphSource(vanilla, unifont, family === EMBEDDED_UNIFORM_FONT_ID) });
     for (const [family, asset] of assets) {
       if (fonts.has(family) || !asset) continue;
       // 导入的字体按注册时的名字找（加引号，后面跟系统字体栈：字体里没有的字形由系统字体补）
@@ -106,7 +116,8 @@ export class FontRegistry {
     const chosen = font;
     const draw = (w: Warn, own: THREE.Texture[]) => (chosen.kind === 'vector' ? createVectorText(opts, chosen.css, style, env, w, own) : createText(opts, chosen.source, w, own, style));
     if (!this.cache) return draw(warn, owned);
-    // 缓存（改参数时省掉重画）：同一份资源栈里，字体、文字、样式、大小、像素比例都相同就画出同样的像素
+    // 缓存（改参数时省掉重画）：同一份资源栈里，字体、文字、样式、大小、像素比例都相同就画出同样的像素。
+    // 内嵌 Unifont 的两种模式是两个字体族 ID，键里的 want 已经把模式分开
     const key = JSON.stringify([chosen.kind === 'vector' ? chosen.css : want, this.hasVanilla, opts.text, opts.size, opts.color ?? null, opts.align ?? null, opts.maxWidth ?? null, style, env.pixelScale]);
     const hit = this.cache.get(key);
     if (hit) {

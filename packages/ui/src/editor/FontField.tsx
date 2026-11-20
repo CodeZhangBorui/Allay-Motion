@@ -2,12 +2,13 @@ import { BoundingBox, DropHalfBottom, Plus, TextB, TextItalic, TextStrikethrough
 import type { ReactNode } from 'react';
 import { ToggleGroupItem } from '../components/ui/misc';
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Switch } from '../components/ui/switch';
 import { ICON } from '../lib/icons';
 import { ColorField } from './ColorField';
 import { useEditor, type FontFamilyOption } from './context';
 
-// FontField（font 参数，docs/04-templates.md 4.4）：字体族下拉（游戏字体、内置字体、导入的字体，以及“导入字体…”），
-// 下面一排样式开关（粗体、斜体、下划线、删除线、阴影、描边）和描边颜色。
+// FontField（font 参数，docs/04-templates.md 4.4）：字体族下拉（游戏字体、内嵌字体、系统字体、导入的字体，以及“导入字体…”），
+// 选了带“强制 Unicode 字体”模式的字体族（内嵌 Unifont）时多一个模式开关，下面一排样式开关（粗体、斜体、下划线、删除线、阴影、描边）和描边颜色。
 // 列表里只写字体名，不用所选字体预览：应用自己的界面不用游戏的字体（docs/09-compliance.md 9.3）。
 
 export interface FontValue {
@@ -44,9 +45,14 @@ function StyleToggle({ on, onChange, label, children, testId }: { on: boolean; o
 export function FontField({ value, onChange, label, testId }: FontFieldProps) {
   const editor = useEditor();
   const families: readonly FontFamilyOption[] = editor.fonts?.families ?? [];
-  const known = families.some((f) => f.id === value.family);
+  // 强制 Unicode 模式的 ID 在下拉里显示成它的普通模式那一项
+  const modeOf = families.find((f) => f.forceUnicodeId !== undefined && (f.id === value.family || f.forceUnicodeId === value.family)) ?? null;
+  const shown = modeOf?.id ?? value.family;
+  const forceUnicode = modeOf !== null && value.family === modeOf.forceUnicodeId;
+  const known = families.some((f) => f.id === shown);
   const groups: { key: FontFamilyOption['group']; label: string }[] = [
     { key: 'game', label: editor.t('font.groups.game') },
+    { key: 'embedded', label: editor.t('font.groups.embedded') },
     { key: 'builtin', label: editor.t('font.groups.builtin') },
     { key: 'user', label: editor.t('font.groups.user') },
   ];
@@ -58,7 +64,7 @@ export function FontField({ value, onChange, label, testId }: FontFieldProps) {
   return (
     <div className="flex min-w-0 flex-col gap-1.5" data-testid={testId}>
       <Select
-        value={value.family}
+        value={shown}
         onValueChange={(v) => {
           if (v === IMPORT) {
             void importFont?.().then((id) => {
@@ -66,7 +72,7 @@ export function FontField({ value, onChange, label, testId }: FontFieldProps) {
             });
             return;
           }
-          if (typeof v === 'string' && v !== value.family) set({ family: v });
+          if (typeof v === 'string' && v !== shown) set({ family: v });
         }}
       >
         <SelectTrigger aria-label={label} data-testid={testId ? `${testId}-family` : undefined} className="w-full">
@@ -74,8 +80,8 @@ export function FontField({ value, onChange, label, testId }: FontFieldProps) {
         </SelectTrigger>
         <SelectContent>
           {!known && (
-            <SelectItem value={value.family}>
-              <span className="truncate">{nameOf(value.family)}</span>
+            <SelectItem value={shown}>
+              <span className="truncate">{nameOf(shown)}</span>
             </SelectItem>
           )}
           {groups.map((g) => {
@@ -105,6 +111,17 @@ export function FontField({ value, onChange, label, testId }: FontFieldProps) {
           )}
         </SelectContent>
       </Select>
+      {modeOf?.forceUnicodeId !== undefined && (
+        <label className="flex min-w-0 items-center gap-2 text-xs text-fg-muted" title={editor.t('font.forceUnicodeHint')}>
+          <Switch
+            checked={forceUnicode}
+            onCheckedChange={(on: boolean) => set({ family: on ? modeOf.forceUnicodeId! : modeOf.id })}
+            aria-label={editor.t('font.forceUnicode')}
+            data-testid={testId ? `${testId}-force-unicode` : undefined}
+          />
+          <span className="min-w-0 truncate">{editor.t('font.forceUnicode')}</span>
+        </label>
+      )}
       <div className="flex min-w-0 items-center gap-1">
         <div className="inline-flex h-control items-stretch gap-0.5 rounded-lg bg-well p-0.5" role="group" aria-label={editor.t('font.style')}>
           <StyleToggle on={value.bold} onChange={flag('bold')} label={editor.t('font.bold')} testId={testId ? `${testId}-bold` : undefined}>
