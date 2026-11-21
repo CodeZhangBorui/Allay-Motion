@@ -239,20 +239,22 @@ export function richText(ctx: SetupContext, segments: readonly Segment[], size: 
   let x = 0;
   let height = 0;
   for (const s of segments) {
+    // 字体参数里打开的样式优先；格式码只能再加样式
+    const bold = font.bold === true || s.bold;
     const t = ctx.text.create({
       text: s.text,
       size,
       color: s.color,
       align: 'left',
-      // 字体参数里打开的样式优先；格式码只能再加样式
-      font: { ...font, bold: font.bold === true || s.bold, italic: font.italic === true || s.italic, underline: font.underline === true || s.underline, strikethrough: font.strikethrough === true || s.strikethrough, shadow: font.shadow ?? shadow },
+      font: { ...font, bold, italic: font.italic === true || s.italic, underline: font.underline === true || s.underline, strikethrough: font.strikethrough === true || s.strikethrough, shadow: font.shadow ?? shadow },
     });
     t.object.position.x = x;
     group.add(t.object);
     parts.push(t);
-    // 只有空格的一段宽度也要算：文字对象的宽度不含行尾空格，按空格数补（原版字体的空格宽 4）
+    // 只有空格的一段宽度也要算：文字对象的宽度不含行尾空格，按空格数补。
+    // 原版字体的空格宽 4；粗体的每个字（空格也一样）多前进 1，和引擎排一整行粗体字时相同
     const trailing = s.text.length - s.text.replace(/ +$/, '').length;
-    x += (s.text.trim() === '' ? 0 : t.width) + trailing * 4 * size;
+    x += (s.text.trim() === '' ? 0 : t.width) + trailing * (bold ? 5 : 4) * size;
     height = Math.max(height, t.height);
   }
   return {

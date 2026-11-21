@@ -383,6 +383,17 @@ describe('T-TPL-LIB-8 界面小工具：多色文字的分段', () => {
     expect(r.width).toBe(28);
   });
 
+  it('粗体段的行尾空格每个 5 个字体像素（粗体的每个字多前进 1，和引擎排一整行粗体字时一样）', () => {
+    const f = fakeCtx();
+    richText(f.ctx, parseFormatted('§lA §rB', PLAIN), 1, DEFAULT_FONT, false);
+    expect(f.texts.map((t) => t.object.position.x)).toEqual([0, 11]);
+    // 字体参数是粗体时整行都按粗体
+    const g = fakeCtx();
+    const r = richText(g.ctx, parseFormatted('A  §c  §aB', PLAIN), 1, { family: 'minecraft:default', bold: true }, false);
+    expect(g.texts.map((t) => t.object.position.x)).toEqual([0, 16, 26]);
+    expect(r.width).toBe(32);
+  });
+
   it('字体参数里打开的样式优先，格式码只能再加；阴影按字体参数，它没写时才用 shadow 参数', () => {
     const f = fakeCtx();
     richText(f.ctx, parseFormatted('a§lb', PLAIN), 1, { family: 'embedded:default', italic: true, outline: '#000000' }, true);
