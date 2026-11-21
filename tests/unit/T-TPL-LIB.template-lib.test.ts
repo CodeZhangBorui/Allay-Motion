@@ -1,12 +1,15 @@
 // 内置模板共用的源码 packages/templates/_lib（docs/04-templates.md 4.9、docs/template-catalog.md P1）：
-// 时间余量、界面像素布局、闭式粒子、界面类模板的小工具（gui-kit）的函数本身，以及构建脚本对 _lib 的处理（能并进产物、别处的相对导入被拒绝）。
-// gui-kit 要 THREE 的部分用真实的 three（不碰 WebGL）和一个假的 ctx。
+// 时间余量、界面像素布局、闭式粒子、界面类模板的小工具（gui-kit）、整体淡入淡出、进度条、音效抽样的函数本身，
+// 以及构建脚本对 _lib 的处理（能并进产物、别处的相对导入被拒绝）。gui-kit 要 THREE 的部分用真实的 three（不碰 WebGL）和一个假的 ctx。
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { FontStyle, SetupContext, TextOptions } from '../../packages/template-sdk/src/index';
+import { filledWidth, fitUnit } from '../../packages/templates/_lib/src/bar';
+import { MAX_CUES, sampleCues, sampleIndices } from '../../packages/templates/_lib/src/cues';
+import { fadeInOut } from '../../packages/templates/_lib/src/fade';
 import { anchorTopLeft, fitScale, guiLayout } from '../../packages/templates/_lib/src/gui';
 import { alphaOf, bool, CHAT_COLORS, createGui, firstTexture, fontOf, linesOf, num, parseFormatted, plainText, rgbOf, richText, str, type Quads } from '../../packages/templates/_lib/src/gui-kit';
 import { ageAt, ballistic, dragFromTickFriction, dragged, frameAt } from '../../packages/templates/_lib/src/particles';
@@ -518,5 +521,105 @@ describe('T-TPL-LIB-9 界面小工具：界面坐标与成批的矩形', () => {
     material.addEventListener('dispose', () => disposed.push('material'));
     q.dispose();
     expect(disposed.sort()).toEqual(['geometry', 'material']);
+  });
+});
+
+describe('T-TPL-LIB-10 整体淡入淡出', () => {
+  it('进入阶段从 0 线性升到 1、退出阶段降回 0；首末帧和各自让出的一帧里精确是 0，停留阶段精确是 1', () => {
+    const w = overlayWindows(60, 0.25, 4, 0.25);
+    for (const t of [0, 1 / 120, 1 / 60, w.duration - 1 / 60, w.duration - 1 / 120, w.duration]) expect(fadeInOut(t, w)).toBe(0);
+    for (const t of [w.in.end, 2, w.out.start]) expect(fadeInOut(t, w)).toBe(1);
+    expect(fadeInOut((w.in.start + w.in.end) / 2, w)).toBeCloseTo(0.5, 10);
+    expect(fadeInOut((w.out.start + w.out.end) / 2, w)).toBeCloseTo(0.5, 10);
+  });
+
+  it('就是“进入进度 × (1 − 退出进度)”：与模板里原来内联的写法逐值相同；转场的时间窗也能用', () => {
+    const w = overlayWindows(30, 0.2, 1, 0.3);
+    for (let i = 0; i <= 900; i++) {
+      const t = (i / 900) * w.duration;
+      expect(fadeInOut(t, w)).toBe(progress(t, w.in) * (1 - progress(t, w.out)));
+    }
+    const tw = transitionWindows(30, 0.5, 0.2, 0.5);
+    expect(fadeInOut(tw.cutTime, tw)).toBe(1);
+    expect(fadeInOut(0, tw)).toBe(0);
+  });
+});
+
+describe('T-TPL-LIB-11 进度条按像素裁切', () => {
+  it('atLeastOne（Boss 栏）：0 不画，大于 0 至少 1 像素，满是 width；中间单调、每次最多涨 1', () => {
+    expect(filledWidth(0, 182, 'atLeastOne')).toBe(0);
+    expect(filledWidth(1e-9, 182, 'atLeastOne')).toBe(1);
+    expect(filledWidth(0.5, 182, 'atLeastOne')).toBe(91);
+    expect(filledWidth(1, 182, 'atLeastOne')).toBe(182);
+    expect(filledWidth(10, 10, 'atLeastOne')).toBe(10);
+    let prev = 0;
+    for (let i = 0; i <= 2000; i++) {
+      const px = filledWidth(i / 2000, 182, 'atLeastOne');
+      expect(px - prev).toBeGreaterThanOrEqual(0);
+      expect(px - prev).toBeLessThanOrEqual(1);
+      prev = px;
+    }
+  });
+
+  it('floor（经验条）：⌊进度 × (width + 1)⌋，不超过 width', () => {
+    expect(filledWidth(0.005, 182, 'floor')).toBe(0);
+    expect(filledWidth(1.5 / 183, 182, 'floor')).toBe(1);
+    expect(filledWidth(0.5, 182, 'floor')).toBe(91);
+    expect(filledWidth(0.99, 182, 'floor')).toBe(181);
+    expect(filledWidth(1, 182, 'floor')).toBe(182);
+    expect(filledWidth(0.5, 9, 'floor')).toBe(5);
+  });
+
+  it('进度超出 0–1 时截到两端，不是有限数时当 0', () => {
+    for (const rounding of ['atLeastOne', 'floor'] as const) {
+      expect(filledWidth(-1, 182, rounding)).toBe(0);
+      expect(filledWidth(3, 182, rounding)).toBe(182);
+      expect(filledWidth(Number.NaN, 182, rounding)).toBe(0);
+      expect(filledWidth(Number.POSITIVE_INFINITY, 182, rounding)).toBe(0);
+    }
+  });
+
+  it('fitUnit：放得下（宽度加两侧边距）时不缩，放不下时缩到正好放下，只看宽度，不小于 0.1', () => {
+    // 宽 1080 的竖屏、界面缩放 5：216 个界面像素放得下 182 + 2 × 4
+    expect(fitUnit(1080, 5, 182, 4)).toBe(5);
+    // 界面缩放 8：135 放不下，缩到 190 个界面像素正好铺满
+    expect(fitUnit(1080, 8, 182, 4)).toBeCloseTo(1080 / 190, 12);
+    expect(1080 / fitUnit(1080, 8, 182, 4)).toBeCloseTo(190, 9);
+    expect(fitUnit(1080, 8, 182)).toBeCloseTo(1080 / 182, 12);
+    expect(fitUnit(10, 5, 182, 4)).toBe(0.1);
+  });
+});
+
+describe('T-TPL-LIB-12 音效抽样：同一种声音最多 12 个 cue', () => {
+  it('不超过 12 个时全取；多了均匀抽 12 个：含首尾、从小到大、不重复', () => {
+    expect(MAX_CUES).toBe(12);
+    expect(sampleIndices(0)).toEqual([]);
+    expect(sampleIndices(5)).toEqual([0, 1, 2, 3, 4]);
+    expect(sampleIndices(12)).toEqual(Array.from({ length: 12 }, (_, i) => i));
+    expect(sampleIndices(23)).toEqual([0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]);
+    for (const n of [13, 40, 1000]) {
+      const s = sampleIndices(n);
+      expect(s).toHaveLength(12);
+      expect([s[0], s[11]]).toEqual([0, n - 1]);
+      for (let i = 1; i < s.length; i++) expect(s[i]!).toBeGreaterThan(s[i - 1]!);
+    }
+  });
+
+  it('上限可以改；只取 1 个时取第一个，上限为 0 时一个都不取', () => {
+    expect(sampleIndices(10, 4)).toEqual([0, 3, 6, 9]);
+    expect(sampleIndices(10, 1)).toEqual([0]);
+    expect(sampleIndices(1, 1)).toEqual([0]);
+    expect(sampleIndices(10, 0)).toEqual([]);
+  });
+
+  it('sampleCues 取的是时刻本身，抽法同 sampleIndices；返回新数组，不改原数组', () => {
+    const times = Array.from({ length: 30 }, (_, i) => i * 0.5);
+    expect(sampleCues(times)).toEqual(sampleIndices(30).map((i) => i * 0.5));
+    expect(sampleCues([1, 2, 3], 2)).toEqual([1, 3]);
+    const few = [0.2, 0.4];
+    const copy = sampleCues(few);
+    expect(copy).toEqual(few);
+    expect(copy).not.toBe(few);
+    expect(sampleCues([])).toEqual([]);
   });
 });
