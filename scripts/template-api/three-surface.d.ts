@@ -191,6 +191,8 @@ export declare namespace THREE {
     rotateY(angle: number): this;
     rotateZ(angle: number): this;
     updateMatrix(): void;
+    /** 复制一份，recursive 默认为 true（连子对象一起复制）。Mesh 的副本和原件共用几何体和材质 */
+    clone(recursive?: boolean): this;
   }
 
   class Group extends Object3D {
