@@ -1,4 +1,5 @@
 // Boss 栏的版式和时间公式（纯函数，T-TPL-C039 直接测）。坐标是界面像素、y 向下；依据见 docs/templates/boss-bar.md。
+import * as bar from '../../_lib/src/bar';
 
 /** 一条栏的宽高 */
 export const BAR_W = 182;
@@ -48,7 +49,7 @@ export function atlasNotchRegion(notches: number, part: 'background' | 'progress
 
 /** 一个界面像素对应的设计单位：界面宽度放不下一条栏加两侧边距时整体缩小 */
 export function fitUnit(stageWidth: number, guiScale: number): number {
-  return Math.max(0.1, Math.min(guiScale, stageWidth / (BAR_W + 2 * SIDE_MARGIN)));
+  return bar.fitUnit(stageWidth, guiScale, BAR_W, SIDE_MARGIN);
 }
 
 /**
@@ -86,11 +87,10 @@ export function barLayout(width: number, count: number): BarLayout {
 
 /**
  * 进度（0–1）→ 进度贴图露出的像素数：0 时不画，大于 0 时至少 1 像素，1 时正好 182。
- * 相当于在 0–182 之间取整的离散插值。
+ * 相当于在 0–182 之间取整的离散插值（_lib 的 atLeastOne）。
  */
 export function filledWidth(progress: number): number {
-  const p = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
-  return p <= 0 ? 0 : Math.min(BAR_W, Math.floor(p * (BAR_W - 1)) + 1);
+  return bar.filledWidth(progress, BAR_W, 'atLeastOne');
 }
 
 /**

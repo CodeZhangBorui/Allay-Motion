@@ -2,7 +2,8 @@
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值和公式在 layout.ts。
 // 经验条和等级数字照游戏的抬头显示；经验球在游戏里是世界里的实体，飞向经验条的运动是这个模板自己设计的。
 import type { SetupContext, TemplateInstance, TemplateModule, TextObject } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, firstTexture, fontOf, num, rgbOf, str } from '../../_lib/src/gui-kit';
 import {
   arrivalFraction,
@@ -32,9 +33,6 @@ import {
   type Point,
   type XpState,
 } from './layout';
-
-/** 同一种声音最多几个 cue */
-const MAX_CUES = 12;
 
 const hex2 = (v: number): string =>
   Math.round(Math.min(1, Math.max(0, v)) * 255)
@@ -138,11 +136,11 @@ const template: TemplateModule = {
     const gain = num(params.volume, 0.8);
     if (typeof params.pickupSound === 'string') {
       const pitch = ctx.random('pitch');
-      for (const k of sampleIndices(orbCount, MAX_CUES)) ctx.audio.cue(params.pickupSound, arrivals[k]!, { gain, rate: 0.9 + (pitch.next() - pitch.next()) * 0.35 });
+      for (const k of sampleIndices(orbCount)) ctx.audio.cue(params.pickupSound, arrivals[k]!, { gain, rate: 0.9 + (pitch.next() - pitch.next()) * 0.35 });
     }
     if (typeof params.levelupSound === 'string') {
       const ups = arrivals.filter((_, k) => states[k + 1]!.level > states[k]!.level);
-      for (const k of sampleIndices(ups.length, MAX_CUES)) ctx.audio.cue(params.levelupSound, ups[k]!, { gain });
+      for (const k of sampleIndices(ups.length)) ctx.audio.cue(params.levelupSound, ups[k]!, { gain });
     }
 
     return {
@@ -150,7 +148,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 游戏里经验条一直在；这里整体线性淡入淡出（时间窗首尾各让出一帧）
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
 
         // 已经到达了几个球 → 等级和进度。球一到就加上它那一份，条是跳过去的（游戏里也不补间）
         let arrived = 0;

@@ -124,8 +124,5 @@ export function fitUnit(stageWidth: number, stageHeight: number, guiScale: numbe
   return Math.max(0.1, Math.min(guiScale, stageWidth / needW, stageHeight / needH));
 }
 
-/** 同一种声音最多 12 个提示，多了按时刻均匀抽样 */
-export function sampleCues(times: readonly number[], max = 12): number[] {
-  if (times.length <= max) return [...times];
-  return Array.from({ length: max }, (_, i) => times[Math.round((i * (times.length - 1)) / (max - 1))]!);
-}
+/** 同一种声音最多 12 个提示，多了按时刻均匀抽样：在 _lib 里 */
+export { sampleCues } from '../../_lib/src/cues';
