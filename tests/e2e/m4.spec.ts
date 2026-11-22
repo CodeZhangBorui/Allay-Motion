@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import { requiredTextures } from '../../packages/assets/src/index';
 import { catalogJarEntries, makeCatalogGame } from '../unit/helpers/resource-fixtures';
-import { launchApp, makeUserDataDir, removeUserDataDir, ROOT } from './helpers';
+import { extendTimeoutPerTemplate, launchApp, makeUserDataDir, removeUserDataDir, ROOT } from './helpers';
 
 // M4 界面的验收测试（docs/06-ui-design.md 6.10、07-allay-mascot.md 7.10）：T-UI-1 至 T-UI-5、T-UI-7，T-ALY-2、T-ALY-5，
 // 以及工程的保存和打开。T-UI-6、T-UI-8 在 layout.spec.ts、titlebar.spec.ts。
@@ -64,6 +64,7 @@ test('T-UI-1 依次选中每个内置模板，改一个参数：预览画布非�
   try {
     const builtins = (await page.evaluate(() => window.__allayTest!.templates())).filter((e) => e.source === 'builtin' && !e.baseMissing);
     expect(builtins.length).toBeGreaterThan(0);
+    extendTimeoutPerTemplate(builtins.length, 8_000);
     for (const e of builtins) {
       await page.getByTestId(`template-${e.id}`).click();
       await expect.poll(() => page.evaluate(() => window.__allayTest!.project().ref?.id)).toBe(e.id);
@@ -230,6 +231,7 @@ for (const language of ['zh-CN', 'en'] as const) {
       // 封面只给滚到可见范围附近的卡片生成、悬停预览停够了才生成（docs/decisions.md“模板库撑到一百个模板”）：先滚到它
       await coversReady(page);
       const builtins = (await page.evaluate(() => window.__allayTest!.templates())).filter((e) => e.source === 'builtin' && !e.baseMissing);
+      extendTimeoutPerTemplate(builtins.length, 10_000);
       for (const e of builtins) {
         const card = page.getByTestId(`template-${e.id}`);
         await card.scrollIntoViewIfNeeded();

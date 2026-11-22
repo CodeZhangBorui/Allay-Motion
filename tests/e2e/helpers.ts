@@ -117,6 +117,16 @@ export async function adaptToRenderer(page: Page): Promise<string> {
   return gpu;
 }
 
+/**
+ * 逐个内置模板走一遍的测试：当前测试的时限再加上每个模板 perTemplateMs（软件渲染下这一份同样乘 SOFTWARE_TIMEOUT_FACTOR）。
+ * 内置模板一批批加进来（docs/template-catalog.md），按十几个模板定的固定时限迟早不够；在知道模板数之后调用。
+ */
+export function extendTimeoutPerTemplate(count: number, perTemplateMs: number): void {
+  const info = test.info();
+  const factor = slowed.has(info.testId) ? SOFTWARE_TIMEOUT_FACTOR : 1;
+  test.setTimeout(info.timeout + count * perTemplateMs * factor);
+}
+
 export function readMainLog(userDataDir: string): string {
   try {
     return readFileSync(join(userDataDir, 'logs', 'main.log'), 'utf8');
