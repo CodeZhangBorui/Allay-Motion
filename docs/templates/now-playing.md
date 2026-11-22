@@ -39,7 +39,7 @@
 | `toastColor` | color | `#FFFFFF` | 色板 `chat`；提示框 |
 | `toastFont` | font | `embedded:default`（普通模式），不带阴影 | 提示框 |
 | `anchor` | enum | `topLeft` | `topLeft`、`topRight`；提示框 |
-| `guiScale` | number | 5 | 1–8 |
+| `guiScale` | number | 7 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.1 / 1.9 / 1 | 0.05–3 / 0.1–20 / 0.05–3 |
 | `sound` | sound | 无 | 在开头播放 |
 | `volume` | number | 0.8 | 0–1 |
@@ -48,7 +48,7 @@
 
 默认曲名是占位文字，不是真实的曲目（目录 5.1）。游戏里唱片的写法是“作者 - 曲名”（凭记忆）。
 
-`guiScale` 默认 5 而不是 1080p 游戏窗口的 4：只有一行小字，4 在 320 × 180 的封面里看不清。提示框的两个预设用 4。
+`guiScale` 默认 7（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，只有一行小字，6 以下看不清（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。提示框的两个预设用 4。
 
 默认没有音效：音乐本身是创作者视频里的音轨，模板不替用户放某一张唱片。游戏里显示这行字、弹出这个提示框本身都没有界面音效（凭记忆）。
 
