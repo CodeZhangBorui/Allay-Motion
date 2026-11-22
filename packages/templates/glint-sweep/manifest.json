@@ -55,7 +55,7 @@
   "presets": [
     {"key": "double", "name": {"zh-CN": "扫两遍", "en": "Two sweeps"}, "params": {"sweeps": 2, "hold": 2.4, "width": 0.3}},
     {"key": "shimmer", "name": {"zh-CN": "满屏流光", "en": "Full-screen shimmer"}, "params": {"base": 0.6, "width": 1.2, "strength": 0.6, "speed": 1.6}},
-    {"key": "gold", "name": {"zh-CN": "金色光扫", "en": "Golden sweep"}, "params": {"tint": "#FFD15C", "angle": 160, "glint": "armor"}}
+    {"key": "gold", "name": {"zh-CN": "金色光扫", "en": "Golden sweep"}, "params": {"tint": "#FFD15C", "angle": 160, "glint": "armor", "base": 0.06}}
   ],
   "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
 }

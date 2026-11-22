@@ -35,7 +35,10 @@ float glintAt(vec2 p) {
   vec2 b = rot2(0.17) * p / (uTile * 1.37) + vec2(-uTime * uSpeed * 0.07, uTime * uSpeed * 0.02);
   float g;
   if (uHasGlint > 0.5) {
-    g = luma(bilerpRepeat(uGlint, a).rgb) + luma(bilerpRepeat(uGlint, b).rgb);
+    // 光效贴图的亮度差得很多（原版盔甲的那张平均只有物品那张的九分之一），按整张图的平均亮度（最小一级 mipmap）归一化，
+    // 换成物品光效的平均线性亮度（约 0.0625）：选哪张、资源包换成多亮的，扫过去都一样显眼
+    float ref = max(luma(textureLod(uGlint, vec2(0.5), 16.0).rgb), 1e-4);
+    g = (luma(bilerpRepeat(uGlint, a).rgb) + luma(bilerpRepeat(uGlint, b).rgb)) * (0.0625 / ref);
   } else {
     // 没有贴图时：两组细斜纹，按噪声起伏
     float sa = pow(0.5 + 0.5 * sin(a.x * 37.0 + vnoise(a * 3.0, 11u) * 4.0), 10.0);
