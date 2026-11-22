@@ -173,10 +173,11 @@ describe('T-REV 评审截图工具', () => {
     const none = migrateSettingsFile(seedSettings(null, 'en'));
     expect(none!.ui.language).toBe('en');
     expect(none!.resources).toEqual({ vanilla: { consent: false, enabled: true, dir: null }, vanillaSources: [], packs: [] });
-    // 带空格的版本号过不了设置的 schema，整个资源栈设置会静默退回默认值：所以这种目录要经 --mirror 接入
+    // 带空格的目录名应用也认了（以前过不了设置的 schema，整个资源栈设置会静默退回默认值，所以要经 --mirror 接入）
     const spaced = migrateSettingsFile(seedSettings({ gameDir: 'G:\\mc', versionId: '1.20.1-Fabric 0.19.3' }, 'zh-CN'));
-    expect(spaced!.resources.vanillaSources).toEqual([]);
-    expect(spaced!.resources.vanilla.consent).toBeNull();
+    const spacedSource = { kind: 'local', gameDir: 'G:\\mc', versionId: '1.20.1-Fabric 0.19.3' } as const;
+    expect(spaced!.resources.vanillaSources).toEqual([{ id: vanillaLayerId(spacedSource), source: spacedSource, enabled: true }]);
+    expect(spaced!.resources.vanilla).toEqual({ consent: true, enabled: true, dir: 'G:\\mc' });
   });
 
   test('T-REV-6 版本目录：用应用自己的识别核对，认不了时说清是哪一步（带空格的名字、没有 jar、没有这个目录）', async () => {
@@ -193,9 +194,8 @@ describe('T-REV 评审截图工具', () => {
       version('1.20.1-Forge_47.4.0', false, release);
       version('broken', true, { type: 'release' });
       expect(await checkVersion(game, '26.2')).toEqual({ ok: true });
-      const spaced = await checkVersion(game, '1.20.1-Fabric 0.19.3');
-      expect(spaced).toMatchObject({ ok: false, nameRejected: true });
-      expect(spaced.ok ? '' : spaced.reason).toContain('空格');
+      // 应用的版本识别认带空格的目录名了，不用再经 --mirror
+      expect(await checkVersion(game, '1.20.1-Fabric 0.19.3')).toEqual({ ok: true });
       expect(await checkVersion(game, '1.20.1-Forge_47.4.0')).toMatchObject({ ok: false, nameRejected: false, reason: expect.stringContaining('jar') });
       expect(await checkVersion(game, 'broken')).toMatchObject({ ok: false, nameRejected: false, reason: expect.stringContaining('releaseTime') });
       expect(await checkVersion(game, '9.9')).toMatchObject({ ok: false, reason: expect.stringContaining('26.2') });
