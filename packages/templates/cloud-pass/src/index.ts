@@ -178,9 +178,10 @@ const template: TemplateModule = {
     if (typeof params.inSound === 'string') ctx.audio.cue(params.inSound, win.in.start, { gain: volume });
     if (typeof params.outSound === 'string') ctx.audio.cue(params.outSound, win.out.start, { gain: volume });
 
-    // 往上穿：进云时抬头看着云底；出云以后慢慢放平、略往下看，看见脚下的云海退远（往下穿反过来）
+    // 往上穿：进云时抬头看着云底；出云以后低下头来往下看 16°，看见脚下的云海铺开、退远（往下穿反过来）。
+    // 只放平到 6° 时云海挤在地平线上的一窄条，大半在雾里
     const pitchIn = pitch;
-    const pitchOut = ((direction === 'up' ? -6 : 6) * Math.PI) / 180;
+    const pitchOut = ((direction === 'up' ? -16 : 16) * Math.PI) / 180;
     return {
       duration: win.duration,
       cutTime: win.cutTime,
