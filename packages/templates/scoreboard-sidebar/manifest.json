@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.scoreboard-sidebar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "记分板", "en": "Scoreboard" },
   "description": {
     "zh-CN": "屏幕右侧的记分板侧边栏：半透明黑底上一行标题，下面是按分数排序的名字和红色分数；可以在中途换成另一组分数并重新排序。",

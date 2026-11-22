@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.now-playing",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "正在播放", "en": "Now Playing" },
   "description": {
     "zh-CN": "唱片机开始播放时的提示：快捷栏上方一行彩虹变色的“正在播放：……”，或 1.21.6 起带跳动音符的音乐提示框。",

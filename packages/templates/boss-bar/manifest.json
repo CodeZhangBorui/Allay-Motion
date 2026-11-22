@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.boss-bar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "Boss 栏", "en": "Boss Bar" },
   "description": {
     "zh-CN": "屏幕顶部中央的 Boss 栏，名字在栏的上方；停留期间进度从一个值匀速走到另一个值。可以同时显示几条。",

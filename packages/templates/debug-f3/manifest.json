@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.debug-f3",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "调试屏幕", "en": "Debug Screen" },
   "description": {
     "zh-CN": "按 F3 出现的左右两栏调试文字，每行垫着半透明灰底；坐标、朝向和帧率按你给的起点和终点随时间变化。",

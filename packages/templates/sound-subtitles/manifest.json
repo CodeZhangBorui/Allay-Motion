@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.sound-subtitles",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "声音字幕", "en": "Subtitles" },
   "description": {
     "zh-CN": "右下角的黑底字幕框，一条声音一行，行首行尾的 < > 指出声源方向；新的叠在上面，旧的由白变灰后消失。",

@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.xp-collect",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "经验收集", "en": "XP Collect" },
   "description": {
     "zh-CN": "经验球飞向画面底部的经验条，每到一个条就涨一份；涨满时等级数字加一，条从头再涨。",

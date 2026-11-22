@@ -2598,3 +2598,9 @@ PR #5 遗留清单里引擎正确性的两项（主控派发，会话短名 engi
 
 - **内置模板的引擎测试分 8 份**（原来 4 份；`.github/workflows/ci.yml` 三处一起改，T-TPL-SHARD 核对三处对得上）。依据：`main` 上最后一次 CI（17 个模板分 4 份，每份 4–5 个）`templates` 作业的三份各跑了 39、47、49 分钟，软件渲染下一个模板十分钟上下；38 个模板分 4 份每份近 10 个，会贴着或超过 180 分钟的作业时限。分 8 份每份不多于 5 个，和原来的负担一样。模板再多时照这个比例加份数。
 - **两条随仓库变慢的单元测试给够时限**：T-ARC-1 的“正常代码通过 lint”（对整仓做 lint）给 120 秒；`template-dev.test.ts` 逐个内置模板做 checkJs 的那条按模板数算（30 秒加每个模板 3 秒，38 个模板是 144 秒）。38 个模板下两个文件单独跑都通过（开发机上 28 秒、20 秒，机器同时在跑端到端）；整仓 `pnpm test` 里和别的文件一起跑时都撞过默认的 30 秒。GitHub 的机器比开发机慢，17 个模板时 T-ARC-1 在 CI 上就要 17 秒。**发版后要改成不随仓库大小变慢的做法**（例如 lint 只看依赖方向规则管到的入口、checkJs 让所有模板共用一个程序）；这次只放宽时限，测的东西没变。
+
+### 改过默认值、加过参数的内置模板升到 1.1.0
+
+- 第 1 批里九个叠加层（`title-command`、`boss-bar`、`scoreboard-sidebar`、`chat-message`、`xp-collect`、`item-tooltip`、`now-playing`、`debug-f3`、`sound-subtitles`）这次改了 `guiScale` 的默认值，`boss-bar` 还加了 `color2`–`color4`、`notches2`–`notches4`；v0.2.0 已经带着它们的 1.0.0 发出去了，所以照 `loading-screen`、`advancement-toast` 的先例（“原版动画还原与字体”）把 manifest 的 `version` 升到 1.1.0。只改了动画的 `effect-icons`、`hud-status`（默认值和参数都没变）和只加了组名 tag 的 `block-wipe`、`item-stinger`、`pixel-dissolve` 不升。各模板包自己 `package.json` 的版本号照先例不动（那不是模板的版本）。
+- 旧版本写下的引用走三条路，都不要求版本相同：打开工程时引用的版本不在就用同一个 id 的最高版本（`features/project/actions.ts` 的 `applyOpened`）；套用预设同样（`features/templates/presets.ts` 的 `applyPresetEntry`），预设菜单按 id 列出、不看版本；“另存为模板”存的派生模板写的是 `^` 加当时基模板的版本，`^1.0.0` 认 1.1.0（`main/templates/service.ts` 的 `findBase`）。参数照常清洗：多的丢弃、缺的补默认值（T-TPL-8）。所以升 1.1.0 不用迁移；以后要是改成 2.0.0，派生模板的 `^1.0.0` 就找不到基模板了。
+- 端到端 `tests/e2e/template-upgrade.spec.ts` 照 v0.2.0 的格式现写一个引用 `allay.builtin.boss-bar@1.0.0` 的工程、一个用户预设和一个 `^1.0.0` 的派生模板（这两种文件的格式在 v0.2.0 之后没有变），确认打开、经预设菜单套用、选中装载都用 1.1.0，存下的参数照旧，没存的取新的默认值。

@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.item-tooltip",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "物品提示框", "en": "Item tooltip" },
   "description": {
     "zh-CN": "鼠标停在物品上时的深色紫边提示框：第一行是带稀有度颜色的名字，下面是几行说明，旁边可以带一个物品图标。",

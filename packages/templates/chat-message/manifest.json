@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "allay.builtin.chat-message",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": { "zh-CN": "聊天消息", "en": "Chat" },
   "description": {
     "zh-CN": "左下角的聊天行一条条出现，每行带半透明黑底，新的把旧的顶上去，过一会儿淡出；可以先在输入栏里一个字一个字打出第一条再发出。",
