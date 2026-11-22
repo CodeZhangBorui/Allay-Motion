@@ -49,6 +49,8 @@ export interface BrokenPack {
   problem: 'missing' | 'rejected' | 'unreadable';
 }
 
+export type VanillaSourceProblem = 'missing' | 'unreadable' | 'not-client';
+
 export interface VanillaState {
   /** 用户是否同意使用原版素材；null 表示还没问过 */
   consent: boolean | null;
@@ -59,13 +61,19 @@ export interface VanillaState {
   cached: { versionId: string } | null;
   /** 当前资源栈里用的是哪个 */
   active: 'local' | 'cached' | null;
-  /** 同意过使用原版素材，但游戏和下载缓存都找不到了（missing），或者 jar 打不开（jar-unreadable）；已静默退回 */
-  problem: 'missing' | 'jar-unreadable' | null;
+  /**
+   * 同意过使用原版素材，但游戏和下载缓存都找不到了（missing），或者 jar 打不开（jar-unreadable），
+   * 或者登记的版本目录里的 jar 都不是完整的原版客户端（not-client）；已静默退回
+   */
+  problem: 'missing' | 'jar-unreadable' | 'not-client' | null;
   /** 生效的原版基底（资源栈里最上面启用的原版层）的层 id 和版本；没有时为 null */
   baseId: string | null;
   baseVersion: string | null;
-  /** 设置里登记了、但现在打不开的原版来源（游戏被移动、缓存被删） */
-  missingSources: { id: string; versionId: string; kind: 'local' | 'downloaded'; gameDir?: string }[];
+  /**
+   * 设置里登记了、但现在用不了的原版来源：找不到了（missing：游戏被移动、缓存被删）、jar 打不开（unreadable）、
+   * 版本目录里的 jar 不是完整的原版客户端（not-client：没有 assets/minecraft/，例如 OptiFine 这类只装了加载器的版本）
+   */
+  missingSources: { id: string; versionId: string; kind: 'local' | 'downloaded'; gameDir?: string; problem: VanillaSourceProblem }[];
 }
 
 // ---- 版本检索（docs/03-assets.md 3.12）----
@@ -84,6 +92,8 @@ export interface VersionEntry {
   gameDir?: string;
   /** 已经在资源栈里（对应的层 id） */
   layerId: string | null;
+  /** 本机的：查过之后知道这个版本目录里的 jar 不是完整的原版客户端（没有 assets/minecraft/），加不进来 */
+  problem?: 'not-client';
 }
 
 export interface VersionCatalog {

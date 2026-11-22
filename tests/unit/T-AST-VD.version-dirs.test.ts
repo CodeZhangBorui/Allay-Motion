@@ -7,9 +7,9 @@ import { LayerIdSchema, VanillaSourceArgSchema } from '../../apps/desktop/src/sh
 import { createLogger } from '../../apps/desktop/src/main/logger';
 import type { VanillaDownloader } from '../../apps/desktop/src/main/resources/download';
 import { ResourceService } from '../../apps/desktop/src/main/resources/service';
-import { findLatestRelease, listVersions } from '../../apps/desktop/src/main/resources/vanilla';
+import { findLatestRelease, isClientJar, listVersions, NotClientJarError, openVanillaLayer } from '../../apps/desktop/src/main/resources/vanilla';
 import { SettingsStore } from '../../apps/desktop/src/main/settings-store';
-import { makeFakeMinecraft } from './helpers/resource-fixtures';
+import { makeFakeMinecraft, writeZip } from './helpers/resource-fixtures';
 
 // T-AST-VD：版本目录（docs/03-assets.md 3.12、docs/decisions.md 末尾“版本目录名”一节）。
 // 游戏目录全部由测试现拼（纯色假贴图、假 jar），不碰这台机器上真装的游戏，不放任何 Mojang 文件。
@@ -199,5 +199,75 @@ describe('T-AST-VD 版本目录', () => {
     s = await svc.addVanillaSource({ kind: 'local', gameDir: join(dir, 'elsewhere'), versionId: '26.2-Fabric 0.19.3' });
     expect(s.layers.map((l) => l.id)).toEqual(before);
     svc.close();
+  });
+
+  /** OptiFine 这类只装了加载器的版本目录：jar 是个空壳（没有 assets/minecraft/），游戏用的是 inheritsFrom 的原版 */
+  function addStubVersion(game: string, id: string, releaseTime: string): void {
+    makeFakeMinecraft(game, [{ id, type: 'release', releaseTime, jar: false, json: { inheritsFrom: '1.20.1' } }]);
+    writeZip(join(game, 'versions', id, `${id}.jar`), [
+      { name: 'META-INF/MANIFEST.MF', data: 'Manifest-Version: 1.0\n' },
+      { name: 'notes/readme.txt', data: 'launcher stub' },
+    ]);
+  }
+
+  it('T-AST-VD-8 jar 不是完整的原版客户端：版本列表里照样列出；自动挑选跳过它；加入时不登记，列表上标出来', async () => {
+    const game = join(dir, 'g');
+    makeFakeMinecraft(game, [{ id: '1.20.1', type: 'release', releaseTime: '2023-06-12T13:25:51+00:00', jar: true }]);
+    addStubVersion(game, '1.20.1-OptiFine_HD_U_I6', '2024-01-01T00:00:00+00:00');
+    expect((await listVersions(game)).map((v) => v.versionId)).toEqual(['1.20.1-OptiFine_HD_U_I6', '1.20.1']);
+    expect(await isClientJar(join(game, 'versions', '1.20.1-OptiFine_HD_U_I6', '1.20.1-OptiFine_HD_U_I6.jar'))).toBe(false);
+    expect((await findLatestRelease(game))?.versionId).toBe('1.20.1');
+    await expect(openVanillaLayer((await listVersions(game))[0]!)).rejects.toBeInstanceOf(NotClientJarError);
+
+    const userData = join(dir, 'userData');
+    seed(userData, { vanilla: { consent: true, enabled: true, dir: game }, vanillaSources: [], packs: [] });
+    const { svc, settings } = await start(userData);
+    const before = settings.resources.vanillaSources;
+    const s = await svc.addVanillaSource({ kind: 'local', gameDir: game, versionId: '1.20.1-OptiFine_HD_U_I6' });
+    expect(settings.resources.vanillaSources).toEqual(before);
+    expect(s.layers.filter((l) => l.kind === 'vanilla').map((l) => l.versionId)).toEqual(['1.20.1']);
+    expect(svc.versions().local.map((v) => [v.versionId, v.problem ?? null])).toEqual([
+      ['1.20.1-OptiFine_HD_U_I6', 'not-client'],
+      ['1.20.1', null],
+    ]);
+    svc.close();
+  });
+
+  it('T-AST-VD-9 登记过的来源换成了不完整的 jar：单独列出、说明原因；只有它一个时原版的提示也说是 jar 不完整', async () => {
+    const game = join(dir, 'g');
+    addStubVersion(game, 'stub', '2024-01-01T00:00:00+00:00');
+    makeFakeMinecraft(game, [{ id: '1.21.1', type: 'release', releaseTime: '2024-08-08T12:24:45+00:00', jar: true }]);
+    const stub = { kind: 'local', gameDir: game, versionId: 'stub' } as const;
+    const good = { kind: 'local', gameDir: game, versionId: '1.21.1' } as const;
+    const userData = join(dir, 'userData');
+    seed(userData, { vanilla: { consent: true, enabled: true, dir: game }, vanillaSources: [{ id: vanillaLayerId(stub), source: stub, enabled: true }], packs: [] });
+    let run = await start(userData);
+    expect(run.state.vanilla.missingSources).toEqual([{ id: vanillaLayerId(stub), versionId: 'stub', kind: 'local', gameDir: game, problem: 'not-client' }]);
+    expect(run.state.vanilla.problem).toBe('not-client');
+    run.svc.close();
+
+    // 和一个好的来源在一起：好的照常，提示只落在这一条上
+    seed(userData, {
+      vanilla: { consent: true, enabled: true, dir: game },
+      vanillaSources: [
+        { id: vanillaLayerId(good), source: good, enabled: true },
+        { id: vanillaLayerId(stub), source: stub, enabled: true },
+      ],
+      packs: [],
+    });
+    run = await start(userData);
+    expect(run.state.layers.filter((l) => l.kind === 'vanilla').map((l) => l.versionId)).toEqual(['1.21.1']);
+    expect(run.state.vanilla.missingSources.map((m) => [m.versionId, m.problem])).toEqual([['stub', 'not-client']]);
+    expect(run.state.vanilla.problem).toBeNull();
+    // 找不到的仍是 missing
+    run.svc.close();
+    rmSync(join(game, 'versions', '1.21.1'), { recursive: true });
+    run = await start(userData);
+    expect(run.state.vanilla.missingSources.map((m) => [m.versionId, m.problem])).toEqual([
+      ['1.21.1', 'missing'],
+      ['stub', 'not-client'],
+    ]);
+    expect(run.state.vanilla.problem).toBe('missing');
+    run.svc.close();
   });
 });

@@ -127,13 +127,51 @@ export async function listVersions(gameDir: string): Promise<VanillaInstall[]> {
   return found;
 }
 
+/** 原版的资源都在 jar 的这个前缀下 */
+const CLIENT_ASSETS_PREFIX = 'assets/minecraft/';
+
+/**
+ * 版本目录里的 jar 不是完整的原版客户端：里面没有 assets/minecraft/（OptiFine 这类只装了加载器的版本目录里是个空壳 jar，
+ * 游戏实际用的是它 inheritsFrom 的那个原版）。资源面板对这种来源单独说明，不说成“游戏找不到了”。
+ */
+export class NotClientJarError extends Error {
+  override name = 'NotClientJarError';
+}
+
+/** jar 的检查结果按路径、大小、修改时间缓存（本次运行内）：版本列表要知道哪些已经查出来不能用 */
+const jarChecks = new Map<string, { size: number; mtimeMs: number; client: boolean }>();
+
+/** 这个 jar 是不是完整的原版客户端（有 assets/minecraft/ 下的文件）。读不了的 jar 也算不是；不抛错 */
+export async function isClientJar(jarPath: string): Promise<boolean> {
+  const st = await stat(jarPath).catch(() => null);
+  if (!st?.isFile()) return false;
+  const cached = jarChecks.get(jarPath);
+  if (cached && cached.size === st.size && cached.mtimeMs === st.mtimeMs) return cached.client;
+  let client: boolean;
+  try {
+    const jar = await openZip(jarPath, { includePrefixes: [CLIENT_ASSETS_PREFIX] });
+    client = jar.paths.size > 0;
+    jar.close();
+  } catch {
+    client = false;
+  }
+  jarChecks.set(jarPath, { size: st.size, mtimeMs: st.mtimeMs, client });
+  return client;
+}
+
+/** 本次运行里已经查出来不是完整客户端的 jar（版本列表上标出来）；没查过的返回 false */
+export function knownNotClientJar(jarPath: string): boolean {
+  return jarChecks.get(jarPath)?.client === false;
+}
+
 /**
  * 在一个游戏目录里找有 jar 且最新的正式版；找不到返回 null，不抛错。
- * 就是 listVersions 列出的正式版里排在最前的那个：自动挑选和版本列表用同一套判断，
+ * 就是 listVersions 列出的正式版里排在最前、jar 是完整原版客户端的那个：自动挑选和版本列表用同一套判断，
  * 永远不会自动选中一个列表里没有、应用自己打不开的版本（以前这里另有一套更宽的过滤，挑中过带空格的目录）。
  */
 export async function findLatestRelease(gameDir: string): Promise<VanillaInstall | null> {
-  return (await listVersions(gameDir)).find((v) => v.type === 'release') ?? null;
+  for (const v of await listVersions(gameDir)) if (v.type === 'release' && (await isClientJar(v.jarPath))) return v;
+  return null;
 }
 
 /** 依次试候选目录，返回第一个找到的安装 */
@@ -166,10 +204,15 @@ export interface VanillaLayerExtras {
   vanilla: { versionId: string; gameVersion: string | null; releaseTime: string; type: string | null; resourceFormat: PackFormat | null; gameDir: string; hasAssetIndex: boolean };
 }
 
+/** jar 不是完整的原版客户端（没有 assets/minecraft/）时抛 NotClientJarError，调用方单独说明这个来源；jar 打不开时抛别的错误 */
 export async function openVanillaLayer(install: VanillaInstall, options: VanillaLayerOptions & { id?: string } = {}): Promise<ClosableLayer & VanillaLayerExtras> {
-  // 根目录的 version.json 只用来读格式号；其余只收录 assets/
+  // 根目录的 version.json 只用来读版本号和格式号；其余只收录 assets/
   const jar = await openZip(install.jarPath, { includePrefixes: ['assets/', 'version.json'] });
   try {
+    const client = [...jar.paths].some((p) => p.startsWith(CLIENT_ASSETS_PREFIX));
+    const st = await stat(install.jarPath);
+    jarChecks.set(install.jarPath, { size: st.size, mtimeMs: st.mtimeMs, client });
+    if (!client) throw new NotClientJarError(`${install.jarPath} 里没有 ${CLIENT_ASSETS_PREFIX}，不是完整的原版客户端`);
     const objects = new Map<string, { file: string; size: number; hash: string }>();
     const warnings = [...jar.warnings];
     let indexMtime = 0;
