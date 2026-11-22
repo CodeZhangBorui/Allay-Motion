@@ -1,0 +1,67 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.cloud-pass",
+  "version": "1.0.0",
+  "name": {"zh-CN": "穿云", "en": "Through the Clouds"},
+  "description": {
+    "zh-CN": "镜头往上穿过一层方块云：远处的云块淡淡的，越近越大，进到云里整个画面白掉，再穿出去，脚下的云海退远，露出下一段画面。也可以从上往下穿。",
+    "en": "The camera rises through a layer of blocky clouds: distant blocks are faint, they grow as it nears, everything turns white inside the cloud, then it breaks through and the sea of clouds falls away below to reveal the next shot. It can also descend."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["particles", "clouds", "sky"],
+  "groups": [
+    {"key": "clouds", "label": {"zh-CN": "云", "en": "Clouds"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {
+      "key": "style",
+      "type": "enum",
+      "label": {"zh-CN": "样式", "en": "Style"},
+      "hint": {"zh-CN": "立体是游戏里“高品质”的云（一块块有厚度），平面是“快速”的云", "en": "3D matches the game's “Fancy” clouds (thick blocks); flat matches “Fast”"},
+      "group": "clouds",
+      "default": "fancy",
+      "options": [
+        {"value": "fancy", "label": {"zh-CN": "立体", "en": "3D"}},
+        {"value": "flat", "label": {"zh-CN": "平面", "en": "Flat"}}
+      ]
+    },
+    {
+      "key": "direction",
+      "type": "enum",
+      "label": {"zh-CN": "方向", "en": "Direction"},
+      "group": "clouds",
+      "default": "up",
+      "options": [
+        {"value": "up", "label": {"zh-CN": "往上穿", "en": "Rise"}},
+        {"value": "down", "label": {"zh-CN": "往下穿", "en": "Descend"}}
+      ]
+    },
+    {"key": "color", "type": "color", "label": {"zh-CN": "云的颜色", "en": "Cloud color"}, "group": "clouds", "default": "#FFFFFF"},
+    {"key": "density", "type": "number", "label": {"zh-CN": "云量", "en": "Coverage"}, "hint": {"zh-CN": "1 是原版的云图全用上；小一点随机去掉一些云块", "en": "1 uses every cloud of the vanilla cloud map; lower removes blocks at random"}, "group": "clouds", "default": 1, "min": 0.2, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "speed", "type": "number", "label": {"zh-CN": "前进速度", "en": "Forward drift"}, "hint": {"zh-CN": "上下穿云时同时往前飘的快慢", "en": "How fast the camera drifts forward while rising or descending"}, "group": "clouds", "default": 1, "min": 0, "max": 4, "step": 0.05, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "clouds", "default": 1},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "进云", "en": "Into the cloud"}, "group": "timing", "default": 0.9, "min": 0.2, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "在云里", "en": "Inside"}, "group": "timing", "default": 0.15, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "出云", "en": "Out of the cloud"}, "group": "timing", "default": 0.8, "min": 0.2, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "越靠近云层本来就越慢；缓动作用在这之上", "en": "The camera already slows near the cloud layer; the easing is applied on top"}, "group": "timing", "default": "linear"},
+    {"key": "inSound", "type": "sound", "label": {"zh-CN": "进云音效", "en": "In sound"}, "hint": {"zh-CN": "开始时播放", "en": "Plays at the start"}, "group": "sound", "default": "minecraft:item.trident.throw"},
+    {"key": "outSound", "type": "sound", "label": {"zh-CN": "出云音效", "en": "Out sound"}, "hint": {"zh-CN": "开始穿出时播放", "en": "Plays when it starts to break through"}, "group": "sound", "default": "minecraft:item.trident.throw"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "进云", "en": "In"}},
+      {"param": "hold", "label": {"zh-CN": "在云里", "en": "Inside"}},
+      {"param": "outDuration", "label": {"zh-CN": "出云", "en": "Out"}}
+    ]
+  },
+  "presets": [
+    {"key": "descend", "name": {"zh-CN": "从天上落下来", "en": "Drop from the sky"}, "params": {"direction": "down", "inDuration": 1.1, "outDuration": 0.9}},
+    {"key": "sunset", "name": {"zh-CN": "傍晚的云", "en": "Evening clouds"}, "params": {"color": "#FFC9A8", "density": 0.8}},
+    {"key": "fast", "name": {"zh-CN": "快速云（平面）", "en": "Fast clouds (flat)"}, "params": {"style": "flat"}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}
