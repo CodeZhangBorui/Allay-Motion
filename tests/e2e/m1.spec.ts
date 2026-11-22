@@ -107,8 +107,8 @@ test.describe('预览', () => {
   });
 
   test('T-ARC-5 update 死循环：看门狗在时限内终止并重建 Worker，主线程没有 > 100 ms 的卡顿，界面给出“模板无响应”', async () => {
-    // 前面多等封面做完、杂务 Worker 销毁（见下），时限多给一分钟
-    test.setTimeout(test.info().timeout + 60_000);
+    // 前面多等封面做完、杂务 Worker 销毁（见下，三步最多 30 + 60 + 45 秒），时限多给两分钟
+    test.setTimeout(test.info().timeout + 120_000);
     const { page } = launched;
     const engineWorkers = () => page.workers().filter((w) => /engine\.worker/.test(w.url())).length;
     // 下面数引擎 Worker 时只该有预览的那一个。模板库的封面由杂务 Worker 生成，封面做完、空闲 15 秒后它才销毁
