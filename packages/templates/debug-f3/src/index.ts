@@ -5,7 +5,8 @@
 // “0123456789-.” 每个字符只建一个文字对象，其余都是它的克隆（克隆共用几何体和材质，改原件的不透明度对所有克隆生效）；
 // 朝向的词只有四种，各建一个，显示当前那一个。update(t) 里只改位置和 visible。
 import type { SetupContext, TemplateInstance, TemplateModule, TextObject } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { alphaOf, createGui, fontOf, num, rgbOf, str } from '../../_lib/src/gui-kit';
 import {
   FACINGS,
@@ -237,7 +238,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 整体淡入淡出（游戏里是按下 F3 直接出现）；首末帧全透明
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         for (const text of texts) text.setOpacity(a);
         backgrounds.setOpacity(a);
         const at = pose(t);
