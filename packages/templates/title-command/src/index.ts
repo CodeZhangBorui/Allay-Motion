@@ -1,7 +1,8 @@
 // 038 标题命令 allay.builtin.title-command（docs/templates/title-command.md）。叠加层：/title 的标题、副标题和动作栏文字。
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, fontOf, num, rgbOf, str } from '../../_lib/src/gui-kit';
 import { ACTIONBAR_FADE_TICKS, actionbarAlpha, BACKDROP_PAD, LINE_H, SUBTITLE_SCALE, TICK, TITLE_SCALE, titleLayout } from './layout';
 
@@ -66,7 +67,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 淡入、停留、淡出都是线性的（_lib 的时间窗首尾各让出一帧）
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         title?.setOpacity(a);
         subtitle?.setOpacity(a);
         actionbar?.setOpacity(t <= barStart ? 0 : actionbarAlpha(t - barStart, barLife, barFade));
