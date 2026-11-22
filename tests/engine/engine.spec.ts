@@ -4,12 +4,15 @@ import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import type { Harness, TemplateName } from './harness/harness';
+import { probeRenderTargets, type RtProbeVerdict } from './rt-probe';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const ELECTRON = createRequire(join(ROOT, 'apps/desktop/package.json'))('electron') as string;
 
 let app: ElectronApplication;
 let page: Page;
+/** 渲染目标稳定性探针的结论：不稳定时逐字节的判定（T-ENG-1）带理由跳过（tests/engine/rt-probe.ts） */
+let rt: RtProbeVerdict;
 
 test.beforeAll(async () => {
   const env: Record<string, string> = {};
@@ -17,7 +20,15 @@ test.beforeAll(async () => {
   app = await electron.launch({ executablePath: ELECTRON, args: [join(import.meta.dirname, 'electron-main.mjs')], env });
   page = await app.firstWindow();
   await page.waitForFunction(() => window.harnessReady === true);
+  rt = await probeRenderTargets(app, page);
+  console.log(`[engine] ${rt.summary}`);
 });
+
+/** 逐字节判定的测试开头调用：探针证明这块显卡会写坏渲染目标时跳过，并把探针的结果记进测试输出 */
+function requireStableRenderTargets(): void {
+  test.info().annotations.push({ type: 'rt-probe', description: rt.summary });
+  test.skip(!rt.stable, rt.summary);
+}
 
 test.afterAll(async () => {
   await app?.close();
@@ -38,6 +49,7 @@ const STANDARD = { subframes: 8, shutterAngle: 180 };
 const BLOCK: TemplateName = 'blockWipe';
 
 test('T-ENG-1 确定性：全部帧顺序渲染一遍、乱序渲染一遍，逐字节相同', async () => {
+  requireStableRenderTargets();
   const output = { width: 1280, height: 720, fps: 60 };
   const seq = await call('frameHashes', BLOCK, output, STANDARD, false);
   const shuf = await call('frameHashes', BLOCK, output, STANDARD, true);
@@ -49,6 +61,7 @@ test('T-ENG-1 确定性：全部帧顺序渲染一遍、乱序渲染一遍，逐
 });
 
 test('T-ENG-1 同一个 Worker 里穿插渲染别的帧后，同一帧仍逐字节相同', async () => {
+  requireStableRenderTargets();
   const r = await call('selfCheck', BLOCK, { width: 960, height: 540, fps: 60 }, 20, [50, 3, 66, 0, 33]);
   expect(r.second).toBe(r.first);
 });

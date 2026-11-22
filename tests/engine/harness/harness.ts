@@ -9,6 +9,8 @@ import usesImport from '../../fixtures/templates/uses-import.js?raw';
 import escapeAttempts from '../../fixtures/templates/escape-attempts.js?raw';
 import m2Features from '../../fixtures/templates/m2-features.js?raw';
 import m6bFeatures from '../../fixtures/templates/m6b-features.js?raw';
+// 渲染目标稳定性探针：裸 WebGL2，不经过引擎（docs/reference/intel-igpu-rt-corruption/）
+import rtProbeSource from '../../../docs/reference/intel-igpu-rt-corruption/rt-probe.js?raw';
 import devSyntaxError from '../../fixtures/templates/dev/syntax-error.js?raw';
 import devSetupThrows from '../../fixtures/templates/dev/setup-throws.js?raw';
 import devUpdateThrows from '../../fixtures/templates/dev/update-throws.js?raw';
@@ -136,10 +138,49 @@ function shuffled(n: number): number[] {
   return order;
 }
 
+/** rt-probe.js 的结果 */
+interface RtProbeResult {
+  renderer: string;
+  frames: number;
+  bad: number;
+  distinct: number;
+  ms: number;
+  events: { frame: number; count: number; pixels: number; sample: { x: number; y: number; expected: number[]; got: number[] } | null }[];
+  glError: number;
+  errors: string[];
+  calls: number;
+}
+
 const harness = {
   frameCount,
   /** 内置模板的 id 与 manifest */
   builtins: () => Object.fromEntries(Object.entries(builtins).map(([id, b]) => [id, b.manifest])),
+
+  /**
+   * 渲染目标稳定性探针（docs/decisions.md“Intel 核显上渲染目标偶发被写坏”）：在一个 Worker 里跑裸 WebGL2 的最小复现，
+   * 同一个静止场景反复渲染，看读回的整帧是不是每次都一样。distinct > 1 说明这块显卡（驱动）会写坏渲染目标。
+   */
+  async rtProbe(options: { budgetMs?: number; stopAfter?: number } = {}) {
+    const url = URL.createObjectURL(
+      new Blob(
+        [`${rtProbeSource}\nself.onmessage = (e) => { try { self.postMessage({ ok: true, r: self.allayRtProbe(e.data) }); } catch (err) { self.postMessage({ ok: false, error: String((err && err.stack) || err) }); } };`],
+        { type: 'text/javascript' },
+      ),
+    );
+    const worker = new Worker(url);
+    try {
+      const res = await new Promise<{ ok: boolean; r?: RtProbeResult; error?: string }>((resolve) => {
+        worker.onmessage = (e: MessageEvent<{ ok: boolean; r?: RtProbeResult; error?: string }>) => resolve(e.data);
+        worker.onerror = (e) => resolve({ ok: false, error: e.message });
+        worker.postMessage(options);
+      });
+      if (!res.ok || !res.r) throw new Error(`rt probe failed: ${res.error ?? 'no result'}`);
+      return res.r;
+    } finally {
+      worker.terminate();
+      URL.revokeObjectURL(url);
+    }
+  },
 
   /** 渲染器的名字（判断是不是软件渲染，T-TPL-5 的放宽，4.11） */
   gpu() {
