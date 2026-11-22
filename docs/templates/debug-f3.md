@@ -44,8 +44,10 @@
 | `textColor` | color | `#E0E0E0` | 色板 `chat` |
 | `bgColor` | color（带不透明度） | `#50505090` | — |
 | `font` | font | `embedded:default`（普通模式），不带阴影 | — |
-| `guiScale` | number | 4 | 1–8 |
+| `guiScale` | number | 6 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.15 / 4 / 0.15 | 0.05–3 / 0.1–24 / 0.05–3 |
+
+`guiScale` 默认 6（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，几行文字在 5 以下看不清（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 左栏默认（两种语言相同，游戏的调试屏幕不翻译）：
 
