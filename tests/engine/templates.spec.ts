@@ -14,6 +14,7 @@ import { decodePng, encodePng } from '../../scripts/mascot-bake/png';
 import { TemplateManifestSchema, type FrameQuality, type TemplateManifest } from '../../packages/template-sdk/src/index';
 import type { Harness } from './harness/harness';
 import { prng, randomParamSets } from './random-params';
+import { probeRenderTargets, type RtProbeVerdict } from './rt-probe';
 import { selectionFromEnv, selectTemplateIds } from './shard';
 import { isSoftwareRenderer } from './software';
 
@@ -28,6 +29,8 @@ let page: Page;
 let builtins: Record<string, TemplateManifest> = {};
 /** 内置模板的总数（不受挑选影响） */
 let builtinCount = 0;
+/** 渲染目标稳定性探针的结论：不稳定时 T-TPL-3/4 里逐字节的 T-ENG-1 判定带理由跳过，其余判定照常（tests/engine/rt-probe.ts） */
+let rt: RtProbeVerdict;
 
 test.beforeAll(async () => {
   const env: Record<string, string> = {};
@@ -35,6 +38,8 @@ test.beforeAll(async () => {
   app = await electron.launch({ executablePath: ELECTRON, args: [join(import.meta.dirname, 'electron-main.mjs')], env });
   page = await app.firstWindow();
   await page.waitForFunction(() => window.harnessReady === true);
+  rt = await probeRenderTargets(app, page);
+  console.log(`[templates] ${rt.summary}`);
   const raw = await call('builtins');
   builtinCount = Object.keys(raw).length;
   const selected = selectTemplateIds(Object.keys(raw), selectionFromEnv(process.env));
@@ -81,7 +86,7 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
   const rules = await rendererRules();
   // WARP 上同样的工作量慢二三十倍
   test.setTimeout(rules.software ? 3_600_000 : 600_000);
-  test.info().annotations.push({ type: 'renderer', description: rules.gpu });
+  test.info().annotations.push({ type: 'renderer', description: rules.gpu }, { type: 'rt-probe', description: rt.summary });
   // 分片时这一份可以是空的（模板比份数少），但内置模板本身不能一个都没有
   expect(builtinCount).toBeGreaterThan(0);
   for (const [id, manifest] of Object.entries(builtins)) {
@@ -89,8 +94,11 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
       const r = await call('tplCheck', id, { width: a.width, height: a.height, fps: 60 }, STANDARD, {}, true);
       const where = `${id} ${a.name}`;
       expect(r.warnings, `${where} warnings`).toEqual([]);
-      expect(r.mismatched, `${where} T-ENG-1 mismatched frames ${JSON.stringify(r.debug)}`).toEqual([]);
-      expect(r.deterministic, `${where} T-ENG-1`).toBe(true);
+      // 逐字节的 T-ENG-1：探针证明这块显卡会写坏渲染目标时跳过（rt-probe 注解里有探针的结果）
+      if (rt.stable) {
+        expect(r.mismatched, `${where} T-ENG-1 mismatched frames ${JSON.stringify(r.debug)}`).toEqual([]);
+        expect(r.deterministic, `${where} T-ENG-1`).toBe(true);
+      }
       // 确实在动。转场类照旧要求一半以上的帧互不相同；叠加层（没有剪辑点，如 T6 的提示框）在停留阶段本来就静止，
       // 停留阶段内部的帧不计入（docs/decisions.md M6a）
       const holdDef = manifest.params?.find((p) => p.key === 'hold');
@@ -112,7 +120,7 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
 test('T-TPL-4 每个内置模板 50 组随机合法参数：不抛错，三条断言仍成立，duration 在规定范围内', async () => {
   const rules = await rendererRules();
   test.setTimeout(rules.software ? 3_600_000 : 1_800_000);
-  test.info().annotations.push({ type: 'renderer', description: rules.gpu });
+  test.info().annotations.push({ type: 'renderer', description: rules.gpu }, { type: 'rt-probe', description: rt.summary });
   for (const [id, manifest] of Object.entries(builtins)) {
     const sets = randomParamSets(manifest.params ?? [], 50, 20261113);
     const r = prng(7);
@@ -128,7 +136,8 @@ test('T-TPL-4 每个内置模板 50 组随机合法参数：不抛错，三条�
       expect(res.duration, where).toBeGreaterThanOrEqual(DURATION_RANGE[0]);
       expect(res.duration, where).toBeLessThanOrEqual(DURATION_RANGE[1]);
       expect(res.warnings, where).toEqual([]);
-      expect(res.deterministic, `${where} T-ENG-1`).toBe(true);
+      // 逐字节的 T-ENG-1：探针证明这块显卡会写坏渲染目标时跳过（同 T-TPL-3）
+      if (rt.stable) expect(res.deterministic, `${where} T-ENG-1 ${JSON.stringify(res.debug)}`).toBe(true);
       expect(res.first.max, `${where} first frame`).toBe(0);
       expect(res.last.max, `${where} last frame`).toBe(0);
       reportCut(where, output.width, output.height, res.cut);

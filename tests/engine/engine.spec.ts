@@ -4,13 +4,15 @@ import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import type { Harness, TemplateName } from './harness/harness';
-import { isSoftwareRenderer, SOFTWARE_LIMITS } from './software';
+import { probeRenderTargets, type RtProbeVerdict } from './rt-probe';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const ELECTRON = createRequire(join(ROOT, 'apps/desktop/package.json'))('electron') as string;
 
 let app: ElectronApplication;
 let page: Page;
+/** 渲染目标稳定性探针的结论：不稳定时逐字节的判定（T-ENG-1）带理由跳过（tests/engine/rt-probe.ts） */
+let rt: RtProbeVerdict;
 
 test.beforeAll(async () => {
   const env: Record<string, string> = {};
@@ -18,7 +20,15 @@ test.beforeAll(async () => {
   app = await electron.launch({ executablePath: ELECTRON, args: [join(import.meta.dirname, 'electron-main.mjs')], env });
   page = await app.firstWindow();
   await page.waitForFunction(() => window.harnessReady === true);
+  rt = await probeRenderTargets(app, page);
+  console.log(`[engine] ${rt.summary}`);
 });
+
+/** 逐字节判定的测试开头调用：探针证明这块显卡会写坏渲染目标时跳过，并把探针的结果记进测试输出 */
+function requireStableRenderTargets(): void {
+  test.info().annotations.push({ type: 'rt-probe', description: rt.summary });
+  test.skip(!rt.stable, rt.summary);
+}
 
 test.afterAll(async () => {
   await app?.close();
@@ -39,6 +49,7 @@ const STANDARD = { subframes: 8, shutterAngle: 180 };
 const BLOCK: TemplateName = 'blockWipe';
 
 test('T-ENG-1 确定性：全部帧顺序渲染一遍、乱序渲染一遍，逐字节相同', async () => {
+  requireStableRenderTargets();
   const output = { width: 1280, height: 720, fps: 60 };
   const seq = await call('frameHashes', BLOCK, output, STANDARD, false);
   const shuf = await call('frameHashes', BLOCK, output, STANDARD, true);
@@ -50,8 +61,17 @@ test('T-ENG-1 确定性：全部帧顺序渲染一遍、乱序渲染一遍，逐
 });
 
 test('T-ENG-1 同一个 Worker 里穿插渲染别的帧后，同一帧仍逐字节相同', async () => {
+  requireStableRenderTargets();
   const r = await call('selfCheck', BLOCK, { width: 960, height: 540, fps: 60 }, 20, [50, 3, 66, 0, 33]);
   expect(r.second).toBe(r.first);
+});
+
+test('T-ENG-1 两张九宫格叠着、上面几行线性过滤的矢量字：16 个子帧，同一帧反复渲染逐字节相同', async () => {
+  // 物品提示框（045）在 T-TPL-4 第 26 组参数下偶发不一致的那种结构（tests/fixtures/templates/partial-cover.js 铺了 88 个），
+  // 135×135、快门角 0（16 个子帧画的是同一个场景）。会写坏渲染目标的驱动上，这里每 40 次大约有 1 次不同（docs/decisions.md）
+  requireStableRenderTargets();
+  const r = await call('repeatFrame', 'partialCover', { width: 135, height: 135, fps: 30 }, { subframes: 16, shutterAngle: 0 }, 1, 40);
+  expect(r.distinct, `renders that differ from the first: ${JSON.stringify(r.differing)}`).toBe(1);
 });
 
 test('T-ENG-2 alpha：50% 白为 (255,255,255,128±1)，不透明红为 (255,0,0,255)，矩形外 alpha 为 0', async () => {
@@ -98,21 +118,20 @@ test('T-ENG-3 运动模糊守恒：N = 16、A = 180，行 alpha 之和 = 宽度 
 
 test('T-ENG-4 预览与导出一致：同一 t、同一分辨率、N = 1', async () => {
   const gpu = await call('gpu');
-  // 软件渲染（CI）的 8 位预乘画布按截断取整，alpha ≥ 128 的像素放宽到 ≤ 2（tests/engine/software.ts）
-  const highLimit = isSoftwareRenderer(gpu) ? SOFTWARE_LIMITS.previewColorHigh : 1;
-  test.info().annotations.push({ type: 'renderer', description: `${gpu}（alpha ≥ 128 判定 ≤ ${highLimit}）` });
+  test.info().annotations.push({ type: 'renderer', description: gpu });
   const results = await call('previewVsExport', BLOCK, { width: 960, height: 540, fps: 60 }, [6, 12, 20, 33, 50, 60]);
   for (const r of results) {
     // 诊断（docs/decisions.md M8）：alpha ≥ 128 里差得最多的像素，打进日志
     if (r.colorHigh > 1) console.log(`[T-ENG-4] ${gpu} frame ${r.index} colorHigh=${r.colorHigh} worst=${JSON.stringify(r.worstHigh)}`);
     expect(r.length).toBe(true);
     expect(r.nonEmpty, `frame ${r.index} draws something`).toBeGreaterThan(0);
-    expect(r.alpha, `frame ${r.index} alpha`).toBeLessThanOrEqual(1);
-    // 预览画布是 8 位预乘：换算回直通 alpha 后，alpha 越小量化误差越大（±0.5 × 255 / a）。
-    // 不透明和 alpha ≥ 128 的像素按规格要求 ≤ 1；全部像素在预乘域里比较也 ≤ 1（见 docs/decisions.md M1）。
-    expect(r.colorOpaque, `frame ${r.index} opaque colour`).toBeLessThanOrEqual(1);
-    expect(r.colorHigh, `frame ${r.index} colour where a ≥ 128`).toBeLessThanOrEqual(highLimit);
-    expect(r.premul, `frame ${r.index} premultiplied`).toBeLessThanOrEqual(1);
+    // 8 位量化由 resolve 着色器自己做（docs/decisions.md“8 位量化由引擎自己做”）：预览的预乘值是用导出的同一组整数算的，
+    // 所以 alpha、预乘域、不透明像素的颜色都应当逐字节相同，不取决于渲染器的取整方式。
+    expect(r.alpha, `frame ${r.index} alpha`).toBe(0);
+    expect(r.premul, `frame ${r.index} premultiplied`).toBe(0);
+    expect(r.colorOpaque, `frame ${r.index} opaque colour`).toBe(0);
+    // 换算回直通 alpha 时，预乘值的取整误差放大 255 / a 倍：alpha ≥ 128 时最多 127 / 128，取整后 ≤ 1（规格的判定）
+    expect(r.colorHigh, `frame ${r.index} colour where a ≥ 128`).toBeLessThanOrEqual(1);
   }
 });
 

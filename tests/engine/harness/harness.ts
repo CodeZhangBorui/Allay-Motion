@@ -9,6 +9,9 @@ import usesImport from '../../fixtures/templates/uses-import.js?raw';
 import escapeAttempts from '../../fixtures/templates/escape-attempts.js?raw';
 import m2Features from '../../fixtures/templates/m2-features.js?raw';
 import m6bFeatures from '../../fixtures/templates/m6b-features.js?raw';
+import partialCover from '../../fixtures/templates/partial-cover.js?raw';
+// 渲染目标稳定性探针：裸 WebGL2，不经过引擎（docs/reference/intel-igpu-rt-corruption/）
+import rtProbeSource from '../../../docs/reference/intel-igpu-rt-corruption/rt-probe.js?raw';
 import devSyntaxError from '../../fixtures/templates/dev/syntax-error.js?raw';
 import devSetupThrows from '../../fixtures/templates/dev/setup-throws.js?raw';
 import devUpdateThrows from '../../fixtures/templates/dev/update-throws.js?raw';
@@ -43,6 +46,7 @@ const SOURCES = {
   devUpdateThrows: { code: devUpdateThrows, manifest: fixture() },
   devRandomUpdate: { code: devRandomUpdate, manifest: fixture() },
   devOrderDependent: { code: devOrderDependent, manifest: fixture() },
+  partialCover: { code: partialCover, manifest: fixture() },
   m2Features: {
     code: m2Features,
     manifest: fixture([
@@ -136,10 +140,64 @@ function shuffled(n: number): number[] {
   return order;
 }
 
+/** rt-probe.js 的结果 */
+interface RtProbeResult {
+  renderer: string;
+  frames: number;
+  bad: number;
+  distinct: number;
+  ms: number;
+  events: { frame: number; count: number; pixels: number; sample: { x: number; y: number; expected: number[]; got: number[] } | null }[];
+  glError: number;
+  errors: string[];
+  calls: number;
+}
+
 const harness = {
   frameCount,
   /** 内置模板的 id 与 manifest */
   builtins: () => Object.fromEntries(Object.entries(builtins).map(([id, b]) => [id, b.manifest])),
+
+  /**
+   * 渲染目标稳定性探针（docs/decisions.md“Intel 核显上渲染目标偶发被写坏”）：几个 Worker 同时跑裸 WebGL2 的最小复现，
+   * 同一个静止场景反复渲染，看读回的整帧是不是每次都一样。任何一个 Worker 的 distinct > 1 说明这块显卡（驱动）会写坏渲染目标。
+   * 默认两个 Worker 并行：实测核显上单个 Worker 偶尔整整 1.5 秒一帧都不坏（另一个同时跑的 89 ms 就看到了）。
+   */
+  async rtProbe(options: { budgetMs?: number; stopAfter?: number; workers?: number } = {}) {
+    const url = URL.createObjectURL(
+      new Blob(
+        [`${rtProbeSource}\nself.onmessage = (e) => { try { self.postMessage({ ok: true, r: self.allayRtProbe(e.data) }); } catch (err) { self.postMessage({ ok: false, error: String((err && err.stack) || err) }); } };`],
+        { type: 'text/javascript' },
+      ),
+    );
+    const one = () =>
+      new Promise<RtProbeResult>((resolve, reject) => {
+        const worker = new Worker(url);
+        const done = (res: { ok: boolean; r?: RtProbeResult; error?: string }) => {
+          worker.terminate();
+          if (res.ok && res.r) resolve(res.r);
+          else reject(new Error(`rt probe failed: ${res.error ?? 'no result'}`));
+        };
+        worker.onmessage = (e: MessageEvent<{ ok: boolean; r?: RtProbeResult; error?: string }>) => done(e.data);
+        worker.onerror = (e) => done({ ok: false, error: e.message });
+        worker.postMessage({ budgetMs: options.budgetMs, stopAfter: options.stopAfter });
+      });
+    try {
+      const results = await Promise.all(Array.from({ length: Math.max(1, options.workers ?? 2) }, one));
+      const unstable = results.find((r) => r.distinct > 1);
+      return {
+        ...(unstable ?? results[0]!),
+        frames: results.reduce((n, r) => n + r.frames, 0),
+        bad: results.reduce((n, r) => n + r.bad, 0),
+        distinct: Math.max(...results.map((r) => r.distinct)),
+        ms: Math.max(...results.map((r) => r.ms)),
+        errors: results.flatMap((r) => r.errors),
+        workers: results.map((r) => ({ frames: r.frames, bad: r.bad, distinct: r.distinct, ms: r.ms })),
+      };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  },
 
   /** 渲染器的名字（判断是不是软件渲染，T-TPL-5 的放宽，4.11） */
   gpu() {
@@ -181,15 +239,21 @@ const harness = {
             let diff = 0;
             let maxd = 0;
             let first = -1;
+            // 两边再各渲染一次之后仍不同的像素：(x, y, 顺序那一边的 RGBA, 乱序那一边的 RGBA)，最多 4 个
+            const pixels: [number, number, number[], number[]][] = [];
             for (let k = 0; k < a.length; k++) {
               const d = Math.abs(a[k]! - b[k]!);
               if (d) {
                 diff++;
                 if (first < 0) first = k;
+                const p = k >> 2;
+                if (pixels.length < 4 && (pixels.length === 0 || pixels[pixels.length - 1]![0] + pixels[pixels.length - 1]![1] * output.width !== p)) {
+                  pixels.push([p % output.width, Math.floor(p / output.width), Array.from(a.subarray(p * 4, p * 4 + 4)), Array.from(b.subarray(p * 4, p * 4 + 4))]);
+                }
               }
               if (d > maxd) maxd = d;
             }
-            debug.push({ i, seq: seq[i]!.slice(0, 8), shuf: shuf[i]!.slice(0, 8), again1: (await sha256(a)).slice(0, 8), again2: (await sha256(b)).slice(0, 8), diff, maxd, firstPixel: first >> 2 });
+            debug.push({ i, seq: seq[i]!.slice(0, 8), shuf: shuf[i]!.slice(0, 8), again1: (await sha256(a)).slice(0, 8), again2: (await sha256(b)).slice(0, 8), diff, maxd, firstPixel: first >> 2, pixels });
           }
           deterministic = mismatched.length === 0;
         } finally {
@@ -578,6 +642,43 @@ const harness = {
     const { host, loaded } = await exportEngine(name, output);
     host.dispose();
     return loaded.warnings;
+  },
+
+  /**
+   * T-ENG-1（反复渲染）：同一个 Worker 里把同一帧渲染 times 次，按 SHA-256 分组。
+   * 和第一次不同的渲染（最多 4 次）报出不同的像素数和前几个像素（x, y, 第一次的 RGBA, 这一次的 RGBA）。
+   */
+  async repeatFrame(name: TemplateKey, output: OutputSettings, quality: FrameQuality, index: number, times: number) {
+    const { host } = await exportEngine(name, output);
+    try {
+      let first: Uint8Array | null = null;
+      let firstHash = '';
+      const counts: Record<string, number> = {};
+      const differing: { n: number; pixels: number; samples: [number, number, number[], number[]][] }[] = [];
+      for (let n = 0; n < times; n++) {
+        const buf = await host.renderFrame(index, quality);
+        const h = await sha256(buf);
+        counts[h] = (counts[h] ?? 0) + 1;
+        if (!first) {
+          first = buf;
+          firstHash = h;
+          continue;
+        }
+        if (h === firstHash || differing.length >= 4) continue;
+        let pixels = 0;
+        const samples: [number, number, number[], number[]][] = [];
+        for (let p = 0; p < buf.length / 4; p++) {
+          const o = p * 4;
+          if (buf[o] === first[o] && buf[o + 1] === first[o + 1] && buf[o + 2] === first[o + 2] && buf[o + 3] === first[o + 3]) continue;
+          pixels++;
+          if (samples.length < 6) samples.push([p % output.width, Math.floor(p / output.width), Array.from(first.subarray(o, o + 4)), Array.from(buf.subarray(o, o + 4))]);
+        }
+        differing.push({ n, pixels, samples });
+      }
+      return { distinct: Object.keys(counts).length, counts: Object.values(counts), differing };
+    } finally {
+      host.dispose();
+    }
   },
 
   /** 一个 Worker 实例重复用：渲染两次同一帧，中间穿插别的帧（2.4 的确定性自检） */

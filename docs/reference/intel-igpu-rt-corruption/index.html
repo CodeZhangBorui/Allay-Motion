@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>渲染目标稳定性探针（裸 WebGL2）</title>
+    <style>
+      body { font: 14px/1.6 system-ui, sans-serif; margin: 24px; max-width: 880px; }
+      label { margin-right: 16px; }
+      pre { background: #f3f3f4; padding: 12px; white-space: pre-wrap; }
+      .bad { color: #b00020; font-weight: 600; }
+      .good { color: #1d7a4e; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>渲染目标稳定性探针</h1>
+    <p>
+      同一个静止的小场景（两张九宫格贴图叠着、上面五行线性过滤的“文字”，全部混合绘制，每帧 16 个子帧累积）反复渲染，读回的整帧应当每次都一样。
+      出现不同的帧，说明这块显卡（驱动）在混合绘制时写坏了渲染目标。说明和实测次数见同目录的 <code>README.md</code>。
+      只用裸 WebGL2，不含任何素材；贴图都由 <code>rt-probe.js</code> 生成。
+    </p>
+    <p>
+      <label>场景目标 <select id="format"><option value="rgba8">RGBA8（最灵敏）</option><option value="rgba16f">RGBA16F（引擎原样）</option></select></label>
+      <label>分配边长 <input id="alloc" type="number" value="272" min="270" max="4096" style="width: 6em" /></label>
+      <label>时长（秒） <input id="seconds" type="number" value="10" min="1" max="600" style="width: 5em" /></label>
+      <label><input id="check" type="checkbox" /> 每个调用后查 getError（慢，只为证明调用合规）</label>
+    </p>
+    <p><button id="run">运行</button></p>
+    <pre id="out">（还没运行）</pre>
+    <script src="rt-probe.js"></script>
+    <script>
+      'use strict';
+      document.getElementById('run').addEventListener('click', function () {
+        var out = document.getElementById('out');
+        out.textContent = '运行中……';
+        setTimeout(function () {
+          var r = self.allayRtProbe({
+            budgetMs: Number(document.getElementById('seconds').value) * 1000,
+            format: document.getElementById('format').value,
+            alloc: Number(document.getElementById('alloc').value),
+            checkErrors: document.getElementById('check').checked,
+          });
+          var verdict = r.distinct > 1 ? '<span class="bad">不稳定：同一个场景渲染出 ' + r.distinct + ' 种结果</span>' : '<span class="good">稳定：所有帧逐字节相同</span>';
+          out.innerHTML = '';
+          var lines = [
+            '渲染器：' + r.renderer,
+            r.frames + ' 帧里 ' + r.bad + ' 帧和出现最多的结果不同，用时 ' + r.ms + ' ms',
+            '结束时 getError：0x' + r.glError.toString(16) + (r.calls ? '；逐个检查了 ' + r.calls + ' 个调用，错误 ' + r.errors.length + ' 个' : ''),
+          ].concat(
+            r.errors.map(function (e) { return '错误：' + e; }),
+            r.events.map(function (e) {
+              return '第 ' + e.frame + ' 帧（这种结果共 ' + e.count + ' 帧）：' + e.pixels + ' 个像素不同' + (e.sample ? '，例如 (' + e.sample.x + ', ' + e.sample.y + ') 应为 ' + e.sample.expected.join('.') + '、实为 ' + e.sample.got.join('.') : '');
+            }),
+          );
+          var head = document.createElement('div');
+          head.innerHTML = verdict;
+          out.appendChild(head);
+          out.appendChild(document.createTextNode(lines.join('\n')));
+        }, 50);
+      });
+    </script>
+  </body>
+</html>

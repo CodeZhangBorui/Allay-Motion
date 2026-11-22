@@ -94,6 +94,8 @@ interface AudioCue { sound: string; at: number; gain: number; rate: number; pan:
    - **预览**：反预乘，线性转 sRGB，再预乘，画到 canvas。canvas 的上下文用 `alpha: true, premultipliedAlpha: true` 创建，由浏览器合成到棋盘格或示例素材上。
    - **导出（透明）**：反预乘 `rgb / max(a, 1e-5)`，线性转 sRGB，输出直通 alpha。
    - **导出（不透明）**：在线性空间盖到底色上，转 sRGB，alpha 写 1。
+
+   8 位的量化由着色器自己做，不交给驱动：直通的 sRGB 和 alpha 先四舍五入成整数 `s`、`a`，预览的预乘值用同一组整数算 `round(s × a / 255)`，写出时用 `(q + 0.25) / 255`（浮点转 8 位时无论驱动就近取整还是截断，存下来的都是 `q`）。这样预览和导出的 8 位值在任何显卡上都只差预乘本身的取整（见 `docs/decisions.md`“8 位量化由引擎自己做”）。
 5. 导出时从 8 位目标 `readPixels`。上下翻转放在 resolve 着色器里做（采样时翻 v），CPU 不再翻。
 
 Three.js 设置：`ColorManagement.enabled = true`；颜色贴图 `colorSpace = SRGBColorSpace`；`toneMapping = NoToneMapping`；渲染到 RT 时不做输出转换，由 resolve 着色器统一编码。材质保持 Three 默认的 `NormalBlending`，不要改混合函数，否则缓冲里的 alpha 会错。

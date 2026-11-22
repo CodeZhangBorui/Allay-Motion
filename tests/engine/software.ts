@@ -7,17 +7,13 @@
 //
 // 实测 WARP 和显卡的差别，以及各自怎么处理：
 // - 慢得多：T-TPL-3 在显卡上约 35 秒，在 WARP 上超过 10 分钟。只放宽测试自身的时限。
-// - 写 8 位预乘画布时按截断取整：T-ENG-4 里 alpha = 128、颜色 147 的像素，正确的预乘值是 147 × 128 / 255 = 73.79 → 74，
-//   WARP 写的是 73，换算回直通是 145，与导出差 2。这是渲染器的取整方式，只放宽 T-ENG-4 里 alpha ≥ 128 那一项（≤ 2）。
+// - 曾经的 T-ENG-4 差 2（WARP 和 Intel 核显上 alpha ≥ 128 的直通颜色，RTX 5070 上是 1）：预览写 8 位预乘值、导出写 8 位直通值，
+//   两边各自对不同的浮点值取整，换算回直通时误差相加、再放大 255 / a 倍，即使都就近取整也能差到 2（不是 WARP 截断，
+//   WARP 的导出和就近取整逐字节相同）。现在 resolve 着色器自己把 8 位量化做掉、预览的预乘值由导出的同一组整数算出，
+//   三种渲染器都 ≤ 1，那条放宽已经删掉（decisions.md“8 位量化由引擎自己做”）。
 // - 曾经的剪辑点整帧 254 不是渲染器的问题，是方块着色器的 alpha 里混进了插值误差（已修，见 decisions.md），不放宽。
 export const SOFTWARE_RENDERER = /swiftshader|llvmpipe|software|basic render/i;
 
 export function isSoftwareRenderer(gpu: string): boolean {
   return SOFTWARE_RENDERER.test(gpu);
 }
-
-/** 软件渲染下的判定 */
-export const SOFTWARE_LIMITS = {
-  /** T-ENG-4：alpha ≥ 128 的像素直通颜色的差（显卡上 ≤ 1） */
-  previewColorHigh: 2,
-} as const;
