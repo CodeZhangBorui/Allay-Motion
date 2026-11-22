@@ -35,12 +35,14 @@
 | `nameFont` / `loreFont` | font | `embedded:default`（普通模式），带阴影 | — |
 | `anchor` | enum | `center` | 九个位置 |
 | `margin` | number | 10 | 0–64 界面像素，`anchor` 不是中央时显示 |
-| `guiScale` | number | 5 | 1–8 |
+| `guiScale` | number | 7 | 1–8 |
 | `motion` | enum | `static` | `static` / `drift` / `follow` |
 | `seed` | seed | 1 | `motion` 是 `follow` 时显示 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.2 / 3 / 0.2 | 0.05–5 / 0.1–20 / 0.05–5 |
 | `sound` | sound | 无 | 在开头播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 7（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，说明文字在 6 以下看不清（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 默认稀有度是 `rare`：默认内容是一把附了魔的钻石剑，游戏里附魔的常见物品按稀有显示。
 
