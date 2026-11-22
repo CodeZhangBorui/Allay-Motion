@@ -2,7 +2,8 @@
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
 import { anchorTopLeft, type Anchor } from '../../_lib/src/gui';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, num, str, type Quads, type Region } from '../../_lib/src/gui-kit';
 import {
   airBubbles,
@@ -261,7 +262,7 @@ const template: TemplateModule = {
         }
 
         // 整体淡入淡出（_lib 的时间窗首尾各让出一帧）
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         for (const b of batches) {
           for (let i = b.used; i < b.high; i++) b.quads.hide(i);
           b.high = b.used;
