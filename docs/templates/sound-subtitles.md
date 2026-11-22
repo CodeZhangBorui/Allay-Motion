@@ -24,11 +24,13 @@
 | `lifetime` | duration | 3 | 0.5–30 |
 | `side` | enum | `right` | `right`（游戏里的位置）、`left` |
 | `bgOpacity` | number | 0.8 | 0–1 |
-| `guiScale` | number | 5 | 1–8 |
+| `guiScale` | number | 7 | 1–8 |
 | `font` | font | `embedded:default`（普通模式），不带阴影 | — |
 | `inDuration` / `hold` / `outDuration` | duration | 0.2 / 5 / 0.2 | 0.05–2 / 0.5–26 / 0.05–2 |
 | `sound` | sound | 无 | 每条字幕出现时播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 7（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，字幕文字在 6 以下看不清（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 自带预设：游戏原始时长（一条 3 秒）、洞穴里、身边爆炸、获得经验并升级（带 `minecraft:entity.experience_orb.pickup`）、自编字幕（左下）。预设里的文字分中英文，套用时按界面语言取（`docs/04-templates.md` 4.7）；英文的字幕照游戏语言文件的原文（26.2 的 `en_us.json`：Chest opens、Zombie groans、Skeleton rattles、Footsteps、Arrow fired、Player hurts、Creeper hisses、Explosion、Experience gained、Player dings），“自编字幕”是自己写的。
 
