@@ -15,6 +15,8 @@ async function lintAs(virtualPath: string, code: string) {
 }
 
 describe('T-ARC-1 依赖方向', () => {
+  // 整仓 lint 的耗时随仓库变大：GitHub 的机器上 17 个模板时就要 17 秒，38 个模板时在开发机上忙的时候超过了默认的 30 秒。
+  // 这是 v0.3.0 发版前的最小处理（给够时限）；发版后要改成不随仓库大小变慢的做法（例如只 lint 依赖方向规则管到的入口）
   it('正常代码通过 lint', async () => {
     const results = await eslint.lintFiles(['apps/desktop/src', 'packages', 'scripts', 'tests']);
     const errors = results.flatMap((r) => r.messages.filter((m) => m.severity === 2).map((m) => `${r.filePath}:${m.line} ${m.ruleId} ${m.message}`));
@@ -24,7 +26,7 @@ describe('T-ARC-1 依赖方向', () => {
     for (const dir of ['packages/engine/src', 'packages/template-sdk/src', 'packages/ui/src', 'apps/desktop/src/main', 'apps/desktop/src/renderer']) {
       expect(linted.some((f) => f.includes(dir)), dir).toBe(true);
     }
-  });
+  }, 120_000);
 
   it('故意违规的夹具：引擎里导入 React，被拦下', async () => {
     const code = readFileSync(join(ROOT, 'tests/fixtures/lint/engine-imports-react.ts'), 'utf8');

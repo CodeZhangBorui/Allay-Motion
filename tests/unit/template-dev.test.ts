@@ -300,6 +300,9 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
     expect((await dev.readAnimation(ref)) as { text: string }).toMatchObject({ text: serializeAnimation(next) });
   });
 
+  // 时限按内置模板数算：逐个复制、各建一个 TypeScript 程序做 checkJs，耗时随模板数涨（38 个模板时在开发机上忙的时候就超过了默认的 30 秒，
+  // GitHub 的机器更慢）。这是 v0.3.0 发版前的最小处理；发版后要改成不随模板数变慢的做法（例如所有模板共用一个程序）
+  const checkJsTimeout = 30_000 + templateDirs().length * 3_000;
   it('复制出来的每个内置模板，按写进去的 jsconfig 做 checkJs：除了已知的一处都没有错误', async () => {
     const options = { ...ts.convertCompilerOptionsFromJson(TEMPLATE_JSCONFIG.compilerOptions, base).options, allowJs: true, noEmit: true };
     // 已知的例外：T3 的源码里有 `tex.image as { width?: number; height?: number }`，打包时类型断言被去掉了，
@@ -327,7 +330,7 @@ describe('模板开发模式：复制内置模板、写类型定义、打开文�
       // 复制出来的代码照样通过安装时的源码预检，没有规则提示
       expect(await analyzeTemplateCode(readFileSync(join(dir, 'template.js'), 'utf8'))).toEqual([]);
     }
-  });
+  }, checkJsTimeout);
 
   it('只能复制内置的脚本模板', async () => {
     expect(await dev.copyBuiltin({ id: 'allay.builtin.nope', version: '1.0.0' })).toEqual({ ok: false, error: 'not-found' });
