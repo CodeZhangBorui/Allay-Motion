@@ -60,6 +60,8 @@ interface ResourceLayer {
 
 在候选目录里读 `versions/<目录>/<目录>.json`，只考虑同目录下存在 `<目录>.jar`、而且 jar 是完整的原版客户端（里面有 `assets/minecraft/`）的版本，取 `type` 为 `release` 且 `releaseTime` 最新的一个；发布时间相同时，目录名就是版本号的原版目录优先于模组版本的目录。这就是 3.12 版本列表里排在最前的那个正式版：自动挑选和版本列表是同一套规则，挑出来的一定在列表里、打得开。再按它的 `assetIndex.id` 找 `assets/indexes/<id>.json`，音效文件在 `assets/objects/<哈希前两位>/<哈希>`。目录名原样用（PCL 等启动器给模组版本起的名字可以带空格、括号、中文），真实的游戏版本另外读，见 3.12“版本目录名与游戏版本”。
 
+**jar 和资源索引**：原版层由两部分拼成：jar 里 `assets/` 下的文件，和资源索引里的对象（键 `minecraft/sounds.json` 这样的，映射成和资源包同样写法的路径 `assets/<键>`）。音效、语言文件、Unifont 的 zip 只在索引里。同一路径两处都有时**以索引为准**：1.20.1 到 26.3 都只有 8 个这样的路径（`font/include/unifont.json` 和主菜单全景图 `textures/gui/title/background/` 下的 `panorama_0` 至 `panorama_5`、`panorama_overlay`），jar 里那一份全是占位（全景图 1×1，`unifont.json` 是空的提供器列表），游戏显示的是索引里的。索引里的对象不在本机时（下载缓存的原版层不取这几个对象）退回 jar 里的那一份。资源包照旧盖在原版层之上。清单和理由见 docs/decisions.md“原版层里 jar 和资源索引的重叠”。
+
 **首次发现时询问一次**（对话框文案见 `06-ui-design.md`）。用户同意后把这一层加进资源栈。设置里可以随时关闭或重新选择目录。
 
 **约束**：
@@ -159,7 +161,7 @@ Mojang 的模型和方块状态 JSON 不能随包分发，所以应用自带一�
 
 - 引擎的文字是位图字。字形来源按资源栈解析（2026-11 起按字体族，见 `04-templates.md` 4.4 的 `font` 参数）：
   - 资源栈里的字体定义 `assets/<命名空间>/font/<名字>.json`：解析 `bitmap`、`space`、`reference`、`unihex` 四种提供器，以及 1.20 起提供器上的 `filter`（“强制使用 Unicode 字体”“日文字形变体”两个选项按游戏默认关闭处理）。字形宽度按该字形最右侧的不透明像素列计算，字间距 1 像素，空格宽 4 像素。
-  - `unihex`（游戏里中日韩等字形来自它加载的 Unifont）：主进程在内存里解开 `hex_file` 指的 zip（原版是 jar 里的 `assets/minecraft/font/unifont.zip`），解析其中的 `.hex`，按游戏的规则画成一半大小（2 个 Unifont 像素 = 1 个字体像素），前进宽度 floor(列数 / 2) + 1，阴影和粗体只偏半个字体像素。
+  - `unihex`（游戏里中日韩等字形来自它加载的 Unifont）：主进程在内存里解开 `hex_file` 指的 zip（原版的 `assets/minecraft/font/unifont.zip` 和引用它的 `font/include/unifont.json` 都是资源索引里的对象，见 3.4），解析其中的 `.hex`，按游戏的规则画成一半大小（2 个 Unifont 像素 = 1 个字体像素），前进宽度 floor(列数 / 2) + 1，阴影和粗体只偏半个字体像素。
   - `ttf` 和 `legacy_unicode` 不解析。
   - 所选字体里找不到的字形依次回退到 `minecraft:default` 和系统字体；资源栈里一个原版字形都没有（没有原版素材）时，整段文字用系统字体。
 - **内嵌 Unifont**（2026-11-20 起）：随应用分发一份 GNU Unifont 18.0.01 的标准版 `unifont-18.0.01.otf`（`resources/fonts/unifont/`，汉字是 G 源即中国大陆来源的字形），主进程第一次用到时还原成点阵字形表（和 unihex 同一套度量），所有模板共用。字体族 `embedded:default`（普通模式：Mojangles 优先、缺的用它）和 `embedded:uniform`（强制 Unicode 模式：全部用它），见 `04-templates.md` 4.4 和 docs/decisions.md“内嵌 Unifont 与两种字体模式”。
@@ -184,6 +186,7 @@ Mojang 的模型和方块状态 JSON 不能随包分发，所以应用自带一�
 | T-AST-5 | 含 `../` 条目的恶意 zip | 被拒绝，应用数据目录外没有新文件 |
 | T-AST-6 | 夹具 `.minecraft` 目录（含两个版本，其中一个没有 jar） | 选中有 jar 且最新的正式版 |
 | T-AST-7 | 运行两次 `gen-builtin-pack` | 输出目录逐字节相同 |
+| T-AST-IDX-1 至 4 | 测试现拼的 jar 和资源索引：同一路径两边都有（索引里是“真图”、jar 里是占位）、索引里的对象不在本机、只在一边；再经资源栈加一个资源包 | 两边都有时取索引里的，对象不在本机时取 jar 里的并报“还没取回”；只在一边的照旧；资源包仍在原版之上 |
 
 ## 3.12 多个原版来源、版本检索与本机资源包（2026-11 反馈）
 

@@ -2589,3 +2589,64 @@ PR #5 遗留清单里引擎正确性的两项（主控派发，会话短名 engi
 - 悬停预览在高 DPI 屏幕上的清晰度：网格图是 320 × 180，卡片在 280 的左栏里约 123 × 69 CSS 像素，2 倍屏够用，没有在真实的高 DPI 屏幕上看过。
 - macOS：没有跑。
 - 开发模式里改了用户模板以后封面的作废：单元测试覆盖了内容哈希会变（T-GAL-8），模板库这一侧没有端到端测过。
+
+## 原版层里 jar 和资源索引的重叠（2026-11-22）
+
+主控 2026-11-22 插入的任务：原版层里同一个路径 jar 和资源索引都有时取哪一份。起因是主菜单全景图 `minecraft:gui/title/background/panorama_0` 读出来是 1×1。
+
+### 清单（本机真实文件，只读核对）
+
+逐个版本比了 jar 里 `assets/` 下的条目和资源索引的键（键 `k` 对应路径 `assets/<k>`，和 `vanilla.ts` 一样）。比过的版本：26.3（应用的下载缓存，索引里的对象不在本机，只比了大小和哈希）、26.2、26.1.2、1.21.11、1.21.8、1.21.1、1.20.1（26.1.2、1.21.11、1.21.8、1.20.1 是 PCL 的模组版本目录，jar 是原版客户端的副本）。**每个版本都正好 8 个路径两边都有**，都在 `assets/minecraft/` 下：
+
+| 路径 | jar 里 | 资源索引里 |
+|---|---|---|
+| `font/include/unifont.json` | 29 字节，空的提供器列表 | 3,993 字节（1.21.1 是 3,994，1.20.1 是 1,879）：unihex 提供器 `unifont_jp.zip`（filter `jp`）和 `unifont.zip`，1.20.1 只有 `unifont.zip` |
+| `textures/gui/title/background/panorama_0.png` 至 `panorama_5.png` | 69 字节（1.20.1 是 85），1×1 | 都是 1024×1024，单张 77,421 至 1,548,147 字节，一个版本 6 张合计 2.4 至 6.2 MB |
+| `textures/gui/title/background/panorama_overlay.png` | 68 字节（1.20.1 是 86），1×1 | 86 字节，1×1 |
+
+除 1.20.1 的 `panorama_overlay` 两边相同外，其余每个版本每一项两边内容都不同。`unifont.zip`（约 1.5 MB）、`unifont_jp.zip`、音效、语言文件只在索引里。
+
+### 规则
+
+- **两边都有时取索引里的**；索引里的对象不在本机（或者超过单个条目的上限）时退回 jar 里的那一份。只在一边的照旧。`has`、`list` 不变（本来就是两边的并集）。
+- `remoteObject`（“这个对象还没取回”）和 `read` 同一个顺序：索引里有、对象不在本机就报还没取回，jar 里有占位也一样。它只被音效文件和中文语言文件用到，这两样只在索引里，所以音效选择器里的状态和语言文件的按需取回都不变。
+- `read` 不再读 jar 根目录的文件：以前 `read('version.json')` 会读到 jar 根目录的 `version.json`（`has` 却说没有），现在和 `has` 一样只认 `assets/`。没有调用方依赖它（`openVanillaLayer` 自己读 `version.json`）。
+- 层的 `revision` 末尾加了读取规则的标记 `:index-first`。资源栈的 stamp 只由各层的 id、`revision`、开关算出，而 `revision` 只随 jar 和索引文件变；同样的文件现在读出来的内容变了，不换标记的话，按旧规则生成、存在磁盘上的缩略图（`title-panorama` 和 `loading-screen` 的全景图背景用到这几张图）会一直留着 1×1 的占位画面。换了标记，stamp 变一次，缩略图缓存重新生成一遍；之后照旧只随文件变。
+- 资源包仍然盖在原版层之上：改动只在原版层内部，资源栈的顺序不变。
+
+### 理由
+
+- jar 里的这 8 份在每个比过的版本里都是占位：全景图 1×1，`unifont.json` 是空的提供器列表。游戏的主菜单显示的是完整的全景图，中日韩文字用 Unifont 画，说明游戏用的是索引里的那一份。Minecraft Wiki 的 Panorama 条目也这么写：“The panorama files in Java Edition are found in the indexes directory as multiple square images (panorama_<0-5>.png) and are extracted in the same way as sound files”（Java 版的全景图是资源索引里的几张正方形图，和音效文件一样取出）。
+- 以前的代码先查 jar，没有记录理由。本文件“2026-11 反馈：原版动画还原与字体”一节写的“有原版素材时，`minecraft:default` 经 `include/unifont.json` 引用 `unifont.zip`”在真实文件上一直没有成立，因为读到的是 jar 里空的那份。
+- 不按路径单独处理（比如只对全景图取索引）：重叠的只有这 8 个，一条规则说得清，以后的版本只要还是“jar 里放占位、索引里放真文件”就照样成立。哪天某个版本反过来（jar 里是真文件、索引里是占位），这条规则会取错，到时候按上面的办法重新比一遍。
+
+### 影响
+
+- **本机游戏目录的原版层**：主菜单全景图 6 张读出来是 1024×1024（以前 1×1）。`minecraft:default` 展开后多了 unihex（游戏自己的 Unifont 和它的 `size_overrides`），中日韩字形不再落到系统字体。26.2 上第一次取 Unifont 字形表 334 ms（114,432 个码位），1.20.1 上 421 ms（112,990 个码位），之后按 stamp 缓存。
+- **下载缓存的原版层（26.3）不变**：下载缓存只取 jar 和资源索引，音效和中文语言文件按需取（M2b、M6b），这 8 个对象不取，读到的仍是 jar 里的占位，全景图 1×1，`minecraft:default` 没有 Unifont。要显示真图得把这几个对象也纳入下载（全景图一个版本 2.4 至 6.2 MB，`unifont.zip` 约 1.5 MB），这次没做。
+- **1.21.1 的例外**：它资源索引里的 `include/unifont.json` 第 100 行有一个尾逗号（`__ranges` 这个说明用的数组最后一项 `"Hangul Syllables",`）。游戏读 JSON 是宽松的，`@allay/assets` 的 `parseFontJson` 用严格的 `JSON.parse`，解析失败记一条 `invalid-json`，这一份里的提供器全部跳过。所以 1.21.1 上 `minecraft:default` 仍然没有 Unifont，和改动前一样，只是 `skipped` 里多了 `invalid-json`（只有测试钩子看得到）。本机读得到这份文件的其余 5 个版本（26.2、26.1.2、1.21.11、1.21.8、1.20.1）都能严格解析；26.3 的这个对象不在本机，没有解析过。要让 1.21.1 也用上 Unifont，得让 `parseFontJson` 容忍尾逗号，那在 `packages/assets`，不在这次的范围里，报给了主控。
+
+### 测试
+
+`tests/unit/T-AST-IDX.vanilla-index-priority.test.ts`，jar 和资源索引都由测试现拼（纯色假贴图），不放任何 Mojang 的文件：
+
+- T-AST-IDX-1：两边都有时取索引里的（全景图是“真图”，`unifont.json` 是真的提供器列表），`remoteObject` 为 null；层的 `revision` 带读取规则的标记。
+- T-AST-IDX-2：索引里有、对象不在本机：取 jar 里的占位，`remoteObject` 报还没取回。
+- T-AST-IDX-3：只在 jar 里的取 jar，只在索引里的取索引；都没有的、jar 根目录的 `version.json` 读不到。
+- T-AST-IDX-4：经 `ResourceService` 选这个游戏目录：没有资源包时读到索引里的全景图，加了资源包以后是资源包的。
+- 改动前的代码上 1、2、4 失败，3 通过。
+
+### 真机核对
+
+经 `ResourceService` 读本机 PCL 游戏目录（只读，临时的用户数据目录，不联网）：
+
+| 版本 | `panorama_0` 至 `panorama_5` | `panorama_overlay` | `minecraft:default` 的提供器 |
+|---|---|---|---|
+| 26.2 | 都是 1024×1024 | 1×1，86 字节（索引里的） | space、bitmap ×3、unihex；没有跳过的 |
+| 1.21.1 | 都是 1024×1024 | 1×1，86 字节 | space、bitmap ×3；跳过 `invalid-json`（见上） |
+| 1.20.1（PCL 的 Fabric 目录） | 都是 1024×1024 | 1×1，86 字节 | space、bitmap ×3、unihex；没有跳过的 |
+
+### 没验证的
+
+- 应用里 `title-panorama`、`loading-screen` 换成真全景图以后的画面没有看过，只核对了读出来的图的尺寸。引擎测试用的是假宿主，不受影响。
+- 1.20.1 之前、26.3 之后的版本，以及中间本机没有的版本都没有比过；其中哪些版本的 `include/unifont.json` 也有尾逗号不知道。
