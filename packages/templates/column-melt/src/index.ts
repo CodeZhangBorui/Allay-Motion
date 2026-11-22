@@ -7,7 +7,7 @@ import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/temp
 import { num, str } from '../../_lib/src/gui-kit';
 import { GLSL_COMMON, linearColor, outputPixel, shaderQuad } from '../../_lib/src/shader-kit';
 import { progress, transitionWindows } from '../../_lib/src/timing';
-import { columnDelays, columnProgress, DIRECTIONS, travel, travelRange } from './layout';
+import { columnDelays, columnProgress, DIRECTIONS, SHEEN_REACH, travel, travelRange } from './layout';
 
 const SHAPES = ['flat', 'round', 'point', 'drop'] as const;
 const FILLS = ['solid', 'gradient', 'stripes'] as const;
@@ -68,7 +68,7 @@ void main() {
   }
   // 前沿后面一点的亮线和前沿上一点暗边：像有厚度的液体
   float dist = lead - s;
-  float band = smoothstep(0.10 * w, 0.18 * w, dist) * (1.0 - smoothstep(0.24 * w, 0.40 * w, dist));
+  float band = smoothstep(0.10 * w, 0.18 * w, dist) * (1.0 - smoothstep(0.24 * w, ${SHEEN_REACH.toFixed(2)} * w, dist));
   col = mix(col, vec3(1.0), uSheen * 0.45 * band);
   col *= 1.0 - uSheen * 0.35 * (1.0 - smoothstep(0.0, 0.08 * w, dist));
   gl_FragColor = vec4(col, cov);
@@ -99,7 +99,8 @@ const template: TemplateModule = {
     const drip = shape === 'flat' ? 0 : shape === 'round' ? w / 2 : shape === 'point' ? w * 0.8 : w * 1.1;
     // 两端的余量：几个输出像素（低分辨率下抗锯齿的软边更宽）
     const pad = 4 * outputPixel(stage) + 4;
-    const range = travelRange(length, drip, pad);
+    // 前沿走到头时，后面的光泽也要出画面（末端两侧比列中心靠后 drip，光泽又在前沿后面最多 SHEEN_REACH 个列宽）
+    const range = travelRange(length, drip, pad, SHEEN_REACH * w);
     const variance = num(params.variance, 0.45);
     const dIn = columnDelays(cols, variance, ctx.random('in'));
     const dOut = columnDelays(cols, variance, ctx.random('out'));

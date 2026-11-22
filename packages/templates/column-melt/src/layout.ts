@@ -42,7 +42,8 @@ export function columnProgress(p: number, d: number): number {
 /**
  * 前沿（或后沿）离起始边的距离：f 是缓动后的列进度（0–1），从 from 走到 to。
  * 前沿从 −pad 出发（列中心的尖端刚好在画外，一开始就看得见在动），后沿从 −(drip + pad) 出发（尾巴的两侧也在画外）；
- * 两者都走到 length + drip + pad：连末端的形状也出了画面。pad 是抗锯齿软边的余量。
+ * 两者都走到 length + drip + pad + trail：连末端的形状、前沿后面的光泽（trail，离前沿最远 SHEEN_REACH 个列宽）也出了画面，
+ * 剪辑点时边上不留一道亮线。pad 是抗锯齿软边的余量。
  */
 export function travel(f: number, from: number, to: number): number {
   return from + f * (to - from);
@@ -54,6 +55,9 @@ export interface TravelRange {
   to: number;
 }
 
-export function travelRange(length: number, drip: number, pad: number): TravelRange {
-  return { leadFrom: -pad, tailFrom: -(drip + pad), to: length + drip + pad };
+/** 前沿后面的亮线、暗边离前沿最远多少（列宽的倍数） */
+export const SHEEN_REACH = 0.4;
+
+export function travelRange(length: number, drip: number, pad: number, trail = 0): TravelRange {
+  return { leadFrom: -pad, tailFrom: -(drip + pad), to: length + drip + pad + trail };
 }

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams, type ParamDef } from '../../packages/template-sdk/src/index';
-import { columnDelays, columnProgress, DIRECTIONS, travel, travelRange } from '../../packages/templates/column-melt/src/layout';
+import { columnDelays, columnProgress, DIRECTIONS, SHEEN_REACH, travel, travelRange } from '../../packages/templates/column-melt/src/layout';
 
 const manifest = (() => {
   const r = parseManifest(JSON.parse(readFileSync(join(import.meta.dirname, '../../packages/templates/column-melt/manifest.json'), 'utf8')));
@@ -84,5 +84,10 @@ describe('T-TPL-C093 逐列融化', () => {
     // 后沿：两侧往前 drip，出发时也在画外
     expect(travel(0, r.tailFrom, r.to) + drip).toBeLessThan(0);
     expect(travel(1, r.tailFrom, r.to)).toBeGreaterThan(length);
+    // 带上光泽的宽度：前沿走到头时，两侧（比列中心靠后 drip）后面的亮线也出了画面，剪辑点时边上不留亮线
+    const w = 60;
+    const rs = travelRange(length, drip, pad, SHEEN_REACH * w);
+    expect(travel(1, rs.leadFrom, rs.to) - drip - SHEEN_REACH * w).toBeGreaterThan(length);
+    expect(rs.leadFrom).toBe(r.leadFrom);
   });
 });
