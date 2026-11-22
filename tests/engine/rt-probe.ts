@@ -21,7 +21,8 @@ type ProbeResult = Awaited<ReturnType<Harness['rtProbe']>>;
 export async function probeRenderTargets(app: ElectronApplication, page: Page, budgetMs = 1500): Promise<RtProbeVerdict> {
   let driver = 'unknown';
   try {
-    const info = (await app.evaluate(({ app: a }) => a.getGPUInfo('basic'))) as { gpuDevice?: { active?: boolean; driverVersion?: string; deviceString?: string }[] };
+    // 'basic' 里所有设备的 active 都是 false，要用 'complete' 才知道 GPU 进程实际用的是哪一块
+    const info = (await app.evaluate(({ app: a }) => a.getGPUInfo('complete'))) as { gpuDevice?: { active?: boolean; driverVersion?: string }[] };
     const active = info.gpuDevice?.find((d) => d.active);
     if (active?.driverVersion) driver = active.driverVersion;
   } catch {
