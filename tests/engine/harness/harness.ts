@@ -224,15 +224,21 @@ const harness = {
             let diff = 0;
             let maxd = 0;
             let first = -1;
+            // 两边再各渲染一次之后仍不同的像素：(x, y, 顺序那一边的 RGBA, 乱序那一边的 RGBA)，最多 4 个
+            const pixels: [number, number, number[], number[]][] = [];
             for (let k = 0; k < a.length; k++) {
               const d = Math.abs(a[k]! - b[k]!);
               if (d) {
                 diff++;
                 if (first < 0) first = k;
+                const p = k >> 2;
+                if (pixels.length < 4 && (pixels.length === 0 || pixels[pixels.length - 1]![0] + pixels[pixels.length - 1]![1] * output.width !== p)) {
+                  pixels.push([p % output.width, Math.floor(p / output.width), Array.from(a.subarray(p * 4, p * 4 + 4)), Array.from(b.subarray(p * 4, p * 4 + 4))]);
+                }
               }
               if (d > maxd) maxd = d;
             }
-            debug.push({ i, seq: seq[i]!.slice(0, 8), shuf: shuf[i]!.slice(0, 8), again1: (await sha256(a)).slice(0, 8), again2: (await sha256(b)).slice(0, 8), diff, maxd, firstPixel: first >> 2 });
+            debug.push({ i, seq: seq[i]!.slice(0, 8), shuf: shuf[i]!.slice(0, 8), again1: (await sha256(a)).slice(0, 8), again2: (await sha256(b)).slice(0, 8), diff, maxd, firstPixel: first >> 2, pixels });
           }
           deterministic = mismatched.length === 0;
         } finally {
