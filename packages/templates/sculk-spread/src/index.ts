@@ -11,7 +11,7 @@ import { num } from '../../_lib/src/gui-kit';
 import { frameUniforms, GLSL_COMMON, linearColor, optionalTexture, shaderQuad, shaderSeed } from '../../_lib/src/shader-kit';
 import { fitLife, particleBatch } from '../../_lib/src/shader-particles';
 import { eased, transitionWindows } from '../../_lib/src/timing';
-import { convertAt, LINGER, recedeAt, recedeThreshold, spreadThreshold, spreadTimes } from './layout';
+import { convertAt, LINGER, recedeAt, recedeThreshold, seedCells, spreadThreshold, spreadTimes } from './layout';
 
 const FRAGMENT = /* glsl */ `
 ${GLSL_COMMON}
@@ -209,17 +209,9 @@ const template: TemplateModule = {
     const originX = (-cols * tile) / 2;
     const originY = (-rows * tile) / 2;
     const n = cols * rows;
-    // 起点：在画面里随机挑几格，彼此不太近
+    // 起点：一个时在正中，多个时铺开（layout.ts 的 seedCells）
     const seedCount = Math.max(1, Math.min(8, Math.round(num(params.seeds, 3))));
-    const rng = ctx.random('seeds');
-    const seeds: number[] = [];
-    for (let tries = 0; seeds.length < seedCount && tries < 400; tries++) {
-      const x = 1 + Math.floor(rng.next() * Math.max(1, cols - 2));
-      const y = 1 + Math.floor(rng.next() * Math.max(1, rows - 2));
-      const k = y * cols + x;
-      const far = seeds.every((o) => Math.hypot((o % cols) - x, Math.floor(o / cols) - y) >= Math.min(cols, rows) / (seedCount + 1));
-      if (far || tries > 300) seeds.push(k);
-    }
+    const seeds = seedCells(cols, rows, seedCount, ctx.random('seeds'));
     const spread = spreadTimes(cols, rows, seeds, ctx.random('spread'));
     const times = spread.times;
     const timeTex = new THREE.DataTexture(times, cols, rows, THREE.RedFormat, THREE.FloatType);

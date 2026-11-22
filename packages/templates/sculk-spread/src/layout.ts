@@ -6,6 +6,33 @@ export interface Rng {
 }
 
 /**
+ * 起点（催发体）放在哪几格（格子序号）：只有一个时在正中（偶数格时偏半格）；多个时第一个随机，之后每个从 16 个随机候选里
+ * 挑离已有起点最远的那个（最远点采样），铺得开、不挤在一边。不放在最外一圈（那一圈有一部分在画面外）。
+ */
+export function seedCells(cols: number, rows: number, count: number, rng: Rng): number[] {
+  const n = Math.max(1, Math.floor(count));
+  if (n === 1) return [Math.floor(rows / 2) * cols + Math.floor(cols / 2)];
+  const [x0, x1] = cols > 2 ? [1, cols - 2] : [0, cols - 1];
+  const [y0, y1] = rows > 2 ? [1, rows - 2] : [0, rows - 1];
+  const pick = (): [number, number] => [x0 + Math.floor(rng.next() * (x1 - x0 + 1)), y0 + Math.floor(rng.next() * (y1 - y0 + 1))];
+  const out: [number, number][] = [pick()];
+  while (out.length < n) {
+    let best = pick();
+    let bestD = -1;
+    for (let k = 0; k < 16; k++) {
+      const c = k === 0 ? best : pick();
+      const d = Math.min(...out.map(([x, y]) => Math.hypot(x - c[0], y - c[1])));
+      if (d > bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    out.push(best);
+  }
+  return out.map(([x, y]) => y * cols + x);
+}
+
+/**
  * 网格上从 seeds（格子序号）出发的最短路距离，四邻接，每条边的权重是 0.35–1.65 之间的随机数（同一条边两个方向相同），
  * 再归一化到 [0, 1]：起点为 0，最晚变成幽匿的那一格为 1。O(n²) 的简单实现（格子不超过几千个）。
  * unit 是一条平均的边（权重 1）归一化以后有多长，脉络爬过一格用的时间按它定。

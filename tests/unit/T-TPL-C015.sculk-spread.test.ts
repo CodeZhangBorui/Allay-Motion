@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams, type ParamDef } from '../../packages/template-sdk/src/index';
-import { convertAt, EPS, LINGER, recedeAt, recedeThreshold, spreadThreshold, spreadTimes } from '../../packages/templates/sculk-spread/src/layout';
+import { convertAt, EPS, LINGER, recedeAt, recedeThreshold, seedCells, spreadThreshold, spreadTimes } from '../../packages/templates/sculk-spread/src/layout';
 
 const manifest = (() => {
   const r = parseManifest(JSON.parse(readFileSync(join(import.meta.dirname, '../../packages/templates/sculk-spread/manifest.json'), 'utf8')));
@@ -93,5 +93,27 @@ describe('T-TPL-C015 幽匿蔓延', () => {
       expect(recedeThreshold(b)).toBeCloseTo(1 - s, 9);
     }
     expect(EPS).toBeGreaterThan(0);
+  });
+
+  it('T-TPL-C015-5 起点：一个时在正中；多个时铺得开（两两离得远，左右两半都有），不在最外一圈', () => {
+    const [cols, rows] = [16, 9];
+    expect(seedCells(cols, rows, 1, prng(1))).toEqual([4 * cols + 8]);
+    for (let seed = 1; seed <= 20; seed++) {
+      const cells = seedCells(cols, rows, 3, prng(seed));
+      expect(cells).toHaveLength(3);
+      const xy = cells.map((k) => [k % cols, Math.floor(k / cols)] as const);
+      for (const [x, y] of xy) {
+        expect(x).toBeGreaterThanOrEqual(1);
+        expect(x).toBeLessThanOrEqual(cols - 2);
+        expect(y).toBeGreaterThanOrEqual(1);
+        expect(y).toBeLessThanOrEqual(rows - 2);
+      }
+      let closest = Infinity;
+      for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) closest = Math.min(closest, Math.hypot(xy[i]![0] - xy[j]![0], xy[i]![1] - xy[j]![1]));
+      expect(closest, `seed ${seed}`).toBeGreaterThanOrEqual(4);
+      expect(xy.some(([x]) => x < cols / 2) && xy.some(([x]) => x >= cols / 2), `seed ${seed}`).toBe(true);
+    }
+    // 起点多到格子不够分时也不卡住
+    expect(seedCells(3, 3, 8, prng(2))).toHaveLength(8);
   });
 });
