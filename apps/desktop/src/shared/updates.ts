@@ -22,7 +22,8 @@ export type UpdateSource = Exclude<UpdateSourcePref, 'auto'>;
 
 const VersionSchema = z.string().regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/).max(64);
 
-export const UpdatePrefsSchema = z.strictObject({
+/** 设置文件里的自动更新设置：字段各自兜底，不认识的键忽略（渲染进程发来的修改见 UpdatePrefsPatchSchema） */
+export const UpdatePrefsSchema = z.object({
   mode: UpdateModeSchema.catch('auto'),
   source: UpdateSourcePrefSchema.catch('auto'),
   /** “跳过这个版本”：自动检查时不再提示这个版本（手动检查照常显示） */

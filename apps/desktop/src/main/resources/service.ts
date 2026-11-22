@@ -62,6 +62,7 @@ import type {
   SoundLibraryEvent,
   SoundVariantInfo,
   VanillaSourceArg,
+  VanillaSourceProblem,
   VanillaState,
   VersionCatalog,
   VersionEntry,
@@ -79,7 +80,10 @@ import {
   candidateGameDirs,
   detectMinecraft,
   findLatestRelease,
+  checkClientJar,
+  knownJarProblem,
   listVersions,
+  NotClientJarError,
   openVanillaLayer,
   VANILLA_LAYER_ID,
   type CandidateEnv,
@@ -227,7 +231,7 @@ export class ResourceService {
     const vanilla: VanillaState = {
       consent: this.settings.vanilla.consent,
       enabled: this.settings.vanillaSources.length > 0 ? this.settings.vanillaSources.some((v) => v.enabled) : this.settings.vanilla.enabled,
-      local: this.local ? { versionId: this.local.versionId, gameDir: this.local.gameDir } : null,
+      local: this.local ? { versionId: this.local.versionId, gameDir: this.local.gameDir, ...(this.local.gameVersion ? { gameVersion: this.local.gameVersion } : {}) } : null,
       cached: this.cached ? { versionId: this.cached.versionId } : null,
       active: baseKind,
       problem: this.vanillaProblem,
@@ -243,10 +247,12 @@ export class ResourceService {
       if (l.kind === 'vanilla') {
         const v = this.vanillaLayers.get(l.id)?.layer.vanilla;
         info.source = l.id.startsWith('vanilla:dl:') ? 'downloaded' : 'local';
-        info.versionId = l.name;
+        // versionId 是来源的标识（本机的是目录名），name 是真实的游戏版本
+        info.versionId = v?.versionId ?? l.name;
         info.base = base?.layer.id === l.id;
         if (v) {
           if (info.source === 'local') info.gameDir = v.gameDir;
+          if (v.gameVersion) info.gameVersion = v.gameVersion;
           info.hasAssetIndex = v.hasAssetIndex;
         }
         const fmt = v?.resourceFormat ?? knownResourceFormat(l.name);
@@ -338,7 +344,10 @@ export class ResourceService {
     return this.localVersions.find((v) => v.versionId === source.versionId && samePath(v.gameDir, source.gameDir)) ?? null;
   }
 
-  /** 按设置里的来源列表打开、关闭原版层；找不到的记进 missingSources，jar 打不开记 jar-unreadable（3.4：静默退回） */
+  /**
+   * 按设置里的来源列表打开、关闭原版层（3.4：用不了的静默退回）。用不了的来源各自记进 missingSources，带原因：
+   * 找不到（missing）、jar 打不开（unreadable，另外记 jar-unreadable）、jar 不是完整的原版客户端（not-client）
+   */
   private async applyVanilla(): Promise<void> {
     const wanted = new Map(this.settings.vanillaSources.map((v) => [v.id, v]));
     for (const [id, open] of this.vanillaLayers) {
@@ -353,8 +362,10 @@ export class ResourceService {
     for (const entry of this.settings.vanillaSources) {
       if (this.vanillaLayers.has(entry.id)) continue;
       const install = this.findInstall(entry.source);
+      const unusable = (problem: VanillaSourceProblem) =>
+        this.missingSources.push({ id: entry.id, versionId: entry.source.versionId, kind: entry.source.kind, ...(entry.source.kind === 'local' ? { gameDir: entry.source.gameDir } : {}), problem });
       if (!install) {
-        this.missingSources.push({ id: entry.id, versionId: entry.source.versionId, kind: entry.source.kind, ...(entry.source.kind === 'local' ? { gameDir: entry.source.gameDir } : {}) });
+        unusable('missing');
         continue;
       }
       try {
@@ -362,13 +373,21 @@ export class ResourceService {
         const layer = await openVanillaLayer(install, { id: entry.id });
         this.vanillaLayers.set(entry.id, { layer, install });
       } catch (error) {
-        this.opts.log.warn('resources', 'vanilla jar unreadable', { jar: install.jarPath, error });
-        this.vanillaProblem = 'jar-unreadable';
+        if (error instanceof NotClientJarError) {
+          this.opts.log.warn('resources', 'vanilla jar is not a full client', { jar: install.jarPath });
+          unusable('not-client');
+        } else {
+          this.opts.log.warn('resources', 'vanilla jar unreadable', { jar: install.jarPath, error });
+          unusable('unreadable');
+          this.vanillaProblem = 'jar-unreadable';
+        }
       }
     }
-    // 同意过、登记过来源，却一个都打不开（游戏被移动或卸载）：提示一次（3.4）
+    // 同意过、登记过来源，却一个都打不开（游戏被移动或卸载）：提示一次（3.4）；全是 jar 不完整的，单独说
     const consented = this.settings.vanilla.consent === true;
-    if (!this.vanillaProblem && consented && this.settings.vanillaSources.length > 0 && this.vanillaLayers.size === 0) this.vanillaProblem = 'missing';
+    if (!this.vanillaProblem && consented && this.settings.vanillaSources.length > 0 && this.vanillaLayers.size === 0) {
+      this.vanillaProblem = this.missingSources.length > 0 && this.missingSources.every((m) => m.problem === 'not-client') ? 'not-client' : 'missing';
+    }
     if (!this.vanillaProblem && consented && this.settings.vanillaSources.length === 0 && this.settings.vanilla.enabled && !this.local && !this.cached) this.vanillaProblem = 'missing';
   }
 
@@ -427,11 +446,20 @@ export class ResourceService {
     });
   }
 
-  /** 从版本列表里加一个原版来源（本机的或已下载的）；不在探测结果里的不加 */
+  /**
+   * 从版本列表里加一个原版来源（本机的或已下载的）；不在探测结果里的不加。
+   * jar 不是完整的原版客户端、或者打不开的也不加：版本列表上这一行会标出原因（versions() 的 problem）
+   */
   addVanillaSource(arg: VanillaSourceArg): Promise<ResourceState> {
     return this.serial(async () => {
       const source: VanillaSource = arg.kind === 'local' ? { kind: 'local', gameDir: arg.gameDir, versionId: arg.versionId } : { kind: 'downloaded', versionId: arg.versionId };
-      if (!this.findInstall(source)) return this.state();
+      const install = this.findInstall(source);
+      if (!install) return this.state();
+      const jar = await checkClientJar(install.jarPath);
+      if (jar !== 'client') {
+        this.opts.log.warn('resources', 'vanilla jar not usable, not added', { jar: install.jarPath, check: jar });
+        return this.state();
+      }
       await this.putVanillaOnTop(source);
       await this.applyVanilla();
       this.rebuild();
@@ -446,13 +474,18 @@ export class ResourceService {
   /** 版本检索（3.12）：本机、已下载、（取过的话）Mojang 版本清单，各自新的在前。离线 */
   versions(): VersionCatalog {
     const local: VersionEntry[] = this.localVersions
-      .map((v) => ({
-        versionId: v.versionId,
-        type: versionType(v.type ?? 'release'),
-        releaseTime: v.releaseTime,
-        gameDir: v.gameDir,
-        layerId: this.registered(vanillaLayerId({ kind: 'local', gameDir: v.gameDir, versionId: v.versionId })),
-      }))
+      .map((v) => {
+        const problem = knownJarProblem(v.jarPath);
+        return {
+          versionId: v.versionId,
+          ...(v.gameVersion ? { gameVersion: v.gameVersion } : {}),
+          type: versionType(v.type ?? 'release'),
+          releaseTime: v.releaseTime,
+          gameDir: v.gameDir,
+          layerId: this.registered(vanillaLayerId({ kind: 'local', gameDir: v.gameDir, versionId: v.versionId })),
+          ...(problem ? { problem } : {}),
+        };
+      })
       .sort(compareVersionsDesc);
     const downloaded: VersionEntry[] = this.cachedList
       .map((v) => ({ versionId: v.versionId, type: versionType(v.type ?? 'release'), releaseTime: v.releaseTime, layerId: this.registered(vanillaLayerId({ kind: 'downloaded', versionId: v.versionId })) }))

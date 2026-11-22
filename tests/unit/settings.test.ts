@@ -34,12 +34,12 @@ describe('设置读写（1.9）', () => {
     const loaded = await store.load();
     expect(loaded.resources).toEqual(defaultResourceSettings());
     expect(loaded.ui.theme).toBe('light');
-    // zip 包只能记 <sha256>.zip，不能被改成任意路径
+    // zip 包只能记 <sha256>.zip，不能被改成任意路径：这一条丢掉，同意等其余设置留着（T-AST-SET）
     writeFileSync(
       file,
       JSON.stringify({ formatVersion: 1, resources: { vanilla: { consent: true, enabled: true, dir: null }, packs: [{ id: 'z', name: 'z', enabled: true, source: { kind: 'zip', file: '../../evil.zip' } }] } }),
     );
-    expect((await store.load()).resources).toEqual(defaultResourceSettings());
+    expect((await store.load()).resources).toEqual({ vanilla: { consent: true, enabled: true, dir: null }, vanillaSources: [], packs: [] });
     await store.updateResources({ vanilla: { consent: false, enabled: true, dir: null }, vanillaSources: [], packs: [] });
     expect(JSON.parse(readFileSync(file, 'utf8')).resources.vanilla.consent).toBe(false);
   });

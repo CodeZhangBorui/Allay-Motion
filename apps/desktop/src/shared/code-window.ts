@@ -53,9 +53,10 @@ export const CodeEditorKindSchema = z.enum(['builtin', 'system', 'custom']);
 export type CodeEditorKind = z.infer<typeof CodeEditorKindSchema>;
 
 /** 只有主进程读写（settings.json 的 editor 节）：程序路径只来自主进程的文件对话框（1.6 第 6 条） */
-export const EditorAppSettingsSchema = z.strictObject({
-  kind: CodeEditorKindSchema,
-  program: z.string().min(1).max(1000).nullable(),
+export const EditorAppSettingsSchema = z.object({
+  /** 不认识的种类（新版本写的）读成自带的代码窗口；程序路径坏了只丢它（custom 没有程序时，打开会提示重新选） */
+  kind: CodeEditorKindSchema.catch('builtin'),
+  program: z.string().min(1).max(1000).nullable().catch(null),
 });
 export type EditorAppSettings = z.infer<typeof EditorAppSettingsSchema>;
 export function defaultEditorAppSettings(): EditorAppSettings {

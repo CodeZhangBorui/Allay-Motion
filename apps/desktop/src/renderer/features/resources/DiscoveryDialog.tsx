@@ -25,7 +25,7 @@ export function DiscoveryDialog() {
           <Allay clip="hover" size={72} priority="dialog" carry={<ResourceThumb kind="block" id="minecraft:grass_block" size={20} />} />
         </div>
         <DialogTitle>{t('resources.discovery.title')}</DialogTitle>
-        <DialogDescription className="text-foreground">{t('resources.discovery.body', { version: local.versionId })}</DialogDescription>
+        <DialogDescription className="text-foreground">{t('resources.discovery.body', { version: local.gameVersion ?? local.versionId })}</DialogDescription>
         <p className="text-sm text-fg-muted">{t('resources.discovery.local', { name: t('brand.name') })}</p>
         <DialogFooter>
           <Button variant="secondary" size="lg" data-testid="discovery-decline" onClick={() => answer(false)}>

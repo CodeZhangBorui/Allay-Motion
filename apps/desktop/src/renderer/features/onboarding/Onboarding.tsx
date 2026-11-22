@@ -107,7 +107,7 @@ function AssetsStep({ choice, setChoice }: { choice: AssetChoice | null; setChoi
   const state = useResourceStore((s) => s.state);
   if (!state) return null;
   const { vanilla, download } = state;
-  const active = vanilla.active ? (vanilla.active === 'local' ? vanilla.local?.versionId : vanilla.cached?.versionId) : null;
+  const active = vanilla.active ? (vanilla.active === 'local' ? (vanilla.local?.gameVersion ?? vanilla.local?.versionId) : vanilla.cached?.versionId) : null;
   const showProgress = download.status !== 'idle';
   return (
     <div className="-m-1 flex flex-col gap-3 p-1" role="radiogroup" aria-label={t('onboarding.steps.assets.name')}>
@@ -142,7 +142,7 @@ function AssetsStep({ choice, setChoice }: { choice: AssetChoice | null; setChoi
       </OptionCard>
       <OptionCard
         icon={GameController}
-        title={vanilla.local ? t('onboarding.assets.local.found', { version: vanilla.local.versionId }) : t('onboarding.assets.local.title')}
+        title={vanilla.local ? t('onboarding.assets.local.found', { version: vanilla.local.gameVersion ?? vanilla.local.versionId }) : t('onboarding.assets.local.title')}
         detail={vanilla.local ? t('onboarding.assets.local.foundDetail', { dir: vanilla.local.gameDir }) : t('onboarding.assets.local.detail')}
         selected={choice === 'local'}
         onSelect={() => setChoice('local')}
@@ -154,7 +154,7 @@ function AssetsStep({ choice, setChoice }: { choice: AssetChoice | null; setChoi
           ) : (
             <Button variant="secondary" className="self-start" data-testid="vanilla-use-local" onClick={() => void setVanilla({ consent: true, enabled: true })}>
               <GameController size={ICON.sm} />
-              {t('resources.useLocal', { version: vanilla.local.versionId })}
+              {t('resources.useLocal', { version: vanilla.local.gameVersion ?? vanilla.local.versionId })}
             </Button>
           )
         ) : (
@@ -368,7 +368,7 @@ export function Onboarding() {
 
   const lang = resolveLanguage(settings.language, systemLocale());
   const vanilla = resources?.vanilla;
-  const activeVersion = vanilla?.active === 'local' ? vanilla.local?.versionId : vanilla?.active === 'cached' ? vanilla.cached?.versionId : null;
+  const activeVersion = vanilla?.active === 'local' ? (vanilla.local?.gameVersion ?? vanilla.local?.versionId) : vanilla?.active === 'cached' ? vanilla.cached?.versionId : null;
   const downloading = resources?.download.status === 'running';
   const folderSummary = (f: FolderInfo | undefined) => (f?.path && f.state === 'ok' ? f.path : t(`onboarding.folderDefault.${f?.kind ?? 'project'}`));
   const summaries: Record<OnboardingStep, string> = {
