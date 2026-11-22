@@ -357,6 +357,12 @@ describe('T-TPL-LIB-7 界面小工具：格式码', () => {
     expect(parseFormatted('end§', PLAIN)).toEqual([{ ...PLAIN, text: 'end' }]);
   });
 
+  it('§ 后面跟的不是格式码时：§ 去掉，后面的字照常显示（游戏怎么处理 Wiki 没写，见各模板文档的依据表）', () => {
+    expect(parseFormatted('a§zb', PLAIN)).toEqual([{ ...PLAIN, text: 'azb' }]);
+    expect(parseFormatted('§cR§g§xY', PLAIN)).toEqual([{ ...PLAIN, text: 'RgxY', color: '#FF5555' }]);
+    expect(parseFormatted('§§a绿', PLAIN)).toEqual([{ ...PLAIN, text: '绿', color: '#55FF55' }]);
+  });
+
   it('16 种颜色（§0–§f）', () => {
     expect(Object.keys(CHAT_COLORS).sort().join('')).toBe('0123456789abcdef');
     expect([CHAT_COLORS['0'], CHAT_COLORS['6'], CHAT_COLORS['9'], CHAT_COLORS.f]).toEqual(['#000000', '#FFAA00', '#5555FF', '#FFFFFF']);
