@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.crt-power",
+  "version": "1.0.0",
+  "name": {"zh-CN": "显像管", "en": "CRT Power"},
+  "description": {
+    "zh-CN": "画面像老式显像管电视关机那样压成一条亮线、缩成一个亮点后全黑；开机时亮点拉成线再展开，先是雪花噪点，再露出下一段画面。",
+    "en": "The picture collapses into a bright line, then a dot, like an old CRT TV switching off; switching back on, the dot stretches into a line and opens through snow static to the next shot."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["shader", "retro", "crt"],
+  "groups": [
+    {"key": "look", "label": {"zh-CN": "外观", "en": "Look"}},
+    {"key": "static", "label": {"zh-CN": "雪花与扫描线", "en": "Static and scanlines"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "lineColor", "type": "color", "label": {"zh-CN": "亮线颜色", "en": "Line color"}, "hint": {"zh-CN": "亮线、亮点和雪花的颜色（荧光粉的颜色）", "en": "Color of the line, the dot and the static (the phosphor color)"}, "group": "look", "default": "#E6F1FF"},
+    {"key": "screenColor", "type": "color", "label": {"zh-CN": "关机后的屏幕", "en": "Screen off"}, "hint": {"zh-CN": "全黑时的颜色", "en": "Color of the switched-off screen"}, "group": "look", "default": "#000000"},
+    {"key": "lineWidth", "type": "number", "label": {"zh-CN": "亮线粗细", "en": "Line thickness"}, "hint": {"zh-CN": "亮线的半粗细，也是亮点的大小", "en": "Half thickness of the line, also the size of the dot"}, "group": "look", "default": 3, "min": 1, "max": 12, "step": 0.5, "unit": "px", "ui": "slider"},
+    {"key": "glow", "type": "number", "label": {"zh-CN": "光晕", "en": "Glow"}, "hint": {"zh-CN": "亮线和亮点四周的光晕，画在黑屏上", "en": "Halo around the line and the dot, drawn on the black screen"}, "group": "look", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "curvature", "type": "number", "label": {"zh-CN": "屏幕圆角", "en": "Tube corners"}, "hint": {"zh-CN": "显像管屏幕四角的圆角大小", "en": "How rounded the corners of the picture tube are"}, "group": "look", "default": 0.45, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "staticAmount", "type": "number", "label": {"zh-CN": "雪花", "en": "Static"}, "hint": {"zh-CN": "开机时雪花噪点的浓度；0 是不带雪花直接亮起", "en": "How strong the snow static is when switching on; 0 comes back on clean"}, "group": "static", "default": 0.75, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "staticStep", "type": "duration", "label": {"zh-CN": "雪花换帧", "en": "Static step"}, "hint": {"zh-CN": "雪花多久换一次", "en": "How often the static changes"}, "group": "static", "default": 0.05, "min": 0.02, "max": 0.5},
+    {"key": "grain", "type": "number", "label": {"zh-CN": "雪花颗粒", "en": "Grain size"}, "group": "static", "default": 3, "min": 1, "max": 12, "step": 0.5, "unit": "px", "ui": "slider"},
+    {"key": "scanlines", "type": "number", "label": {"zh-CN": "扫描线", "en": "Scanlines"}, "hint": {"zh-CN": "横向扫描线的深浅，关机压扁和开机雪花时出现", "en": "Strength of the horizontal scanlines, shown while collapsing and during the static"}, "group": "static", "default": 0.35, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "scanlineGap", "type": "number", "label": {"zh-CN": "扫描线间距", "en": "Scanline spacing"}, "group": "static", "default": 6, "min": 3, "max": 24, "step": 1, "unit": "px", "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "static", "default": 1},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "关机", "en": "Switch off"}, "group": "timing", "default": 0.55, "min": 0.15, "max": 3},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "黑屏", "en": "Black"}, "group": "timing", "default": 0.2, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "开机", "en": "Switch on"}, "group": "timing", "default": 0.75, "min": 0.15, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "作用在整段关机、开机的进度上；压扁、收点的先后节奏是固定的", "en": "Applied to the whole switch-off and switch-on; the line-then-dot rhythm inside is fixed"}, "group": "timing", "default": "linear"},
+    {"key": "offSound", "type": "sound", "label": {"zh-CN": "关机音效", "en": "Switch-off sound"}, "hint": {"zh-CN": "开始压扁时播放", "en": "Plays when the picture starts to collapse"}, "group": "sound", "default": "minecraft:block.beacon.deactivate"},
+    {"key": "onSound", "type": "sound", "label": {"zh-CN": "开机音效", "en": "Switch-on sound"}, "hint": {"zh-CN": "亮点出现时播放", "en": "Plays when the dot appears"}, "group": "sound", "default": "minecraft:block.beacon.activate"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "关机", "en": "Off"}},
+      {"param": "hold", "label": {"zh-CN": "黑屏", "en": "Black"}},
+      {"param": "outDuration", "label": {"zh-CN": "开机", "en": "On"}}
+    ]
+  },
+  "presets": [
+    {"key": "clean", "name": {"zh-CN": "干净的关机（没有雪花）", "en": "Clean switch-off (no static)"}, "params": {"staticAmount": 0, "scanlines": 0, "glow": 0.45, "inDuration": 0.35, "hold": 0.1, "outDuration": 0.45}},
+    {"key": "green-phosphor", "name": {"zh-CN": "绿色荧光屏", "en": "Green phosphor"}, "params": {"lineColor": "#8CFF9E", "screenColor": "#020604", "scanlines": 0.55, "curvature": 0.7}},
+    {"key": "amber", "name": {"zh-CN": "琥珀色显示器", "en": "Amber monitor"}, "params": {"lineColor": "#FFB347", "screenColor": "#070300", "scanlines": 0.5, "glow": 0.75}},
+    {"key": "long-static", "name": {"zh-CN": "长时间雪花", "en": "Lingering static"}, "params": {"staticAmount": 1, "staticStep": 0.035, "outDuration": 1.4, "grain": 4}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}
