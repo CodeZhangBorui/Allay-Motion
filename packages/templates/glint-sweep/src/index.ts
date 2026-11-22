@@ -87,7 +87,7 @@ const template: TemplateModule = {
     const angle = (num(params.angle, 25) * Math.PI) / 180;
     const short = Math.min(stage.width, stage.height);
 
-    // 光效贴图：26.2 起盔甲的光效叫 enchanted_glint_armor，更早叫 enchanted_glint_entity（对照过游戏文件）
+    // 光效贴图：1.21.11 起盔甲的光效叫 enchanted_glint_armor，更早叫 enchanted_glint_entity（对照过游戏文件）
     const glint = str(params.glint, 'item') === 'armor' ? await optionalTexture(ctx, ['minecraft:misc/enchanted_glint_armor', 'minecraft:misc/enchanted_glint_entity']) : await optionalTexture(ctx, ['minecraft:misc/enchanted_glint_item']);
     const imageId = str(params.image, '');
     const image = imageId === '' ? null : await ctx.resources.texture(imageId);
