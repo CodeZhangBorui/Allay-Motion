@@ -1,7 +1,8 @@
 // 040 记分板 allay.builtin.scoreboard-sidebar（docs/templates/scoreboard-sidebar.md）。叠加层：屏幕右侧的记分板侧边栏。
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, fontOf, num, parseFormatted, plainText, rgbOf, richText, str, type Segment } from '../../_lib/src/gui-kit';
 import { BODY_ALPHA, changeProgress, contentWidth, fitFactor, HEADER_ALPHA, parseRows, rowTop, SCORE_COLOR, sidebarLayout, SPACE_W, titleLeft, type Row } from './layout';
 
@@ -126,7 +127,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 整体淡入淡出（游戏里记分板是直接出现的）；_lib 的时间窗首尾各让出一帧
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         const changed = t >= changeAt;
         const p = changeProgress(t, changeAt, mode);
         const top = lerp(layoutBefore.top, layoutAfter.top, p);
