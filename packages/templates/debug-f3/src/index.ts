@@ -147,8 +147,7 @@ const template: TemplateModule = {
             const all: Object3D[] = [];
             for (const [ch, glyph] of glyphs) {
               const pool = Array.from({ length: ch === '-' || ch === '.' ? 1 : maxLen }, () => {
-                // Object3D.clone() 是 three 的公开方法，但不在随应用生成的类型面（template-api.d.ts）里，所以这里断言一下
-                const clone = (glyph.text.object as unknown as { clone(): Object3D }).clone();
+                const clone = glyph.text.object.clone();
                 clone.visible = false;
                 holder.add(clone);
                 return clone;

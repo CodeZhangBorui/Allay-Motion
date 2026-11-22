@@ -1,7 +1,8 @@
 // 039 Boss 栏 allay.builtin.boss-bar（docs/templates/boss-bar.md）。叠加层：屏幕顶部中央的 Boss 栏，名字在栏的上方。
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { createGui, fontOf, linesOf, num, rgbOf, str, type Gui } from '../../_lib/src/gui-kit';
 import {
   atlasColorRegion,
@@ -171,7 +172,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 游戏里 Boss 栏是直接出现的；这里整体线性淡入淡出（时间窗首尾各让出一帧）
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         painter.draw(0, layout.barTops[0]!, filledWidth(progressAt(t - holdStart, from, to, changeAt, changeDuration)));
         painter.commit();
         painter.setOpacity(a);

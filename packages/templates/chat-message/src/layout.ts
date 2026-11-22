@@ -145,8 +145,5 @@ export function rowCount(height: number, oneLine: number): number {
   return Math.max(1, Math.round((height + 1) / (oneLine + 1)));
 }
 
-/** 同一种声音最多 12 个提示，多了按时刻均匀抽样 */
-export function sampleCues(times: readonly number[], max = 12): number[] {
-  if (times.length <= max) return [...times];
-  return Array.from({ length: max }, (_, i) => times[Math.round((i * (times.length - 1)) / (max - 1))]!);
-}
+/** 同一种声音最多 12 个提示，多了按时刻均匀抽样：在 _lib 里 */
+export { sampleCues } from '../../_lib/src/cues';

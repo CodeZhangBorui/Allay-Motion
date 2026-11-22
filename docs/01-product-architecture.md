@@ -235,7 +235,7 @@ logs/
 | `pnpm dist` | 生成 Windows 安装包 |
 
 - TypeScript 严格模式，不用 `any`；跨进程和跨线程的边界都有 schema。
-- CI（Windows）跑 `pnpm check` 和 `pnpm dist`。CI 上的 WebGL 是软件渲染，基准图比较按 `04-templates.md` 4.11 放宽。
+- CI（`.github/workflows/ci.yml`，Windows）跑 `pnpm check`，内置模板的引擎测试分成 4 份，第 2–4 份另由三个作业并行跑；`pnpm dist` 在发版工作流（`release.yml`）里跑，Windows 和 macOS 各自打包。CI 上的 WebGL 是软件渲染，基准图比较按 `04-templates.md` 4.11 放宽。
 - 找不到 WebGL2 时，应用显示一个说明页（显卡或驱动不支持）并附诊断信息，不白屏。
 
 ## 1.11 验收测试

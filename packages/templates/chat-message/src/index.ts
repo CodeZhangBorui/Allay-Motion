@@ -1,7 +1,8 @@
 // 041 聊天消息 allay.builtin.chat-message（docs/templates/chat-message.md）。叠加层：左下角的聊天行，可以先在输入栏里打字再发出。
 // 只用公开的模板接口；布局按界面像素，数值和时间公式在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, fontOf, linesOf, num, parseFormatted, plainText, rgbOf, richText } from '../../_lib/src/gui-kit';
 import {
   BG_LEFT,
@@ -119,7 +120,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 整体的淡入淡出（游戏里聊天是直接出现的）；首尾各让出一帧
-        const g = progress(t, win.in) * (1 - progress(t, win.out));
+        const g = fadeInOut(t, win);
 
         for (const m of messages) m.object.visible = false;
         let q = 0;

@@ -1,4 +1,5 @@
 // 经验收集的版式、经验公式和经验球的运动（纯函数，T-TPL-C044 直接测）。坐标是界面像素、y 向下；依据见 docs/templates/xp-collect.md。
+import * as bar from '../../_lib/src/bar';
 
 /** 经验条的宽高 */
 export const BAR_W = 182;
@@ -33,7 +34,7 @@ export const ORB_ORIGINS: readonly OrbOrigin[] = ['top', 'sides', 'around', 'cen
 
 /** 一个界面像素对应的设计单位：界面宽度放不下经验条加两侧边距时整体缩小 */
 export function fitUnit(stageWidth: number, guiScale: number): number {
-  return Math.max(0.1, Math.min(guiScale, stageWidth / (BAR_W + 2 * SIDE_MARGIN)));
+  return bar.fitUnit(stageWidth, guiScale, BAR_W, SIDE_MARGIN);
 }
 
 export interface XpLayout {
@@ -56,10 +57,9 @@ export function xpLayout(width: number, height: number): XpLayout {
   return { barX, barTop, levelCenterX: width / 2, levelTop: h - 31 - 4, targetX: barX + BAR_W / 2, targetY: barTop + BAR_H / 2 };
 }
 
-/** 进度（0–1）→ 进度贴图露出的像素数：⌊进度 × 183⌋，不超过 182 */
+/** 进度（0–1）→ 进度贴图露出的像素数：⌊进度 × 183⌋，不超过 182（_lib 的 floor） */
 export function filledWidth(progress: number): number {
-  const p = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
-  return Math.min(BAR_W, Math.floor(p * (BAR_W + 1)));
+  return bar.filledWidth(progress, BAR_W, 'floor');
 }
 
 /** 从 level 级升到下一级需要的经验 */
@@ -177,8 +177,5 @@ export function levelPopScale(age: number): number {
   return 1 + POP_AMOUNT * left * left;
 }
 
-/** n 个 cue 里最多取 max 个，按序号均匀抽样（含首尾） */
-export function sampleIndices(n: number, max: number): number[] {
-  if (n <= max) return Array.from({ length: n }, (_, i) => i);
-  return Array.from({ length: max }, (_, i) => Math.round((i * (n - 1)) / (max - 1)));
-}
+/** 同一种声音最多 12 个 cue，多了按序号均匀抽样（含首尾）：在 _lib 里 */
+export { sampleIndices } from '../../_lib/src/cues';
