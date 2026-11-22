@@ -6,23 +6,16 @@
 // 直通 alpha），最后拼联络图、写 report.json（每次装载的警告、错误、缺失的贴图 ID）和 index.html。
 //
 // **输出含原版贴图和字体的派生图像。**只写进被 git 忽略的 docs/review/templates/out/（或 --out 指定的目录），
-// 不提交、不外传（AGENTS.md 硬性规则 1）。游戏文件只读。版本目录名应用不认时（带空格等），--mirror 在临时目录里建一个
-// 只含这一版的镜像游戏目录（jar 用硬链接或复制、assets 用目录联接），用完删掉；原来的游戏目录一个字节都不动。
+// 不提交、不外传（AGENTS.md 硬性规则 1）。游戏文件只读。
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
-  copyFileSync,
   existsSync,
-  linkSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
   statSync,
-  symlinkSync,
-  unlinkSync,
   writeFileSync,
   type Stats,
 } from 'node:fs';
@@ -31,11 +24,11 @@ import { tmpdir } from 'node:os';
 import { basename, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { ElectronApplication, Page } from '@playwright/test';
-import { findBdfGlyph, parseUnifontOtf, vanillaLayerId, VersionIdSchema, type UnihexTables } from '../packages/assets/src/index';
+import { findBdfGlyph, parseUnifontOtf, vanillaLayerId, type UnihexTables } from '../packages/assets/src/index';
 import { frameCount } from '../packages/engine/src/frames';
 import { localize, localizePresetParams, type ParamValues, type TemplateManifest } from '../packages/template-sdk/src/index';
 import { EMBEDDED_UNIFONT_FILE } from '../apps/desktop/src/main/resources/fonts';
-import { listVersions } from '../apps/desktop/src/main/resources/vanilla';
+import { checkClientJar, listVersions } from '../apps/desktop/src/main/resources/vanilla';
 import type { ReviewFrames } from '../apps/desktop/src/renderer/test-hooks';
 import type { ResourceState } from '../apps/desktop/src/shared/resources';
 import { packageFileName } from '../apps/desktop/src/shared/templates';
@@ -77,7 +70,6 @@ export interface ReviewOptions {
   help: boolean;
   /** 只有 --help 时为 null */
   source: SourceOption | null;
-  mirror: boolean;
   out: string | null;
   /** 模板目录名；空表示全部 */
   templates: string[];
@@ -97,7 +89,7 @@ export class UsageError extends Error {
 }
 
 const VALUE_OPTIONS = new Set(['--game', '--version', '--out', '--at', '--aspect', '--lang']);
-const FLAG_OPTIONS = new Set(['--no-assets', '--mirror', '--presets', '--cover', '--help', '-h']);
+const FLAG_OPTIONS = new Set(['--no-assets', '--presets', '--cover', '--help', '-h']);
 
 export function usage(): string {
   return [
@@ -108,7 +100,6 @@ export function usage(): string {
     '原版来源（二选一）：',
     '  --game <目录> --version <版本目录名>   本机游戏目录（.minecraft）和 versions/ 下的版本目录名，按“本机游戏”接进资源栈',
     '  --no-assets                           不接任何原版来源，看没有素材时的样子',
-    '  --mirror                              版本目录名应用不认（带空格等）时，在临时目录里建一个只含这一版的镜像游戏目录再接入',
     '',
     '其他：',
     '  --out <目录>        输出目录（默认 docs/review/templates/out/<版本目录名或 no-assets>/）',
@@ -147,6 +138,7 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
       flags.add(name === '-h' ? '--help' : name);
       continue;
     }
+    if (name === '--mirror') throw new UsageError('--mirror 去掉了：应用现在认得带空格、括号、中文的版本目录名，直接用 --version <目录名>');
     if (name === '--set') {
       const value = eq > 0 ? arg.slice(eq + 1) : argv[++i];
       if (value === undefined || (eq < 0 && value.startsWith('--'))) throw new UsageError('--set 后面要跟“参数=值”');
@@ -172,7 +164,6 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
   let source: SourceOption | null = null;
   if (flags.has('--no-assets')) {
     if (game !== undefined || version !== undefined) throw new UsageError('--no-assets 不能和 --game、--version 一起用');
-    if (flags.has('--mirror')) throw new UsageError('--mirror 只在接本机游戏时有用');
     source = { kind: 'none' };
   } else if (game !== undefined || version !== undefined) {
     if (game === undefined || version === undefined) throw new UsageError('--game 和 --version 要一起给');
@@ -181,7 +172,7 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
     throw new UsageError('要么给 --game 和 --version（接本机游戏的某个版本），要么给 --no-assets');
   }
   const out = values.get('--out');
-  return { help, source, mirror: flags.has('--mirror'), out: out === undefined ? null : resolve(out), templates, presets: flags.has('--presets'), cover: flags.has('--cover'), shots, aspects, lang, set };
+  return { help, source, out: out === undefined ? null : resolve(out), templates, presets: flags.has('--presets'), cover: flags.has('--cover'), shots, aspects, lang, set };
 }
 
 /** --set 的一项：“参数=值”。参数名的写法和 manifest 里的一样；值按 JSON 读，读不成时当文字（--set style=toast） */
@@ -439,98 +430,27 @@ function selectTemplateDirs(names: readonly string[]): string[] {
 const isDir = (p: string) => statSync(p, { throwIfNoEntry: false })?.isDirectory() === true;
 const isFile = (p: string) => statSync(p, { throwIfNoEntry: false })?.isFile() === true;
 
-export type VersionCheck = { ok: true } | { ok: false; reason: string; nameRejected: boolean };
+export type VersionCheck = { ok: true } | { ok: false; reason: string };
 
-/** 应用的版本识别认不认这个版本目录：先用应用自己的 listVersions，认不了再查是哪一步不行 */
+/**
+ * 应用认不认这个版本目录、能不能当原版层用：先看目录和 jar 在不在，再用应用自己的 listVersions 和 checkClientJar，
+ * 认不了时说清是哪一步不行
+ */
 export async function checkVersion(gameDir: string, versionDir: string): Promise<VersionCheck> {
   const versions = join(gameDir, 'versions');
-  if (!isDir(versions)) return { ok: false, nameRejected: false, reason: `${gameDir} 下面没有 versions 文件夹，不像游戏目录（.minecraft）` };
+  if (!isDir(versions)) return { ok: false, reason: `${gameDir} 下面没有 versions 文件夹，不像游戏目录（.minecraft）` };
   const dir = join(versions, versionDir);
   if (!isDir(dir)) {
     const withJar = readdirSync(versions).filter((n) => isFile(join(versions, n, `${n}.jar`)));
-    return { ok: false, nameRejected: false, reason: `versions 下没有 ${versionDir}。带同名 jar 的版本目录有：${withJar.join('、') || '（没有）'}` };
+    return { ok: false, reason: `versions 下没有 ${versionDir}。带同名 jar 的版本目录有：${withJar.join('、') || '（没有）'}` };
   }
-  if (!isFile(join(dir, `${versionDir}.jar`))) return { ok: false, nameRejected: false, reason: `${versionDir} 里没有同名的 ${versionDir}.jar（只装了加载器的版本目录里没有原版客户端）` };
+  if (!isFile(join(dir, `${versionDir}.jar`))) return { ok: false, reason: `${versionDir} 里没有同名的 ${versionDir}.jar（只装了加载器的版本目录里没有原版客户端）` };
   const found = await listVersions(gameDir);
-  if (found.some((v) => v.versionId === versionDir)) return { ok: true };
-  if (!VersionIdSchema.safeParse(versionDir).success) {
-    const bad = [...new Set(versionDir.replace(/[\w.-]/g, ''))].map((c) => (c === ' ' ? '空格' : c)).join(' ');
-    return {
-      ok: false,
-      nameRejected: true,
-      reason:
-        `目录名“${versionDir}”里有应用不认的字符（${bad}）。应用的版本识别只认字母、数字、点、下划线、连字符：` +
-        'apps/desktop/src/main/resources/vanilla.ts 的 listVersions 跳过这样的目录，设置文件里原版来源的 versionId（packages/assets/src/stack.ts 的 VersionIdSchema）也不收',
-    };
-  }
-  return { ok: false, nameRejected: false, reason: `${versionDir}.json 读不了，或者缺 type、releaseTime（应用的版本识别因此跳过它）` };
-}
-
-/** 镜像里的版本号：版本 JSON 的 clientVersion（PCL 写的原版版本号）合规就用它，否则把目录名里不认的字符换成下划线 */
-export function mirrorVersionId(json: unknown, dirName: string): string {
-  const cv = typeof json === 'object' && json !== null ? (json as Record<string, unknown>).clientVersion : undefined;
-  if (typeof cv === 'string' && VersionIdSchema.safeParse(cv).success) return cv;
-  const s = dirName.replace(/[^\w.-]/g, '_').slice(0, 64);
-  return VersionIdSchema.safeParse(s).success ? s : 'mirror';
-}
-
-export interface Mirror {
-  /** 镜像游戏目录 */
-  gameDir: string;
-  versionId: string;
-  jar: 'hardlink' | 'copy';
-  /** 有没有接上 assets（资源索引和对象：音效、语言文件、unifont 等） */
-  assets: boolean;
-}
-
-/** 在临时目录里建一个只含这一版的镜像游戏目录：jar 硬链接（不同磁盘时复制）、版本 JSON 只留四个字段、assets 是目录联接 */
-function createMirror(gameDir: string, versionDir: string): Mirror {
-  const srcDir = join(gameDir, 'versions', versionDir);
-  const json: unknown = JSON.parse(readFileSync(join(srcDir, `${versionDir}.json`), 'utf8').replace(/^\uFEFF/, ''));
-  const id = mirrorVersionId(json, versionDir);
-  const root = mirrorRoot(gameDir, versionDir);
-  removeMirror(root);
-  const dst = join(root, 'versions', id);
-  mkdirSync(dst, { recursive: true });
-  let jar: Mirror['jar'] = 'hardlink';
-  try {
-    linkSync(join(srcDir, `${versionDir}.jar`), join(dst, `${id}.jar`));
-  } catch {
-    copyFileSync(join(srcDir, `${versionDir}.jar`), join(dst, `${id}.jar`));
-    jar = 'copy';
-  }
-  const j = (typeof json === 'object' && json !== null ? json : {}) as Record<string, unknown>;
-  writeFileSync(join(dst, `${id}.json`), JSON.stringify({ id, type: j.type, releaseTime: j.releaseTime, assetIndex: j.assetIndex }));
-  const assets = isDir(join(gameDir, 'assets'));
-  if (assets) symlinkSync(join(gameDir, 'assets'), join(root, 'assets'), 'junction');
-  return { gameDir: root, versionId: id, jar, assets };
-}
-
-function mirrorRoot(gameDir: string, versionDir: string): string {
-  return join(tmpdir(), 'allay-review-mirror', createHash('sha256').update(`${gameDir}|${versionDir}`).digest('hex').slice(0, 12));
-}
-
-/**
- * 删掉镜像目录。先单独解开 assets 联接（只删联接本身，不碰它指向的游戏目录），再确认剩下的没有任何链接，最后才整个删。
- * 碰到预料之外的链接就停下报错，宁可留下垃圾也不冒删到游戏文件的险
- */
-export function removeMirror(root: string): void {
-  if (!existsSync(root)) return;
-  const link = join(root, 'assets');
-  const st = lstatSync(link, { throwIfNoEntry: false });
-  if (st) {
-    if (!st.isSymbolicLink()) throw new Error(`${link} 不是目录联接，没有删；请人工检查`);
-    unlinkSync(link);
-  }
-  const stack = [root];
-  while (stack.length > 0) {
-    const p = stack.pop()!;
-    for (const d of readdirSync(p, { withFileTypes: true })) {
-      if (d.isSymbolicLink()) throw new Error(`${join(p, d.name)} 是链接，没有删 ${root}；请人工检查`);
-      if (d.isDirectory()) stack.push(join(p, d.name));
-    }
-  }
-  rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+  if (!found.some((v) => v.versionId === versionDir)) return { ok: false, reason: `${versionDir}.json 读不了，或者缺 type、releaseTime（应用的版本识别因此跳过它）` };
+  const jar = await checkClientJar(join(dir, `${versionDir}.jar`));
+  if (jar === 'not-client') return { ok: false, reason: `${versionDir}.jar 不是完整的原版客户端（里面没有 assets/minecraft/，只装了加载器的版本目录常是这样）：换成它所继承的那个原版版本目录` };
+  if (jar === 'unreadable') return { ok: false, reason: `${versionDir}.jar 打不开（损坏、没下载完或者被占用）` };
+  return { ok: true };
 }
 
 /** 输出目录的名字：版本目录名（不认的字符换成下划线）或 no-assets；英文界面加 -en，有 --set 时再加“+参数=值”（不认的字符同样换掉） */
@@ -987,7 +907,6 @@ export type ReportSource =
       versionId: string;
       resourceFormat: string | null;
       hasAssetIndex: boolean | null;
-      mirror: Mirror | null;
     };
 
 export interface ReportFile {
@@ -1079,7 +998,7 @@ export function renderIndex(report: ReportFile): string {
       ? '<tr><th>原版来源</th><td>无（--no-assets）：资源栈里只有内置层</td></tr>'
       : [
           `<tr><th>游戏目录</th><td><code>${esc(src.gameDir)}</code></td></tr>`,
-          `<tr><th>版本目录</th><td><code>${esc(src.versionDir)}</code>${src.mirror ? `（应用不认这个目录名，经镜像 <code>${esc(src.mirror.gameDir)}</code> 以 <code>${esc(src.mirror.versionId)}</code> 接入；jar ${src.mirror.jar === 'hardlink' ? '硬链接' : '复制'}，assets ${src.mirror.assets ? '联接' : '没有'}）` : ''}</td></tr>`,
+          `<tr><th>版本目录</th><td><code>${esc(src.versionDir)}</code></td></tr>`,
           `<tr><th>资源栈里的层</th><td><code>${esc(src.layerId)}</code>，资源包格式 ${esc(src.resourceFormat ?? '未知')}，资源索引${src.hasAssetIndex ? '有' : '没有（没有音效和中文语言文件）'}</td></tr>`,
         ].join('');
   const out: string[] = [
@@ -1416,19 +1335,14 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
 
   // 原版来源：先问应用自己的版本识别认不认这个目录
-  let mirror: Mirror | null = null;
   let vanilla: { gameDir: string; versionId: string } | null = null;
   if (source.kind === 'local') {
     const check = await checkVersion(source.gameDir, source.versionDir);
-    if (check.ok) vanilla = { gameDir: source.gameDir, versionId: source.versionDir };
-    else if (check.nameRejected && opts.mirror) {
-      mirror = createMirror(source.gameDir, source.versionDir);
-      vanilla = { gameDir: mirror.gameDir, versionId: mirror.versionId };
-      console.log(`${TAG} ${check.reason}\n${TAG} --mirror：在 ${mirror.gameDir} 建了镜像，以 ${mirror.versionId} 接入（jar ${mirror.jar === 'hardlink' ? '硬链接' : '复制'}，assets ${mirror.assets ? '联接' : '没有'}）`);
-    } else {
-      console.error(`${TAG} 应用认不了这个版本：${check.reason}${check.nameRejected ? '\n加 --mirror 可以在临时目录里建一个镜像游戏目录接入同一个 jar（不改应用的识别逻辑，见 docs/review/templates/README.md）。' : ''}`);
+    if (!check.ok) {
+      console.error(`${TAG} 这个版本接不进资源栈：${check.reason}`);
       return 3;
     }
+    vanilla = { gameDir: source.gameDir, versionId: source.versionDir };
   }
   const expectedLayer = vanilla ? { layerId: vanillaLayerId({ kind: 'local', gameDir: vanilla.gameDir, versionId: vanilla.versionId }) } : null;
 
@@ -1441,7 +1355,6 @@ export async function main(argv: readonly string[]): Promise<number> {
       throw new UsageError(`输出目录 ${outDir} 里是另一个来源、语言或 --set 的结果（${previous.label}，${previous.lang}）；换一个 --out，或者先删掉那个目录`);
     }
   } catch (error) {
-    if (mirror) removeMirror(mirror.gameDir);
     if (!(error instanceof UsageError)) throw error;
     console.error(`${TAG} ${error.message}`);
     return 2;
@@ -1454,8 +1367,6 @@ export async function main(argv: readonly string[]): Promise<number> {
   const cleanup = async () => {
     if (app) await closeApp(app);
     app = null;
-    if (mirror) removeMirror(mirror.gameDir);
-    mirror = null;
     rmSync(userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
   };
   const onSignal = () => {
@@ -1505,7 +1416,6 @@ export async function main(argv: readonly string[]): Promise<number> {
             versionId: vanilla.versionId,
             resourceFormat: layer?.resourceFormat ?? null,
             hasAssetIndex: layer?.hasAssetIndex ?? null,
-            mirror,
           };
     console.log(`${TAG} 资源栈：${state.layers.map((l) => `${l.id}${l.enabled ? '' : '（停用）'}`).join('、')}`);
     const appBuilt = stampOf(join(ROOT, APP_OUTPUTS[0]!)).mtimeMs;

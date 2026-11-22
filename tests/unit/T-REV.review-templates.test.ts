@@ -1,14 +1,15 @@
 // T-REV：评审截图工具（scripts/review-templates.ts）里不依赖 Electron 的部分：参数解析、时刻选取、构建是否最新、
 // 版本目录的识别和镜像、写给应用的设置、缩放与合成、联络图的版式、报告的合并和 index.html。
 // 不读本机的游戏文件：要游戏目录的测试在临时目录里拼一个假的（空 jar、几行版本 JSON），只是测试数据。
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { parseUnifontOtf, vanillaLayerId, VersionIdSchema } from '../../packages/assets/src/index';
+import { parseUnifontOtf, vanillaLayerId } from '../../packages/assets/src/index';
 import type { TemplateManifest } from '../../packages/template-sdk/src/index';
 import { EMBEDDED_UNIFONT_FILE } from '../../apps/desktop/src/main/resources/fonts';
 import { migrateSettingsFile } from '../../apps/desktop/src/shared/settings';
+import { writeZip } from './helpers/resource-fixtures';
 import {
   alphaStats,
   blank,
@@ -25,7 +26,6 @@ import {
   edgeOffset,
   fitText,
   mergeReport,
-  mirrorVersionId,
   outLabel,
   over,
   padBBox,
@@ -33,7 +33,6 @@ import {
   parseArgs,
   parseSet,
   pickShots,
-  removeMirror,
   renderIndex,
   resizeArea,
   scaleNearest,
@@ -98,12 +97,12 @@ describe('T-REV 评审截图工具', () => {
     const o = parseArgs(['--game', 'G:/mc', '--version', '26.2', 'boss-bar', 'hud-status', 'boss-bar']);
     expect(o.source).toEqual({ kind: 'local', gameDir: resolve('G:/mc'), versionDir: '26.2' });
     expect(o.templates).toEqual(['boss-bar', 'hud-status']);
-    expect([o.aspects, o.lang, o.presets, o.cover, o.shots, o.out, o.mirror, o.help]).toEqual([['16:9'], 'zh-CN', false, false, null, null, false, false]);
+    expect([o.aspects, o.lang, o.presets, o.cover, o.shots, o.out, o.help]).toEqual([['16:9'], 'zh-CN', false, false, null, null, false]);
 
     // pnpm 会把 -- 原样传进来；= 写法；版本目录名可以带空格
-    const p = parseArgs(['--', '--game=G:/mc', '--version=1.20.1-Fabric 0.19.3', '--mirror', '--presets', '--cover', '--aspect', 'all', '--lang', 'en', '--at', '10%,cut,1.5s,f3,2', '--out', 'x']);
+    const p = parseArgs(['--', '--game=G:/mc', '--version=1.20.1-Fabric 0.19.3', '--presets', '--cover', '--aspect', 'all', '--lang', 'en', '--at', '10%,cut,1.5s,f3,2', '--out', 'x']);
     expect(p.source).toEqual({ kind: 'local', gameDir: resolve('G:/mc'), versionDir: '1.20.1-Fabric 0.19.3' });
-    expect([p.aspects, p.lang, p.mirror, p.presets, p.cover, p.out]).toEqual([['16:9', '9:16', '1:1'], 'en', true, true, true, resolve('x')]);
+    expect([p.aspects, p.lang, p.presets, p.cover, p.out]).toEqual([['16:9', '9:16', '1:1'], 'en', true, true, resolve('x')]);
     expect(p.shots).toEqual([{ kind: 'fraction', value: 0.1 }, { kind: 'cut' }, { kind: 'seconds', value: 1.5 }, { kind: 'frame', value: 3 }, { kind: 'seconds', value: 2 }]);
     expect(parseArgs(['--no-assets', '--aspect', '9x16,1:1,9:16']).aspects).toEqual(['9:16', '1:1']);
     expect(parseArgs(['--no-assets']).source).toEqual({ kind: 'none' });
@@ -115,7 +114,9 @@ describe('T-REV 评审截图工具', () => {
       ['--game', 'G:/mc'],
       ['--version', '26.2'],
       ['--no-assets', '--game', 'G:/mc'],
+      // --mirror 去掉了（应用认得所有真实的版本目录名）
       ['--no-assets', '--mirror'],
+      ['--game', 'G:/mc', '--version', '26.2', '--mirror'],
       ['--no-assets', '--bogus'],
       ['--no-assets', '--lang', 'fr'],
       ['--no-assets', '--aspect', '4:3'],
@@ -184,12 +185,13 @@ describe('T-REV 评审截图工具', () => {
     expect(spaced!.resources.vanilla).toEqual({ consent: true, enabled: true, dir: 'G:\\mc' });
   });
 
-  test('T-REV-6 版本目录：用应用自己的识别核对，认不了时说清是哪一步（带空格的名字、没有 jar、没有这个目录）', async () => {
+  test('T-REV-6 版本目录：用应用自己的识别核对，认不了时说清是哪一步（没有 jar、jar 是空壳、版本 JSON 不全、没有这个目录）', async () => {
     const game = mkdtempSync(join(tmpdir(), 'allay-trev-game-'));
     try {
       const version = (name: string, jar: boolean, json: unknown) => {
         mkdirSync(join(game, 'versions', name), { recursive: true });
-        if (jar) writeFileSync(join(game, 'versions', name, `${name}.jar`), '');
+        // 完整的原版客户端里有 assets/minecraft/ 下的文件
+        if (jar) writeZip(join(game, 'versions', name, `${name}.jar`), [{ name: 'assets/minecraft/lang/en_us.json', data: '{}' }]);
         if (json !== null) writeFileSync(join(game, 'versions', name, `${name}.json`), JSON.stringify(json));
       };
       const release = { type: 'release', releaseTime: '2026-06-16T20:03:33+08:00', assetIndex: { id: '32' } };
@@ -197,53 +199,26 @@ describe('T-REV 评审截图工具', () => {
       version('1.20.1-Fabric 0.19.3', true, { ...release, clientVersion: '1.20.1' });
       version('1.20.1-Forge_47.4.0', false, release);
       version('broken', true, { type: 'release' });
+      // 只装了加载器的版本目录：jar 是空壳
+      version('1.20.1-OptiFine', false, release);
+      writeZip(join(game, 'versions', '1.20.1-OptiFine', '1.20.1-OptiFine.jar'), [{ name: 'META-INF/MANIFEST.MF', data: 'Manifest-Version: 1.0\n' }]);
+      version('half', false, release);
+      writeFileSync(join(game, 'versions', 'half', 'half.jar'), 'not a zip');
       expect(await checkVersion(game, '26.2')).toEqual({ ok: true });
-      // 应用的版本识别认带空格的目录名了，不用再经 --mirror
+      // 应用的版本识别认带空格的目录名
       expect(await checkVersion(game, '1.20.1-Fabric 0.19.3')).toEqual({ ok: true });
-      expect(await checkVersion(game, '1.20.1-Forge_47.4.0')).toMatchObject({ ok: false, nameRejected: false, reason: expect.stringContaining('jar') });
-      expect(await checkVersion(game, 'broken')).toMatchObject({ ok: false, nameRejected: false, reason: expect.stringContaining('releaseTime') });
+      expect(await checkVersion(game, '1.20.1-Forge_47.4.0')).toMatchObject({ ok: false, reason: expect.stringContaining('jar') });
+      expect(await checkVersion(game, 'broken')).toMatchObject({ ok: false, reason: expect.stringContaining('releaseTime') });
+      expect(await checkVersion(game, '1.20.1-OptiFine')).toMatchObject({ ok: false, reason: expect.stringContaining('不是完整的原版客户端') });
+      expect(await checkVersion(game, 'half')).toMatchObject({ ok: false, reason: expect.stringContaining('打不开') });
       expect(await checkVersion(game, '9.9')).toMatchObject({ ok: false, reason: expect.stringContaining('26.2') });
       expect(await checkVersion(join(game, 'versions'), '26.2')).toMatchObject({ ok: false, reason: expect.stringContaining('versions') });
     } finally {
       rmSync(game, { recursive: true, force: true });
     }
-    expect(VersionIdSchema.safeParse('1.20.1-Fabric 0.19.3').success).toBe(false);
-    expect(mirrorVersionId({ clientVersion: '1.20.1' }, '1.20.1-Fabric 0.19.3')).toBe('1.20.1');
-    expect(mirrorVersionId({}, '1.20.1-Fabric 0.19.3')).toBe('1.20.1-Fabric_0.19.3');
-    expect(mirrorVersionId({ clientVersion: 'a b' }, '1.21.8-Fabric_0.17.3(生电)')).toBe('1.21.8-Fabric_0.17.3____');
     expect(outLabel({ kind: 'local', gameDir: 'G:\\mc', versionDir: '1.20.1-Fabric 0.19.3' }, 'zh-CN')).toBe('1.20.1-Fabric_0.19.3');
     expect(outLabel({ kind: 'none' }, 'en')).toBe('no-assets-en');
     expect(sourceKey({ kind: 'local', gameDir: 'G:\\mc', versionDir: '26.2' })).not.toBe(sourceKey({ kind: 'local', gameDir: 'H:\\mc', versionDir: '26.2' }));
-  });
-
-  test('T-REV-7 删镜像目录：只解开 assets 联接、不碰它指向的目录；碰到预料之外的链接就停下', () => {
-    const tmp = mkdtempSync(join(tmpdir(), 'allay-trev-mirror-'));
-    const stray = join(tmp, 'm2', 'versions', 'stray');
-    try {
-      mkdirSync(join(tmp, 'target', 'sub'), { recursive: true });
-      writeFileSync(join(tmp, 'target', 'sub', 'keep.txt'), 'keep');
-      const m = join(tmp, 'm');
-      mkdirSync(join(m, 'versions', 'x'), { recursive: true });
-      writeFileSync(join(m, 'versions', 'x', 'x.json'), '{}');
-      symlinkSync(join(tmp, 'target'), join(m, 'assets'), 'junction');
-      removeMirror(m);
-      expect(existsSync(m)).toBe(false);
-      expect(readFileSync(join(tmp, 'target', 'sub', 'keep.txt'), 'utf8')).toBe('keep');
-
-      mkdirSync(join(tmp, 'm2', 'versions'), { recursive: true });
-      symlinkSync(join(tmp, 'target'), stray, 'junction');
-      expect(() => removeMirror(join(tmp, 'm2'))).toThrow(/链接/);
-      expect(existsSync(join(tmp, 'm2'))).toBe(true);
-      expect(readFileSync(join(tmp, 'target', 'sub', 'keep.txt'), 'utf8')).toBe('keep');
-      removeMirror(join(tmp, 'nope'));
-    } finally {
-      try {
-        unlinkSync(stray);
-      } catch {
-        // 没建成
-      }
-      rmSync(tmp, { recursive: true, force: true });
-    }
   });
 
   test('T-REV-8 缩放与合成：面积平均在预乘 alpha 下做（透明像素不把颜色拉黑），整数倍放大用最近邻，叠加按直通 alpha', () => {
