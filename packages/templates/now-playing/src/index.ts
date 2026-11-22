@@ -40,7 +40,9 @@ const template: TemplateModule = {
       const anchor = params.anchor === 'topRight' ? 'topRight' : 'topLeft';
       const text: TextObject | null =
         track.trim() === '' ? null : ctx.text.create({ text: track, size: G, color: rgbOf(params.toastColor, '#FFFFFF'), align: 'left', font: fontOf(params.toastFont) });
-      const layout = toastLayout(text ? text.width / G : 0);
+      // 跳动的音符：贴图自带 8 帧动画，引擎按 t 播放。这张贴图 1.21.6 才有，没有时不画图标，文字左移、面板变窄
+      const notes = params.icon === 'disc' ? null : await firstTexture(ctx, ['minecraft:gui/sprites/icon/music_notes']);
+      const layout = toastLayout(text ? text.width / G : 0, params.icon === 'disc' || notes !== null);
       // 提示框比画面还宽时整体缩小，界面宽度相应变大
       const k = Math.min(1, stage.width / (layout.width * G));
       gui.root.scale.setScalar(k);
@@ -73,14 +75,10 @@ const template: TemplateModule = {
         const disc = (await ctx.resources.item(str(params.disc, 'minecraft:music_disc_cat'))).single();
         disc.scale.setScalar(TOAST_ICON_SIZE * G);
         at(disc, iconX, iconY, 2);
-      } else {
-        // 跳动的音符：贴图自带 8 帧动画，引擎按 t 播放。没有这张贴图时不画图标
-        const notes = await firstTexture(ctx, ['minecraft:gui/sprites/icon/music_notes']);
-        if (notes) {
-          const icon = ctx.sprite.create(notes.texture, { pixelSize: G });
-          icon.setSize(TOAST_ICON_SIZE * G, TOAST_ICON_SIZE * G);
-          at(icon.object, iconX, iconY, 2);
-        }
+      } else if (notes) {
+        const icon = ctx.sprite.create(notes.texture, { pixelSize: G });
+        icon.setSize(TOAST_ICON_SIZE * G, TOAST_ICON_SIZE * G);
+        at(icon.object, iconX, iconY, 2);
       }
       if (text) at(text.object, layout.textX, layout.textTop + TEXT_H / 2, 3);
 

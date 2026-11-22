@@ -106,9 +106,10 @@ export interface ToastLayout {
   textTop: number;
 }
 
-/** 提示框的大小随文字宽度定：文字左边界 + 文字宽 + 右侧留白（向上取整） */
-export function toastLayout(textWidth: number): ToastLayout {
-  return { width: Math.ceil(TOAST_TEXT_X + Math.max(0, textWidth) + TOAST_TEXT_RIGHT), height: TOAST_H, textX: TOAST_TEXT_X, textTop: (TOAST_H - TEXT_H) / 2 };
+/** 提示框的大小随文字宽度定：文字左边界 + 文字宽 + 右侧留白（向上取整）。没有图标时文字左移到图标的位置，面板跟着变窄 */
+export function toastLayout(textWidth: number, hasIcon = true): ToastLayout {
+  const textX = hasIcon ? TOAST_TEXT_X : TOAST_ICON_X;
+  return { width: Math.ceil(textX + Math.max(0, textWidth) + TOAST_TEXT_RIGHT), height: TOAST_H, textX, textTop: (TOAST_H - TEXT_H) / 2 };
 }
 
 /** 提示框露在画面里的比例：滑入 a²，滑出 1 − b²（a、b 是进入、退出阶段的线性进度） */

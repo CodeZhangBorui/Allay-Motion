@@ -137,6 +137,9 @@ describe('T-TPL-C053 正在播放', () => {
     expect(toastLayout(100)).toEqual({ width: 138, height: 32, textX: 30, textTop: 12 });
     expect(toastLayout(100.2).width).toBe(139);
     expect(toastLayout(0).width).toBe(38);
+    // 没有图标（1.21.6 之前的素材没有音符贴图）：文字左移到图标的位置，面板窄 22，不留空位
+    expect(toastLayout(100, false)).toEqual({ width: 116, height: 32, textX: 8, textTop: 12 });
+    expect(toastLayout(100, true).width - toastLayout(100, false).width).toBe(22);
     // 露出的比例：滑入 a²，滑出 1 − b²
     expect(toastShown(0, 0)).toBe(0);
     expect(toastShown(0.5, 0)).toBe(0.25);
