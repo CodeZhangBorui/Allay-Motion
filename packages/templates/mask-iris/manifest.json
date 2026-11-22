@@ -1,0 +1,81 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.mask-iris",
+  "version": "1.0.0",
+  "name": {"zh-CN": "图形光圈", "en": "Shape Iris"},
+  "description": {
+    "zh-CN": "一个图形（圆、望远镜的视野框、苦力怕的脸、头颅、花、地球或自己的图片）从大缩到小把画面收黑，可以在中途停一下，再放大打开。",
+    "en": "A shape (circle, spyglass view, creeper face, skull, flower, globe or your own image) shrinks to close the screen to black, optionally pausing on the way, then grows to open it again."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["shader", "iris", "mask"],
+  "groups": [
+    {"key": "shape", "label": {"zh-CN": "图形", "en": "Shape"}},
+    {"key": "motion", "label": {"zh-CN": "收放", "en": "Motion"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {
+      "key": "mask",
+      "type": "enum",
+      "label": {"zh-CN": "图形", "en": "Shape"},
+      "hint": {"zh-CN": "望远镜、旗帜图案取自原版素材；没有素材时望远镜画成方框，旗帜图案退回圆形", "en": "The spyglass and banner patterns come from the vanilla assets; without them the spyglass becomes a plain square and the patterns fall back to a circle"},
+      "group": "shape",
+      "default": "circle",
+      "options": [
+        {"value": "circle", "label": {"zh-CN": "圆", "en": "Circle"}},
+        {"value": "spyglass", "label": {"zh-CN": "望远镜", "en": "Spyglass"}},
+        {"value": "creeper", "label": {"zh-CN": "苦力怕（旗帜图案）", "en": "Creeper (banner pattern)"}},
+        {"value": "skull", "label": {"zh-CN": "头颅（旗帜图案）", "en": "Skull (banner pattern)"}},
+        {"value": "flower", "label": {"zh-CN": "花（旗帜图案）", "en": "Flower (banner pattern)"}},
+        {"value": "globe", "label": {"zh-CN": "地球（旗帜图案）", "en": "Globe (banner pattern)"}},
+        {"value": "image", "label": {"zh-CN": "自己的图片", "en": "Own image"}}
+      ]
+    },
+    {"key": "image", "type": "texture", "label": {"zh-CN": "图片", "en": "Image"}, "hint": {"zh-CN": "图片不透明（或亮）的地方透出画面，其余是填充；没有选图片时用圆", "en": "Opaque (or bright) parts of the image show the footage, the rest is filled; a circle is used until you pick an image"}, "group": "shape", "default": "", "allowFile": true, "visibleWhen": {"key": "mask", "equals": "image"}},
+    {
+      "key": "imageChannel",
+      "type": "enum",
+      "label": {"zh-CN": "按什么透空", "en": "Mask from"},
+      "group": "shape",
+      "default": "alpha",
+      "visibleWhen": {"key": "mask", "equals": "image"},
+      "options": [
+        {"value": "alpha", "label": {"zh-CN": "透明度", "en": "Alpha"}},
+        {"value": "luminance", "label": {"zh-CN": "亮度", "en": "Brightness"}}
+      ]
+    },
+    {"key": "fillColor", "type": "color", "label": {"zh-CN": "填充", "en": "Fill"}, "hint": {"zh-CN": "图形外面的颜色", "en": "Color outside the shape"}, "group": "shape", "default": "#000000"},
+    {"key": "pixelate", "type": "boolean", "label": {"zh-CN": "像素边缘", "en": "Pixel edge"}, "hint": {"zh-CN": "圆的边缘按像素格走成阶梯；贴图图形按原样的像素放大（关掉时平滑）", "en": "The circle's edge steps along a pixel grid; texture shapes keep their pixels when enlarged (smooth when off)"}, "group": "shape", "default": true},
+    {"key": "pixelSize", "type": "number", "label": {"zh-CN": "像素大小", "en": "Pixel size"}, "group": "shape", "default": 10, "min": 2, "max": 60, "step": 1, "unit": "px", "ui": "slider", "visibleWhen": {"key": "pixelate", "equals": true}},
+    {"key": "centerX", "type": "number", "label": {"zh-CN": "中心横向", "en": "Center X"}, "hint": {"zh-CN": "收到哪里：占画面宽度的比例，0 是正中", "en": "Where it closes on, as a share of the screen width; 0 is the middle"}, "group": "motion", "default": 0, "min": -0.45, "max": 0.45, "step": 0.01, "ui": "slider"},
+    {"key": "centerY", "type": "number", "label": {"zh-CN": "中心纵向", "en": "Center Y"}, "hint": {"zh-CN": "占画面高度的比例，正值向上", "en": "As a share of the screen height; positive is up"}, "group": "motion", "default": 0, "min": -0.45, "max": 0.45, "step": 0.01, "ui": "slider"},
+    {"key": "linger", "type": "number", "label": {"zh-CN": "中途停顿的大小", "en": "Pause size"}, "hint": {"zh-CN": "收到图形占画面短边这么大时停一下，像卡通片的结尾；0 是一口气收完", "en": "Pauses when the shape is this big relative to the short side, like a cartoon ending; 0 closes in one go"}, "group": "motion", "default": 0.3, "min": 0, "max": 1.2, "step": 0.01, "ui": "slider"},
+    {"key": "lingerTime", "type": "number", "label": {"zh-CN": "停顿时长", "en": "Pause length"}, "hint": {"zh-CN": "停顿占收、放各自时长的比例", "en": "Share of the close (and of the open) spent paused"}, "group": "motion", "default": 0.25, "min": 0, "max": 0.7, "step": 0.01, "ui": "slider", "visibleWhen": {"key": "linger", "not": 0}},
+    {"key": "rotate", "type": "angle", "label": {"zh-CN": "旋转", "en": "Rotation"}, "hint": {"zh-CN": "收的过程中图形转过的角度，放的时候转回来", "en": "How far the shape turns while closing; it turns back while opening"}, "group": "motion", "default": 0, "snap": 15},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "收", "en": "Close"}, "group": "timing", "default": 0.8, "min": 0.15, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "全黑", "en": "Closed"}, "group": "timing", "default": 0.15, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "放", "en": "Open"}, "group": "timing", "default": 0.7, "min": 0.15, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "大小按对数匀速变化；缓动作用在这之上", "en": "The size changes at an even rate on a log scale; the easing is applied on top"}, "group": "timing", "default": "linear"},
+    {"key": "closeSound", "type": "sound", "label": {"zh-CN": "收的音效", "en": "Close sound"}, "hint": {"zh-CN": "开始收时播放", "en": "Plays when it starts to close"}, "group": "sound", "default": "minecraft:item.spyglass.use"},
+    {"key": "openSound", "type": "sound", "label": {"zh-CN": "放的音效", "en": "Open sound"}, "hint": {"zh-CN": "开始放时播放", "en": "Plays when it starts to open"}, "group": "sound", "default": "minecraft:item.spyglass.stop_using"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "收", "en": "Close"}},
+      {"param": "hold", "label": {"zh-CN": "全黑", "en": "Closed"}},
+      {"param": "outDuration", "label": {"zh-CN": "放", "en": "Open"}}
+    ]
+  },
+  "presets": [
+    {"key": "spyglass", "name": {"zh-CN": "望远镜", "en": "Spyglass"}, "params": {"mask": "spyglass", "linger": 0.75, "lingerTime": 0.35, "inDuration": 1, "outDuration": 0.8}},
+    {"key": "creeper", "name": {"zh-CN": "苦力怕", "en": "Creeper"}, "params": {"mask": "creeper", "linger": 0.5, "lingerTime": 0.3, "inDuration": 1, "closeSound": "minecraft:entity.creeper.primed"}},
+    {"key": "skull", "name": {"zh-CN": "头颅", "en": "Skull"}, "params": {"mask": "skull", "linger": 0.45, "lingerTime": 0.3, "inDuration": 1}},
+    {"key": "flower", "name": {"zh-CN": "花", "en": "Flower"}, "params": {"mask": "flower", "linger": 0.45, "lingerTime": 0.25, "rotate": 90, "inDuration": 1}},
+    {"key": "straight", "name": {"zh-CN": "一口气收圈", "en": "Straight iris"}, "params": {"mask": "circle", "linger": 0, "inDuration": 0.5, "hold": 0.1, "outDuration": 0.5, "easing": "quadIn"}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}
