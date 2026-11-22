@@ -1,0 +1,51 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.ice-shatter",
+  "version": "1.0.0",
+  "name": {"zh-CN": "冰封碎裂", "en": "Ice Shatter"},
+  "description": {
+    "zh-CN": "霜从四边往中间爬，霜后面结成一整面冰；退出时冰面从一点裂开，裂纹往外扩散，碎片一块块翻着飞走、落下。",
+    "en": "Frost creeps in from the edges and freezes into a sheet of ice; on the way out the sheet cracks from one point, the cracks spread and the shards tumble away and fall."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "ice", "shatter"],
+  "groups": [
+    {"key": "ice", "label": {"zh-CN": "冰", "en": "Ice"}},
+    {"key": "shatter", "label": {"zh-CN": "碎裂", "en": "Shatter"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "block", "type": "block", "label": {"zh-CN": "冰的方块", "en": "Ice block"}, "hint": {"zh-CN": "冰面贴的方块；半透明的方块（冰、玻璃）垫在“底色”上", "en": "The block the sheet is made of; translucent ones (ice, glass) sit on the backing color"}, "group": "ice", "default": "minecraft:packed_ice"},
+    {"key": "backing", "type": "color", "label": {"zh-CN": "底色", "en": "Backing"}, "hint": {"zh-CN": "半透明方块下面的颜色，也是没有原版素材时冰的颜色", "en": "Color under translucent blocks, and the ice color without vanilla assets"}, "group": "ice", "default": "#9DC3F0"},
+    {"key": "blockSize", "type": "number", "label": {"zh-CN": "方块大小", "en": "Block size"}, "hint": {"zh-CN": "一格冰的边长；结冰的前沿按它的像素走", "en": "Size of one ice block; the freezing front steps along its pixels"}, "group": "ice", "default": 135, "min": 40, "max": 360, "step": 1, "unit": "px", "ui": "slider"},
+    {"key": "frostColor", "type": "color", "label": {"zh-CN": "霜", "en": "Frost"}, "hint": {"zh-CN": "前沿的白霜、刚结的冰和冰屑的颜色", "en": "Color of the frost at the front, of fresh ice and of the ice dust"}, "group": "ice", "default": "#EEF8FF"},
+    {"key": "frostEdge", "type": "number", "label": {"zh-CN": "四边结霜", "en": "Frosted edges"}, "hint": {"zh-CN": "四边叠的细雪结霜视野贴图有多浓", "en": "How strong the powder-snow frost overlay on the edges is"}, "group": "ice", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "shards", "type": "integer", "label": {"zh-CN": "碎片", "en": "Shards"}, "hint": {"zh-CN": "冰面碎成多少块；撞击点附近更碎", "en": "How many pieces the sheet breaks into; finer near the impact"}, "group": "shatter", "default": 40, "min": 12, "max": 120, "ui": "slider"},
+    {"key": "impactX", "type": "number", "label": {"zh-CN": "裂点横向", "en": "Impact X"}, "hint": {"zh-CN": "从哪里裂开：占画面宽度的比例，0 是正中", "en": "Where it cracks, as a share of the screen width; 0 is the middle"}, "group": "shatter", "default": 0.12, "min": -0.45, "max": 0.45, "step": 0.01, "ui": "slider"},
+    {"key": "impactY", "type": "number", "label": {"zh-CN": "裂点纵向", "en": "Impact Y"}, "hint": {"zh-CN": "占画面高度的比例，正值向上", "en": "As a share of the screen height; positive is up"}, "group": "shatter", "default": 0.06, "min": -0.45, "max": 0.45, "step": 0.01, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "shatter", "default": 1},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "结冰", "en": "Freeze"}, "group": "timing", "default": 0.8, "min": 0.2, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.25, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "碎裂", "en": "Shatter"}, "group": "timing", "default": 0.9, "min": 0.3, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "group": "timing", "default": "linear"},
+    {"key": "freezeSound", "type": "sound", "label": {"zh-CN": "结冰音效", "en": "Freeze sound"}, "hint": {"zh-CN": "开始结霜时播放", "en": "Plays when the frost starts to form"}, "group": "sound", "default": "minecraft:block.powder_snow.place"},
+    {"key": "crackSound", "type": "sound", "label": {"zh-CN": "开裂音效", "en": "Crack sound"}, "hint": {"zh-CN": "裂开的那一下", "en": "The moment it cracks"}, "group": "sound", "default": "minecraft:block.glass.hit"},
+    {"key": "shatterSound", "type": "sound", "label": {"zh-CN": "碎裂音效", "en": "Shatter sound"}, "hint": {"zh-CN": "碎片飞起来时播放", "en": "Plays when the shards fly"}, "group": "sound", "default": "minecraft:block.glass.break"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "结冰", "en": "Freeze"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "碎裂", "en": "Shatter"}}
+    ]
+  },
+  "presets": [
+    {"key": "blue-ice", "name": {"zh-CN": "蓝冰", "en": "Blue ice"}, "params": {"block": "minecraft:blue_ice", "backing": "#74A8F2"}},
+    {"key": "glass", "name": {"zh-CN": "玻璃", "en": "Glass"}, "params": {"block": "minecraft:glass", "backing": "#CFE6EE", "frostEdge": 0.2, "shards": 70, "freezeSound": "minecraft:block.glass.place"}},
+    {"key": "center-burst", "name": {"zh-CN": "从正中碎开、碎得细", "en": "Burst from the center, fine shards"}, "params": {"impactX": 0, "impactY": 0, "shards": 90}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}
