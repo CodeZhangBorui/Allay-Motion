@@ -1,10 +1,11 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import type { TemplateEntry } from '../../apps/desktop/src/shared/templates';
 import { requiredTextures } from '../../packages/assets/src/index';
 import { catalogJarEntries, makeCatalogGame } from '../unit/helpers/resource-fixtures';
 import { decodeAllRgba, probe } from '../export/ffmpeg';
-import { launchApp, makeUserDataDir, removeUserDataDir, requirePinnedFfmpeg } from './helpers';
+import { launchApp, makeUserDataDir, removeUserDataDir, requirePinnedFfmpeg, ROOT } from './helpers';
 import { makeTemplateLibrary } from './template-library';
 
 // 模板库的端到端测试（docs/decisions.md“模板库撑到一百个模板”）：类别标签和分组筛选、搜索、键盘（T-GAL-9），
@@ -145,6 +146,41 @@ function titleTemplate(id: string, name: Record<string, string>, tags: string[] 
   };
 }
 
+// T-GAL-9 的预期从 manifest 算，不写死数量和结果：内置模板会一批批加进来（docs/template-catalog.md），各组的数量、
+// 搜索命中哪些模板都会变。下面照 docs/decisions.md“模板库撑到一百个模板”的规则独立算一遍，界面上的结果要和它一致。
+
+/** 组的顺序（docs/template-catalog.md 的 A–H，最后是“其他”）：段头、分组菜单都按它排 */
+const GROUP_ORDER = ['blocks', 'items', 'ui', 'particles', 'text', 'channel', 'shader', 'seasonal', 'other'] as const;
+type Group = (typeof GROUP_ORDER)[number];
+
+/** 模板所在的组：manifest 的 tags 里第一个组名；没有时归“其他”（这个测试里没有派生模板，不用随基模板） */
+function groupOf(e: TemplateEntry): Group {
+  return (e.manifest.tags ?? []).find((t): t is Group => t !== 'other' && (GROUP_ORDER as readonly string[]).includes(t)) ?? 'other';
+}
+
+/** 各组两种语言的名字（文案文件里的；搜组名用） */
+const GROUP_LABELS: Record<Group, string[]> = (() => {
+  const locales = ['zh-CN', 'en'].map((l) => JSON.parse(readFileSync(join(ROOT, 'apps/desktop/src/renderer/i18n/locales', `${l}.json`), 'utf8')) as { gallery: { groups: Record<Group, string> } });
+  return Object.fromEntries(GROUP_ORDER.map((g) => [g, locales.map((m) => m.gallery.groups[g])])) as Record<Group, string[]>;
+})();
+
+const normalized = (s: string) => s.normalize('NFKC').toLowerCase();
+
+/** 模板自己能被搜到的文字：两种语言的名称和说明、id、tags（不含组名） */
+function ownText(e: TemplateEntry): string {
+  const both = (v: TemplateEntry['manifest']['name'] | undefined) => (v === undefined ? [] : typeof v === 'string' ? [v] : Object.values(v));
+  return normalized([...both(e.manifest.name), ...both(e.manifest.description), e.id, ...(e.manifest.tags ?? [])].join('\n'));
+}
+
+/** 搜索框里打 query 应该搜到的模板（按空白切成几个词，每个词都要出现在模板自己的文字或所在组的名字里） */
+function expectedHits(all: readonly TemplateEntry[], query: string): string[] {
+  const terms = normalized(query).split(/\s+/u).filter((t) => t.length > 0);
+  return all.filter((e) => terms.every((t) => `${ownText(e)}\n${normalized(GROUP_LABELS[groupOf(e)].join('\n'))}`.includes(t))).map((e) => e.id);
+}
+
+/** 两组 id 一样（不管先后；先后另外按完整列表核对） */
+const sameIds = (a: readonly string[], b: readonly string[]) => expect([...a].sort()).toEqual([...b].sort());
+
 test('T-GAL-9 类别标签、分组筛选、搜索、键盘', async () => {
   const ctx = await start({ userTemplates: { 'user.e2e.title': titleTemplate('user.e2e.title', { 'zh-CN': '我的片头', en: 'My opener' }) } });
   const { page } = ctx;
@@ -152,6 +188,7 @@ test('T-GAL-9 类别标签、分组筛选、搜索、键盘', async () => {
     await visibleCoversReady(page);
     const all = await page.evaluate(() => window.__allayTest!.templates());
     const category = new Map(all.map((e) => [e.id, e.manifest.category]));
+    const idsOf = (pick: (e: TemplateEntry) => boolean) => all.filter(pick).map((e) => e.id);
     await expect(page.getByTestId('gallery-count')).toHaveText(`${all.length} 个模板`);
 
     // ---- 类别 ----
@@ -164,63 +201,108 @@ test('T-GAL-9 类别标签、分组筛选、搜索、键盘', async () => {
     await page.getByTestId('gallery-tab-mine').click();
     expect(await shownIds(page)).toEqual(['user.e2e.title']);
     await page.getByTestId('gallery-tab-all').click();
-    expect(await shownIds(page)).toHaveLength(all.length);
-    // 段头按组的顺序
+    // 完整列表的先后：后面核对筛选和搜索的结果都是它的子序列（卡片不跳来跳去）
+    const fullOrder = await shownIds(page);
+    expect(fullOrder).toHaveLength(all.length);
+    const inFullOrder = (ids: readonly string[]) => expect(ids).toEqual(fullOrder.filter((id) => ids.includes(id)));
+    // 段头：有模板的组，按组的顺序；每段里正好是这一组的模板
+    const groupCount = (g: Group) => all.filter((e) => groupOf(e) === g).length;
     const sections = await page.locator('[data-testid^="gallery-section-"]').evaluateAll((els) => els.map((el) => el.getAttribute('data-testid')!.slice('gallery-section-'.length)));
-    expect(sections).toEqual(['blocks', 'items', 'ui', 'text', 'shader']);
+    expect(sections).toEqual(GROUP_ORDER.filter((g) => groupCount(g) > 0));
+    expect(fullOrder.map((id) => groupOf(all.find((e) => e.id === id)!))).toEqual(sections.flatMap((g) => Array<string>(groupCount(g as Group)).fill(g)));
 
-    // ---- 分组：菜单里每组带数量；选了只剩这一组，段头收起 ----
+    // ---- 分组：菜单里每组带数量（没有模板的组不能选，“其他”没有模板时不列）；选了只剩这一组，段头收起 ----
     await page.getByTestId('gallery-group').click();
-    await expect(page.getByTestId('gallery-group-ui')).toContainText('13');
-    await expect(page.getByTestId('gallery-group-blocks')).toContainText('2');
-    await expect(page.getByTestId('gallery-group-seasonal')).toHaveAttribute('data-disabled', '');
+    for (const g of GROUP_ORDER) {
+      const item = page.getByTestId(`gallery-group-${g}`);
+      const n = groupCount(g);
+      if (g === 'other' && n === 0) {
+        await expect(item).toHaveCount(0);
+        continue;
+      }
+      await expect(item.locator('.num'), g).toHaveText(String(n));
+      if (n === 0) await expect(item, g).toHaveAttribute('data-disabled', '');
+      else await expect(item, g).not.toHaveAttribute('data-disabled');
+    }
     await page.getByTestId('gallery-group-ui').click();
     const ui = await shownIds(page);
-    expect(ui).toHaveLength(13);
+    sameIds(ui, idsOf((e) => groupOf(e) === 'ui'));
+    inFullOrder(ui);
     expect(ui).toContain('allay.builtin.loading-screen');
     expect(ui).toContain('allay.builtin.advancement-toast');
     await expect(page.locator('[data-testid^="gallery-section-"] h3')).toHaveCount(0);
-    await expect(page.getByTestId('gallery-count')).toHaveText('13 个模板');
-    // 类别和分组一起：“标题”里没有界面组的模板 → 说明加出路
+    await expect(page.getByTestId('gallery-count')).toHaveText(`${ui.length} 个模板`);
+    // 类别和分组一起：“标题”里没有界面组的模板 → 说明加出路（出路是放开分组，留在“标题”里）
+    expect(idsOf((e) => groupOf(e) === 'ui' && e.manifest.category === 'title'), '前提：界面组里没有标题类模板').toEqual([]);
     await page.getByTestId('gallery-tab-title').click();
     await expect(page.getByTestId('gallery-filtered-empty')).toBeVisible();
     await page.getByTestId('gallery-filtered-empty').getByRole('button').click();
-    expect(await shownIds(page)).toEqual(['user.e2e.title']);
+    const titles = await shownIds(page);
+    sameIds(titles, idsOf((e) => e.manifest.category === 'title'));
+    expect(titles).toContain('user.e2e.title');
     await page.getByTestId('gallery-tab-all').click();
 
     // ---- 搜索：两种语言的名称、组名、id；结果数；没有结果时的一句话 ----
+    // 每个词的预期结果由 expectedHits 从 manifest 算；先确认这个词测得到它要测的东西
     await page.keyboard.press('Control+KeyF');
     const box = page.getByTestId('gallery-search');
     await expect(box).toBeFocused();
-    await box.fill('block wipe');
-    expect(await shownIds(page)).toEqual(['allay.builtin.block-wipe']);
-    await expect(page.getByTestId('gallery-count')).toHaveText('1 个结果');
-    await box.fill('着色器');
-    expect(await shownIds(page)).toEqual(['allay.builtin.pixel-dissolve']);
-    await box.fill('sound-subtitles');
-    expect(await shownIds(page)).toEqual(['allay.builtin.sound-subtitles']);
+    const search = async (query: string, mustFind: string): Promise<string[]> => {
+      const want = expectedHits(all, query);
+      expect(want, `前提：“${query}”搜得到 ${mustFind}`).toContain(mustFind);
+      await box.fill(query);
+      const got = await shownIds(page);
+      sameIds(got, want);
+      inFullOrder(got);
+      await expect(page.getByTestId('gallery-count')).toHaveText(`${want.length} 个结果`);
+      return got;
+    };
+    // 英文名，两个词
+    await search('block wipe', 'allay.builtin.block-wipe');
+    // 组名：像素溶解自己的名称、说明、tags 里都没有“着色器”，只能经它所在组的名字（像素与着色器）搜到；同组的全部搜到
+    const pixel = all.find((e) => e.id === 'allay.builtin.pixel-dissolve')!;
+    expect(ownText(pixel), '前提：像素溶解自己的文字里没有“着色器”').not.toContain('着色器');
+    const byGroupName = await search('着色器', pixel.id);
+    for (const id of idsOf((e) => groupOf(e) === groupOf(pixel))) expect(byGroupName).toContain(id);
+    // id
+    await search('sound-subtitles', 'allay.builtin.sound-subtitles');
+    expect(expectedHits(all, '末影龙'), '前提：“末影龙”什么也搜不到').toEqual([]);
     await box.fill('末影龙');
     await expect(page.getByTestId('gallery-no-results')).toContainText('没有找到“末影龙”');
     await expect(page.getByTestId('gallery-no-results')).toContainText('可以搜模板的中文名、英文名');
     await page.getByTestId('gallery-clear-search').click();
     await expect(box).toHaveValue('');
     // 别的类别里有：提示有几个，一键去全部模板里看
+    const subtitles = expectedHits(all, 'subtitles');
+    expect(subtitles, '前提：“subtitles”搜得到声音字幕').toContain('allay.builtin.sound-subtitles');
+    expect(subtitles.filter((id) => category.get(id) === 'transition'), '前提：转场里没有“subtitles”').toEqual([]);
     await page.getByTestId('gallery-tab-transition').click();
     await box.fill('subtitles');
-    await expect(page.getByTestId('gallery-no-results')).toContainText('之外还有 1 个结果');
+    await expect(page.getByTestId('gallery-no-results')).toContainText(`之外还有 ${subtitles.length} 个结果`);
     await page.getByTestId('gallery-show-everywhere').click();
-    expect(await shownIds(page)).toEqual(['allay.builtin.sound-subtitles']);
+    sameIds(await shownIds(page), subtitles);
     await expect(page.getByTestId('gallery-tab-all')).toHaveAttribute('aria-selected', 'true');
     await box.fill('');
 
     // ---- 键盘：卡片是一个 Tab 停靠点，方向键在卡片间走，回车选中；方向键不再拖动时间 ----
     const order = await shownIds(page);
+    // 下方向键的去处按卡片在屏幕上的位置算：下一行的同一列，那一行短就是它的最后一张（每个组从新的一行开始）
+    const below = (id: string) =>
+      page.evaluate((from) => {
+        const cards = [...document.querySelectorAll<HTMLElement>('[data-testid="template-list"] [data-card-key] [data-testid^="template-"]')].map((el) => ({ id: el.dataset.testid!.slice('template-'.length), r: el.getBoundingClientRect() }));
+        const at = cards.find((c) => c.id === from)!;
+        const nextTop = Math.min(...cards.filter((c) => c.r.top > at.r.bottom - 1).map((c) => c.r.top));
+        const row = cards.filter((c) => Math.abs(c.r.top - nextTop) < 1);
+        return (row.find((c) => Math.abs(c.r.left - at.r.left) < 1) ?? row.at(-1))?.id ?? from;
+      }, id);
     await page.getByTestId(`template-${order[0]}`).focus();
     const t0 = await page.evaluate(() => window.__allayTest!.transport().time);
     await page.keyboard.press('ArrowRight');
     await expect(page.getByTestId(`template-${order[1]}`)).toBeFocused();
+    const down = await below(order[1]!);
+    expect(down, '前提：第二张卡片下面还有一行').not.toBe(order[1]);
     await page.keyboard.press('ArrowDown');
-    await expect(page.getByTestId(`template-${order[2]}`)).toBeFocused();
+    await expect(page.getByTestId(`template-${down}`)).toBeFocused();
     await page.keyboard.press('End');
     await expect(page.getByTestId(`template-${order.at(-1)}`)).toBeFocused();
     await page.keyboard.press('Home');
@@ -233,9 +315,9 @@ test('T-GAL-9 类别标签、分组筛选、搜索、键盘', async () => {
     await expect.poll(() => page.evaluate(() => window.__allayTest!.project().ref?.id)).toBe(order[1]);
     // 搜索框里按下方向键：到第一张卡片
     await page.keyboard.press('Control+KeyF');
-    await box.fill('擦除');
+    const wipes = await search('擦除', 'allay.builtin.block-wipe');
     await box.press('ArrowDown');
-    await expect(page.getByTestId('template-allay.builtin.block-wipe')).toBeFocused();
+    await expect(page.getByTestId(`template-${wipes[0]}`)).toBeFocused();
   } finally {
     await stop(ctx);
   }
