@@ -1,23 +1,31 @@
 // 原版层（docs/03-assets.md 3.4）：本机 Minecraft Java 版的客户端 jar 加资源索引。只读，不复制任何文件。
 //
-// 探测：在候选目录里读 versions/<id>/<id>.json，只考虑同目录下有 <id>.jar 的版本，
+// 探测：在候选目录里读 versions/<目录>/<目录>.json，只考虑同目录下有 <目录>.jar 的版本，
 // 取 type 为 release 且 releaseTime 最新的一个；再按 assetIndex.id 找 assets/indexes/<id>.json，
 // 音效等文件在 assets/objects/<哈希前两位>/<哈希>。
+// 目录名原样用（PCL 等启动器给模组版本起的名字可以带空格、括号、中文）；真实的游戏版本从 jar 根目录的 version.json、
+// 版本 JSON 的 clientVersion / inheritsFrom 读，不靠目录名。jar 里只读 assets/ 和根目录的 version.json，模组版本目录也一样。
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isSafeRelativePath, parseJarVersionJson, type PackFormat } from '@allay/assets';
+import { isSafeRelativePath, isVersionDirName, parseJarVersionJson, VersionIdSchema, type PackFormat } from '@allay/assets';
 import { z } from 'zod';
 import type { ClosableLayer } from './layers';
 import { MAX_ENTRY_BYTES, openZip } from './zip';
 
 export const VANILLA_LAYER_ID = 'vanilla';
 
-/** 版本 JSON 的宽松 schema：只取需要的字段，其余忽略 */
+/** 版本 JSON 里写的游戏版本：只收像版本号的（和下载缓存的版本号一样的字符集），其余当作没写 */
+const GameVersionField = VersionIdSchema.optional().catch(undefined);
+
+/** 版本 JSON 的宽松 schema：只取需要的字段，其余忽略；只用来展示、找资源索引的字段坏了当作没写，不连累整个版本 */
 const VersionJsonSchema = z.looseObject({
   type: z.string(),
   releaseTime: z.string(),
-  assetIndex: z.looseObject({ id: z.string().regex(/^[\w.-]+$/) }).optional(),
-  inheritsFrom: z.string().max(64).optional(),
+  assetIndex: z.looseObject({ id: z.string().regex(/^[\w.-]+$/) }).optional().catch(undefined),
+  /** 模组加载器（Fabric、Forge、OptiFine）的版本 JSON：继承自哪个原版 */
+  inheritsFrom: GameVersionField,
+  /** PCL 等启动器写的原版版本号（模组版本、整合包的目录里也有） */
+  clientVersion: GameVersionField,
 });
 
 const AssetIndexSchema = z.looseObject({
@@ -29,7 +37,10 @@ const MAX_JSON_BYTES = 16 * 1024 * 1024;
 
 export interface VanillaInstall {
   gameDir: string;
+  /** 本机的是 versions/ 下的目录名（官方启动器里就是版本号），下载缓存的是版本号 */
   versionId: string;
+  /** 版本 JSON 里写的真实游戏版本（clientVersion，其次 inheritsFrom）；和目录名相同、或者没写时缺省 */
+  gameVersion?: string;
   releaseTime: string;
   jarPath: string;
   /** 资源索引不存在时为 null（没有音效，贴图照常） */
@@ -78,14 +89,16 @@ async function readJson(path: string): Promise<unknown> {
 
 /**
  * 一个游戏目录里所有带 jar 的版本（正式版、快照都算），新的在前。只读，不抛错。
- * 版本 id 要能当目录名用（只含字母数字、点、下划线、连字符）；带空格的（PCL 给模组版本起的名字）跳过。
+ * 目录名原样用，只要它是 versions/ 的一个直接子目录名（isVersionDirName：没有分隔符、控制字符，不是 . ..，不超过 255 个字符）；
+ * PCL 给模组版本起的“1.20.1-Fabric 0.19.3”、整合包的中文名都列出来。
+ * 发布时间相同的（PCL 的模组版本照抄原版的版本 JSON），目录名就是版本号的原版排在前面，所以自动挑选优先选原版目录。
  */
 export async function listVersions(gameDir: string): Promise<VanillaInstall[]> {
   const versionsDir = join(gameDir, 'versions');
   const names = await readdir(versionsDir, { withFileTypes: true }).catch(() => []);
   const found: VanillaInstall[] = [];
   for (const d of names) {
-    if (!d.isDirectory() || !/^[\w.-]{1,64}$/.test(d.name) || d.name === '.' || d.name === '..') continue;
+    if (!d.isDirectory() || !isVersionDirName(d.name)) continue;
     const id = d.name;
     const jarPath = join(versionsDir, id, `${id}.jar`);
     if (!(await isFile(jarPath))) continue;
@@ -93,9 +106,11 @@ export async function listVersions(gameDir: string): Promise<VanillaInstall[]> {
     if (!parsed.success || Number.isNaN(Date.parse(parsed.data.releaseTime))) continue;
     const indexId = parsed.data.assetIndex?.id;
     const indexPath = indexId ? join(gameDir, 'assets', 'indexes', `${indexId}.json`) : null;
+    const gameVersion = parsed.data.clientVersion ?? parsed.data.inheritsFrom;
     found.push({
       gameDir,
       versionId: id,
+      ...(gameVersion && gameVersion !== id ? { gameVersion } : {}),
       releaseTime: parsed.data.releaseTime,
       jarPath,
       assetIndexPath: indexPath && (await isFile(indexPath)) ? indexPath : null,
@@ -103,7 +118,12 @@ export async function listVersions(gameDir: string): Promise<VanillaInstall[]> {
       type: parsed.data.type,
     });
   }
-  found.sort((a, b) => Date.parse(b.releaseTime) - Date.parse(a.releaseTime) || (a.versionId < b.versionId ? 1 : -1));
+  found.sort(
+    (a, b) =>
+      Date.parse(b.releaseTime) - Date.parse(a.releaseTime) ||
+      Number(a.gameVersion !== undefined) - Number(b.gameVersion !== undefined) ||
+      (a.versionId < b.versionId ? 1 : a.versionId > b.versionId ? -1 : 0),
+  );
   return found;
 }
 
@@ -137,9 +157,13 @@ export interface VanillaLayerOptions {
   fetchObject?: (hash: string, size: number) => Promise<string>;
 }
 
-/** 原版层多带的信息：版本和这一版的资源包格式号（jar 根目录的 version.json） */
+/**
+ * 原版层多带的信息：来源的版本标识（本机的是目录名）、真实的游戏版本、这一版的资源包格式号（jar 根目录的 version.json）。
+ * gameVersion 先取 jar 根目录 version.json 的 id（模组版本目录里的 jar 是原版客户端的副本，最可靠），
+ * 其次版本 JSON 的 clientVersion、inheritsFrom；都没有时为 null（官方启动器 1.14 之前的版本，目录名就是版本号）
+ */
 export interface VanillaLayerExtras {
-  vanilla: { versionId: string; releaseTime: string; type: string | null; resourceFormat: PackFormat | null; gameDir: string; hasAssetIndex: boolean };
+  vanilla: { versionId: string; gameVersion: string | null; releaseTime: string; type: string | null; resourceFormat: PackFormat | null; gameDir: string; hasAssetIndex: boolean };
 }
 
 export async function openVanillaLayer(install: VanillaInstall, options: VanillaLayerOptions & { id?: string } = {}): Promise<ClosableLayer & VanillaLayerExtras> {
@@ -164,18 +188,23 @@ export async function openVanillaLayer(install: VanillaInstall, options: Vanilla
     }
     const jarStat = await stat(install.jarPath);
     let resourceFormat: PackFormat | null = null;
+    let jarVersion: string | null = null;
     if (jar.has('version.json')) {
       const bytes = await jar.read('version.json').catch(() => null);
-      if (bytes && bytes.byteLength <= 65_536) resourceFormat = parseJarVersionJson(new TextDecoder().decode(bytes))?.resourceFormat ?? null;
+      const info = bytes && bytes.byteLength <= 65_536 ? parseJarVersionJson(new TextDecoder().decode(bytes)) : null;
+      resourceFormat = info?.resourceFormat ?? null;
+      if (info && VersionIdSchema.safeParse(info.id).success) jarVersion = info.id;
     }
+    const gameVersion = jarVersion ?? install.gameVersion ?? null;
     const all = [...new Set([...[...jar.paths].filter((p) => p.startsWith('assets/')), ...objects.keys()])].sort();
     return {
       id: options.id ?? VANILLA_LAYER_ID,
       kind: 'vanilla',
-      name: install.versionId,
+      // 层名是真实的游戏版本（界面上的“Minecraft 1.20.1”、原版基底的版本）；目录名在 vanilla.versionId 里
+      name: gameVersion ?? install.versionId,
       enabled: true,
       ...(resourceFormat ? { packFormat: resourceFormat.major } : {}),
-      vanilla: { versionId: install.versionId, releaseTime: install.releaseTime, type: install.type ?? null, resourceFormat, gameDir: install.gameDir, hasAssetIndex: objects.size > 0 },
+      vanilla: { versionId: install.versionId, gameVersion, releaseTime: install.releaseTime, type: install.type ?? null, resourceFormat, gameDir: install.gameDir, hasAssetIndex: objects.size > 0 },
       revision: `${install.versionId}:${jarStat.size}:${Math.round(jarStat.mtimeMs)}:${Math.round(indexMtime)}`,
       warnings,
       has: (path) => (path.startsWith('assets/') && jar.has(path)) || objects.has(path),

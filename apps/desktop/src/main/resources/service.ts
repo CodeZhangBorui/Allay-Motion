@@ -227,7 +227,7 @@ export class ResourceService {
     const vanilla: VanillaState = {
       consent: this.settings.vanilla.consent,
       enabled: this.settings.vanillaSources.length > 0 ? this.settings.vanillaSources.some((v) => v.enabled) : this.settings.vanilla.enabled,
-      local: this.local ? { versionId: this.local.versionId, gameDir: this.local.gameDir } : null,
+      local: this.local ? { versionId: this.local.versionId, gameDir: this.local.gameDir, ...(this.local.gameVersion ? { gameVersion: this.local.gameVersion } : {}) } : null,
       cached: this.cached ? { versionId: this.cached.versionId } : null,
       active: baseKind,
       problem: this.vanillaProblem,
@@ -243,10 +243,12 @@ export class ResourceService {
       if (l.kind === 'vanilla') {
         const v = this.vanillaLayers.get(l.id)?.layer.vanilla;
         info.source = l.id.startsWith('vanilla:dl:') ? 'downloaded' : 'local';
-        info.versionId = l.name;
+        // versionId 是来源的标识（本机的是目录名），name 是真实的游戏版本
+        info.versionId = v?.versionId ?? l.name;
         info.base = base?.layer.id === l.id;
         if (v) {
           if (info.source === 'local') info.gameDir = v.gameDir;
+          if (v.gameVersion) info.gameVersion = v.gameVersion;
           info.hasAssetIndex = v.hasAssetIndex;
         }
         const fmt = v?.resourceFormat ?? knownResourceFormat(l.name);
@@ -448,6 +450,7 @@ export class ResourceService {
     const local: VersionEntry[] = this.localVersions
       .map((v) => ({
         versionId: v.versionId,
+        ...(v.gameVersion ? { gameVersion: v.gameVersion } : {}),
         type: versionType(v.type ?? 'release'),
         releaseTime: v.releaseTime,
         gameDir: v.gameDir,

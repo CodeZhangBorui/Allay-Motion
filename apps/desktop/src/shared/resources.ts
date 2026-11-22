@@ -1,4 +1,4 @@
-import { isSafeRelativePath } from '@allay/assets';
+import { isSafeRelativePath, VersionDirSchema } from '@allay/assets';
 import { z } from 'zod';
 
 // resources、cache 两个 IPC 命名空间的数据（docs/01-product-architecture.md 1.8、docs/03-assets.md）。
@@ -21,8 +21,13 @@ export interface LayerInfo {
   source?: 'local' | 'downloaded' | 'zip' | 'folder' | 'linked' | 'imported';
   /** 内置层里有没有任何文件（v1 不自制素材，通常是空的） */
   empty?: boolean;
-  /** 原版层：版本号、游戏目录（本机的）、这一版的资源包格式号（“75”或“69.0”这样的文字） */
+  /**
+   * 原版层：来源的版本标识（本机的是 versions/ 下的目录名，下载的是版本号）、游戏目录（本机的）、
+   * 这一版的资源包格式号（“75”或“69.0”这样的文字）
+   */
   versionId?: string;
+  /** 原版层：真实的游戏版本（jar 根目录 version.json 的 id，读不到时取版本 JSON 的 clientVersion、inheritsFrom）；层的 name 就是它 */
+  gameVersion?: string;
   gameDir?: string;
   resourceFormat?: string;
   /** 原版层：是不是生效的原版基底（最上面启用的原版层） */
@@ -48,8 +53,8 @@ export interface VanillaState {
   /** 用户是否同意使用原版素材；null 表示还没问过 */
   consent: boolean | null;
   enabled: boolean;
-  /** 本机探测到的游戏（离线） */
-  local: { versionId: string; gameDir: string } | null;
+  /** 本机探测到的游戏（离线）：versionId 是目录名；gameVersion 是版本 JSON 里写的真实游戏版本，和目录名不同时才有 */
+  local: { versionId: string; gameDir: string; gameVersion?: string } | null;
   /** 下载缓存里的版本（离线检查） */
   cached: { versionId: string } | null;
   /** 当前资源栈里用的是哪个 */
@@ -68,7 +73,10 @@ export interface VanillaState {
 export type VersionKind = 'release' | 'snapshot' | 'old';
 
 export interface VersionEntry {
+  /** 本机的是 versions/ 下的目录名（加进资源栈时原样传回去），下载的、清单里的是版本号 */
   versionId: string;
+  /** 本机的：版本 JSON 里写的真实游戏版本（clientVersion、inheritsFrom），和目录名不同时才有（模组版本、整合包） */
+  gameVersion?: string;
   type: VersionKind;
   /** ISO 时间；版本清单里缺失时为空串 */
   releaseTime: string;
@@ -89,8 +97,12 @@ export interface VersionCatalog {
 
 export type RemoteVersionsResult = { ok: true; catalog: VersionCatalog } | { ok: false; error: DownloadErrorKind };
 
+/**
+ * 本机来源的 versionId 是版本列表给的目录名（可以带空格、括号、中文，见 @allay/assets 的 isVersionDirName）；
+ * 主进程只接受自己扫描游戏目录时见过的那些（ResourceService.findInstall）。下载的来源只能是 Mojang 的版本号
+ */
 export const VanillaSourceArgSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('local'), gameDir: z.string().min(1).max(4096), versionId: z.string().min(1).max(64).regex(/^[\w.-]+$/) }),
+  z.strictObject({ kind: z.literal('local'), gameDir: z.string().min(1).max(4096), versionId: VersionDirSchema }),
   z.strictObject({ kind: z.literal('downloaded'), versionId: z.string().min(1).max(64).regex(/^[\w.-]+$/) }),
 ]);
 export type VanillaSourceArg = z.infer<typeof VanillaSourceArgSchema>;
