@@ -34,10 +34,12 @@
 | `scoreColor` | color | `#FF5555` | 色板 `chat`，`showNumbers` 打开时显示 |
 | `titleFont` / `rowFont` | font | `embedded:default`（普通模式），不带阴影 | 名字和分数共用 `rowFont` |
 | `side` | enum | `right` | `right`（游戏）/ `left` |
-| `guiScale` | number | 5 | 1–8 |
+| `guiScale` | number | 6 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.25 / 4 / 0.25 | 0.05–5 / 0.1–20 / 0.05–5 |
 | `sound` | sound | 无 | 在变化那一刻播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 6（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，各行的名字在 5 时糊成一团（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 行的写法：最后一个用空白隔开的词是整数（可带正负号）时当分数，否则整行是名字、分数 0。重名的只留第一条。`showNumbers` 关掉时分数不显示，但仍然决定顺序。
 
