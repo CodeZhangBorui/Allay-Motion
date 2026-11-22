@@ -13,7 +13,7 @@
 - 进入：整体在 `inDuration` 里线性淡入。游戏里 Boss 栏是直接出现的，淡入淡出是为了首末帧透明加的。
 - 停留：第一条栏的进度先停在 `from`，停留开始 `changeAt` 秒后在 `changeDuration` 里匀速走到 `to`，之后不动。其余的栏一直停在 `otherProgress`。
 - 退出：整体在 `outDuration` 里线性淡出。
-- 界面宽度小于 190（栏加两侧各 4）时整体缩小到正好放下（等于把界面像素调小），版式不变。16:9、9:16、1:1 在默认的 `guiScale` 5 下都不用缩。
+- 界面宽度小于 190（栏加两侧各 4）时整体缩小到正好放下（等于把界面像素调小），版式不变。默认的 `guiScale` 7 下 16:9 不用缩；9:16、1:1（宽 1080，界面只有 154 宽）缩到正好放下。
 - 名字比界面还宽时，这一行自己缩小并保持贴着栏。游戏里不缩。
 - 首末帧全透明：时间窗首尾各让出一帧（`_lib/timing.ts` 的 `overlayWindows`）。
 
@@ -33,10 +33,12 @@
 | `notches2` / `notches3` / `notches4` | enum | `same` | `same` 或 `notches` 的 5 个选项 |
 | `nameColor` | color | `#FFFFFF` | 色板 `chat` |
 | `nameFont` | font | `embedded:default`（普通模式），带阴影 | — |
-| `guiScale` | number | 5 | 1–8 |
+| `guiScale` | number | 7 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.25 / 4 / 0.25 | 0.05–3 / 0.1–24 / 0.05–3 |
 | `sound` | sound | 无 | 在开头播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 7（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，名字在 6 以下看不清（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 自带预设：末影龙（粉色，1 → 0.35）、凋灵（紫色，0 → 1，像生成时蓄满）、袭击（红色、10 段）、视频进度条（白色，10 秒里从空到满）、两条栏（末影龙粉色、凋灵紫色）。预设里的名字分中英文，套用时按界面语言取（`docs/04-templates.md` 4.7）。
 
