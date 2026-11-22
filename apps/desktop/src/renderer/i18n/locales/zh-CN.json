@@ -557,7 +557,7 @@
       "off": "关"
     },
     "cache": "缩略图与封面缓存",
-    "cacheUsage": "{{files}} 个文件，{{size}}",
+    "cacheUsage": "{{files}} 个文件，{{size}}（上限 {{limit}}，满了先删最久没用的）",
     "clearCache": "清除缓存",
     "cacheCleared": "缓存已清除。",
     "ffmpeg": "FFmpeg 版本",

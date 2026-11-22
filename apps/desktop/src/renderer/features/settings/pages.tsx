@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { FolderInfo, FolderKind, FoldersInfo } from '../../../shared/folders';
 import { LANGUAGE_PREFS } from '../../../shared/settings';
-import type { CacheUsage } from '../../../shared/resources';
+import { CacheUsageSchema, type CacheUsage } from '../../../shared/resources';
 import { trigger } from '../../app/registry';
 import { notify } from '../../stores/noticeStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -83,7 +83,8 @@ export function AppearancePage() {
 export function AssetsPage() {
   const { t } = useTranslation();
   const [usage, setUsage] = useState<CacheUsage | null>(null);
-  const refresh = () => void window.allay.cache.usage().then(setUsage);
+  // 主进程交来的数据过一遍 schema：不合法时不显示读数
+  const refresh = () => void window.allay.cache.usage().then((u) => setUsage(CacheUsageSchema.safeParse(u).data ?? null));
   useEffect(refresh, []);
   return (
     <div className="flex flex-col">
@@ -96,7 +97,7 @@ export function AssetsPage() {
           label={t('settings.cache')}
           hint={
             <span className="num" data-testid="cache-usage">
-              {usage ? t('settings.cacheUsage', { files: usage.files, size: formatBytes(usage.bytes) }) : '…'}
+              {usage ? t('settings.cacheUsage', { files: usage.files, size: formatBytes(usage.bytes), limit: formatBytes(usage.limit) }) : '…'}
             </span>
           }
         >

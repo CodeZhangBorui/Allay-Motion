@@ -557,7 +557,7 @@
       "off": "Off"
     },
     "cache": "Thumbnail and cover cache",
-    "cacheUsage": "{{files}} files, {{size}}",
+    "cacheUsage": "{{files}} files, {{size}} (limit {{limit}}; the least recently used go first)",
     "clearCache": "Clear cache",
     "cacheCleared": "Cache cleared.",
     "ffmpeg": "FFmpeg version",
