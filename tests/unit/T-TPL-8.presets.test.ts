@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PresetStore } from '../../apps/desktop/src/main/templates/preset-store';
-import { applyPreset, createPreset, parseManifest, parsePreset, sanitizeParams, type ParamDef } from '../../packages/template-sdk/src/index';
+import { applyPreset, createPreset, localizePresetParams, parseManifest, parsePreset, sanitizeParams, type ParamDef } from '../../packages/template-sdk/src/index';
 import { log } from './helpers/template-fixtures';
 
 const T1 = (() => {
@@ -80,5 +80,54 @@ describe('T-TPL-8 预设', () => {
 
   it('parsePreset 走迁移框架：更高的格式版本拒绝', () => {
     expect(parsePreset({ formatVersion: 9 })).toEqual({ ok: false, error: 'format-too-new' });
+  });
+
+  it('模板自带的预设里，文字参数可以写成双语对象：套用时按界面语言取，缺一种语言时退回另一种；普通字符串照旧', () => {
+    const manifest = (presets: unknown[]) => ({
+      formatVersion: 1,
+      id: 'test.bilingual-presets',
+      version: '1.0.0',
+      name: 'test',
+      category: 'overlay',
+      params: [
+        { key: 'title', type: 'text', label: 'Title', default: { 'zh-CN': '第 1 天', en: 'Day 1' }, maxLength: 12 },
+        { key: 'count', type: 'integer', label: 'Count', default: 1, min: 0, max: 9 },
+      ],
+      presets,
+    });
+    const r = parseManifest(
+      manifest([
+        { key: 'day-100', name: { 'zh-CN': '第 100 天', en: 'Day 100' }, params: { title: { 'zh-CN': '第 100 天', en: 'Day 100' }, count: 3 } },
+        { key: 'zh-only', name: 'zh', params: { title: { 'zh-CN': '只有中文' } } },
+        { key: 'plain', name: 'plain', params: { title: 'Plain text' } },
+        { key: 'too-long', name: 'long', params: { title: { 'zh-CN': '一二三四五六七八九十甲乙丙丁', en: 'abcdefghijklmnop' } } },
+      ]),
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const [day100, zhOnly, plain, tooLong] = r.manifest.presets!;
+    const defs2 = r.manifest.params!;
+    expect(applyPreset(defs2, day100!, { locale: 'zh-CN' })).toEqual({ title: '第 100 天', count: 3 });
+    expect(applyPreset(defs2, day100!, { locale: 'en' })).toEqual({ title: 'Day 100', count: 3 });
+    // 没给语言时按英文；只有一种语言时退回那一种
+    expect(applyPreset(defs2, day100!).title).toBe('Day 100');
+    expect(applyPreset(defs2, zhOnly!, { locale: 'en' }).title).toBe('只有中文');
+    expect(applyPreset(defs2, plain!, { locale: 'zh-CN' }).title).toBe('Plain text');
+    // 取出来之后照常清洗：超过 maxLength 的截断
+    expect(applyPreset(defs2, tooLong!, { locale: 'zh-CN' }).title).toBe('一二三四五六七八九十甲乙');
+    expect(localizePresetParams(defs2, day100!.params, 'zh-CN')).toEqual({ title: '第 100 天', count: 3 });
+
+    // 写成对象但不是合法的多语言文字：manifest 校验不过，指出是哪个预设的哪个参数
+    for (const bad of [{ fr: 'Jour 1' }, { en: 5 }, { 'zh-CN': '第 1 天', en: 'Day 1', ja: '1日目' }]) {
+      const res = parseManifest(manifest([{ key: 'bad', name: 'bad', params: { title: bad } }]));
+      expect(res.ok, JSON.stringify(bad)).toBe(false);
+      if (!res.ok) expect(res.issues.map((i) => i.path)).toContain('presets.0.params.title');
+    }
+    // 其他类型的参数写成对象不归这条管：照旧交给清洗（回到默认值）
+    expect(parseManifest(manifest([{ key: 'odd', name: 'odd', params: { count: { en: 1 } } }])).ok).toBe(true);
+
+    // 用户自己存的预设不变：文字照旧存成当时界面语言下的普通字符串
+    const saved = createPreset({ id: 'test.bilingual-presets', version: '1.0.0' }, 'mine', defs2, applyPreset(defs2, day100!, { locale: 'en' }), new Date('2026-11-22T00:00:00Z'), { locale: 'en' });
+    expect(saved.params).toEqual({ title: 'Day 100', count: 3 });
   });
 });
