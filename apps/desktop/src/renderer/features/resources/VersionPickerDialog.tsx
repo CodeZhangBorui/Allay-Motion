@@ -87,7 +87,7 @@ export function VersionPickerDialog({ open, onOpenChange }: { open: boolean; onO
       row.source === 'local' ? { kind: 'local', gameDir: row.entry.gameDir ?? '', versionId: row.entry.versionId } : { kind: 'downloaded', versionId: row.entry.versionId },
     );
     useResourceStore.getState().replace(state);
-    // 加不进来的（jar 不是完整的原版客户端）资源栈不变：重新取一次列表，把原因标在那一行上
+    // 加不进来的（jar 不完整或打不开）资源栈不变：重新取一次列表，把原因标在那一行上
     const next = await window.allay.resources.versions().catch(() => null);
     if (next) setCatalog(next);
   };
