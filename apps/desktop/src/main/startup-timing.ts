@@ -7,6 +7,8 @@ export type StartupMark =
   | 'main-loaded'
   | 'app-ready'
   | 'settings-loaded'
+  /** 模板列表就绪（内置包读完、用户模板扫完） */
+  | 'templates-ready'
   | 'splash-created'
   | 'splash-shown'
   | 'window-created'

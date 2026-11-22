@@ -27,10 +27,12 @@ export interface TestSwitches {
   noWebgl: boolean;
   /** 默认文件夹的对话框不弹出，直接“选中”这个路径（界面增强的 e2e） */
   pickFolder: string | null;
+  /** 内置模板包的目录（代替 resources/templates）：测试用测试时生成的一百个模板量模板库（docs/decisions.md“模板库撑到一百个模板”） */
+  templatesDir: string | null;
 }
 
 export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<string, string | undefined>>): TestSwitches {
-  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false, pickFolder: null };
+  if (isPackaged) return { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false, pickFolder: null, templatesDir: null };
   const origin = env.ALLAY_E2E_MOJANG_ORIGIN;
   return {
     userDataDir: env.ALLAY_USER_DATA_DIR ? env.ALLAY_USER_DATA_DIR : null,
@@ -47,6 +49,7 @@ export function readTestSwitches(isPackaged: boolean, env: Readonly<Record<strin
     splash: env.ALLAY_E2E_SPLASH === '1',
     noWebgl: env.ALLAY_E2E_NO_WEBGL === '1',
     pickFolder: env.ALLAY_E2E_PICK_FOLDER ? env.ALLAY_E2E_PICK_FOLDER : null,
+    templatesDir: env.ALLAY_E2E_TEMPLATES_DIR ? env.ALLAY_E2E_TEMPLATES_DIR : null,
   };
 }
 
