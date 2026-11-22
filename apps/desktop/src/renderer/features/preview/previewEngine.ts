@@ -10,6 +10,7 @@ import { TemplateCodeError } from '../../../shared/template-code';
 import { usePreviewStore } from '../../stores/previewStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTransportStore } from '../../stores/transportStore';
+import { previewActivity } from './activity';
 import { loadIssuesOf } from './loadIssues';
 
 interface Viewport {
@@ -74,6 +75,8 @@ export class PreviewEngine {
   reload(): void {
     if (this.holdLoad || this.scheduled) return;
     this.scheduled = true;
+    // 排了装载：模板库的封面先让路（preview/activity.ts）
+    previewActivity.pulse();
     requestAnimationFrame(() => {
       this.scheduled = false;
       void this.loadCurrent();
@@ -202,7 +205,9 @@ export class PreviewEngine {
       await this.applyViewport();
       if (!this.holdLoad) await this.loadCurrent();
     };
+    previewActivity.begin();
     const p = run().finally(() => {
+      previewActivity.end();
       if (this.creating === p) this.creating = null;
     });
     this.creating = p;
@@ -249,6 +254,7 @@ export class PreviewEngine {
     const resolver = createResolver(() => (promoted ? this.assets : source.assets));
     let standby: EngineHost | null = null;
     let result: LoadResult;
+    previewActivity.begin();
     try {
       standby = await this.createHost(canvas, resolver);
       if (vp) await standby.resize(vp.pixelWidth, vp.pixelHeight);
@@ -257,6 +263,8 @@ export class PreviewEngine {
     } catch (error) {
       standby?.dispose();
       return { ok: false, error };
+    } finally {
+      previewActivity.end();
     }
     const host = standby;
     return {
@@ -334,9 +342,11 @@ export class PreviewEngine {
       return;
     }
     this.busy = true;
+    previewActivity.begin();
     try {
       await this.loadOnce();
     } finally {
+      previewActivity.end();
       this.busy = false;
       if (this.again) {
         this.again = false;
