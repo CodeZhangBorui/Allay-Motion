@@ -74,11 +74,11 @@
 
 ## 4. 素材核对
 
-对照的游戏版本：Java 版 26.3、1.21.1、1.19.2（本机客户端 jar 的文件清单）。
+对照的游戏版本：Java 版 26.3、1.21.1、1.19.2（本机客户端 jar 的文件清单）。1.19.2 一列里写“按 1.20.1”的格子是后来在另一台机器上补核对的：那台机器没有 1.19.2，用的是 1.20.1 的客户端 jar（同样早于 1.20.2）。
 
 | 素材 | 26.3 | 1.21.1 | 1.19.2 | 没有时 |
 |---|---|---|---|---|
-| 字体 `embedded:default`（普通模式）：ASCII 等用资源栈 `minecraft:default` 的位图字形（`assets/minecraft/font/default.json`），资源栈里没有的字形（中文等）用随应用内嵌的 GNU Unifont 18.0.01；预设“强制 Unicode 字体”用 `embedded:uniform`，全部用内嵌 Unifont | 有 | 有 | 没核对 | 没有原版素材时普通模式全部用内嵌 Unifont（字形和宽度与 Mojangles 不同），位置公式不变；按文字宽度定的尺寸用实际量出的宽度。模板不加载、不引用任何字体文件 |
+| 字体 `embedded:default`（普通模式）：ASCII 等用资源栈 `minecraft:default` 的位图字形（`assets/minecraft/font/default.json`），资源栈里没有的字形（中文等）用随应用内嵌的 GNU Unifont 18.0.01；预设“强制 Unicode 字体”用 `embedded:uniform`，全部用内嵌 Unifont | 有 | 有 | 有（按 1.20.1：`font/default.json`、`textures/font/ascii.png` 都在） | 没有原版素材时普通模式全部用内嵌 Unifont（字形和宽度与 Mojangles 不同），位置公式不变；按文字宽度定的尺寸用实际量出的宽度。模板不加载、不引用任何字体文件 |
 | `minecraft:gui/sprites/toast/now_playing` | 有 | 没有（1.21.6 加的） | 没有 | 面板画成同样大小的深灰纯色块（`#212121`，不是原版的样子） |
 | `minecraft:gui/sprites/icon/music_notes` | 有 | 没有（1.21.6 加的） | 没有 | 不画图标，文字位置不变 |
 | 物品贴图 `item/music_disc_cat`（`icon` = `disc` 时） | 有 | 有 | 有 | 引擎的占位贴图 |

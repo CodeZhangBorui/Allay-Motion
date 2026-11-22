@@ -64,15 +64,15 @@
 
 ## 4. 素材核对
 
-对照的游戏版本：Java 版 26.3、1.21.1、1.19.2（本机客户端 jar 的文件清单和资源索引）。
+对照的游戏版本：Java 版 26.3、1.21.1、1.19.2（本机客户端 jar 的文件清单和资源索引）。1.19.2 一列里写“按 1.20.1”的格子是后来在另一台机器上补核对的：那台机器没有 1.19.2，用的是 1.20.1 的客户端 jar 和资源索引 5（同样早于 1.20.2，贴图路径和 1.19.2 相同）。
 
 | 素材 | 26.3 | 1.21.1 | 1.19.2 | 没有时 |
 |---|---|---|---|---|
 | `minecraft:gui/sprites/boss_bar/<颜色>_background`、`_progress`（7 种颜色） | 有 | 有 | 没有 | 退回旧图集 |
 | `minecraft:gui/sprites/boss_bar/notched_<6\|10\|12\|20>_background`、`_progress` | 有 | 有 | 没有 | 颜色贴图有而刻度贴图没有时不画刻度 |
 | `minecraft:gui/bars`（旧图集） | 没有 | 没有 | 有 | 退回纯色 |
-| 字体 `embedded:default`（普通模式）：ASCII 等用资源栈 `minecraft:default` 的位图字形（`assets/minecraft/font/default.json`），资源栈里没有的字形（中文等）用随应用内嵌的 GNU Unifont 18.0.01；预设“强制 Unicode 字体”用 `embedded:uniform`，全部用内嵌 Unifont | 有 | 有 | 没核对 | 没有原版素材时普通模式全部用内嵌 Unifont（字形和宽度与 Mojangles 不同），位置公式不变；按文字宽度定的尺寸用实际量出的宽度。模板不加载、不引用任何字体文件 |
-| 音效 `minecraft:event.raid.horn`、`minecraft:entity.wither.spawn`、`minecraft:entity.ender_dragon.growl` | 有 | 有 | 没核对 | — |
+| 字体 `embedded:default`（普通模式）：ASCII 等用资源栈 `minecraft:default` 的位图字形（`assets/minecraft/font/default.json`），资源栈里没有的字形（中文等）用随应用内嵌的 GNU Unifont 18.0.01；预设“强制 Unicode 字体”用 `embedded:uniform`，全部用内嵌 Unifont | 有 | 有 | 有（按 1.20.1：`font/default.json`、`textures/font/ascii.png` 都在） | 没有原版素材时普通模式全部用内嵌 Unifont（字形和宽度与 Mojangles 不同），位置公式不变；按文字宽度定的尺寸用实际量出的宽度。模板不加载、不引用任何字体文件 |
+| 音效 `minecraft:event.raid.horn`、`minecraft:entity.wither.spawn`、`minecraft:entity.ender_dragon.growl` | 有 | 有 | 有（按 1.20.1 的 `sounds.json`） | — |
 
 - 选贴图的顺序：先试这种颜色的两张单张贴图（1.20.2 起），都有就用；否则试旧图集 `gui/bars`；再没有就画纯色。
 - 纯色的样子：一个深色矩形当底、一个栏颜色的矩形当进度，位置和大小与贴图版相同；没有高光、描边和刻度。颜色是近似值。

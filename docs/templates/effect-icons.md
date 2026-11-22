@@ -65,7 +65,7 @@
 | 素材 | 26.3 | 1.21.1 | 1.19.2 | 没有时 |
 |---|---|---|---|---|
 | `minecraft:gui/sprites/hud/effect_background`、`effect_background_ambient` | 有 | 有 | 没有 | 退回旧图集 `minecraft:gui/container/inventory` 的那一块；也没有时画 24 × 24 的纯色块（普通的深灰，信标的深蓝） |
-| `minecraft:gui/container/inventory`（256 × 256 的图集） | 没查 | 没查 | 有 | 只在新路径没有时用 |
+| `minecraft:gui/container/inventory`（256 × 256 的图集） | 有 | 有 | 有 | 只在新路径没有时用（新版本里还在，是物品栏界面的背景） |
 | `minecraft:mob_effect/<名字>`：列表里除 1.21 起的六个之外的 31 个 | 有 | 有 | 有 | 画 18 × 18 的纯色块，颜色是这个效果的占位色 |
 | `minecraft:mob_effect/raid_omen`、`trial_omen`、`infested`、`oozing`、`weaving`、`wind_charged` | 有 | 有 | 没有 | 同上；选项的名字里标了“1.21 起” |
 
