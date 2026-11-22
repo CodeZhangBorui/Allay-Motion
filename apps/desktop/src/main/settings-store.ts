@@ -93,8 +93,11 @@ export class SettingsStore {
     } catch {
       return 'invalid JSON';
     }
-    const migrated = migrateSettingsFile(json);
+    const notes: string[] = [];
+    const migrated = migrateSettingsFile(json, notes);
     if (!migrated) return `schema mismatch (expected formatVersion ${SETTINGS_FORMAT_VERSION})`;
+    // 单条坏掉的设置（例如资源栈里一条打不开的原版来源）只丢那一条；记下丢了什么，下次写文件时它就不在了
+    for (const note of notes) this.log.warn('settings', 'invalid settings entry ignored', { note });
     this.current = migrated;
     return null;
   }

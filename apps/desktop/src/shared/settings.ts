@@ -1,4 +1,13 @@
-import { DEFAULT_RESOURCE_STACK_SETTINGS, ResourceStackSettingsSchema, type ResourceStackSettings } from '@allay/assets';
+import {
+  DEFAULT_RESOURCE_STACK_SETTINGS,
+  MAX_VANILLA_SOURCES,
+  PackSourceSchema,
+  VanillaSourceSchema,
+  vanillaLayerId,
+  type PackEntry,
+  type ResourceStackSettings,
+  type VanillaSourceEntry,
+} from '@allay/assets';
 import { defaultEditorAppSettings, EditorAppSettingsSchema } from './code-window';
 import { z } from 'zod';
 import { H264ProbeSchema } from './export';
@@ -205,6 +214,83 @@ export function defaultResourceSettings(): ResourceStackSettings {
   return structuredClone(DEFAULT_RESOURCE_STACK_SETTINGS);
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+/** 日志里给出被丢掉的那一项（截断，免得一条坏数据把日志撑大） */
+const shown = (v: unknown): string => (JSON.stringify(v) ?? String(v)).slice(0, 300);
+
+/** 读文件时的一条原版来源：id 按来源重新算，所以 id 坏了不要紧；开关坏了算开着；不认识的键忽略 */
+const VanillaSourceEntryFileSchema = z.object({ source: VanillaSourceSchema, enabled: z.boolean().catch(true) });
+/** 读文件时的一个资源包：id 不能重新算（文件夹包的 id 是随机的），必须在；不认识的键忽略 */
+const PackEntryFileSchema = z.object({ id: z.string().min(1).max(256), name: z.string().catch(''), source: PackSourceSchema, enabled: z.boolean().catch(true) });
+
+/**
+ * 读 settings.json 里的资源栈（只有主进程读写）。各部分单独兜底，坏一处只丢那一处，不连累同意、游戏目录和其余条目：
+ * - vanilla 的三个字段各自回到默认值；
+ * - vanillaSources、packs 里过不了 schema 的条目、和前面重复的条目各自丢掉，其余照常；
+ * - 原版来源的 id 按来源重新算（vanillaLayerId）：同一个来源总是同一个层 id，旧文件里对不上的以算出来的为准；
+ * - 不认识的键忽略（新版本写的文件给旧版本读时不至于整节作废）。
+ * 丢掉、改掉了什么写进 notes，由读设置的一方写日志。整节都不是对象时用默认值。
+ */
+export function readResourceSettings(raw: unknown, notes: string[] = []): ResourceStackSettings {
+  const out = defaultResourceSettings();
+  if (raw === undefined) return out;
+  if (!isRecord(raw)) {
+    notes.push(`resources is not an object, using defaults: ${shown(raw)}`);
+    return out;
+  }
+  const v = raw.vanilla;
+  if (isRecord(v)) {
+    const consent = z.boolean().nullable().safeParse(v.consent);
+    if (consent.success) out.vanilla.consent = consent.data;
+    else notes.push(`resources.vanilla.consent reset: ${shown(v.consent)}`);
+    const enabled = z.boolean().safeParse(v.enabled);
+    if (enabled.success) out.vanilla.enabled = enabled.data;
+    else notes.push(`resources.vanilla.enabled reset: ${shown(v.enabled)}`);
+    const dir = z.string().min(1).nullable().safeParse(v.dir);
+    if (dir.success) out.vanilla.dir = dir.data;
+    else notes.push(`resources.vanilla.dir reset: ${shown(v.dir)}`);
+  } else if (v !== undefined) {
+    notes.push(`resources.vanilla reset: ${shown(v)}`);
+  }
+
+  const sources = raw.vanillaSources;
+  if (Array.isArray(sources)) {
+    const seen = new Set<string>();
+    sources.forEach((item, i) => {
+      const parsed = VanillaSourceEntryFileSchema.safeParse(item);
+      if (!parsed.success) return void notes.push(`resources.vanillaSources[${i}] dropped: ${shown(item)}`);
+      const id = vanillaLayerId(parsed.data.source);
+      if (seen.has(id)) return void notes.push(`resources.vanillaSources[${i}] dropped (duplicate of ${id})`);
+      if (out.vanillaSources.length >= MAX_VANILLA_SOURCES) return void notes.push(`resources.vanillaSources[${i}] dropped (more than ${MAX_VANILLA_SOURCES})`);
+      seen.add(id);
+      const stored = isRecord(item) ? item.id : undefined;
+      if (stored !== id) notes.push(`resources.vanillaSources[${i}] id ${shown(stored)} → ${id}`);
+      const entry: VanillaSourceEntry = { id, source: parsed.data.source, enabled: parsed.data.enabled };
+      out.vanillaSources.push(entry);
+    });
+  } else if (sources !== undefined) {
+    notes.push(`resources.vanillaSources reset: ${shown(sources)}`);
+  }
+
+  const packs = raw.packs;
+  if (Array.isArray(packs)) {
+    const seen = new Set<string>();
+    packs.forEach((item, i) => {
+      const parsed = PackEntryFileSchema.safeParse(item);
+      if (!parsed.success) return void notes.push(`resources.packs[${i}] dropped: ${shown(item)}`);
+      if (seen.has(parsed.data.id)) return void notes.push(`resources.packs[${i}] dropped (duplicate id ${parsed.data.id})`);
+      // vanilla 开头的 id 留给原版来源：撞上了资源栈就组不起来
+      if (parsed.data.id.startsWith('vanilla')) return void notes.push(`resources.packs[${i}] dropped (id ${parsed.data.id} is reserved for vanilla sources)`);
+      seen.add(parsed.data.id);
+      const entry: PackEntry = parsed.data;
+      out.packs.push(entry);
+    });
+  } else if (packs !== undefined) {
+    notes.push(`resources.packs reset: ${shown(packs)}`);
+  }
+  return out;
+}
+
 /** 导出的应用级设置（M7），只有主进程读写：上次选的输出文件夹、H.264 探测结果的缓存（5.3） */
 export const ExportAppSettingsSchema = z.strictObject({
   folder: z.string().min(1).max(1000).nullable(),
@@ -231,8 +317,11 @@ export const SettingsFileSchema = z.object({
   formatVersion: z.literal(SETTINGS_FORMAT_VERSION),
   ui: UiSettingsSchema.catch(defaultUiSettings),
   window: WindowStateSchema.optional().catch(undefined),
-  /** 资源栈（应用级设置，1.9），只有主进程读写 */
-  resources: ResourceStackSettingsSchema.catch(defaultResourceSettings).default(defaultResourceSettings),
+  /** 资源栈（应用级设置，1.9），只有主进程读写。坏掉的条目各自丢掉（readResourceSettings） */
+  resources: z
+    .unknown()
+    .transform((raw): ResourceStackSettings => readResourceSettings(raw))
+    .default(defaultResourceSettings),
   /** 导出（M7），只有主进程读写 */
   export: ExportAppSettingsSchema.catch(defaultExportAppSettings).default(defaultExportAppSettings),
   /** 工程（6.11），只有主进程读写 */
@@ -269,17 +358,20 @@ export function fallbackSettingsFile(): SettingsFile {
  * - 没有 ui.tourCompleted（新手引导上线之前写的文件）：跟着 onboardingCompleted 明确记着的值，没有记就读成 true；
  * - 没有 ui.shortcuts、project：用默认值。
  * 整个不能用时返回 null（调用方把文件留档，换 fallbackSettingsFile）。
+ * notes 收集读的时候丢掉、改掉的条目（资源栈里坏掉的原版来源、资源包等），由调用方写日志。
  */
-export function migrateSettingsFile(json: unknown): SettingsFile | null {
+export function migrateSettingsFile(json: unknown, notes?: string[]): SettingsFile | null {
   const parsed = SettingsFileSchema.safeParse(json);
   if (!parsed.success) return null;
+  // schema 里已经按同样的规则读过一遍；这里再读一遍只是为了把丢掉了什么记下来
+  const resources = notes ? readResourceSettings((json as { resources?: unknown }).resources, notes) : parsed.data.resources;
   const rawUi = (json as { ui?: unknown }).ui;
   const hasFlag = (key: 'onboardingCompleted' | 'tourCompleted') => typeof rawUi === 'object' && rawUi !== null && typeof (rawUi as Record<string, unknown>)[key] === 'boolean';
   const ui = { ...parsed.data.ui };
   // 新手引导跟在首次启动引导后面：首次启动引导明确记着没走完（新装后中途退出）时，新手引导也还没看；否则算看过
   if (!hasFlag('tourCompleted')) ui.tourCompleted = hasFlag('onboardingCompleted') ? ui.onboardingCompleted : true;
   if (!hasFlag('onboardingCompleted')) ui.onboardingCompleted = true;
-  return { ...parsed.data, ui };
+  return { ...parsed.data, ui, resources };
 }
 
 export function applyUiPatch(current: UiSettings, patch: UiSettingsPatch): UiSettings {

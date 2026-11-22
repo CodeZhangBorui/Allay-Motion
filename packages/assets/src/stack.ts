@@ -186,6 +186,17 @@ export function vanillaLayerId(source: VanillaSource): string {
   return source.kind === 'downloaded' ? `vanilla:dl:${source.versionId}` : `vanilla:local:${fnv1a64(source.gameDir).slice(0, 10)}:${source.versionId}`;
 }
 
+/** 原版来源最多几条 */
+export const MAX_VANILLA_SOURCES = 64;
+
+/** 设置里的一条原版来源；id 是 vanillaLayerId(source) */
+export const VanillaSourceEntrySchema = z.strictObject({ id: z.string().min(1).max(128), source: VanillaSourceSchema, enabled: z.boolean() });
+export type VanillaSourceEntry = z.infer<typeof VanillaSourceEntrySchema>;
+
+/** 设置里的一个资源包 */
+export const PackEntrySchema = z.strictObject({ id: z.string().min(1), name: z.string(), source: PackSourceSchema, enabled: z.boolean() });
+export type PackEntry = z.infer<typeof PackEntrySchema>;
+
 export const ResourceStackSettingsSchema = z.strictObject({
   vanilla: z.strictObject({
     /** 用户是否同意使用本机游戏文件；null 表示还没问过 */
@@ -198,9 +209,9 @@ export const ResourceStackSettingsSchema = z.strictObject({
    * 原版来源，从下往上，可以有多个（2026-11 反馈）。最上面启用的那个是“生效的原版基底”：同名文件它胜出，
    * 资源包格式按它匹配；下面的只补它没有的文件。旧设置没有这个字段，主进程第一次探测后按旧的二选一规则迁移一条。
    */
-  vanillaSources: z.array(z.strictObject({ id: z.string().min(1).max(128), source: VanillaSourceSchema, enabled: z.boolean() })).max(64).default([]),
+  vanillaSources: z.array(VanillaSourceEntrySchema).max(MAX_VANILLA_SOURCES).default([]),
   /** 从下往上 */
-  packs: z.array(z.strictObject({ id: z.string().min(1), name: z.string(), source: PackSourceSchema, enabled: z.boolean() })),
+  packs: z.array(PackEntrySchema),
 });
 export type ResourceStackSettings = z.infer<typeof ResourceStackSettingsSchema>;
 
