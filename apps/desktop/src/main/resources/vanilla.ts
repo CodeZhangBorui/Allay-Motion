@@ -107,32 +107,13 @@ export async function listVersions(gameDir: string): Promise<VanillaInstall[]> {
   return found;
 }
 
-/** 在一个游戏目录里找有 jar 且最新的正式版；找不到返回 null，不抛错 */
+/**
+ * 在一个游戏目录里找有 jar 且最新的正式版；找不到返回 null，不抛错。
+ * 就是 listVersions 列出的正式版里排在最前的那个：自动挑选和版本列表用同一套判断，
+ * 永远不会自动选中一个列表里没有、应用自己打不开的版本（以前这里另有一套更宽的过滤，挑中过带空格的目录）。
+ */
 export async function findLatestRelease(gameDir: string): Promise<VanillaInstall | null> {
-  const versionsDir = join(gameDir, 'versions');
-  const names = await readdir(versionsDir, { withFileTypes: true }).catch(() => []);
-  const found: VanillaInstall[] = [];
-  for (const d of names) {
-    if (!d.isDirectory() || !isSafeRelativePath(d.name) || d.name.includes('/')) continue;
-    const id = d.name;
-    const jarPath = join(versionsDir, id, `${id}.jar`);
-    if (!(await isFile(jarPath))) continue;
-    const parsed = VersionJsonSchema.safeParse(await readJson(join(versionsDir, id, `${id}.json`)).catch(() => null));
-    if (!parsed.success || parsed.data.type !== 'release') continue;
-    if (Number.isNaN(Date.parse(parsed.data.releaseTime))) continue;
-    const indexId = parsed.data.assetIndex?.id;
-    const indexPath = indexId ? join(gameDir, 'assets', 'indexes', `${indexId}.json`) : null;
-    found.push({
-      gameDir,
-      versionId: id,
-      releaseTime: parsed.data.releaseTime,
-      jarPath,
-      assetIndexPath: indexPath && (await isFile(indexPath)) ? indexPath : null,
-      objectsDir: join(gameDir, 'assets', 'objects'),
-    });
-  }
-  found.sort((a, b) => Date.parse(b.releaseTime) - Date.parse(a.releaseTime) || (a.versionId < b.versionId ? 1 : -1));
-  return found[0] ?? null;
+  return (await listVersions(gameDir)).find((v) => v.type === 'release') ?? null;
 }
 
 /** 依次试候选目录，返回第一个找到的安装 */
