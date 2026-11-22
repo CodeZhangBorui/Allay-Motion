@@ -65,6 +65,7 @@
 | 附了魔的常见物品按稀有显示 | 稀有度 | 凭记忆 |
 | 默认文字：钻石剑 / Diamond Sword、锋利 / Sharpness、耐久 / Unbreaking、V、III、“在主手时：” / “When in Main Hand:”、攻击伤害 / Attack Damage | 语言文件 | 对照过游戏文件（26.3 和 1.21.1 的 zh_cn、en_us） |
 | 游戏里提示框出现没有声音 | — | 凭记忆 |
+| `§` 后面跟的不是格式码时（例如 `§z`）：`§` 不显示，后面的字照常显示。`&` 后面不是格式码时 `&` 当普通字符（`&` 是模板自己加的写法，游戏里只有 `§`） | 游戏的文字格式化；模板里是 `_lib/gui-kit.ts` 的 `parseFormatted` | 凭记忆。minecraft.wiki/w/Formatting_codes 只列了合法的码，写了 Java 版里颜色码会清掉粗体等样式（模板照做），没写不认识的码怎么处理 |
 
 ## 4. 素材核对
 
