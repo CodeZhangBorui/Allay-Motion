@@ -3,6 +3,7 @@
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule, TextObject } from '@allay/template-sdk';
 import { overlayWindows, progress } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, firstTexture, fontOf, num, rgbOf, str, type Quads } from '../../_lib/src/gui-kit';
 import {
   actionbarLayout,
@@ -120,7 +121,7 @@ const template: TemplateModule = {
       duration: win.duration,
       cutTime: null,
       update(t: number) {
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         const current = texts.length > 1 ? rainbowIndex(t, steps) : 0;
         for (let i = 0; i < texts.length; i++) {
           const on = i === current;
