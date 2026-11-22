@@ -1,6 +1,7 @@
 // 模板的界面动作：选模板、安装（含试运行）、删除。结果变成窗口底部的提示。
 import type { TFunction } from 'i18next';
 import type { StageResult, TemplateEntry } from '../../../shared/templates';
+import { previewActivity } from '../preview/activity';
 import { previewEngine } from '../preview/previewEngine';
 import { useNoticeStore } from '../../stores/noticeStore';
 import { clearHistory, useProjectStore } from '../../stores/projectStore';
@@ -10,11 +11,17 @@ import { trialRun, type TrialResult } from './trial';
 
 /** 选一个已安装的模板：参数取默认值（text 按界面语言取一次） */
 export async function selectTemplate(id: string, version: string, locale: string, params: Readonly<Record<string, unknown>> = {}): Promise<boolean> {
-  const source = await readTemplate(id, version);
-  if (!source) return false;
-  useProjectStore.getState().setTemplate(source, params, locale);
-  previewEngine.retry();
-  return true;
+  // 从点下卡片起预览就算“忙”：模板库的封面先让路（preview/activity.ts）
+  previewActivity.begin();
+  try {
+    const source = await readTemplate(id, version);
+    if (!source) return false;
+    useProjectStore.getState().setTemplate(source, params, locale);
+    previewEngine.retry();
+    return true;
+  } finally {
+    previewActivity.end();
+  }
 }
 
 /** 启动时：取模板列表，选旗舰模板的最高版本（没有就选第一个能装载的） */

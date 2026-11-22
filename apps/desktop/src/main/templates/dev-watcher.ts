@@ -62,6 +62,16 @@ async function contentFiles(dir: string, prefix = ''): Promise<string[]> {
   return out.sort();
 }
 
+type Hash = ReturnType<typeof createHash>;
+
+function hashFile(h: Hash, rel: string, data: Uint8Array): void {
+  h.update(rel);
+  h.update('\0');
+  h.update(String(data.byteLength));
+  h.update('\0');
+  h.update(data);
+}
+
 /** 模板内容的哈希；版本目录或 manifest.json 不在时为 null */
 export async function hashTemplateDir(dir: string): Promise<string | null> {
   const files = await contentFiles(dir);
@@ -75,12 +85,19 @@ export async function hashTemplateDir(dir: string): Promise<string | null> {
       // 读的时候正好被删或被改名：下一个事件会再算一次
       continue;
     }
-    h.update(rel);
-    h.update('\0');
-    h.update(String(data.byteLength));
-    h.update('\0');
-    h.update(data);
+    hashFile(h, rel, data);
   }
+  return h.digest('hex');
+}
+
+/**
+ * 一组已经在内存里的模板文件（包内路径 → 内容）的哈希，算法与 hashTemplateDir 相同：同样的内容放在文件夹里或包里，哈希一样。
+ * 只算模板内容（manifest.json、template.js、assets/**）。内置模板的包用它（模板库封面的缓存键，docs/decisions.md“模板库撑到一百个模板”）
+ */
+export function hashTemplateFiles(files: Iterable<readonly [string, Uint8Array]>): string {
+  const h = createHash('sha256');
+  const sorted = [...files].filter(([rel]) => isTemplateContentPath(rel)).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const [rel, data] of sorted) hashFile(h, rel, data);
   return h.digest('hex');
 }
 

@@ -22,6 +22,7 @@
       "all": "All",
       "transition": "Transitions",
       "overlay": "Overlays",
+      "title": "Titles",
       "mine": "Mine"
     },
     "categories": {
@@ -39,7 +40,33 @@
     "remove": "Delete template",
     "tabsLabel": "Library",
     "searchToggle": "Search templates",
-    "presetsEmpty": "This template has no presets yet. Save one from “Presets” in the properties panel."
+    "presetsEmpty": "This template has no presets yet. Save one from “Presets” in the properties panel.",
+    "groups": {
+      "blocks": "Blocks",
+      "items": "Items & entities",
+      "ui": "Game UI",
+      "particles": "Particles & weather",
+      "text": "Text & captions",
+      "channel": "Channel branding",
+      "shader": "Pixel & shader",
+      "seasonal": "Seasonal",
+      "other": "Other"
+    },
+    "groupAll": "All groups",
+    "groupLabel": "Filter by group",
+    "total": "{{count}} templates",
+    "totalOne": "1 template",
+    "results": "{{count}} results",
+    "resultsOne": "1 result",
+    "noResultsElsewhere": "{{count}} more outside the current category and group.",
+    "showEverywhere": "Search all templates",
+    "noResultsHint": "Search by Chinese or English name, description, group name or id.",
+    "filteredEmpty": "No “{{group}}” templates in “{{category}}”.",
+    "showAllGroups": "Show all groups",
+    "rendering": "Rendering covers…",
+    "coverFailed": "The cover could not be rendered: {{reason}}",
+    "detail": "{{category}} · {{group}}",
+    "listLabel": "Template list"
   },
   "templates": {
     "installed": "Template installed.",
@@ -249,7 +276,7 @@
       "checking": "Checking that the cut frame is fully covered…",
       "ok": "The cut frame ({{frame}}) is fully covered.",
       "warn": "At the cut frame ({{frame}}) the picture isn’t fully covered, so the seam will show.",
-      "overlay": "Overlay templates have no cut point."
+      "overlay": "This template has no cut point (overlays and titles don’t), so there is nothing to check."
     },
     "start": "Export",
     "cancel": "Cancel",
@@ -538,7 +565,7 @@
       "off": "Off"
     },
     "cache": "Thumbnail and cover cache",
-    "cacheUsage": "{{files}} files, {{size}}",
+    "cacheUsage": "{{files}} files, {{size}} (limit {{limit}}; the least recently used go first)",
     "clearCache": "Clear cache",
     "cacheCleared": "Cache cleared.",
     "ffmpeg": "FFmpeg version",
@@ -1178,7 +1205,7 @@
       },
       "templates": {
         "title": "Template library",
-        "body": "All your templates live here. A template is a ready-made transition or overlay animation, such as “Block wipe”.\nClick a card to switch to that template; hover over it to see it move. “Mine” holds the templates you saved yourself."
+        "body": "All your templates live here. A template is a ready-made transition, overlay or title animation, such as “Block wipe”. Filter by category and group above, or search.\nClick a card to switch to that template; hover over it to see it move. “Mine” holds the templates you saved yourself."
       },
       "templateVsPreset": {
         "title": "Templates vs. presets",
@@ -1202,7 +1229,7 @@
       },
       "export": {
         "title": "Export",
-        "body": "Click here when you’re done. The small arrow on the right lets you pick a format directly, such as video with a transparent background.\nDrop the exported file into your video editor and use it as a transition or overlay."
+        "body": "Click here when you’re done. The small arrow on the right lets you pick a format directly, such as video with a transparent background.\nDrop the exported file into your video editor and use it as a transition, overlay or title."
       },
       "help": {
         "title": "Come back any time",

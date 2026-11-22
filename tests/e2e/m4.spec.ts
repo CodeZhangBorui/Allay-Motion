@@ -226,14 +226,16 @@ for (const language of ['zh-CN', 'en'] as const) {
         expect(text.match(RAW_KEY)?.[0] ?? null, `${where}：界面上出现了文案键`).toBeNull();
       };
       await check('主界面');
-      // 每个内置模板：卡片有封面、悬停时播放预览，选中后属性面板（各模板用到的参数类型）不溢出
+      // 每个内置模板：卡片有封面、悬停时播放预览，选中后属性面板（各模板用到的参数类型）不溢出。
+      // 封面只给滚到可见范围附近的卡片生成、悬停预览停够了才生成（docs/decisions.md“模板库撑到一百个模板”）：先滚到它
       await coversReady(page);
       const builtins = (await page.evaluate(() => window.__allayTest!.templates())).filter((e) => e.source === 'builtin' && !e.baseMissing);
       for (const e of builtins) {
         const card = page.getByTestId(`template-${e.id}`);
+        await card.scrollIntoViewIfNeeded();
         await expect(card.locator('img'), `${e.id} 的封面`).toBeVisible({ timeout: 30_000 });
         await card.hover();
-        await expect(card.locator('canvas'), `${e.id} 的悬停预览`).toBeVisible();
+        await expect(card.locator('canvas'), `${e.id} 的悬停预览`).toBeVisible({ timeout: 30_000 });
         await card.click();
         await expect.poll(() => page.evaluate(() => window.__allayTest!.project().ref?.id)).toBe(e.id);
         await upToDate(page);
@@ -288,16 +290,20 @@ for (const theme of ['dark', 'light'] as const) {
     const ctx = await start({ theme, language: 'zh-CN' });
     const { page } = ctx;
     try {
-      // 封面生成完、预览在第 0 帧
+      // 封面生成完（可见范围里的卡片都有了）、预览在第 0 帧
       await coversReady(page);
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="template-list"] [data-in-view="true"] [data-cover="loading"]').length === 0);
       await page.evaluate(() => window.__allayTest!.setTime(0));
       await upToDate(page);
       await page.waitForTimeout(500);
-      // 引擎画出来的东西（预览画布、封面、方块缩略图）随显卡不同，蒙住；悦灵头像会眨眼，也蒙住
+      // 引擎画出来的东西（预览画布、封面、方块缩略图）随显卡不同，蒙住；悦灵头像会眨眼，也蒙住。
+      // 模板库的封面不用蒙版：蒙版按元素的方框画、不管滚动容器的裁切，面板下边缘露出一半的卡片会盖到时间轴上。
+      // 改成把卡片里的图藏起来，只留界面自己画的棋盘格底、选中框、名称和时长
+      await page.addStyleTag({ content: '[data-testid="template-list"] img, [data-testid="template-list"] canvas { visibility: hidden !important; }' });
       await expect(page).toHaveScreenshot(`ui-${theme}.png`, {
         animations: 'disabled',
         caret: 'hide',
-        mask: [page.locator('canvas'), page.locator('img'), page.locator('[data-allay]'), page.getByTestId('template-list').locator('.preview-checker-sm')],
+        mask: [page.locator('canvas:not([data-testid="template-list"] canvas)'), page.locator('img:not([data-testid="template-list"] img)'), page.locator('[data-allay]')],
         maxDiffPixelRatio: 0.01,
         timeout: 30_000,
       });

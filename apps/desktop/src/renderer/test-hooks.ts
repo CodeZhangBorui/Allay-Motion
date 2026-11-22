@@ -17,6 +17,7 @@ import { previewEngine } from './features/preview/previewEngine';
 import { setDebugLoading } from './features/preview/debugLoading';
 import { missingKeys } from './i18n';
 import { thumbnails, type ThumbKind, type ThumbSize } from './features/thumbnails/thumbnails';
+import { covers, type CoverStats } from './features/gallery/covers';
 import type { ResourceState } from '../shared/resources';
 import { useResourceStore } from './stores/resourceStore';
 import { usePreviewStore, type PreviewStatus } from './stores/previewStore';
@@ -133,6 +134,11 @@ export interface AllayTestHooks {
   // ---- 悦灵（M5b）----
   /** 悦灵帧循环每帧耗时的统计（T-ALY-6）；reset 为真时读完清零 */
   mascotStats(reset?: boolean): MascotFrameStats;
+  // ---- 模板库（docs/decisions.md“模板库撑到一百个模板”）----
+  /** 封面服务的统计：渲染过哪些封面、悬停预览，撤掉过哪些，现在排着什么、可见范围里有哪些（T-GAL） */
+  coverStats(): CoverStats;
+  /** 悬停预览每渲染一帧多等 ms 毫秒（测“渲染中途移开指针就停”） */
+  setCoverFrameDelay(ms: number): void;
 }
 
 /** reviewFrames 的结果 */
@@ -407,6 +413,8 @@ export function installTestHooks(): void {
       if (reset) resetMascotFrameStats();
       return s;
     },
+    coverStats: () => covers.debugStats(),
+    setCoverFrameDelay: (ms) => covers.setTestFrameDelay(ms),
   };
   Object.defineProperty(window, '__allayTest', { value: Object.freeze(hooks), configurable: false, writable: false });
 }

@@ -47,6 +47,8 @@ export interface BrowserHostOptions {
 /** 资源栈指纹：固定值（这一层构建后不会变），格式与主进程相同（16 位十六进制）；有没有原版贴图是两个不同的栈 */
 const STAMP = mcGameVersion ? '0eb5de00000000a2' : '0eb5de0000000001';
 const DEMO_LAYER_ID = 'web-demo';
+/** 网页里缩略图缓存的总量上限（只在内存里）：落地页十几个模板的封面和网格图约 7 MB，留几倍余量 */
+const BROWSER_THUMB_LIMIT = 32 * 1024 * 1024;
 const MC_LAYER_ID = 'web-mc';
 
 type Listener<T> = (value: T) => void;
@@ -85,7 +87,9 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
   const settingsChanged = emitter<UiSettings>();
   const updatesChanged = emitter<UpdateState>();
   const resourcesChanged = emitter<ResourceState>();
+  // 缩略图缓存只在内存里：和桌面版一样只留当前 stamp 的，总量有上限（按放进去的先后淘汰）
   const thumbs = new Map<string, Uint8Array>();
+  let thumbBytes = 0;
   const presets: PresetEntry[] = [];
   const jobs = new Map<string, { preset: ExportPreset; frames: number }>();
 
@@ -452,10 +456,25 @@ export function createBrowserHost(opts: BrowserHostOptions): { api: AllayApi; ap
     cache: {
       getThumb: async (stamp, key) => thumbs.get(`${stamp}/${key}`)?.slice() ?? null,
       putThumb: async (stamp, key, png) => {
-        thumbs.set(`${stamp}/${key}`, png.slice());
+        const id = `${stamp}/${key}`;
+        for (const [k, v] of thumbs) {
+          if (k !== id && k.startsWith(`${stamp}/`)) continue;
+          thumbs.delete(k);
+          thumbBytes -= v.byteLength;
+        }
+        thumbs.set(id, png.slice());
+        thumbBytes += png.byteLength;
+        for (const [k, v] of thumbs) {
+          if (thumbBytes <= BROWSER_THUMB_LIMIT || k === id) break;
+          thumbs.delete(k);
+          thumbBytes -= v.byteLength;
+        }
       },
-      clear: async () => thumbs.clear(),
-      usage: async () => ({ files: thumbs.size, bytes: [...thumbs.values()].reduce((n, b) => n + b.byteLength, 0) }),
+      clear: async () => {
+        thumbs.clear();
+        thumbBytes = 0;
+      },
+      usage: async () => ({ files: thumbs.size, bytes: thumbBytes, limit: BROWSER_THUMB_LIMIT }),
     },
   };
   return { api, applySettings };

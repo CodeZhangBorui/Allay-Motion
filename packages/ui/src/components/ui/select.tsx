@@ -38,7 +38,8 @@ function SelectContent({ className, children, ...props }: SelectPrimitive.Popup.
 function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Props) {
   return (
     <SelectPrimitive.Item className={cn(menuItemClass, 'pr-7', className)} {...props}>
-      <SelectPrimitive.ItemText className="flex min-w-0 items-center gap-2">{children}</SelectPrimitive.ItemText>
+      {/* 占满整行：条目右侧可以放一个右对齐的读数（如模板库分组的数量） */}
+      <SelectPrimitive.ItemText className="flex min-w-0 flex-1 items-center gap-2">{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator className="absolute right-2 inline-flex">
         <Check />
       </SelectPrimitive.ItemIndicator>

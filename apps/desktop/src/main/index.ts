@@ -138,10 +138,14 @@ if (!app.requestSingleInstanceLock()) {
     // 安装目录旁边（安装盘上）：系统临时文件夹所在磁盘不够时让安装程序用它（docs/decisions.md“安装时临时空间不足”）
     fallbackTempDir: app.isPackaged && process.platform === 'win32' ? join(dirname(dirname(process.execPath)), 'AllayMotion-update-temp') : null,
   });
-  // 模板：内置的来自 resources/templates/（pnpm templates:build 的产物），用户的在 userData/templates/（4.8、4.9）
-  const templates = new TemplateService({ builtinDir: join(bundledResources, 'templates'), userDataDir: userData, appVersion: app.getVersion(), log });
+  // 模板：内置的来自 resources/templates/（pnpm templates:build 的产物），用户的在 userData/templates/（4.8、4.9）。
+  // 测试可以换成自己生成的目录（只在未打包时生效，同其他测试开关）
+  const templates = new TemplateService({ builtinDir: testSwitches.templatesDir ?? join(bundledResources, 'templates'), userDataDir: userData, appVersion: app.getVersion(), log });
   const presets = new PresetStore(userData, log);
-  const templatesReady = templates.init().catch((error: unknown) => log.error('templates', 'init failed', { error }));
+  const templatesReady = templates.init().then(
+    () => startup.mark('templates-ready'),
+    (error: unknown) => log.error('templates', 'init failed', { error }),
+  );
   // 模板开发模式（MD）：监视 userData/templates/，外部改动经 templates:changed 推给渲染进程。
   // shell.openPath 只会收到模板的文件夹（dev-service 里按 id 和版本解析、确认在用户模板目录之内）
   const templateDev = new TemplateDevService({

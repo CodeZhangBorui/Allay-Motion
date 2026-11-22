@@ -129,3 +129,19 @@
 [data-reduced-motion='true'] .tour-bubble {
   transition: none;
 }
+
+/*
+ * 模板库的段头（features/gallery/GalleryPanel.tsx）：吸顶。只在真的贴在顶上时下面多一条 1 px 分隔线，
+ * 把它和从底下滚过的卡片分开（组间分隔线，6.2 的 divider 用法）；不吸顶时没有线。
+ */
+.gallery-section-head {
+  container-type: scroll-state;
+}
+.gallery-section-head > .gallery-section-rule {
+  opacity: 0;
+}
+@container scroll-state(stuck: top) {
+  .gallery-section-head > .gallery-section-rule {
+    opacity: 1;
+  }
+}

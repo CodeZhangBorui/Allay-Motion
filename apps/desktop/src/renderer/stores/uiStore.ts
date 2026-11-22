@@ -12,6 +12,7 @@ import {
   type UiSettingsPatch,
 } from '../../shared/settings';
 import type { ExportPreset } from '../../shared/export';
+import type { CategoryTab, GroupFilter } from '../features/gallery/library';
 
 // uiStore（1.7）：面板宽度、折叠状态、主题、语言，以及编辑器偏好（预览背景、参考线、分组折叠、最近使用）。
 // 真正的持久化在主进程的 settings.json（1.6 第 10 条：不用 localStorage）。
@@ -35,6 +36,9 @@ interface UiState {
   rightTab: string;
   /** 模板库的搜索词 */
   galleryQuery: string;
+  /** 模板库的类别标签和分组筛选（换到“预设”页再回来时保留；不持久化） */
+  galleryTab: CategoryTab;
+  galleryGroup: GroupFilter;
   /** 预设保存、导入后加一，让各处的预设列表重新取 */
   presetsVersion: number;
   /** 模板库的搜索框是否展开（Ctrl+F 或搜索图标） */
@@ -100,6 +104,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   leftTab: 'templates',
   rightTab: 'props',
   galleryQuery: '',
+  galleryTab: 'all',
+  galleryGroup: 'all',
   presetsVersion: 0,
   searchOpen: false,
   exportPreset: null,

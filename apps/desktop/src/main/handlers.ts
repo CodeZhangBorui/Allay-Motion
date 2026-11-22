@@ -337,6 +337,8 @@ export function registerHandlers({ registrar, settings, grants, exports, resourc
   // ---- cache（缩略图，3.10）----
   handle(IPC.cache.getThumb, (_event, stamp, key) => thumbs.get(stamp, key));
   handle(IPC.cache.putThumb, async (_event, stamp, key, png) => {
+    // 资源栈已经变了：渲染进程里在途的旧封面、旧缩略图不再写（写进旧 stamp 的目录会把当前 stamp 的目录当成“旧的”删掉）
+    if (stamp !== resources.resourceStamp) return;
     if (!(await thumbs.put(stamp, key, png))) throw new IpcRejected('thumbnail is not a PNG');
   });
   handle(IPC.cache.clear, () => thumbs.clear());

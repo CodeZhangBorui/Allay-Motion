@@ -22,6 +22,7 @@
       "all": "全部",
       "transition": "转场",
       "overlay": "叠加",
+      "title": "标题",
       "mine": "我的"
     },
     "categories": {
@@ -39,7 +40,33 @@
     "remove": "删除模板",
     "tabsLabel": "模板库",
     "searchToggle": "搜索模板",
-    "presetsEmpty": "当前模板还没有预设。可以在属性面板的“预设”里保存。"
+    "presetsEmpty": "当前模板还没有预设。可以在属性面板的“预设”里保存。",
+    "groups": {
+      "blocks": "方块",
+      "items": "物品与实体",
+      "ui": "原版界面",
+      "particles": "粒子与天气",
+      "text": "文字与字幕",
+      "channel": "频道包装",
+      "shader": "像素与着色器",
+      "seasonal": "节日与主题",
+      "other": "其他"
+    },
+    "groupAll": "全部分组",
+    "groupLabel": "按分组筛选",
+    "total": "{{count}} 个模板",
+    "totalOne": "1 个模板",
+    "results": "{{count}} 个结果",
+    "resultsOne": "1 个结果",
+    "noResultsElsewhere": "当前的类别和分组之外还有 {{count}} 个结果。",
+    "showEverywhere": "在全部模板里看",
+    "noResultsHint": "可以搜模板的中文名、英文名、说明、分组名或 id。",
+    "filteredEmpty": "“{{category}}”里没有“{{group}}”的模板。",
+    "showAllGroups": "显示全部分组",
+    "rendering": "正在生成封面…",
+    "coverFailed": "封面没能生成：{{reason}}",
+    "detail": "{{category}} · {{group}}",
+    "listLabel": "模板列表"
   },
   "templates": {
     "installed": "模板已安装。",
@@ -249,7 +276,7 @@
       "checking": "正在检查剪辑点的画面是否完全遮住…",
       "ok": "剪辑点（第 {{frame}} 帧）画面完全遮住。",
       "warn": "剪辑点（第 {{frame}} 帧）这一刻画面没有完全遮住，接缝会露出来。",
-      "overlay": "叠加层模板没有剪辑点。"
+      "overlay": "这个模板没有剪辑点（叠加层和标题都没有），不用检查遮盖。"
     },
     "start": "导出",
     "cancel": "取消",
@@ -538,7 +565,7 @@
       "off": "关"
     },
     "cache": "缩略图与封面缓存",
-    "cacheUsage": "{{files}} 个文件，{{size}}",
+    "cacheUsage": "{{files}} 个文件，{{size}}（上限 {{limit}}，满了先删最久没用的）",
     "clearCache": "清除缓存",
     "cacheCleared": "缓存已清除。",
     "ffmpeg": "FFmpeg 版本",
@@ -1178,7 +1205,7 @@
       },
       "templates": {
         "title": "模板库",
-        "body": "这里是所有的模板。一个模板就是一段做好的转场或叠加动画，比如“方块擦除”。\n点一下卡片就换成这个模板，鼠标停在卡片上能看到它动起来的样子。“我的”里放的是你自己存的模板。"
+        "body": "这里是所有的模板。一个模板就是一段做好的转场、叠加层或标题动画，比如“方块擦除”。上面可以按类别、分组筛选，也可以搜索。\n点一下卡片就换成这个模板，鼠标停在卡片上能看到它动起来的样子。“我的”里放的是你自己存的模板。"
       },
       "templateVsPreset": {
         "title": "模板和预设有什么不一样？",
@@ -1202,7 +1229,7 @@
       },
       "export": {
         "title": "导出",
-        "body": "做好了就点这里。右边的小箭头可以直接挑格式，比如带透明通道的视频。\n导出的文件放进剪辑软件，就能当转场或叠加层用。"
+        "body": "做好了就点这里。右边的小箭头可以直接挑格式，比如带透明通道的视频。\n导出的文件放进剪辑软件，就能当转场、叠加层或标题用。"
       },
       "help": {
         "title": "随时回来看看",

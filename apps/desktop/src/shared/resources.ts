@@ -284,10 +284,14 @@ export type SoundFilesResult = { ok: true; states: Record<string, SoundFileState
 export const MAX_SOUND_FILES = 256;
 export const SoundFileNamesSchema = z.array(z.string().min(3).max(256).regex(/^[a-z0-9_.-]+:[a-z0-9_./-]+$/)).max(MAX_SOUND_FILES);
 
-export interface CacheUsage {
-  files: number;
-  bytes: number;
-}
+/** 缩略图缓存的占用（cache.usage 的结果；渲染进程收到后再过一遍 schema） */
+export const CacheUsageSchema = z.strictObject({
+  files: z.int().nonnegative(),
+  bytes: z.number().nonnegative(),
+  /** 总量上限（字节）：超过时删掉最久没用的（main/thumb-cache.ts 的 MAX_CACHE_BYTES） */
+  limit: z.number().positive(),
+});
+export type CacheUsage = z.infer<typeof CacheUsageSchema>;
 
 // ---- 入参 schema ----
 

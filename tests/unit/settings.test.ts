@@ -179,8 +179,9 @@ describe('只给测试用的开关', () => {
     ALLAY_E2E_SPLASH: '1',
     ALLAY_E2E_NO_WEBGL: '1',
     ALLAY_E2E_PICK_FOLDER: 'C:/picked',
+    ALLAY_E2E_TEMPLATES_DIR: 'C:/templates',
   };
-  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false, pickFolder: null };
+  const OFF = { userDataDir: null, hiddenWindow: false, testHooks: false, exportTarget: null, ffmpeg: null, h264Candidates: null, gameAppData: null, mojangOrigin: null, projectPath: null, mascotDir: null, splash: false, noWebgl: false, pickFolder: null, templatesDir: null };
   it('打包后的应用忽略它们', async () => {
     const { readTestSwitches } = await import('../../apps/desktop/src/main/test-switches');
     expect(readTestSwitches(true, ALL)).toEqual(OFF);
@@ -201,6 +202,7 @@ describe('只给测试用的开关', () => {
       splash: true,
       noWebgl: true,
       pickFolder: 'C:/picked',
+      templatesDir: 'C:/templates',
     });
     // 假服务器只能是本机回环地址
     for (const bad of ['https://127.0.0.1:4567', 'http://evil.example:80', 'http://127.0.0.1:4567/x', 'http://localhost:4567'])

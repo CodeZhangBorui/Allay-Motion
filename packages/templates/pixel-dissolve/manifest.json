@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "category": "transition",
-  "tags": ["pixel", "dissolve"],
+  "tags": ["shader", "pixel", "dissolve"],
   "groups": [
     { "key": "cells", "label": { "zh-CN": "格子", "en": "Cells" } },
     { "key": "look", "label": { "zh-CN": "外观", "en": "Look" } },
