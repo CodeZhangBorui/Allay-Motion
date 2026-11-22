@@ -12,14 +12,16 @@ import {
   BAR_PITCH,
   BAR_W,
   barLayout,
+  barStyles,
   filledWidth,
   fitUnit,
   NOTCH_COUNTS,
   PLAIN_COLORS,
   progressAt,
+  SAME,
   visibleBars,
 } from '../../packages/templates/boss-bar/src/layout';
-import { defaultParams, parseManifest, sameValue, sanitizeParams, type ParamValue } from '../../packages/template-sdk/src/index';
+import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams, type ParamValue } from '../../packages/template-sdk/src/index';
 
 const manifest = (() => {
   const r = parseManifest(JSON.parse(readFileSync(join(import.meta.dirname, '../../packages/templates/boss-bar/manifest.json'), 'utf8')));
@@ -66,13 +68,20 @@ describe('T-TPL-C039 Boss 栏', () => {
     };
     expect(options('color')).toEqual([...BAR_COLORS]);
     expect(options('notches')).toEqual(['none', ...NOTCH_COUNTS.map(String)]);
+    // 第二条起的栏：多一个“和第一条一样”，默认就是它
+    for (const k of [2, 3, 4]) {
+      expect(options(`color${k}`)).toEqual([SAME, ...BAR_COLORS]);
+      expect(options(`notches${k}`)).toEqual([SAME, 'none', ...NOTCH_COUNTS.map(String)]);
+      expect([d[`color${k}`], d[`notches${k}`]]).toEqual([SAME, SAME]);
+    }
   });
 
-  it('T-TPL-C039-2 每个自带预设都能载入：值经过清洗后不变，音效在允许的范围里', () => {
+  it('T-TPL-C039-2 每个自带预设都能载入：两种语言下值经过清洗后不变，英文下名字是英文，音效在允许的范围里', () => {
     expect(manifest.presets?.length).toBeGreaterThanOrEqual(3);
-    for (const preset of manifest.presets ?? []) {
-      const applied = sanitizeParams(defs, { ...defaultParams(defs), ...preset.params });
-      for (const [k, v] of Object.entries(preset.params)) expect(sameValue(applied[k], v as ParamValue), `${preset.key}.${k}`).toBe(true);
+    for (const [preset, locale] of (manifest.presets ?? []).flatMap((p) => (['zh-CN', 'en'] as const).map((l) => [p, l] as const))) {
+      const applied = applyPreset(defs, preset, { locale });
+      for (const [k, v] of Object.entries(localizePresetParams(defs, preset.params, locale))) expect(sameValue(applied[k], v), `${preset.key}.${k} (${locale})`).toBe(true);
+      if (locale === 'en') expect(applied.names, `${preset.key}.names`).not.toMatch(/[\u3400-\u9fff]/);
       const total = (applied.inDuration as number) + (applied.hold as number) + (applied.outDuration as number);
       expect(total).toBeGreaterThanOrEqual(0.1);
       expect(total).toBeLessThanOrEqual(30);
@@ -155,6 +164,32 @@ describe('T-TPL-C039 Boss 栏', () => {
     expect(progressAt(0.51, 0, 1, 0.5, 0)).toBe(1);
     // 往上涨也一样
     expect(progressAt(1, 0, 1, 0, 4)).toBeCloseTo(0.25);
+  });
+
+  it('T-TPL-C039-9 每一条栏各有颜色和分段：same（旧工程没有这几个参数时也是）跟第一条一样', () => {
+    const same = { color: SAME, notches: SAME };
+    // 旧工程：第二条起的参数不存在，读到的是默认值 same，四条都和第一条一样
+    expect(barStyles(4, 'red', '10', [same, same, same])).toEqual(Array.from({ length: 4 }, () => ({ color: 'red', notches: 10 })));
+    expect(barStyles(3, 'pink', 'none', [{ color: 'purple', notches: 'none' }, { color: SAME, notches: '20' }])).toEqual([
+      { color: 'pink', notches: 0 },
+      { color: 'purple', notches: 0 },
+      { color: 'pink', notches: 20 },
+    ]);
+    // 不认识的值：第一条退回粉色、不分段，其余的跟第一条
+    expect(barStyles(2, 'gold', '7', [{ color: 'gold', notches: '7' }])).toEqual([
+      { color: 'pink', notches: 0 },
+      { color: 'pink', notches: 0 },
+    ]);
+    // 少给了也跟第一条；只画一条时只有一份
+    expect(barStyles(2, 'blue', '6', [])).toEqual([
+      { color: 'blue', notches: 6 },
+      { color: 'blue', notches: 6 },
+    ]);
+    expect(barStyles(1, 'blue', '6', [{ color: 'red', notches: '10' }])).toEqual([{ color: 'blue', notches: 6 }]);
+    // “末影龙和凋灵”预设：第一条粉色、第二条紫色（游戏里两只 Boss 的颜色）
+    const v = applyPreset(defs, manifest.presets!.find((p) => p.key === 'two-bosses')!, { locale: 'zh-CN' });
+    const others = [2, 3, 4].map((k) => ({ color: String(v[`color${k}`]), notches: String(v[`notches${k}`]) }));
+    expect(barStyles(2, String(v.color), String(v.notches), others).map((s) => s.color)).toEqual(['pink', 'purple']);
   });
 
   it('T-TPL-C039-8 整体不透明度：首末各一帧为 0，停留阶段为 1', () => {

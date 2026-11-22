@@ -7,18 +7,20 @@ import { createGui, fontOf, linesOf, num, rgbOf, str, type Gui } from '../../_li
 import {
   atlasColorRegion,
   atlasNotchRegion,
-  BAR_COLORS,
   BAR_H,
   BAR_W,
   barLayout,
+  barStyles,
   filledWidth,
   fitUnit,
   MAX_BARS,
   PLAIN_COLORS,
   progressAt,
+  SAME,
   SIDE_MARGIN,
   visibleBars,
   type BarColor,
+  type BarStyle,
 } from './layout';
 
 type Texture = InstanceType<SetupContext['THREE']['Texture']>;
@@ -126,22 +128,38 @@ const template: TemplateModule = {
     const count = visibleBars(guiH, Math.max(1, names.length));
     const layout = barLayout(guiW, count);
 
-    const colorParam = str(params.color, 'pink');
-    const color: BarColor = (BAR_COLORS as readonly string[]).includes(colorParam) ? (colorParam as BarColor) : 'pink';
-    const notches = Number.parseInt(str(params.notches, 'none'), 10) || 0;
+    // 每一条栏各有颜色和分段：第二条起的写 same（旧工程没有这几个参数时也是）就跟第一条一样
+    const others = [2, 3, 4].map((k) => ({ color: str(params[`color${k}`], SAME), notches: str(params[`notches${k}`], SAME) }));
+    const styles = barStyles(count, str(params.color, 'pink'), str(params.notches, 'none'), others);
 
     // 贴图：1.20.2 起的单张贴图 → 旧图集 → 纯色
     const sprite = (name: string) => ctx.resources.texture(`minecraft:gui/sprites/boss_bar/${name}`, { optional: true });
-    const bg = await sprite(`${color}_background`);
-    const fg = bg ? await sprite(`${color}_progress`) : null;
-    let painter: Painter;
-    if (bg && fg) {
-      const notchBg = notches > 0 ? await sprite(`notched_${notches}_background`) : null;
-      const notchFg = notchBg ? await sprite(`notched_${notches}_progress`) : null;
-      painter = spritePainter(gui, layout.x, count, bg, fg, notchFg ? notchBg : null, notchFg);
-    } else {
-      const atlas = await ctx.resources.texture('minecraft:gui/bars', { optional: true });
-      painter = atlas ? atlasPainter(gui, layout.x, count, atlas, color, notches) : plainPainter(gui, layout.x, count, color);
+    let atlas: Texture | null | undefined;
+    const painterFor = async ({ color, notches }: BarStyle, n: number): Promise<Painter> => {
+      const bg = await sprite(`${color}_background`);
+      const fg = bg ? await sprite(`${color}_progress`) : null;
+      if (bg && fg) {
+        const notchBg = notches > 0 ? await sprite(`notched_${notches}_background`) : null;
+        const notchFg = notchBg ? await sprite(`notched_${notches}_progress`) : null;
+        return spritePainter(gui, layout.x, n, bg, fg, notchFg ? notchBg : null, notchFg);
+      }
+      if (atlas === undefined) atlas = await ctx.resources.texture('minecraft:gui/bars', { optional: true });
+      return atlas ? atlasPainter(gui, layout.x, n, atlas, color, notches) : plainPainter(gui, layout.x, n, color);
+    };
+    // 样子相同的栏共用一个画法（一个批次画几条），slots[i] 是第 i 条栏在哪个画法的第几格
+    const byStyle = new Map<string, { style: BarStyle; bars: number[] }>();
+    styles.forEach((style, bar) => {
+      const key = `${style.color}|${style.notches}`;
+      const group = byStyle.get(key) ?? { style, bars: [] };
+      group.bars.push(bar);
+      byStyle.set(key, group);
+    });
+    const painters: Painter[] = [];
+    const slots: { painter: Painter; slot: number }[] = [];
+    for (const { style, bars } of byStyle.values()) {
+      const painter = await painterFor(style, bars.length);
+      painters.push(painter);
+      bars.forEach((bar, slot) => (slots[bar] = { painter, slot }));
     }
 
     // 名字：居中在栏的上方；比界面还宽时这一行自己缩小（游戏里不缩）
@@ -163,7 +181,9 @@ const template: TemplateModule = {
     const holdStart = win.in.end;
     // 其余的栏进度不变，只摆一次
     const otherPx = filledWidth(num(params.otherProgress, 1));
-    for (let i = 1; i < count; i++) painter.draw(i, layout.barTops[i]!, otherPx);
+    for (let i = 1; i < count; i++) slots[i]!.painter.draw(slots[i]!.slot, layout.barTops[i]!, otherPx);
+    for (const p of painters) p.commit();
+    const first = slots[0]!;
 
     if (typeof params.sound === 'string') ctx.audio.cue(params.sound, 0, { gain: num(params.volume, 0.8) });
 
@@ -173,13 +193,13 @@ const template: TemplateModule = {
       update(t: number) {
         // 游戏里 Boss 栏是直接出现的；这里整体线性淡入淡出（时间窗首尾各让出一帧）
         const a = fadeInOut(t, win);
-        painter.draw(0, layout.barTops[0]!, filledWidth(progressAt(t - holdStart, from, to, changeAt, changeDuration)));
-        painter.commit();
-        painter.setOpacity(a);
+        first.painter.draw(first.slot, layout.barTops[0]!, filledWidth(progressAt(t - holdStart, from, to, changeAt, changeDuration)));
+        first.painter.commit();
+        for (const p of painters) p.setOpacity(a);
         for (const l of labels) l.setOpacity(a);
       },
       dispose() {
-        painter.dispose();
+        for (const p of painters) p.dispose();
       },
     };
   },

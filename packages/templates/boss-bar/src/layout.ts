@@ -21,6 +21,32 @@ export type BarColor = (typeof BAR_COLORS)[number];
 /** 分段刻度的段数，顺序就是旧图集里从上到下的顺序 */
 export const NOTCH_COUNTS = [6, 10, 12, 20] as const;
 
+/** 第二条起的栏的颜色、分段参数写这个值时跟第一条一样（旧工程没有这几个参数，读到的也是它，画面不变） */
+export const SAME = 'same';
+
+/** 一条栏的样子：颜色和分段（0 是不分段） */
+export interface BarStyle {
+  color: BarColor;
+  notches: number;
+}
+
+const isBarColor = (v: string): v is BarColor => (BAR_COLORS as readonly string[]).includes(v);
+const notchCount = (v: string): number | null => (v === 'none' ? 0 : (NOTCH_COUNTS as readonly number[]).includes(Number(v)) ? Number(v) : null);
+
+/**
+ * 每一条栏的颜色和分段（游戏里每条栏各有各的）：第一条用 color、notches（不认识时是粉色、不分段）；
+ * 第 i + 1 条用 others[i - 1]，写 same 或不认识的值时跟第一条一样
+ */
+export function barStyles(count: number, color: string, notches: string, others: readonly { color: string; notches: string }[]): BarStyle[] {
+  const first: BarStyle = { color: isBarColor(color) ? color : 'pink', notches: notchCount(notches) ?? 0 };
+  const styles = [first];
+  for (let i = 1; i < count; i++) {
+    const o = others[i - 1];
+    styles.push({ color: o && isBarColor(o.color) ? o.color : first.color, notches: (o ? notchCount(o.notches) : null) ?? first.notches });
+  }
+  return styles;
+}
+
 /** 没有任何贴图时的纯色：fill 是进度的颜色，track 是底的颜色。只是看着接近的近似值，不是从贴图里量出来的 */
 export const PLAIN_COLORS: Readonly<Record<BarColor, { fill: string; track: string }>> = {
   pink: { fill: '#EC00B8', track: '#4A0039' },
