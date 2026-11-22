@@ -27,10 +27,12 @@
 | `textColor` | color | `#FFFFFF` | 色板 `chat` |
 | `font` | font | `embedded:default`（普通模式），带阴影 | — |
 | `bgOpacity` | number | 0.5 | 0–1 |
-| `guiScale` | number | 4 | 1–8 |
+| `guiScale` | number | 6 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.2 / 6 / 0.2 | 0.05–2 / 0.5–26 / 0.05–2 |
 | `sound` | sound | 无 | 每条消息出现时播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 6（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，消息文字在 5 以下看不清（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 自带预设：游戏原始时长（一条消息 10 秒后淡出）、一段对话、打字后发出、服务器公告、进度消息、加入和死亡消息。预设里的文字分中英文，套用时按界面语言取（`docs/04-templates.md` 4.7）；英文的进度、加入、死亡消息照游戏语言文件的原文（26.2 的 `en_us.json`：“%s has made the advancement %s”“%s joined the game”“%1$s hit the ground too hard”，进度名 “Diamonds!”）。
 
