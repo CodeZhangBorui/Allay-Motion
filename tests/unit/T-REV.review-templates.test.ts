@@ -20,6 +20,7 @@ import {
   composeSheet,
   contactScale,
   crop,
+  describeSet,
   detailScale,
   edgeOffset,
   fitText,
@@ -30,6 +31,7 @@ import {
   padBBox,
   paramSetsOf,
   parseArgs,
+  parseSet,
   pickShots,
   removeMirror,
   renderIndex,
@@ -383,5 +385,29 @@ describe('T-REV 评审截图工具', () => {
     expect(long.endsWith('…')).toBe(true);
     expect(text.measure(long)).toBeLessThanOrEqual(80);
     expect(fitText(text, 'ok', 80)).toBe('ok');
+  });
+
+  test('T-REV-15 --set：参数=值，可以给多次，值按 JSON 读；盖在每一组参数和封面上，输出目录和报告里注明', () => {
+    const o = parseArgs(['--no-assets', '--set', 'guiScale=7', '--set=style=toast', '--set', 'names="a b"', '--set', 'rowsAfter=']);
+    expect(o.set).toEqual({ guiScale: 7, style: 'toast', names: 'a b', rowsAfter: '' });
+    expect(parseArgs(['--no-assets']).set).toEqual({});
+    expect(parseSet('nameFont={"family":"embedded:uniform"}')).toEqual(['nameFont', { family: 'embedded:uniform' }]);
+    expect(parseSet('rainbow=false')).toEqual(['rainbow', false]);
+    const bad = [['--set'], ['--set', 'guiScale'], ['--set', 'Gui=1'], ['--set', '=1'], ['--set', 'a=1', '--set', 'a=2'], ['--set', '--presets']];
+    for (const argv of bad) expect(() => parseArgs(['--no-assets', ...argv]), JSON.stringify(argv)).toThrow(UsageError);
+    expect(describeSet({ guiScale: 7, style: 'toast' })).toBe('guiScale=7 style=toast');
+    // 输出目录名：没有 --set 时和以前一样
+    expect(outLabel({ kind: 'local', gameDir: 'G:/mc', versionDir: '26.2' }, 'zh-CN', { guiScale: 7 })).toBe('26.2+guiScale=7');
+    expect(outLabel({ kind: 'none' }, 'en', { guiScale: 7, names: 'a b/c' })).toBe('no-assets-en+guiScale=7+names=a+b_c');
+    expect(outLabel({ kind: 'none' }, 'zh-CN', {})).toBe('no-assets');
+    // 每一组参数（默认参数、预设）都盖上，组名后面注明
+    const manifest: Pick<TemplateManifest, 'presets' | 'params'> = { params: [], presets: [{ key: 'p', name: 'P', params: { guiScale: 4, hold: 2 } }] };
+    expect(paramSetsOf(manifest, true, 'zh-CN', { guiScale: 7 })).toEqual([
+      { key: 'default', name: '默认参数 + guiScale=7', params: { guiScale: 7 } },
+      { key: 'preset-p', name: 'P + guiScale=7', params: { guiScale: 7, hold: 2 } },
+    ]);
+    // 同一个输出目录只放同一组 --set 的结果；以前的报告没有 set，当作空的
+    expect(() => mergeReport(report([]), { ...report([]), set: { guiScale: 7 } })).toThrow(UsageError);
+    expect(mergeReport({ ...report([]), set: {} }, report([])).templates).toEqual([]);
   });
 });

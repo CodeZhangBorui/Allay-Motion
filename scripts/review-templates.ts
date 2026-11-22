@@ -88,6 +88,8 @@ export interface ReviewOptions {
   shots: ShotSpec[] | null;
   aspects: Aspect[];
   lang: Lang;
+  /** --set 给的参数：盖在每一组参数（默认参数、各个预设）和封面上，用来比较几个候选值 */
+  set: Record<string, unknown>;
 }
 
 export class UsageError extends Error {
@@ -116,6 +118,7 @@ export function usage(): string {
     '                      默认 first,20%,40%,60%,80%,last，模板有剪辑点时再加 cut',
     '  --aspect <画幅,…>   16:9、9:16、1:1 或 all（默认 16:9）',
     '  --lang <zh-CN|en>   界面语言，文字参数的默认值跟着变（默认 zh-CN）',
+    '  --set <参数=值>     盖在每一组参数和封面上的参数，可以给多次，如 --set guiScale=7。值按 JSON 读（7、true、"文字"），读不成时当文字',
     '  模板名              packages/templates 下的目录名，如 boss-bar；不给就是全部有 manifest.json 的内置模板',
     '',
     '例：pnpm review:templates --game "C:\\Users\\<你>\\AppData\\Roaming\\.minecraft" --version 1.21.1 --presets boss-bar hud-status',
@@ -128,6 +131,7 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
   const values = new Map<string, string>();
   const flags = new Set<string>();
   const templates: string[] = [];
+  const set: Record<string, unknown> = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     // pnpm 可能把 -- 原样传进来
@@ -141,6 +145,14 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
     if (FLAG_OPTIONS.has(name)) {
       if (eq > 0) throw new UsageError(`${name} 不带值`);
       flags.add(name === '-h' ? '--help' : name);
+      continue;
+    }
+    if (name === '--set') {
+      const value = eq > 0 ? arg.slice(eq + 1) : argv[++i];
+      if (value === undefined || (eq < 0 && value.startsWith('--'))) throw new UsageError('--set 后面要跟“参数=值”');
+      const [key, parsed] = parseSet(value);
+      if (Object.hasOwn(set, key)) throw new UsageError(`--set ${key} 只能给一次`);
+      set[key] = parsed;
       continue;
     }
     if (!VALUE_OPTIONS.has(name)) throw new UsageError(`不认识的选项 ${name}`);
@@ -169,8 +181,27 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
     throw new UsageError('要么给 --game 和 --version（接本机游戏的某个版本），要么给 --no-assets');
   }
   const out = values.get('--out');
-  return { help, source, mirror: flags.has('--mirror'), out: out === undefined ? null : resolve(out), templates, presets: flags.has('--presets'), cover: flags.has('--cover'), shots, aspects, lang };
+  return { help, source, mirror: flags.has('--mirror'), out: out === undefined ? null : resolve(out), templates, presets: flags.has('--presets'), cover: flags.has('--cover'), shots, aspects, lang, set };
 }
+
+/** --set 的一项：“参数=值”。参数名的写法和 manifest 里的一样；值按 JSON 读，读不成时当文字（--set style=toast） */
+export function parseSet(text: string): [key: string, value: unknown] {
+  const eq = text.indexOf('=');
+  const key = eq < 0 ? text : text.slice(0, eq);
+  if (eq < 0 || !/^[a-z][a-zA-Z0-9]*$/.test(key)) throw new UsageError(`--set 要写成“参数=值”，参数名是 manifest 里的 key（收到 ${text}）`);
+  const raw = text.slice(eq + 1);
+  try {
+    return [key, JSON.parse(raw) as unknown];
+  } catch {
+    return [key, raw];
+  }
+}
+
+/** --set 的内容写成一行（报告、输出目录名、参数组的名字里用） */
+export const describeSet = (set: Readonly<Record<string, unknown>>): string =>
+  Object.entries(set)
+    .map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`)
+    .join(' ');
 
 export function parseAspects(text: string): Aspect[] {
   if (text.trim() === 'all') return ['16:9', '9:16', '1:1'];
@@ -502,10 +533,12 @@ export function removeMirror(root: string): void {
   rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 }
 
-/** 输出目录的名字：版本目录名（不认的字符换成下划线）或 no-assets；英文界面加 -en */
-export function outLabel(source: SourceOption, lang: Lang): string {
+/** 输出目录的名字：版本目录名（不认的字符换成下划线）或 no-assets；英文界面加 -en，有 --set 时再加“+参数=值”（不认的字符同样换掉） */
+export function outLabel(source: SourceOption, lang: Lang, set: Readonly<Record<string, unknown>> = {}): string {
   const base = source.kind === 'none' ? 'no-assets' : source.versionDir.replace(/[^\w.-]+/g, '_');
-  return lang === 'en' ? `${base}-en` : base;
+  const label = lang === 'en' ? `${base}-en` : base;
+  if (Object.keys(set).length === 0) return label;
+  return `${label}+${describeSet(set).split(' ').join('+')}`.replace(/[^a-zA-Z0-9_.=+-]+/g, '_');
 }
 
 /** 写给应用的设置文件：引导、新手引导算走过，界面语言，自动更新关掉，资源栈里只有给定的原版来源（或什么都没有） */
@@ -531,11 +564,15 @@ export interface ParamSet {
   params: Record<string, unknown>;
 }
 
-/** 默认参数，加上（--presets 时）每个自带预设；预设里写成双语的文字按界面语言取（和应用套用预设时一样） */
-export function paramSetsOf(manifest: Pick<TemplateManifest, 'presets' | 'params'>, withPresets: boolean, lang: Lang): ParamSet[] {
+/**
+ * 默认参数，加上（--presets 时）每个自带预设；预设里写成双语的文字按界面语言取（和应用套用预设时一样）。
+ * --set 的参数盖在每一组上，组名后面注明
+ */
+export function paramSetsOf(manifest: Pick<TemplateManifest, 'presets' | 'params'>, withPresets: boolean, lang: Lang, set: Readonly<Record<string, unknown>> = {}): ParamSet[] {
   const sets: ParamSet[] = [{ key: 'default', name: lang === 'zh-CN' ? '默认参数' : 'Defaults', params: {} }];
   if (withPresets) for (const p of manifest.presets ?? []) sets.push({ key: `preset-${p.key}`, name: localize(p.name, lang), params: localizePresetParams(manifest.params ?? [], p.params, lang) });
-  return sets;
+  if (Object.keys(set).length === 0) return sets;
+  return sets.map((s) => ({ ...s, name: `${s.name} + ${describeSet(set)}`, params: { ...s.params, ...set } }));
 }
 
 // ---------------------------------------------------------------- 图像：缩放、合成、裁切
@@ -956,10 +993,12 @@ export type ReportSource =
 export interface ReportFile {
   tool: 'review:templates';
   formatVersion: 1;
-  /** 同一个输出目录只放同一个来源、同一种语言的结果 */
+  /** 同一个输出目录只放同一个来源、同一种语言、同一组 --set 的结果 */
   sourceKey: string;
   label: string;
   lang: Lang;
+  /** --set 的参数；以前的报告没有这一项，当作空的 */
+  set?: Record<string, unknown>;
   source: ReportSource;
   build: { commit: string | null; dirty: boolean | null; appBuiltAt: string | null };
   layers: { id: string; kind: string; name: string; enabled: boolean; versionId?: string; resourceFormat?: string; hasAssetIndex?: boolean; base?: boolean }[];
@@ -971,11 +1010,14 @@ export function sourceKey(source: SourceOption): string {
   return source.kind === 'none' ? 'none' : `local:${source.gameDir}|${source.versionDir}`;
 }
 
-/** 和输出目录里已有的报告合并：这次截了的模板整条换掉，没截的留着；来源或语言不同就拒绝 */
+/** 两份报告的 --set 是否相同 */
+const sameSet = (a: Readonly<Record<string, unknown>> | undefined, b: Readonly<Record<string, unknown>> | undefined): boolean => describeSet(a ?? {}) === describeSet(b ?? {});
+
+/** 和输出目录里已有的报告合并：这次截了的模板整条换掉，没截的留着；来源、语言或 --set 不同就拒绝 */
 export function mergeReport(previous: ReportFile | null, next: ReportFile): ReportFile {
   if (!previous) return next;
-  if (previous.sourceKey !== next.sourceKey || previous.lang !== next.lang) {
-    throw new UsageError(`输出目录里是另一个来源或语言的结果（${previous.label}，${previous.lang}）；换一个 --out，或者先删掉那个目录`);
+  if (previous.sourceKey !== next.sourceKey || previous.lang !== next.lang || !sameSet(previous.set, next.set)) {
+    throw new UsageError(`输出目录里是另一个来源、语言或 --set 的结果（${previous.label}，${previous.lang}）；换一个 --out，或者先删掉那个目录`);
   }
   const replaced = new Set(next.templates.map((t) => t.name));
   const templates = [...previous.templates.filter((t) => !replaced.has(t.name)), ...next.templates].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
@@ -1057,6 +1099,7 @@ export function renderIndex(report: ReportFile): string {
     '<table>',
     sourceRows,
     `<tr><th>界面语言</th><td>${esc(report.lang)}</td></tr>`,
+    report.set && Object.keys(report.set).length > 0 ? `<tr><th>--set</th><td>${esc(describeSet(report.set))}（盖在每一组参数和封面上）</td></tr>` : '',
     `<tr><th>构建</th><td>${esc(report.build.commit ?? '未知')}${report.build.dirty ? '（有未提交的改动）' : ''}，应用构建于 ${esc(report.build.appBuiltAt ?? '未知')}</td></tr>`,
     `<tr><th>更新于</th><td>${esc(report.updatedAt)}</td></tr>`,
     `<tr><th>合计</th><td>${report.templates.length} 个模板、${sum.runs} 组参数、${sum.frames} 张；有警告的 ${sum.runsWithWarnings} 组，出错的 <span class="${sum.errors ? 'err' : ''}">${sum.errors}</span> 组</td></tr>`,
@@ -1289,10 +1332,10 @@ async function captureRun(page: Page, opts: ReviewOptions, entry: { id: string; 
 }
 
 /** 封面：默认参数，按 coverTime 取那一刻，渲染成 320 × 180（和模板库的封面同一条静帧路径、同样的尺寸） */
-async function captureCover(page: Page, entry: { id: string; version: string } | undefined, outDir: string, name: string): Promise<NonNullable<ReportTemplate['cover']>> {
+async function captureCover(page: Page, entry: { id: string; version: string } | undefined, outDir: string, name: string, set: Readonly<Record<string, unknown>>): Promise<NonNullable<ReportTemplate['cover']>> {
   const miss = (error: string, t: number | null = null) => ({ file: null, t, coverage: null, error });
   if (!entry) return miss('应用里没有这个模板');
-  const selected = await page.evaluate(([id, version]) => window.__allayTest!.selectTemplate(id, version, {}), [entry.id, entry.version] as const);
+  const selected = await page.evaluate(([id, version, params]) => window.__allayTest!.selectTemplate(id, version, params as ParamValues), [entry.id, entry.version, set] as const);
   if (!selected) return miss('选不中这个模板');
   const preview = await waitPreview(page);
   if (preview.status !== 'ready') return miss(`预览没有装载成功（${preview.status}${preview.message ? ` ${preview.message}` : ''}）`);
@@ -1389,13 +1432,13 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
   const expectedLayer = vanilla ? { layerId: vanillaLayerId({ kind: 'local', gameDir: vanilla.gameDir, versionId: vanilla.versionId }) } : null;
 
-  const label = outLabel(source, opts.lang);
+  const label = outLabel(source, opts.lang, opts.set);
   const outDir = opts.out ?? join(DEFAULT_OUT_ROOT, label);
   let previous: ReportFile | null;
   try {
     previous = readPreviousReport(outDir);
-    if (previous && (previous.sourceKey !== sourceKey(source) || previous.lang !== opts.lang)) {
-      throw new UsageError(`输出目录 ${outDir} 里是另一个来源或语言的结果（${previous.label}，${previous.lang}）；换一个 --out，或者先删掉那个目录`);
+    if (previous && (previous.sourceKey !== sourceKey(source) || previous.lang !== opts.lang || !sameSet(previous.set, opts.set))) {
+      throw new UsageError(`输出目录 ${outDir} 里是另一个来源、语言或 --set 的结果（${previous.label}，${previous.lang}）；换一个 --out，或者先删掉那个目录`);
     }
   } catch (error) {
     if (mirror) removeMirror(mirror.gameDir);
@@ -1472,6 +1515,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       sourceKey: sourceKey(source),
       label,
       lang: opts.lang,
+      set: opts.set,
       source: reportSource,
       build: { ...gitInfo(), appBuiltAt: appBuilt === null ? null : new Date(appBuilt).toISOString() },
       layers: state.layers.map((l) => ({
@@ -1494,7 +1538,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       writeFileSync(join(outDir, 'report.json'), `${JSON.stringify(merged, null, 2)}\n`);
       writeFileSync(join(outDir, 'index.html'), renderIndex(merged));
     };
-    const total = dirs.reduce((n, d) => n + paramSetsOf(readTemplateManifest(d), opts.presets, opts.lang).length, 0) * opts.aspects.length;
+    const total = dirs.reduce((n, d) => n + paramSetsOf(readTemplateManifest(d), opts.presets, opts.lang, opts.set).length, 0) * opts.aspects.length;
     const templateOf = (dir: string): ReportTemplate => {
       const name = basename(dir);
       let tpl = done.get(name);
@@ -1518,7 +1562,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       for (const dir of dirs) {
         const tpl = templateOf(dir);
         sink = [];
-        tpl.cover = await captureCover(page, entryOf(dir), outDir, tpl.name);
+        tpl.cover = await captureCover(page, entryOf(dir), outDir, tpl.name, opts.set);
         if (tpl.cover.error) failed++;
         cells.push(tpl.cover.file ? { image: decodePng(readFileSync(join(outDir, tpl.cover.file))), caption: `${tpl.name} · ${tpl.cover.t?.toFixed(2)}s` } : null);
         console.log(`${TAG} 封面 ${tpl.name}：${tpl.cover.file ? `${tpl.cover.t?.toFixed(2)} 秒` : `没截到（${tpl.cover.error}）`}`);
@@ -1544,7 +1588,7 @@ export async function main(argv: readonly string[]): Promise<number> {
           continue;
         }
         const captured: Captured[] = [];
-        for (const set of paramSetsOf(entry.manifest, opts.presets, opts.lang)) {
+        for (const set of paramSetsOf(entry.manifest, opts.presets, opts.lang, opts.set)) {
           n++;
           sink = [];
           const c = await captureRun(page, opts, entry, set, aspect, outDir, dir, sink);
