@@ -66,8 +66,14 @@ void main() {
 // 导出（透明）：反预乘 rgb / max(a, 1e-5) → 线性转 sRGB，输出直通 alpha。
 // 导出（不透明）：在线性空间盖到底色上 → 转 sRGB，alpha 写 1。
 // uFlipY 为真时采样翻转 v，这样 readPixels 读出的第一行就是画面顶部，CPU 不用再翻。
+//
+// 8 位的量化由着色器自己做（docs/decisions.md“8 位量化由引擎自己做”）：直通的 sRGB 和 alpha 先四舍五入成整数，
+// 预览的预乘值用同一组整数算 round(s × a / 255)（整数运算），再按 (q + 0.25) / 255 写出。
+// GL 和 D3D 只要求浮点转 8 位时落在最近的两个整数之一，有的驱动就近、有的截断；q + 0.25 无论哪种都存成 q，
+// 所以预览和导出的 8 位值只取决于这里的整数，不取决于驱动。
 const RESOLVE = /* glsl */ `
 precision highp float;
+precision highp int;
 precision highp sampler2D;
 uniform sampler2D tSrc;
 uniform int uMode;
@@ -82,6 +88,14 @@ vec3 linearToSrgb(vec3 c) {
   return mix(lo, hi, step(vec3(0.0031308), c));
 }
 
+ivec3 quantize(vec3 v) {
+  return ivec3(floor(clamp(v, 0.0, 1.0) * 255.0 + 0.5));
+}
+
+vec4 store(ivec3 rgb, int a) {
+  return (vec4(vec3(rgb), float(a)) + 0.25) / 255.0;
+}
+
 void main() {
   ivec2 size = textureSize(tSrc, 0);
   ivec2 p = ivec2(gl_FragCoord.xy);
@@ -89,11 +103,12 @@ void main() {
   vec4 c = texelFetch(tSrc, p, 0);
   float a = clamp(c.a, 0.0, 1.0);
   if (uMode == 2) {
-    fragColor = vec4(linearToSrgb(c.rgb + uBackground * (1.0 - a)), 1.0);
+    fragColor = store(quantize(linearToSrgb(c.rgb + uBackground * (1.0 - a))), 255);
     return;
   }
-  vec3 srgb = linearToSrgb(c.rgb / max(a, 1e-5));
-  fragColor = uMode == 0 ? vec4(srgb * a, a) : vec4(srgb, a);
+  ivec3 s = quantize(linearToSrgb(c.rgb / max(a, 1e-5)));
+  int qa = int(floor(a * 255.0 + 0.5));
+  fragColor = uMode == 0 ? store((s * qa + 127) / 255, qa) : store(s, qa);
 }`;
 
 function fullscreenTriangle(): BufferGeometry {

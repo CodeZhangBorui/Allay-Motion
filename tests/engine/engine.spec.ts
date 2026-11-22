@@ -4,7 +4,6 @@ import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
 import type { Harness, TemplateName } from './harness/harness';
-import { isSoftwareRenderer, SOFTWARE_LIMITS } from './software';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const ELECTRON = createRequire(join(ROOT, 'apps/desktop/package.json'))('electron') as string;
@@ -98,21 +97,20 @@ test('T-ENG-3 运动模糊守恒：N = 16、A = 180，行 alpha 之和 = 宽度 
 
 test('T-ENG-4 预览与导出一致：同一 t、同一分辨率、N = 1', async () => {
   const gpu = await call('gpu');
-  // 软件渲染（CI）的 8 位预乘画布按截断取整，alpha ≥ 128 的像素放宽到 ≤ 2（tests/engine/software.ts）
-  const highLimit = isSoftwareRenderer(gpu) ? SOFTWARE_LIMITS.previewColorHigh : 1;
-  test.info().annotations.push({ type: 'renderer', description: `${gpu}（alpha ≥ 128 判定 ≤ ${highLimit}）` });
+  test.info().annotations.push({ type: 'renderer', description: gpu });
   const results = await call('previewVsExport', BLOCK, { width: 960, height: 540, fps: 60 }, [6, 12, 20, 33, 50, 60]);
   for (const r of results) {
     // 诊断（docs/decisions.md M8）：alpha ≥ 128 里差得最多的像素，打进日志
     if (r.colorHigh > 1) console.log(`[T-ENG-4] ${gpu} frame ${r.index} colorHigh=${r.colorHigh} worst=${JSON.stringify(r.worstHigh)}`);
     expect(r.length).toBe(true);
     expect(r.nonEmpty, `frame ${r.index} draws something`).toBeGreaterThan(0);
-    expect(r.alpha, `frame ${r.index} alpha`).toBeLessThanOrEqual(1);
-    // 预览画布是 8 位预乘：换算回直通 alpha 后，alpha 越小量化误差越大（±0.5 × 255 / a）。
-    // 不透明和 alpha ≥ 128 的像素按规格要求 ≤ 1；全部像素在预乘域里比较也 ≤ 1（见 docs/decisions.md M1）。
-    expect(r.colorOpaque, `frame ${r.index} opaque colour`).toBeLessThanOrEqual(1);
-    expect(r.colorHigh, `frame ${r.index} colour where a ≥ 128`).toBeLessThanOrEqual(highLimit);
-    expect(r.premul, `frame ${r.index} premultiplied`).toBeLessThanOrEqual(1);
+    // 8 位量化由 resolve 着色器自己做（docs/decisions.md“8 位量化由引擎自己做”）：预览的预乘值是用导出的同一组整数算的，
+    // 所以 alpha、预乘域、不透明像素的颜色都应当逐字节相同，不取决于渲染器的取整方式。
+    expect(r.alpha, `frame ${r.index} alpha`).toBe(0);
+    expect(r.premul, `frame ${r.index} premultiplied`).toBe(0);
+    expect(r.colorOpaque, `frame ${r.index} opaque colour`).toBe(0);
+    // 换算回直通 alpha 时，预乘值的取整误差放大 255 / a 倍：alpha ≥ 128 时最多 127 / 128，取整后 ≤ 1（规格的判定）
+    expect(r.colorHigh, `frame ${r.index} colour where a ≥ 128`).toBeLessThanOrEqual(1);
   }
 });
 
