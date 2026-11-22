@@ -22,10 +22,14 @@ import {
   heartRows,
   heartsShake,
   heartState,
+  ICON,
+  PLAIN,
+  PLAIN_BOX,
   pointState,
   regenIndex,
   rightX,
   rowGap,
+  STEP,
 } from '../../packages/templates/hud-status/src/layout';
 import { defaultParams, parseManifest, sameValue, sanitizeParams, type ParamValue } from '../../packages/template-sdk/src/index';
 
@@ -187,6 +191,20 @@ describe('T-TPL-C043 状态栏', () => {
     expect(ATLAS.food_full_hunger).toEqual([88, 27, 9, 9]);
     expect(ATLAS.air_bursting).toEqual([25, 18, 9, 9]);
     expect(ATLAS.air_empty).toBeUndefined();
+  });
+
+  it('T-TPL-C043-10 没有贴图时的纯色块：都在格子里面，相邻两块之间留缝；闪白的容器比平时亮、但不是白色', () => {
+    expect(PLAIN_BOX.full).toEqual([1, 1, 7, 7]);
+    expect(PLAIN_BOX.half).toEqual([1, 1, 4, 7]);
+    for (const [x, y, w, h] of [PLAIN_BOX.full, PLAIN_BOX.half]) {
+      // 块宽小于图标的间距：和下一个图标的块之间至少空 1 个界面像素
+      expect(w).toBeLessThan(STEP);
+      expect(x + w).toBeLessThanOrEqual(ICON);
+      expect(y + h).toBeLessThanOrEqual(ICON);
+    }
+    const gray = (hex: string) => Number.parseInt(hex.slice(1, 3), 16);
+    expect(gray(PLAIN.containerBlinking)).toBeGreaterThan(gray(PLAIN.container));
+    expect(gray(PLAIN.containerBlinking)).toBeLessThan(gray(PLAIN.blinking));
   });
 
   it('T-TPL-C043-9 整体的不透明度：首末帧为 0，停留阶段为 1', () => {

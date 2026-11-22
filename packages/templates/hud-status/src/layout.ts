@@ -133,10 +133,19 @@ export const ATLAS: Readonly<Record<string, readonly [number, number, number, nu
   air_bursting: [25, 18, 9, 9],
 };
 
-/** 没有任何贴图时纯色块的颜色（占位，不是游戏里的颜色） */
+/**
+ * 没有任何贴图时纯色块在图标格子里的位置（相对图标左上角的 x、y、宽、高）：容器、空位和图标都是里面的 7 × 7，半个只画左边 4 宽。
+ * 相邻图标相隔 8，块和块之间留 1 个界面像素的缝，数得出一共几颗、哪几颗是空的
+ */
+export const PLAIN_BOX = { full: [1, 1, ICON - 2, ICON - 2], half: [1, 1, 4, ICON - 2] } as const;
+
+/**
+ * 没有任何贴图时纯色块的颜色（占位，不是游戏里的颜色）。闪白的容器只比平时亮一些、不用白色：
+ * 一排容器一起闪时不会连成一条白条；变化前的心闪白色
+ */
 export const PLAIN = {
   container: '#2A2A2A',
-  containerBlinking: '#FFFFFF',
+  containerBlinking: '#A0A0A0',
   blinking: '#FFFFFF',
   normal: '#E0261E',
   poisoned: '#8B8712',

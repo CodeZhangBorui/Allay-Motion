@@ -31,6 +31,7 @@ import {
   MAX_HEARTS,
   PER_ROW,
   PLAIN,
+  PLAIN_BOX,
   pointState,
   regenIndex,
   rightX,
@@ -65,10 +66,6 @@ interface Source {
   region: Region | null;
   plain: { color: string; box: Region } | null;
 }
-
-const FULL_BOX: Region = [0, 0, ICON, ICON];
-const INNER_BOX: Region = [1, 1, ICON - 2, ICON - 2];
-const HALF_BOX: Region = [1, 1, 4, ICON - 2];
 
 const template: TemplateModule = {
   async setup(ctx: SetupContext): Promise<TemplateInstance> {
@@ -150,12 +147,12 @@ const template: TemplateModule = {
         resolve({
           sprite: `${prefix}${half ? 'half' : 'full'}${blinking ? '_blinking' : ''}`,
           atlas: atlasHeartRegion(k, half, blinking, hardcore),
-          plain: { color, box: half ? HALF_BOX : INNER_BOX },
+          plain: { color, box: half ? PLAIN_BOX.half : PLAIN_BOX.full },
           layer: blinking ? 1 : 2,
         });
       return { full: await one(false), half: await one(true) };
     };
-    const simple = (sprite: string, color: string | null, layer: 0 | 2, box: Region = FULL_BOX) =>
+    const simple = (sprite: string, color: string | null, layer: 0 | 2, box: Region = PLAIN_BOX.full) =>
       resolve({ sprite, atlas: ATLAS[sprite.replace('heart/', '').replace('_hardcore', '')] ?? null, plain: color ? { color, box } : null, layer });
 
     const changes = healthFrom !== healthTo;
@@ -166,19 +163,19 @@ const template: TemplateModule = {
     // 凋零时吸收的心也是凋零的样子，其余种类下吸收的心是黄色
     const absorbing = absorption > 0 ? await heartSet(kind === 'withered' ? 'withered' : 'absorbing', false) : null;
     const armorIcons = hasArmor
-      ? { empty: await simple('armor_empty', PLAIN.container, 0), half: await simple('armor_half', PLAIN.armor, 2, HALF_BOX), full: await simple('armor_full', PLAIN.armor, 2, INNER_BOX) }
+      ? { empty: await simple('armor_empty', PLAIN.container, 0), half: await simple('armor_half', PLAIN.armor, 2, PLAIN_BOX.half), full: await simple('armor_full', PLAIN.armor, 2, PLAIN_BOX.full) }
       : null;
     const suffix = hunger ? '_hunger' : '';
     const foodColor = hunger ? PLAIN.hunger : PLAIN.food;
     const foodIcons = {
       empty: await simple(`food_empty${suffix}`, PLAIN.container, 0),
-      half: await simple(`food_half${suffix}`, foodColor, 2, HALF_BOX),
-      full: await simple(`food_full${suffix}`, foodColor, 2, INNER_BOX),
+      half: await simple(`food_half${suffix}`, foodColor, 2, PLAIN_BOX.half),
+      full: await simple(`food_full${suffix}`, foodColor, 2, PLAIN_BOX.full),
     };
     const airIcons = hasAir
       ? {
-          full: await simple('air', PLAIN.air, 2, INNER_BOX),
-          bursting: await simple('air_bursting', PLAIN.airBursting, 2, INNER_BOX),
+          full: await simple('air', PLAIN.air, 2, PLAIN_BOX.full),
+          bursting: await simple('air_bursting', PLAIN.airBursting, 2, PLAIN_BOX.full),
           // 只有 1.21.2 起有空位的贴图；没有时空位不画
           empty: await simple('air_empty', null, 0),
         }
