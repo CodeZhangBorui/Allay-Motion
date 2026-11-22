@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { defaultParams, parseManifest, sameValue, sanitizeParams, type ParamDef, type ParamValue } from '../../packages/template-sdk/src/index';
+import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams, type ParamDef } from '../../packages/template-sdk/src/index';
 import { fitLife } from '../../packages/templates/_lib/src/shader-particles';
 import { burnProgress, burnThreshold, frontAt, frontRange, frontWave, normalize, type WaveTerm } from '../../packages/templates/fire-burn/src/layout';
 
@@ -38,8 +38,11 @@ describe('T-TPL-C066 烧穿', () => {
   it('T-TPL-C066-2 每个自带预设都能载入：值经过清洗后不变', () => {
     expect(manifest.presets?.length).toBeGreaterThanOrEqual(2);
     for (const preset of manifest.presets ?? []) {
-      const applied = sanitizeParams(defs, { ...defaultParams(defs), ...preset.params });
-      for (const [k, v] of Object.entries(preset.params)) expect(sameValue(applied[k], v as ParamValue), `${preset.key}.${k}`).toBe(true);
+      for (const locale of ['zh-CN', 'en']) {
+        // 和应用里套用预设走同一条路（applyPreset：按界面语言取出双语的文字，再清洗）
+        const applied = applyPreset(defs, preset, { locale });
+        for (const [k, v] of Object.entries(localizePresetParams(defs, preset.params, locale))) expect(sameValue(applied[k], v), `${preset.key}.${k} ${locale}`).toBe(true);
+      }
     }
   });
 

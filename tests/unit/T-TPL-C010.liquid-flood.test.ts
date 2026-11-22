@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { defaultParams, parseManifest, sameValue, sanitizeParams, type ParamDef, type ParamValue } from '../../packages/template-sdk/src/index';
+import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams, type ParamDef } from '../../packages/template-sdk/src/index';
 import { DEFAULT_SOUNDS, levelAt, levelRange, soundFor, SOURCES, surfaceWave, toFillSpace, type WaveTerm } from '../../packages/templates/liquid-flood/src/layout';
 
 const manifest = (() => {
@@ -40,8 +40,11 @@ describe('T-TPL-C010 液体淹没', () => {
     const keys = (manifest.presets ?? []).map((p) => p.key);
     expect(keys).toEqual(expect.arrayContaining(['lava', 'swamp', 'warm-ocean']));
     for (const preset of manifest.presets ?? []) {
-      const applied = sanitizeParams(defs, { ...defaultParams(defs), ...preset.params });
-      for (const [k, v] of Object.entries(preset.params)) expect(sameValue(applied[k], v as ParamValue), `${preset.key}.${k}`).toBe(true);
+      for (const locale of ['zh-CN', 'en']) {
+        // 和应用里套用预设走同一条路（applyPreset：按界面语言取出双语的文字，再清洗）
+        const applied = applyPreset(defs, preset, { locale });
+        for (const [k, v] of Object.entries(localizePresetParams(defs, preset.params, locale))) expect(sameValue(applied[k], v), `${preset.key}.${k} ${locale}`).toBe(true);
+      }
     }
     const swamp = manifest.presets!.find((p) => p.key === 'swamp')!;
     // 沼泽的水色、水下雾色（对照过游戏文件 data/minecraft/worldgen/biome/swamp.json）
