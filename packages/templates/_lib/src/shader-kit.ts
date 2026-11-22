@@ -9,6 +9,7 @@
 // 不设 glslVersion：Three 在 WebGL2 上照样按 GLSL ES 3.00 编译，textureGrad、texelFetch、textureSize、uint 都能用
 // （docs/decisions.md M6a）。
 import type { ParamValue, SetupContext } from '@allay/template-sdk';
+import { firstTexture } from './gui-kit';
 
 type Three = SetupContext['THREE'];
 type Texture = InstanceType<Three['Texture']>;
@@ -224,11 +225,7 @@ export function shaderQuad(ctx: SetupContext, opts: ShaderQuadOptions): ShaderQu
   };
 }
 
-/** 按顺序试几个可选贴图 ID（新路径在前），返回第一个有的；都没有时是 null，不记警告 */
+/** 按顺序试几个可选贴图 ID（新路径在前），返回第一个有的；都没有时是 null，不记警告（gui-kit 的 firstTexture，只要贴图） */
 export async function optionalTexture(ctx: SetupContext, ids: readonly string[]): Promise<Texture | null> {
-  for (const id of ids) {
-    const texture = await ctx.resources.texture(id, { optional: true });
-    if (texture) return texture;
-  }
-  return null;
+  return (await firstTexture(ctx, ids))?.texture ?? null;
 }

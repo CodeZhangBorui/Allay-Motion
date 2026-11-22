@@ -6,6 +6,7 @@
 // 每格变成幽匿的先后在 setup 里按带随机权重的最短路算好（layout.ts），存进一张阈值贴图；着色器只读它和 uniform。
 // 和像素溶解（T5）的区别：成片连着长，边缘是爬进来的脉络而不是一圈强调色，铺满后还有脉动，退出带灵魂粒子。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
+import { sampleIndices } from '../../_lib/src/cues';
 import { num } from '../../_lib/src/gui-kit';
 import { frameUniforms, GLSL_COMMON, linearColor, optionalTexture, shaderQuad, shaderSeed } from '../../_lib/src/shader-kit';
 import { fitLife, particleBatch } from '../../_lib/src/shader-particles';
@@ -312,13 +313,13 @@ const template: TemplateModule = {
     const souls = count > 0 ? particleBatch(ctx, { count, attributes: { aA: { size: 4, data: aA }, aB: { size: 4, data: aB } }, vertex: SOUL_VERTEX, fragment: SOUL_FRAGMENT, uniforms: soulUniforms, renderOrder: 1 }) : null;
     const soulTime = soulUniforms.uTime!;
 
-    // 音效：蔓延时在按先后均匀抽样的几格变成幽匿的时刻放（最多 6 个，带位置：舞台半宽当作 8 格）；退出开始时放一次
+    // 音效：蔓延时在按先后均匀抽样的几格（最多 6 个，含最先和最后变的那一格）变成幽匿的时刻放，带位置：舞台半宽当作 8 格；
+    // 退出开始时放一次
     const toBlocks = 8 / (W / 2);
     if (typeof params.spreadSound === 'string') {
       const order = Array.from(times, (_, i) => i).sort((a, b) => times[a]! - times[b]! || a - b);
-      const k = Math.min(6, order.length);
-      for (let j = 0; j < k; j++) {
-        const i = order[Math.round(((j + 0.5) * (order.length - 1)) / k)]!;
+      for (const j of sampleIndices(order.length, 6)) {
+        const i = order[j]!;
         ctx.audio.cue(params.spreadSound, win.in.start + invert(convertAt(times[i]!)) * (win.in.end - win.in.start), { gain: volume, position: { x: cellX(i) * toBlocks, y: cellY(i) * toBlocks, z: -6 } });
       }
     }

@@ -6,6 +6,7 @@
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
 import { num, str } from '../../_lib/src/gui-kit';
 import { GLSL_COMMON, linearColor, optionalTexture, shaderQuad } from '../../_lib/src/shader-kit';
+import { fadeInOut } from '../../_lib/src/fade';
 import { overlayWindows, progress } from '../../_lib/src/timing';
 import { bandCenter, extentAlong } from './layout';
 
@@ -121,7 +122,7 @@ const template: TemplateModule = {
       duration: win.duration,
       cutTime: null,
       update(t: number) {
-        const e = progress(t, win.in) * (1 - progress(t, win.out));
+        const e = fadeInOut(t, win);
         const q = progress(t, span);
         u.uEnvelope.value = e;
         u.uBand.value = bandCenter(q >= 1 ? sweeps : (q <= 0 ? 0 : ease(q)) * sweeps, extent, halfWidth);
