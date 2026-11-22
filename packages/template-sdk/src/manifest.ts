@@ -195,6 +195,7 @@ const GroupSchema = z.strictObject({ key: z.string().min(1).max(64), label: Loca
 /**
  * 模板自带的预设（2026-11 反馈：方块排列顺序）：界面的预设菜单里排在用户预设前面，套用方式与用户预设相同
  * （缺的补默认值，多的丢弃，4.7）。key 在模板内唯一，params 只能引用本模板声明的参数。
+ * text 参数的值可以是普通字符串，也可以是和参数默认值同样的多语言对象，套用时按界面语言取（preset.ts 的 localizePresetParams）。
  */
 export const PRESET_KEY_RE = /^[a-z0-9][a-z0-9-]*$/;
 export const ManifestPresetSchema = z.strictObject({
@@ -294,8 +295,13 @@ export const TemplateManifestSchema = ManifestShape.superRefine((m, ctx) => {
     presetKeys.add(p.key);
     // 派生模板的参数来自基模板，这里查不到，只查脚本模板
     if (m.extends) return;
-    for (const k of Object.keys(p.params)) {
-      if (!keys.has(k)) ctx.addIssue({ code: 'custom', path: ['presets', i, 'params', k], message: `preset refers to unknown param "${k}"` });
+    for (const [k, v] of Object.entries(p.params)) {
+      const def = keys.get(k);
+      if (!def) ctx.addIssue({ code: 'custom', path: ['presets', i, 'params', k], message: `preset refers to unknown param "${k}"` });
+      // 文字参数写成对象时必须是合法的多语言文字（其余类型不对的值照旧交给清洗，回到默认值）
+      else if (def.type === 'text' && v !== null && typeof v === 'object' && !Array.isArray(v) && !LocalizedStringSchema.safeParse(v).success) {
+        ctx.addIssue({ code: 'custom', path: ['presets', i, 'params', k], message: 'a text value in a preset must be a string or { "zh-CN"?, "en"? }' });
+      }
     }
   });
   m.timeline?.segments.forEach((s, i) => {

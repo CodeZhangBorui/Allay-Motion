@@ -1,7 +1,8 @@
 // 055 声音字幕 allay.builtin.sound-subtitles（docs/templates/sound-subtitles.md）。叠加层：右下角的字幕框，一条声音一行，带方向箭头。
 // 只用公开的模板接口；布局按界面像素，数值和时间公式在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule, TextObject } from '@allay/template-sdk';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { createGui, fontOf, linesOf, num } from '../../_lib/src/gui-kit';
 import { fitUnit, GRAY_STEPS, grayHex, halfWidth, MAX_LINES, parseCaption, ROW_PITCH, rowRect, sampleCues, stepAt, stepGray, visibleAt } from './layout';
 
@@ -80,7 +81,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 整体的淡入淡出（游戏里字幕是直接出现的）；首尾各让出一帧
-        const g = progress(t, win.in) * (1 - progress(t, win.out));
+        const g = fadeInOut(t, win);
         for (const r of rows) {
           for (const o of r.texts) o.object.visible = false;
           for (const o of r.arrows) o.object.visible = false;

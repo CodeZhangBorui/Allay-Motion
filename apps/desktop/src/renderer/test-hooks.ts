@@ -1,7 +1,8 @@
 // 只给自动化测试用的钩子（docs/decisions.md M1“测试钩子”）。只有主进程在未打包、且设置了 ALLAY_E2E_HOOKS 时
 // 才在 app.info 里返回 testHooks: true，渲染进程据此装上 window.__allayTest。打包后的应用永远不会装。
 // 钩子只调用界面自己也会走的路径（换模板、设时间、读预览），不碰任何安全设置。
-import { TemplateManifestSchema, type AudioCue, type ParamValues, type TemplateDiagnostic } from '@allay/template-sdk';
+import { diagnosticOf, TemplateManifestSchema, type AudioCue, type OutputSettings, type ParamValues, type ResourceKind, type TemplateDiagnostic } from '@allay/template-sdk';
+import { frameCount } from '@allay/engine/frames';
 import { previewAudio, soundBank } from './audio/app-audio';
 import { mixFrames, mixOffline } from './audio/mix';
 import { mascotFrameStats, resetMascotFrameStats, type MascotFrameStats } from '@allay/mascot';
@@ -25,7 +26,9 @@ import { useTemplateStore } from './stores/templateStore';
 import { DEFAULT_TEMPLATE_ID, type TemplateSource } from './templates/catalog';
 import { optionalModules } from './app/core';
 import { useCrashRequests } from './app/ErrorBoundary';
-import { renderStillPng } from './engine-host/still';
+import { clampStillSize, renderStillPng, STILL_FAST } from './engine-host/still';
+import { EngineHost } from './engine-host/EngineHost';
+import { createResolver, loadStamp } from './engine-host/resource-client';
 import { useDevStore, type ReloadPhase, type ReloadRecord, type TemplateRef } from './stores/devStore';
 import { undoInfo, type UndoOrigin } from './stores/projectStore';
 
@@ -108,6 +111,14 @@ export interface AllayTestHooks {
   undoInfo(): { undo: UndoOrigin | null; redo: UndoOrigin | null };
   /** 经统一的静帧接口（H4）把当前模板、当前参数在 t 时刻渲染成 PNG（base64） */
   renderStill(t: number, maxEdge?: number): Promise<{ width: number; height: number; pngBase64: string }>;
+  /** 当前工程的输出设置（评审截图核对画幅切到了没有，scripts/review-templates.ts） */
+  output(): OutputSettings;
+  /**
+   * 评审截图（scripts/review-templates.ts）：在一个新的杂务 Worker 里装载当前模板、当前参数，渲染 times 里每个时刻所在的帧
+   * （与 renderStill 同一条静帧路径），同时记下这次装载的警告、引擎日志、向资源栈要过的每个资源和拿没拿到。
+   * 只读：不改工程，不碰预览。装载或渲染失败时不抛错，失败原因在 error 里
+   */
+  reviewFrames(times: number[], maxEdge?: number): Promise<ReviewFrames>;
   /** 清掉当前模板（“没选模板”的界面状态，冒烟测试用）：工程里没有模板，预览回到起始状态 */
   clearTemplate(): void;
   /**
@@ -122,6 +133,45 @@ export interface AllayTestHooks {
   // ---- 悦灵（M5b）----
   /** 悦灵帧循环每帧耗时的统计（T-ALY-6）；reset 为真时读完清零 */
   mascotStats(reset?: boolean): MascotFrameStats;
+}
+
+/** reviewFrames 的结果 */
+export interface ReviewFrames {
+  /** 实际渲染的尺寸（已按静帧的上限缩小）和帧率 */
+  width: number;
+  height: number;
+  fps: number;
+  /** 这次装载得到的时长、剪辑点；装载失败时为 null */
+  duration: number | null;
+  cutTime: number | null;
+  /** 每个时刻所在的那一帧：直通 alpha 的 PNG */
+  frames: { t: number; index: number; pngBase64: string }[];
+  /** 装载结果里的警告（LoadResult.warnings：缺字形、字体不可用、不带 optional 的缺失贴图、着色器编译失败等） */
+  warnings: string[];
+  /**
+   * 引擎这次向资源栈要过的资源（同一种类、同一个 ID 只记第一次）。found 为假是资源栈里没有：可选贴图（optional）缺失时
+   * 引擎不记警告，只能从这里看出来。字体带上资源栈里缺的提供器（skipped）
+   */
+  resources: { kind: ResourceKind; id: string; found: boolean; skipped?: string[] }[];
+  /** 引擎经宿主日志报的消息（贴图解码失败、动画元数据不合用等，以及渲染时才出现的警告） */
+  log: { level: 'debug' | 'warn' | 'error'; message: string }[];
+  /** 装载或渲染失败：原样的信息和诊断码 */
+  error: { message: string; code: string | null } | null;
+}
+
+/** reviewFrames 一次最多渲染几帧 */
+const REVIEW_MAX_FRAMES = 64;
+
+/** 直通 alpha 的帧 → PNG 的 base64 */
+async function pngBase64(img: ImageData): Promise<string> {
+  const canvas = new OffscreenCanvas(img.width, img.height);
+  const g = canvas.getContext('2d');
+  if (!g) throw new Error('2d context unavailable');
+  g.putImageData(img, 0, 0);
+  const png = new Uint8Array(await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < png.length; i += 0x8000) bin += String.fromCharCode(...png.subarray(i, i + 0x8000));
+  return btoa(bin);
 }
 
 declare global {
@@ -303,6 +353,48 @@ export function installTestHooks(): void {
       let bin = '';
       for (let i = 0; i < r.png.length; i += 0x8000) bin += String.fromCharCode(...r.png.subarray(i, i + 0x8000));
       return { width: r.width, height: r.height, pngBase64: btoa(bin) };
+    },
+    output: () => ({ ...useProjectStore.getState().output }),
+    async reviewFrames(times, maxEdge) {
+      const { template, params, output } = useProjectStore.getState();
+      if (!template) throw new Error('no template');
+      const size = clampStillSize(output.width, output.height, maxEdge);
+      const result: ReviewFrames = { ...size, fps: output.fps, duration: null, cutTime: null, frames: [], warnings: [], resources: [], log: [], error: null };
+      const resolve = createResolver(() => template.assets);
+      const seen = new Set<string>();
+      let host: EngineHost | null = null;
+      try {
+        host = await EngineHost.create({
+          mode: 'utility',
+          resolveResource: async (kind, id) => {
+            const payload = await resolve(kind, id);
+            if (!seen.has(`${kind}:${id}`)) {
+              seen.add(`${kind}:${id}`);
+              const skipped = payload?.kind === 'font' && payload.skipped.length > 0 ? { skipped: [...payload.skipped] } : {};
+              result.resources.push({ kind, id, found: payload !== null, ...skipped });
+            }
+            return payload;
+          },
+          log: (level, message) => {
+            if (result.log.length < 200) result.log.push({ level, message });
+          },
+        });
+        const loaded = await host.load({ manifest: template.manifest, code: template.code, params, output: { ...size, fps: output.fps }, resourceStamp: loadStamp(template.assets), locale: i18next.language });
+        result.duration = loaded.duration;
+        result.cutTime = loaded.cutTime;
+        result.warnings = [...loaded.warnings];
+        const total = frameCount(loaded.duration, output.fps);
+        for (const t of times.slice(0, REVIEW_MAX_FRAMES)) {
+          const index = Math.min(total - 1, Math.max(0, Math.round(t * output.fps)));
+          const px = await host.renderFrame(index, STILL_FAST);
+          result.frames.push({ t, index, pngBase64: await pngBase64(new ImageData(new Uint8ClampedArray(px.buffer, px.byteOffset, px.byteLength), size.width, size.height)) });
+        }
+      } catch (e) {
+        result.error = { message: e instanceof Error ? e.message : String(e), code: diagnosticOf(e)?.code ?? null };
+      } finally {
+        host?.dispose();
+      }
+      return result;
     },
     optionalModules: () => ({ available: optionalModules.available, active: optionalModules.activeIds, failures: Object.fromEntries(optionalModules.failures) }),
     templateChanges(clear = false) {
