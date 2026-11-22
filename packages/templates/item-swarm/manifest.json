@@ -1,0 +1,168 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.item-swarm",
+  "version": "1.0.0",
+  "name": { "zh-CN": "掉落物涌入", "en": "Item swarm" },
+  "description": {
+    "zh-CN": "上百个掉落的方块像掉落物那样转着、浮着，从画面外飞向中间堆满画面；退出时向外散开。",
+    "en": "Hundreds of dropped blocks spin and bob like item drops as they fly in from off-screen and pile up to fill the frame, then scatter outward."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["items", "blocks"],
+  "groups": [
+    { "key": "blocks", "label": { "zh-CN": "方块", "en": "Blocks" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "blocks",
+      "type": "blockList",
+      "label": { "zh-CN": "方块", "en": "Blocks" },
+      "hint": { "zh-CN": "按“方块排列”分配到每个格子；拖动左侧把手调整顺序", "en": "Placed into cells by Arrangement; drag the handle to reorder" },
+      "group": "blocks",
+      "default": [
+        { "id": "minecraft:grass_block", "weight": 2 },
+        { "id": "minecraft:dirt", "weight": 2 },
+        { "id": "minecraft:cobblestone", "weight": 2 },
+        { "id": "minecraft:stone", "weight": 2 },
+        { "id": "minecraft:oak_log", "weight": 2 },
+        { "id": "minecraft:oak_planks", "weight": 1 },
+        { "id": "minecraft:sand", "weight": 1 },
+        { "id": "minecraft:gravel", "weight": 1 }
+      ],
+      "max": 8
+    },
+    {
+      "key": "arrangement",
+      "type": "enum",
+      "label": { "zh-CN": "方块排列", "en": "Arrangement" },
+      "hint": { "zh-CN": "堆满时哪个格子是哪种方块。条带和同心环按方块列表的顺序循环，权重是条带的宽度；棋盘忽略权重", "en": "Which block ends up in which cell. Stripes and rings cycle through the list in order, with weight as the band width; the checkerboard ignores weights" },
+      "group": "blocks",
+      "default": "random",
+      "ui": "pattern",
+      "options": [
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.67, 0, 1, 0.33, 0.33, 1, 0.67, 0, 1, 0.33, 0, 0.67, 0, 0.67, 0.33, 1] },
+        { "value": "columns", "label": { "zh-CN": "按列依次", "en": "By column" }, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] },
+        { "value": "rows", "label": { "zh-CN": "按行依次", "en": "By row" }, "pattern": [0, 0, 0, 0, 0.33, 0.33, 0.33, 0.33, 0.67, 0.67, 0.67, 0.67, 1, 1, 1, 1] },
+        { "value": "diagonal", "label": { "zh-CN": "斜向依次", "en": "Diagonal" }, "pattern": [0, 0.33, 0.67, 1, 0.33, 0.67, 1, 0, 0.67, 1, 0, 0.33, 1, 0, 0.33, 0.67] },
+        { "value": "checker", "label": { "zh-CN": "棋盘交替", "en": "Checkerboard" }, "pattern": [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0] },
+        { "value": "rings", "label": { "zh-CN": "同心环", "en": "Rings" }, "pattern": [1, 0.5, 0.5, 1, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 1, 0.5, 0.5, 1] }
+      ]
+    },
+    { "key": "cols", "type": "integer", "label": { "zh-CN": "列数", "en": "Columns" }, "hint": { "zh-CN": "堆满时每行几格", "en": "Cells per row once the frame is full" }, "group": "blocks", "default": 14, "min": 8, "max": 32, "ui": "slider" },
+    {
+      "key": "origin",
+      "type": "enum",
+      "label": { "zh-CN": "从哪里来", "en": "Comes from" },
+      "group": "motion",
+      "default": "around",
+      "options": [
+        { "value": "around", "label": { "zh-CN": "四周", "en": "All around" } },
+        { "value": "left", "label": { "zh-CN": "左边", "en": "Left" } },
+        { "value": "right", "label": { "zh-CN": "右边", "en": "Right" } },
+        { "value": "bottom", "label": { "zh-CN": "下方", "en": "Below" } },
+        { "value": "top", "label": { "zh-CN": "上方", "en": "Above" } }
+      ]
+    },
+    {
+      "key": "fillOrder",
+      "type": "enum",
+      "label": { "zh-CN": "堆积顺序", "en": "Fill order" },
+      "hint": { "zh-CN": "哪些格子先被填上", "en": "Which cells fill first" },
+      "group": "motion",
+      "default": "centerOut",
+      "ui": "pattern",
+      "options": [
+        { "value": "centerOut", "label": { "zh-CN": "从中间往外", "en": "Center out" }, "pattern": [1, 0.62, 0.62, 1, 0.62, 0, 0, 0.62, 0.62, 0, 0, 0.62, 1, 0.62, 0.62, 1] },
+        { "value": "bottomToTop", "label": { "zh-CN": "从下往上", "en": "Bottom up" }, "pattern": [1, 1, 1, 1, 0.67, 0.67, 0.67, 0.67, 0.33, 0.33, 0.33, 0.33, 0, 0, 0, 0] },
+        { "value": "leftToRight", "label": { "zh-CN": "从左到右", "en": "Left to right" }, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] },
+        { "value": "edgesIn", "label": { "zh-CN": "四周向内", "en": "Edges in" }, "pattern": [0, 0.38, 0.38, 0, 0.38, 1, 1, 0.38, 0.38, 1, 1, 0.38, 0, 0.38, 0.38, 0] },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.47, 0.93, 0.13, 0.67, 0.27, 0.8, 0.53, 0.07, 0.87, 0.33, 1, 0.4, 0.6, 0.2, 0.73, 0] }
+      ]
+    },
+    {
+      "key": "spinSpeed",
+      "type": "number",
+      "label": { "zh-CN": "自转", "en": "Spin" },
+      "hint": { "zh-CN": "飞行中绕竖轴转几圈每秒；游戏里的掉落物大约 6 秒转一圈（0.16）", "en": "Turns per second around the vertical axis while flying; item drops in the game turn about once every 6 seconds (0.16)" },
+      "group": "motion",
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "unit": "rev/s"
+    },
+    { "key": "easing", "type": "easing", "label": { "zh-CN": "飞行缓动", "en": "Flight easing" }, "hint": { "zh-CN": "每个掉落物沿曲线飞行的快慢；默认越飞越快，像被吸过来", "en": "Pace of each item along its curve; by default it speeds up, as if pulled in" }, "group": "motion", "default": "quadIn" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.8, "min": 0.3, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.1, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.6, "min": 0.3, "max": 3 },
+    { "key": "pickupSound", "type": "sound", "label": { "zh-CN": "拾取音效", "en": "Pickup sound" }, "hint": { "zh-CN": "掉落物落位时", "en": "When an item lands in its cell" }, "group": "sound", "default": "minecraft:entity.item.pickup" },
+    { "key": "scatterSound", "type": "sound", "label": { "zh-CN": "散开音效", "en": "Scatter sound" }, "hint": { "zh-CN": "开始散开时放一次", "en": "Plays once when the items scatter" }, "group": "sound", "default": "minecraft:entity.player.attack.sweep" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "motion", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    {
+      "key": "ore-haul",
+      "name": { "zh-CN": "矿石满仓", "en": "Ore haul" },
+      "params": {
+        "blocks": [
+          { "id": "minecraft:diamond_ore", "weight": 1 },
+          { "id": "minecraft:gold_ore", "weight": 1 },
+          { "id": "minecraft:iron_ore", "weight": 2 },
+          { "id": "minecraft:emerald_ore", "weight": 1 },
+          { "id": "minecraft:redstone_ore", "weight": 1 },
+          { "id": "minecraft:lapis_ore", "weight": 1 },
+          { "id": "minecraft:coal_ore", "weight": 2 },
+          { "id": "minecraft:copper_ore", "weight": 1 }
+        ],
+        "spinSpeed": 1.5
+      }
+    },
+    {
+      "key": "rising-pile",
+      "name": { "zh-CN": "从下方堆上来", "en": "Pile up from below" },
+      "params": {
+        "blocks": [
+          { "id": "minecraft:sand", "weight": 3 },
+          { "id": "minecraft:red_sand", "weight": 1 },
+          { "id": "minecraft:gravel", "weight": 2 },
+          { "id": "minecraft:sandstone", "weight": 1 }
+        ],
+        "origin": "bottom",
+        "fillOrder": "bottomToTop",
+        "cols": 18
+      }
+    },
+    {
+      "key": "wool-stream",
+      "name": { "zh-CN": "彩色羊毛（从左边涌入）", "en": "Wool stream (from the left)" },
+      "params": {
+        "blocks": [
+          { "id": "minecraft:red_wool", "weight": 1 },
+          { "id": "minecraft:orange_wool", "weight": 1 },
+          { "id": "minecraft:yellow_wool", "weight": 1 },
+          { "id": "minecraft:lime_wool", "weight": 1 },
+          { "id": "minecraft:light_blue_wool", "weight": 1 },
+          { "id": "minecraft:blue_wool", "weight": 1 },
+          { "id": "minecraft:purple_wool", "weight": 1 }
+        ],
+        "arrangement": "diagonal",
+        "origin": "left",
+        "fillOrder": "leftToRight",
+        "cols": 16
+      }
+    }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
