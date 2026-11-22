@@ -1,0 +1,98 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.piston-push",
+  "version": "1.0.0",
+  "name": { "zh-CN": "活塞合拢", "en": "Piston push" },
+  "description": {
+    "zh-CN": "两边各一列活塞，一格一格地把两扇方块墙推到画面中间合拢；退出时粘性活塞再一格一格地把墙拉回去。",
+    "en": "A column of pistons on each side pushes two block walls into the middle one block at a time; sticky pistons pull them back out the same way."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "redstone"],
+  "groups": [
+    { "key": "blocks", "label": { "zh-CN": "方块", "en": "Blocks" } },
+    { "key": "pistons", "label": { "zh-CN": "活塞", "en": "Pistons" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "blocks",
+      "type": "blockList",
+      "label": { "zh-CN": "方块", "en": "Blocks" },
+      "hint": { "zh-CN": "按“方块排列”分配到合拢后的墙上；拖动左侧把手调整顺序", "en": "Placed on the closed wall by Arrangement; drag the handle to reorder" },
+      "group": "blocks",
+      "default": [
+        { "id": "minecraft:stone_bricks", "weight": 3 },
+        { "id": "minecraft:mossy_stone_bricks", "weight": 1 },
+        { "id": "minecraft:cracked_stone_bricks", "weight": 1 }
+      ],
+      "max": 8
+    },
+    {
+      "key": "arrangement",
+      "type": "enum",
+      "label": { "zh-CN": "方块排列", "en": "Arrangement" },
+      "hint": { "zh-CN": "合拢后的墙上哪个格子是哪种方块。条带和同心环按方块列表的顺序循环，权重是条带的宽度；棋盘忽略权重", "en": "Which block ends up in which cell of the closed wall. Stripes and rings cycle through the list in order, with weight as the band width; the checkerboard ignores weights" },
+      "group": "blocks",
+      "default": "random",
+      "ui": "pattern",
+      "options": [
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.67, 0, 1, 0.33, 0.33, 1, 0.67, 0, 1, 0.33, 0, 0.67, 0, 0.67, 0.33, 1] },
+        { "value": "columns", "label": { "zh-CN": "按列依次", "en": "By column" }, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1] },
+        { "value": "rows", "label": { "zh-CN": "按行依次", "en": "By row" }, "pattern": [0, 0, 0, 0, 0.33, 0.33, 0.33, 0.33, 0.67, 0.67, 0.67, 0.67, 1, 1, 1, 1] },
+        { "value": "diagonal", "label": { "zh-CN": "斜向依次", "en": "Diagonal" }, "pattern": [0, 0.33, 0.67, 1, 0.33, 0.67, 1, 0, 0.67, 1, 0, 0.33, 1, 0, 0.33, 0.67] },
+        { "value": "checker", "label": { "zh-CN": "棋盘交替", "en": "Checkerboard" }, "pattern": [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0] },
+        { "value": "rings", "label": { "zh-CN": "同心环", "en": "Rings" }, "pattern": [1, 0.5, 0.5, 1, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0.5, 1, 0.5, 0.5, 1] }
+      ]
+    },
+    {
+      "key": "axis",
+      "type": "enum",
+      "label": { "zh-CN": "推的方向", "en": "Push axis" },
+      "hint": { "zh-CN": "自动：沿画面的长边推（横屏左右、竖屏上下）", "en": "Auto pushes along the long side of the frame (left–right in landscape, top–bottom in portrait)" },
+      "group": "pistons",
+      "default": "auto",
+      "options": [
+        { "value": "auto", "label": { "zh-CN": "自动", "en": "Auto" } },
+        { "value": "horizontal", "label": { "zh-CN": "左右", "en": "Left–right" } },
+        { "value": "vertical", "label": { "zh-CN": "上下", "en": "Top–bottom" } }
+      ]
+    },
+    { "key": "rows", "type": "integer", "label": { "zh-CN": "排数", "en": "Rows" }, "hint": { "zh-CN": "每边几个活塞；画面太短、推不了两格时会自动多加几排", "en": "Pistons per side; more rows are added automatically when the frame is too short for at least two pushes" }, "group": "pistons", "default": 4, "min": 2, "max": 12, "ui": "slider" },
+    { "key": "sticky", "type": "boolean", "label": { "zh-CN": "粘性活塞", "en": "Sticky pistons" }, "hint": { "zh-CN": "活塞头用粘性活塞的贴图。退出时活塞把墙拉回去，这在游戏里只有粘性活塞做得到", "en": "Use the sticky piston head. The pistons pull the walls back on the way out, which only sticky pistons can do in the game" }, "group": "pistons", "default": true },
+    { "key": "stagger", "type": "number", "label": { "zh-CN": "错开", "en": "Stagger" }, "hint": { "zh-CN": "各排先后：0 所有活塞同时动，1 后一排在前一排做到一半时才开始", "en": "Row offset: 0 moves every piston together, 1 starts each row halfway through the previous one" }, "group": "pistons", "default": 0.35, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.9, "min": 0.3, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.12, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.9, "min": 0.3, "max": 3 },
+    { "key": "extendSound", "type": "sound", "label": { "zh-CN": "伸出音效", "en": "Extend sound" }, "group": "sound", "default": "minecraft:block.piston.extend" },
+    { "key": "contractSound", "type": "sound", "label": { "zh-CN": "收回音效", "en": "Retract sound" }, "group": "sound", "default": "minecraft:block.piston.contract" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    {
+      "key": "redstone-lab",
+      "name": { "zh-CN": "红石实验室", "en": "Redstone lab" },
+      "params": { "blocks": [{ "id": "minecraft:redstone_block", "weight": 1 }, { "id": "minecraft:smooth_stone", "weight": 2 }, { "id": "minecraft:observer", "weight": 1 }], "arrangement": "checker", "stagger": 0 }
+    },
+    {
+      "key": "slime-press",
+      "name": { "zh-CN": "一齐压下（上下，6 排）", "en": "All at once (top–bottom, 6 rows)" },
+      "params": { "axis": "vertical", "rows": 6, "stagger": 0, "blocks": [{ "id": "minecraft:iron_block", "weight": 1 }] }
+    },
+    {
+      "key": "wave",
+      "name": { "zh-CN": "一排接一排", "en": "Row after row" },
+      "params": { "rows": 5, "stagger": 1, "inDuration": 1.4, "outDuration": 1.2 }
+    }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
