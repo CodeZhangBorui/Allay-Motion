@@ -167,6 +167,15 @@ export async function kindInstances(ctx: SetupContext, groups: KindGroups, shadi
   return out;
 }
 
+/**
+ * 透视下把 z = from 处的东西挪到 z = to 处、在画面上位置和大小都不变要乘的系数（相机在 z = cameraZ、看向 −z，
+ * 舞台中心在相机的轴上，同 ctx.createStageCamera）：x、y 和尺寸都乘它。垫底放在方块或树叶后面时用，
+ * 不然透视下垫底比前面的小一圈，画面边上透过镂空处看得到垫底外面（剪辑点不是整帧不透明）。
+ */
+export function depthScale(cameraZ: number, from: number, to: number): number {
+  return (cameraZ - to) / (cameraZ - from);
+}
+
 /** 0–1 钳制 */
 export const clamp01 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x);
 

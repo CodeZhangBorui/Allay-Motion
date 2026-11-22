@@ -7,7 +7,7 @@ import { arrangeCells as arrangeLib, ARRANGEMENTS, bandEntry as bandLib, toArran
 import { boxGeometry } from '../../packages/templates/_lib/src/block-box';
 import { createDebris, debrisPosition, type DebrisParticle } from '../../packages/templates/_lib/src/block-debris';
 import { createTiles, MAX_TILE_TEXTURES } from '../../packages/templates/_lib/src/block-tiles';
-import { blockList, cuePosition, groupByKind, jittered, orderValues, ORDER_PATTERNS, sampleCueIndices, wallGrid } from '../../packages/templates/_lib/src/block-kit';
+import { blockList, cuePosition, depthScale, groupByKind, jittered, orderValues, ORDER_PATTERNS, sampleCueIndices, wallGrid } from '../../packages/templates/_lib/src/block-kit';
 import { sampleIndices } from '../../packages/templates/_lib/src/cues';
 import { arrangeCells as arrangeWipe, bandEntry as bandWipe } from '../../packages/templates/block-wipe/src/arrangement';
 import { arrangeCells as arrangeFall } from '../../packages/templates/block-fall/src/arrangement';
@@ -109,7 +109,7 @@ describe('T-TPL-LIB-B3 顺序图案', () => {
   });
 });
 
-describe('T-TPL-LIB-B4 音效抽样和声源位置', () => {
+describe('T-TPL-LIB-B4 音效抽样、声源位置、透视下垫底的放大', () => {
   it('最多 12 个，按时刻均匀抽样（同 block-wipe：第一个、最后一个都在），不够 12 个时全取', () => {
     const times = Array.from({ length: 100 }, (_, i) => (i * 37) % 100);
     const picked = sampleCueIndices(times);
@@ -126,6 +126,16 @@ describe('T-TPL-LIB-B4 音效抽样和声源位置', () => {
     const sorted = Array.from({ length: 50 }, (_, i) => i * 0.1);
     expect(sampleCueIndices(sorted)).toEqual(sampleIndices(50));
     expect(sampleCueIndices(sorted, 1)).toEqual(sampleIndices(50, 1));
+  });
+  it('depthScale：挪到后面再放大的东西，在画面上的位置和大小不变（垫底不会比前面的小一圈）', () => {
+    const D = 2015;
+    for (const [from, to] of [[0, -96], [10, -50], [0, -3.5]] as const) {
+      const f = depthScale(D, from, to);
+      expect(f).toBeGreaterThan(1);
+      // 透视投影：x 在 z 处投到 z = 0 平面上是 x × D / (D − z)
+      for (const x of [-960, -100, 0, 523]) expect((x * f * D) / (D - to)).toBeCloseTo((x * D) / (D - from), 9);
+    }
+    expect(depthScale(D, 0, 0)).toBe(1);
   });
   it('舞台半宽当 8 格，听者在画面前 6 格', () => {
     expect(cuePosition(960, 0, 1920)).toEqual({ x: 8, y: 0, z: -6 });
