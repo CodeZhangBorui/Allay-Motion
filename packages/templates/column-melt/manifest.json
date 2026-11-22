@@ -1,0 +1,99 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.column-melt",
+  "version": "1.0.0",
+  "name": {"zh-CN": "逐列融化", "en": "Column Melt"},
+  "description": {
+    "zh-CN": "画面按竖条分开，每条错落着从上面流下来把画面盖满；退出时一条条继续往下流走，露出下一段画面。",
+    "en": "The screen splits into strips that flow down from the top one after another until it is covered, then keep flowing down and away to reveal the next shot."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["shader", "melt", "wipe"],
+  "groups": [
+    {"key": "columns", "label": {"zh-CN": "竖条", "en": "Strips"}},
+    {"key": "look", "label": {"zh-CN": "外观", "en": "Look"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "columns", "type": "integer", "label": {"zh-CN": "条数", "en": "Strips"}, "hint": {"zh-CN": "沿起始边分成多少条", "en": "How many strips along the starting edge"}, "group": "columns", "default": 32, "min": 4, "max": 160, "ui": "slider"},
+    {"key": "variance", "type": "number", "label": {"zh-CN": "错落", "en": "Variance"}, "hint": {"zh-CN": "各条出发先后的差别；相邻的条差得不多，整体参差", "en": "How much the strips differ in when they start; neighbors stay close, the whole edge is ragged"}, "group": "columns", "default": 0.45, "min": 0, "max": 0.9, "step": 0.01, "ui": "slider"},
+    {
+      "key": "direction",
+      "type": "enum",
+      "label": {"zh-CN": "方向", "en": "Direction"},
+      "group": "columns",
+      "default": "down",
+      "ui": "pattern",
+      "options": [
+        {"value": "down", "label": {"zh-CN": "从上往下", "en": "Down"}, "pattern": [0, 0, 0, 0, 0.33, 0.33, 0.33, 0.33, 0.67, 0.67, 0.67, 0.67, 1, 1, 1, 1]},
+        {"value": "up", "label": {"zh-CN": "从下往上", "en": "Up"}, "pattern": [1, 1, 1, 1, 0.67, 0.67, 0.67, 0.67, 0.33, 0.33, 0.33, 0.33, 0, 0, 0, 0]},
+        {"value": "left", "label": {"zh-CN": "从右往左", "en": "Left"}, "pattern": [1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0]},
+        {"value": "right", "label": {"zh-CN": "从左往右", "en": "Right"}, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1]}
+      ]
+    },
+    {
+      "key": "outMode",
+      "type": "enum",
+      "label": {"zh-CN": "退出方式", "en": "Out"},
+      "group": "columns",
+      "default": "continue",
+      "options": [
+        {"value": "continue", "label": {"zh-CN": "继续流走", "en": "Flow away"}},
+        {"value": "retract", "label": {"zh-CN": "缩回去", "en": "Retract"}}
+      ]
+    },
+    {
+      "key": "drip",
+      "type": "enum",
+      "label": {"zh-CN": "末端", "en": "Drip"},
+      "hint": {"zh-CN": "每条前端的形状。平头就是老游戏里那种整条下滑", "en": "Shape of each strip's front. Flat is the classic sliding strip of old games"},
+      "group": "look",
+      "default": "round",
+      "options": [
+        {"value": "flat", "label": {"zh-CN": "平头", "en": "Flat"}},
+        {"value": "round", "label": {"zh-CN": "圆头", "en": "Round"}},
+        {"value": "point", "label": {"zh-CN": "尖头", "en": "Point"}},
+        {"value": "drop", "label": {"zh-CN": "水滴", "en": "Drop"}}
+      ]
+    },
+    {
+      "key": "fill",
+      "type": "enum",
+      "label": {"zh-CN": "填充", "en": "Fill"},
+      "group": "look",
+      "default": "gradient",
+      "options": [
+        {"value": "solid", "label": {"zh-CN": "纯色", "en": "Solid"}},
+        {"value": "gradient", "label": {"zh-CN": "渐变", "en": "Gradient"}},
+        {"value": "stripes", "label": {"zh-CN": "两色相间", "en": "Alternating"}}
+      ]
+    },
+    {"key": "colorA", "type": "color", "label": {"zh-CN": "颜色 A", "en": "Color A"}, "hint": {"zh-CN": "纯色的颜色；渐变的上端；相间的单数条", "en": "The solid color; the top of the gradient; odd strips"}, "group": "look", "default": "#16181D", "palette": "dye"},
+    {"key": "colorB", "type": "color", "label": {"zh-CN": "颜色 B", "en": "Color B"}, "hint": {"zh-CN": "渐变的下端（跟着每条一起往下走）；相间的双数条", "en": "The bottom of the gradient (it travels with each strip); even strips"}, "group": "look", "default": "#353C48", "palette": "dye", "visibleWhen": {"key": "fill", "not": "solid"}},
+    {"key": "sheen", "type": "number", "label": {"zh-CN": "光泽", "en": "Sheen"}, "hint": {"zh-CN": "前端后面的一道亮线和前端的暗边，让竖条看起来有厚度", "en": "A light streak behind each front and a darker rim, so the strips look thick"}, "group": "look", "default": 0.35, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "columns", "default": 1},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "流下", "en": "Melt in"}, "group": "timing", "default": 0.7, "min": 0.15, "max": 3},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.15, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "流走", "en": "Melt out"}, "group": "timing", "default": 0.7, "min": 0.15, "max": 3},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "每一条自己的运动；默认是越流越快", "en": "Motion of each strip; by default it speeds up as it flows"}, "group": "timing", "default": "quadIn"},
+    {"key": "inSound", "type": "sound", "label": {"zh-CN": "流下音效", "en": "Melt-in sound"}, "hint": {"zh-CN": "开始流下时播放", "en": "Plays when the strips start to flow"}, "group": "sound", "default": "minecraft:item.bottle.empty"},
+    {"key": "outSound", "type": "sound", "label": {"zh-CN": "流走音效", "en": "Melt-out sound"}, "hint": {"zh-CN": "开始流走时播放", "en": "Plays when the strips start to leave"}, "group": "sound", "default": "minecraft:item.bottle.empty"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "流下", "en": "In"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "流走", "en": "Out"}}
+    ]
+  },
+  "presets": [
+    {"key": "classic", "name": {"zh-CN": "老游戏的融化（平头、细条）", "en": "Classic melt (flat, thin strips)"}, "params": {"drip": "flat", "columns": 96, "variance": 0.6, "fill": "solid", "colorA": "#0B0B0D", "sheen": 0, "easing": "quadIn"}},
+    {"key": "lava", "name": {"zh-CN": "岩浆", "en": "Lava"}, "params": {"drip": "drop", "columns": 24, "fill": "gradient", "colorA": "#FFB13B", "colorB": "#B4290A", "sheen": 0.5}},
+    {"key": "slime", "name": {"zh-CN": "史莱姆", "en": "Slime"}, "params": {"drip": "round", "columns": 18, "fill": "gradient", "colorA": "#3E7F2C", "colorB": "#8FD16A", "sheen": 0.6, "inSound": "minecraft:block.slime_block.fall", "outSound": "minecraft:block.slime_block.fall"}},
+    {"key": "banner", "name": {"zh-CN": "两色相间（横向）", "en": "Alternating colors (sideways)"}, "params": {"direction": "right", "fill": "stripes", "colorA": "#F9FFFE", "colorB": "#1D1D21", "drip": "point", "columns": 20, "sheen": 0.2}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}

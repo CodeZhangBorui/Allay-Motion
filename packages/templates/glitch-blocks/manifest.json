@@ -1,0 +1,53 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.glitch-blocks",
+  "version": "1.0.0",
+  "name": {"zh-CN": "故障色块", "en": "Glitch Blocks"},
+  "description": {
+    "zh-CN": "错位的色块和横条一阵阵闪出来，越来越多，直到盖满画面；退出时一阵阵消失。只画色块，不扭曲底下的画面。",
+    "en": "Misaligned color blocks and strips flash in bursts, more each time, until the screen is covered, then vanish in bursts. Only blocks are drawn; the footage underneath is not distorted."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["shader", "glitch", "digital"],
+  "groups": [
+    {"key": "blocks", "label": {"zh-CN": "色块", "en": "Blocks"}},
+    {"key": "colors", "label": {"zh-CN": "颜色", "en": "Colors"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "blockSize", "type": "integer", "label": {"zh-CN": "色块大小", "en": "Block size"}, "hint": {"zh-CN": "色块和横条的高度", "en": "Height of the blocks and strips"}, "group": "blocks", "default": 48, "min": 12, "max": 240, "ui": "slider"},
+    {"key": "bursts", "type": "integer", "label": {"zh-CN": "阵数", "en": "Bursts"}, "hint": {"zh-CN": "进入和退出各闪几阵", "en": "How many bursts on the way in and on the way out"}, "group": "blocks", "default": 4, "min": 1, "max": 6, "ui": "slider"},
+    {"key": "stepRate", "type": "number", "label": {"zh-CN": "跳变频率", "en": "Step rate"}, "hint": {"zh-CN": "色块的排布每秒换几次；越低越卡顿", "en": "How many times per second the layout jumps; lower looks choppier"}, "group": "blocks", "default": 15, "min": 4, "max": 60, "step": 1, "unit": "/s", "ui": "slider"},
+    {"key": "bandShift", "type": "number", "label": {"zh-CN": "横条错位", "en": "Strip offset"}, "hint": {"zh-CN": "横条左右错开的幅度（占画面宽度）", "en": "How far the strips tear sideways (share of the screen width)"}, "group": "blocks", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "rgbSplit", "type": "number", "label": {"zh-CN": "色散", "en": "RGB split"}, "hint": {"zh-CN": "色块自己的红绿蓝三色错开的距离", "en": "How far the red, green and blue copies of each block are offset"}, "group": "blocks", "default": 10, "min": 0, "max": 60, "step": 1, "unit": "px", "ui": "slider"},
+    {"key": "noiseBlocks", "type": "number", "label": {"zh-CN": "雪花块", "en": "Noise blocks"}, "hint": {"zh-CN": "有多少色块是雪花", "en": "Share of the blocks drawn as static"}, "group": "blocks", "default": 0.25, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "tears", "type": "number", "label": {"zh-CN": "撕裂线", "en": "Tear lines"}, "hint": {"zh-CN": "横贯全屏的细亮线有多少", "en": "How many thin lines run across the whole screen"}, "group": "blocks", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "blocks", "default": 1},
+    {"key": "baseColor", "type": "color", "label": {"zh-CN": "底色", "en": "Base"}, "hint": {"zh-CN": "盖满时占大多数的颜色", "en": "The color most blocks take once the screen is covered"}, "group": "colors", "default": "#101014"},
+    {"key": "colorA", "type": "color", "label": {"zh-CN": "亮色", "en": "Light"}, "hint": {"zh-CN": "也是雪花和撕裂线的颜色", "en": "Also the color of the static and the tear lines"}, "group": "colors", "default": "#E8E8E8"},
+    {"key": "colorB", "type": "color", "label": {"zh-CN": "色块 B", "en": "Accent B"}, "group": "colors", "default": "#00D9FF"},
+    {"key": "colorC", "type": "color", "label": {"zh-CN": "色块 C", "en": "Accent C"}, "group": "colors", "default": "#FF3D5A"},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "进入", "en": "In"}, "group": "timing", "default": 0.55, "min": 0.15, "max": 3},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.2, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "退出", "en": "Out"}, "group": "timing", "default": 0.55, "min": 0.15, "max": 3},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "group": "timing", "default": "linear"},
+    {"key": "sound", "type": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "hint": {"zh-CN": "每一阵播放一次，音高随机", "en": "Plays at every burst with a random pitch"}, "group": "sound", "default": "minecraft:block.note_block.bit"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.55, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "进入", "en": "In"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "退出", "en": "Out"}}
+    ]
+  },
+  "presets": [
+    {"key": "ender", "name": {"zh-CN": "末影", "en": "Ender"}, "params": {"baseColor": "#0B0614", "colorA": "#E3D5FF", "colorB": "#B04BFF", "colorC": "#2FE6C8"}},
+    {"key": "redstone", "name": {"zh-CN": "红石", "en": "Redstone"}, "params": {"baseColor": "#140303", "colorA": "#FFE0C9", "colorB": "#FF2A1A", "colorC": "#FF9A3C", "rgbSplit": 6}},
+    {"key": "mono", "name": {"zh-CN": "黑白", "en": "Monochrome"}, "params": {"baseColor": "#000000", "colorA": "#FFFFFF", "colorB": "#8A8A8A", "colorC": "#3A3A3A", "rgbSplit": 0, "noiseBlocks": 0.45}},
+    {"key": "big-blocks", "name": {"zh-CN": "大色块、慢跳变", "en": "Big blocks, slow steps"}, "params": {"blockSize": 120, "stepRate": 8, "bursts": 3, "bandShift": 0.3, "tears": 0.2}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}

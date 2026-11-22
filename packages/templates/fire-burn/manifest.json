@@ -1,0 +1,59 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.fire-burn",
+  "version": "1.0.0",
+  "name": {"zh-CN": "烧穿", "en": "Burn Through"},
+  "description": {
+    "zh-CN": "一排火从下往上烧，烧过的地方变成焦黑的幕；退出时焦黑的幕被烧出几个洞，洞的边缘发着光、冒着火星，直到烧光。",
+    "en": "A row of fire burns up from the bottom and leaves a charred curtain; on the way out the curtain burns through in a few holes with glowing, sparking edges until it is gone."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["particles", "fire", "burn"],
+  "groups": [
+    {"key": "fire", "label": {"zh-CN": "火", "en": "Fire"}},
+    {"key": "burn", "label": {"zh-CN": "烧穿", "en": "Burn-through"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {
+      "key": "fire",
+      "type": "enum",
+      "label": {"zh-CN": "火", "en": "Fire"},
+      "group": "fire",
+      "default": "fire",
+      "options": [
+        {"value": "fire", "label": {"zh-CN": "火", "en": "Fire"}},
+        {"value": "soul", "label": {"zh-CN": "灵魂火", "en": "Soul fire"}}
+      ]
+    },
+    {"key": "flameSize", "type": "number", "label": {"zh-CN": "火苗大小", "en": "Flame size"}, "hint": {"zh-CN": "一格火焰贴图的边长；焦黑的幕和烧穿的边按它的像素走", "en": "Size of one fire texture tile; the charred curtain and burnt edges follow its pixels"}, "group": "fire", "default": 150, "min": 60, "max": 400, "step": 1, "unit": "px", "ui": "slider"},
+    {"key": "frontWave", "type": "number", "label": {"zh-CN": "火线起伏", "en": "Fire line waviness"}, "group": "fire", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "charColor", "type": "color", "label": {"zh-CN": "焦黑", "en": "Char"}, "hint": {"zh-CN": "烧过的幕的颜色", "en": "Color of the burnt curtain"}, "group": "burn", "default": "#1A1311"},
+    {"key": "holes", "type": "integer", "label": {"zh-CN": "起火点", "en": "Burn points"}, "hint": {"zh-CN": "退出时从几处开始烧穿", "en": "How many places the curtain starts burning through"}, "group": "burn", "default": 4, "min": 1, "max": 8, "ui": "slider"},
+    {"key": "edgeGlow", "type": "number", "label": {"zh-CN": "边缘发光", "en": "Edge glow"}, "hint": {"zh-CN": "火线下面、洞的边缘发红的宽度", "en": "How wide the glowing band below the fire line and around the holes is"}, "group": "burn", "default": 0.8, "min": 0.1, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "embers", "type": "integer", "label": {"zh-CN": "火星", "en": "Embers"}, "hint": {"zh-CN": "往上飘的火星有多少", "en": "How many embers float up"}, "group": "burn", "default": 70, "min": 0, "max": 240, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "burn", "default": 1},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "烧上来", "en": "Burn in"}, "group": "timing", "default": 0.8, "min": 0.2, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.2, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "烧穿", "en": "Burn through"}, "group": "timing", "default": 1, "min": 0.2, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "group": "timing", "default": "linear"},
+    {"key": "igniteSound", "type": "sound", "label": {"zh-CN": "点火音效", "en": "Ignite sound"}, "hint": {"zh-CN": "火开始烧上来时播放", "en": "Plays when the fire starts to rise"}, "group": "sound", "default": "minecraft:item.firecharge.use"},
+    {"key": "burnSound", "type": "sound", "label": {"zh-CN": "燃烧音效", "en": "Burning sound"}, "hint": {"zh-CN": "开始烧穿时播放", "en": "Plays when the curtain starts burning through"}, "group": "sound", "default": "minecraft:block.fire.ambient"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "烧上来", "en": "In"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "烧穿", "en": "Out"}}
+    ]
+  },
+  "presets": [
+    {"key": "soul", "name": {"zh-CN": "灵魂火", "en": "Soul fire"}, "params": {"fire": "soul", "charColor": "#11161A"}},
+    {"key": "quick", "name": {"zh-CN": "快烧（一处烧穿）", "en": "Quick burn (one hole)"}, "params": {"holes": 1, "inDuration": 0.5, "hold": 0.1, "outDuration": 0.6, "embers": 40}},
+    {"key": "slow-paper", "name": {"zh-CN": "慢慢烧穿的纸", "en": "Slow paper burn"}, "params": {"flameSize": 110, "holes": 7, "charColor": "#2A2017", "outDuration": 1.8, "embers": 150, "frontWave": 0.8}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}

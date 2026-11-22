@@ -1,0 +1,61 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.glint-sweep",
+  "version": "1.0.0",
+  "name": {"zh-CN": "附魔光扫", "en": "Glint Sweep"},
+  "description": {
+    "zh-CN": "附魔光效那种紫色的流动纹理斜着扫过整个画面，或者只扫过一张图片（比如频道标志）。",
+    "en": "The purple flowing texture of the enchantment glint sweeps diagonally across the whole screen, or across a single image such as a channel logo."
+  },
+  "license": "MIT",
+  "category": "overlay",
+  "tags": ["shader", "enchant", "glint"],
+  "groups": [
+    {"key": "glint", "label": {"zh-CN": "光效", "en": "Glint"}},
+    {"key": "image", "label": {"zh-CN": "图片", "en": "Image"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "tint", "type": "color", "label": {"zh-CN": "颜色", "en": "Color"}, "hint": {"zh-CN": "光效的颜色；游戏里是紫色", "en": "Color of the glint; purple in the game"}, "group": "glint", "default": "#9B5CFF"},
+    {"key": "strength", "type": "number", "label": {"zh-CN": "强度", "en": "Strength"}, "hint": {"zh-CN": "游戏里光效是加法混合（只加亮），导出的透明视频表达不了，这里按亮度普通混合：暗的画面上像发光，亮的画面上是一层颜色", "en": "The game adds the glint as light, which a transparent export cannot store; it is blended normally by brightness instead, so it glows on dark footage and tints bright footage"}, "group": "glint", "default": 0.85, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "angle", "type": "angle", "label": {"zh-CN": "扫过方向", "en": "Sweep direction"}, "hint": {"zh-CN": "0° 是从左往右", "en": "0° sweeps left to right"}, "group": "glint", "default": 25, "snap": 5},
+    {"key": "width", "type": "number", "label": {"zh-CN": "光带宽度", "en": "Band width"}, "hint": {"zh-CN": "占画面短边的比例", "en": "As a share of the short side"}, "group": "glint", "default": 0.35, "min": 0.05, "max": 1.5, "step": 0.01, "ui": "slider"},
+    {"key": "sweeps", "type": "integer", "label": {"zh-CN": "扫过次数", "en": "Sweeps"}, "group": "glint", "default": 1, "min": 1, "max": 4, "ui": "slider"},
+    {"key": "base", "type": "number", "label": {"zh-CN": "底层光效", "en": "Ambient glint"}, "hint": {"zh-CN": "光带之外也留一层淡淡的光效", "en": "A faint glint everywhere, outside the band too"}, "group": "glint", "default": 0.15, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "speed", "type": "number", "label": {"zh-CN": "流动速度", "en": "Flow speed"}, "hint": {"zh-CN": "纹理自己滚动的快慢", "en": "How fast the texture itself flows"}, "group": "glint", "default": 1, "min": 0, "max": 4, "step": 0.05, "ui": "slider"},
+    {
+      "key": "glint",
+      "type": "enum",
+      "label": {"zh-CN": "光效贴图", "en": "Glint texture"},
+      "hint": {"zh-CN": "物品用的较亮，盔甲（实体）用的较暗、更细", "en": "The item glint is brighter; the armor (entity) one is darker and finer"},
+      "group": "glint",
+      "default": "item",
+      "options": [
+        {"value": "item", "label": {"zh-CN": "物品", "en": "Item"}},
+        {"value": "armor", "label": {"zh-CN": "盔甲", "en": "Armor"}}
+      ]
+    },
+    {"key": "image", "type": "texture", "label": {"zh-CN": "图片", "en": "Image"}, "hint": {"zh-CN": "选了图片时画出这张图，光效只扫过它不透明的地方；不选就扫过整个画面", "en": "When set, the image is drawn and the glint only sweeps its opaque parts; otherwise the whole screen"}, "group": "image", "default": "", "allowFile": true},
+    {"key": "imageScale", "type": "number", "label": {"zh-CN": "图片大小", "en": "Image size"}, "hint": {"zh-CN": "图片长边占画面短边的比例", "en": "The image's long side as a share of the screen's short side"}, "group": "image", "default": 0.6, "min": 0.1, "max": 1, "step": 0.01, "ui": "slider", "visibleWhen": {"key": "image", "not": ""}},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "淡入", "en": "Fade in"}, "group": "timing", "default": 0.3, "min": 0.05, "max": 3},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 1.4, "min": 0.1, "max": 20},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "淡出", "en": "Fade out"}, "group": "timing", "default": 0.3, "min": 0.05, "max": 3},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "光带扫过的快慢变化", "en": "How the band's travel speeds up and slows down"}, "group": "timing", "default": "quadInOut"},
+    {"key": "sound", "type": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "hint": {"zh-CN": "在开头播放", "en": "Plays at the start"}, "group": "sound", "default": "minecraft:block.enchantment_table.use"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "淡入", "en": "In"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "淡出", "en": "Out"}}
+    ]
+  },
+  "presets": [
+    {"key": "double", "name": {"zh-CN": "扫两遍", "en": "Two sweeps"}, "params": {"sweeps": 2, "hold": 2.4, "width": 0.3}},
+    {"key": "shimmer", "name": {"zh-CN": "满屏流光", "en": "Full-screen shimmer"}, "params": {"base": 0.6, "width": 1.2, "strength": 0.6, "speed": 1.6}},
+    {"key": "gold", "name": {"zh-CN": "金色光扫", "en": "Golden sweep"}, "params": {"tint": "#FFD15C", "angle": 160, "glint": "armor", "base": 0.06}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}

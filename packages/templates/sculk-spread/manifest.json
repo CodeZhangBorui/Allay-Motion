@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.sculk-spread",
+  "version": "1.0.0",
+  "name": {"zh-CN": "幽匿蔓延", "en": "Sculk Spread"},
+  "description": {
+    "zh-CN": "幽匿从几个催发体成片蔓延开，边缘的格子先爬上脉络再变成幽匿，铺满后一阵阵明暗脉动；退出时退去，灵魂从退去的地方飘上来。",
+    "en": "Sculk spreads in patches from a few catalysts, veins creeping onto each cell before it turns, then pulses once the screen is covered; on the way out it recedes and souls drift up from where it left."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "sculk", "deep-dark"],
+  "groups": [
+    {"key": "spread", "label": {"zh-CN": "蔓延", "en": "Spread"}},
+    {"key": "look", "label": {"zh-CN": "外观", "en": "Look"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "seeds", "type": "integer", "label": {"zh-CN": "起点", "en": "Catalysts"}, "hint": {"zh-CN": "从几个催发体开始蔓延", "en": "How many catalysts the sculk spreads from"}, "group": "spread", "default": 3, "min": 1, "max": 8, "ui": "slider"},
+    {"key": "blockSize", "type": "number", "label": {"zh-CN": "方块大小", "en": "Block size"}, "group": "spread", "default": 135, "min": 40, "max": 360, "step": 1, "unit": "px", "ui": "slider"},
+    {"key": "veinWidth", "type": "number", "label": {"zh-CN": "脉络", "en": "Veins"}, "hint": {"zh-CN": "边缘的脉络爬得多快、多宽；越大越早爬满一格", "en": "How fast and far the veins creep over the edge cells; higher fills a cell sooner"}, "group": "spread", "default": 1, "min": 0.3, "max": 2, "step": 0.05, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "spread", "default": 1},
+    {"key": "pulse", "type": "number", "label": {"zh-CN": "明暗脉动", "en": "Pulse"}, "hint": {"zh-CN": "铺开的幽匿一阵阵变亮，从起点往外走", "en": "Waves of brightness rolling out from the catalysts"}, "group": "look", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "glowColor", "type": "color", "label": {"zh-CN": "青光", "en": "Glow"}, "hint": {"zh-CN": "变成幽匿时闪的光，也是没有素材时脉络和灵魂的颜色", "en": "The flash when a cell turns, also the color of veins and souls without vanilla assets"}, "group": "look", "default": "#29DFEB"},
+    {"key": "particles", "type": "integer", "label": {"zh-CN": "灵魂", "en": "Souls"}, "hint": {"zh-CN": "退去时飘上来的灵魂有多少", "en": "How many souls drift up as it recedes"}, "group": "look", "default": 26, "min": 0, "max": 80, "ui": "slider"},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "蔓延", "en": "Spread"}, "group": "timing", "default": 1, "min": 0.3, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.25, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "退去", "en": "Recede"}, "group": "timing", "default": 0.9, "min": 0.3, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "group": "timing", "default": "quadIn"},
+    {"key": "spreadSound", "type": "sound", "label": {"zh-CN": "蔓延音效", "en": "Spread sound"}, "hint": {"zh-CN": "蔓延时放几次（带位置）", "en": "Plays a few times while spreading (positioned)"}, "group": "sound", "default": "minecraft:block.sculk.spread"},
+    {"key": "bloomSound", "type": "sound", "label": {"zh-CN": "绽放音效", "en": "Bloom sound"}, "hint": {"zh-CN": "开头催发体绽放的声音；原版的 minecraft:block.sculk_catalyst.bloom 有 13 个文件、几百 KB，默认不放", "en": "The catalyst bloom at the start; the vanilla minecraft:block.sculk_catalyst.bloom is 13 files and several hundred KB, so it is off by default"}, "group": "sound", "default": null},
+    {"key": "recedeSound", "type": "sound", "label": {"zh-CN": "退去音效", "en": "Recede sound"}, "hint": {"zh-CN": "开始退去时播放", "en": "Plays when it starts to recede"}, "group": "sound", "default": "minecraft:block.sculk.charge"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "蔓延", "en": "Spread"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "退去", "en": "Recede"}}
+    ]
+  },
+  "presets": [
+    {"key": "single-catalyst", "name": {"zh-CN": "一个催发体（从中间长开）", "en": "One catalyst (grows from the middle)"}, "params": {"seeds": 1, "inDuration": 1.4, "pulse": 0.7}},
+    {"key": "bloom", "name": {"zh-CN": "催发体绽放（带原版音效）", "en": "Catalyst bloom (with the vanilla sound)"}, "params": {"seeds": 2, "bloomSound": "minecraft:block.sculk_catalyst.bloom", "pulse": 0.8}},
+    {"key": "swarm", "name": {"zh-CN": "满地起点、小方块", "en": "Many catalysts, small blocks"}, "params": {"seeds": 8, "blockSize": 80, "veinWidth": 1.4, "particles": 50}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}

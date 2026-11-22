@@ -1,0 +1,49 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.riptide-vortex",
+  "version": "1.0.0",
+  "name": {"zh-CN": "激流", "en": "Riptide"},
+  "description": {
+    "zh-CN": "激流附魔那种旋转的水流绕着画面中心转，从四周卷进来，中间的洞一边转一边收紧直到铺满，水花从洞口甩出去；退出时再转着张开。",
+    "en": "The spinning water of the Riptide enchantment swirls around the center, closing in from the edges while the hole in the middle tightens until the screen is covered, flinging splashes; it spins open again on the way out."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["items", "trident", "water"],
+  "groups": [
+    {"key": "vortex", "label": {"zh-CN": "旋涡", "en": "Vortex"}},
+    {"key": "colors", "label": {"zh-CN": "颜色", "en": "Colors"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "level", "type": "integer", "label": {"zh-CN": "激流等级", "en": "Riptide level"}, "hint": {"zh-CN": "等级越高转得越快；音效保持默认时按等级换成激流 I、II、III 的声音", "en": "Higher levels spin faster; left at the default, the sound follows the level (Riptide I, II, III)"}, "group": "vortex", "default": 3, "min": 1, "max": 3, "ui": "slider"},
+    {"key": "twist", "type": "number", "label": {"zh-CN": "扭转", "en": "Twist"}, "hint": {"zh-CN": "旋臂卷得多紧", "en": "How tightly the arms coil"}, "group": "vortex", "default": 1.2, "min": 0, "max": 3, "step": 0.05, "ui": "slider"},
+    {"key": "arms", "type": "integer", "label": {"zh-CN": "旋臂", "en": "Arms"}, "hint": {"zh-CN": "洞口的边有几瓣", "en": "How many lobes the edge of the hole has"}, "group": "vortex", "default": 3, "min": 1, "max": 8, "ui": "slider"},
+    {"key": "splashes", "type": "integer", "label": {"zh-CN": "水花", "en": "Splashes"}, "group": "vortex", "default": 50, "min": 0, "max": 160, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "vortex", "default": 1},
+    {"key": "waterColor", "type": "color", "label": {"zh-CN": "水", "en": "Water"}, "group": "colors", "default": "#2F64D6"},
+    {"key": "deepColor", "type": "color", "label": {"zh-CN": "深处", "en": "Depth"}, "hint": {"zh-CN": "靠近旋涡中心的颜色", "en": "Color toward the eye of the vortex"}, "group": "colors", "default": "#08174A"},
+    {"key": "foamColor", "type": "color", "label": {"zh-CN": "浪花", "en": "Foam"}, "hint": {"zh-CN": "旋转的条纹、洞口的白浪和水花", "en": "The spinning streaks, the foam at the hole and the splashes"}, "group": "colors", "default": "#E4FBFF"},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "卷进来", "en": "Close"}, "group": "timing", "default": 0.8, "min": 0.2, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.15, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "张开", "en": "Open"}, "group": "timing", "default": 0.7, "min": 0.2, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "洞口大小本来就是先快后慢地收", "en": "The hole already closes fast first and slow at the end"}, "group": "timing", "default": "linear"},
+    {"key": "sound", "type": "sound", "label": {"zh-CN": "激流音效", "en": "Riptide sound"}, "hint": {"zh-CN": "开头播放；保持默认时按激流等级换", "en": "Plays at the start; left at the default, it follows the level"}, "group": "sound", "default": "minecraft:item.trident.riptide_3"},
+    {"key": "outSound", "type": "sound", "label": {"zh-CN": "张开音效", "en": "Open sound"}, "hint": {"zh-CN": "开始张开时播放", "en": "Plays when it starts to open"}, "group": "sound", "default": "minecraft:entity.player.splash"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "卷进来", "en": "Close"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "张开", "en": "Open"}}
+    ]
+  },
+  "presets": [
+    {"key": "riptide-1", "name": {"zh-CN": "激流 I（慢）", "en": "Riptide I (slow)"}, "params": {"level": 1, "twist": 0.8, "inDuration": 1.1, "outDuration": 0.9}},
+    {"key": "nether", "name": {"zh-CN": "岩浆旋涡", "en": "Lava whirl"}, "params": {"waterColor": "#D9530F", "deepColor": "#3A0A02", "foamColor": "#FFE08A", "outSound": "minecraft:block.lava.extinguish"}},
+    {"key": "tight", "name": {"zh-CN": "五臂急转", "en": "Five arms, fast"}, "params": {"arms": 5, "twist": 2.2, "splashes": 90, "inDuration": 0.6, "outDuration": 0.6}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}

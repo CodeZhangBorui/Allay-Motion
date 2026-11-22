@@ -1,0 +1,70 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.sky-timelapse",
+  "version": "1.0.0",
+  "name": {"zh-CN": "昼夜流转", "en": "Day–Night"},
+  "description": {
+    "zh-CN": "像抬头看天那样，天空从上面滑下来铺满画面，天上的时间飞快地过：太阳落下、霞光起来又褪去、星星出来、月亮升起（或者反过来），可以叠一行“第 N 天”；再低头回到画面。",
+    "en": "Like looking up at the sky, it slides down to fill the screen while time races by: the sun sets, the glow comes and goes, stars come out and the moon rises (or the reverse), optionally with a “Day N” line; then the view tilts back down."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["particles", "sky", "time"],
+  "groups": [
+    {"key": "time", "label": {"zh-CN": "时刻", "en": "Time"}},
+    {"key": "sky", "label": {"zh-CN": "天空", "en": "Sky"}},
+    {"key": "label", "label": {"zh-CN": "文字", "en": "Text"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {"key": "from", "type": "integer", "label": {"zh-CN": "开始时刻", "en": "From"}, "hint": {"zh-CN": "一天里的时刻（刻，同 /time set）：0 日出、6000 正午、12000 日落、18000 午夜", "en": "Time of day in ticks (as /time set): 0 sunrise, 6000 noon, 12000 sunset, 18000 midnight"}, "group": "time", "default": 11000, "min": 0, "max": 23999, "ui": "slider"},
+    {"key": "to", "type": "integer", "label": {"zh-CN": "结束时刻", "en": "To"}, "hint": {"zh-CN": "不大于开始时刻时算到第二天；和开始时刻相同就是整整一天", "en": "Not later than From means the next day; the same value is one full day"}, "group": "time", "default": 1000, "min": 0, "max": 23999, "ui": "slider"},
+    {
+      "key": "moonPhase",
+      "type": "enum",
+      "label": {"zh-CN": "月相", "en": "Moon phase"},
+      "group": "time",
+      "default": "full_moon",
+      "options": [
+        {"value": "full_moon", "label": {"zh-CN": "满月", "en": "Full moon"}},
+        {"value": "waning_gibbous", "label": {"zh-CN": "亏凸月", "en": "Waning gibbous"}},
+        {"value": "third_quarter", "label": {"zh-CN": "下弦月", "en": "Third quarter"}},
+        {"value": "waning_crescent", "label": {"zh-CN": "残月", "en": "Waning crescent"}},
+        {"value": "new_moon", "label": {"zh-CN": "新月", "en": "New moon"}},
+        {"value": "waxing_crescent", "label": {"zh-CN": "蛾眉月", "en": "Waxing crescent"}},
+        {"value": "first_quarter", "label": {"zh-CN": "上弦月", "en": "First quarter"}},
+        {"value": "waxing_gibbous", "label": {"zh-CN": "盈凸月", "en": "Waxing gibbous"}}
+      ]
+    },
+    {"key": "skyColor", "type": "color", "label": {"zh-CN": "天空颜色", "en": "Sky color"}, "hint": {"zh-CN": "白天头顶的颜色；默认是平原的 #78A7FF", "en": "The daytime color overhead; plains use #78A7FF"}, "group": "sky", "default": "#78A7FF"},
+    {"key": "fogColor", "type": "color", "label": {"zh-CN": "地平线颜色", "en": "Horizon color"}, "hint": {"zh-CN": "白天地平线附近的雾色；默认是 #C0D8FF", "en": "The daytime fog color near the horizon; #C0D8FF by default"}, "group": "sky", "default": "#C0D8FF"},
+    {"key": "stars", "type": "number", "label": {"zh-CN": "星星", "en": "Stars"}, "group": "sky", "default": 1, "min": 0, "max": 2, "step": 0.05, "ui": "slider"},
+    {"key": "sunSize", "type": "number", "label": {"zh-CN": "太阳月亮大小", "en": "Sun and moon size"}, "group": "sky", "default": 1, "min": 0.4, "max": 2.5, "step": 0.05, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "hint": {"zh-CN": "星星的位置", "en": "Where the stars are"}, "group": "sky", "default": 1},
+    {"key": "label", "type": "text", "label": {"zh-CN": "文字", "en": "Text"}, "hint": {"zh-CN": "停留时淡入的一行字；留空则不显示", "en": "A line that fades in during the hold; leave empty to hide"}, "group": "label", "default": {"zh-CN": "第 2 天", "en": "Day 2"}, "maxLength": 40},
+    {"key": "labelColor", "type": "color", "label": {"zh-CN": "文字颜色", "en": "Text color"}, "group": "label", "default": "#FFFFFF", "palette": "chat"},
+    {"key": "labelSize", "type": "number", "label": {"zh-CN": "文字大小", "en": "Text size"}, "hint": {"zh-CN": "一个字体像素多少设计单位", "en": "Design units per font pixel"}, "group": "label", "default": 10, "min": 3, "max": 24, "step": 0.5, "ui": "slider"},
+    {"key": "labelFont", "type": "font", "label": {"zh-CN": "字体", "en": "Font"}, "group": "label", "default": {"family": "embedded:default", "shadow": true}},
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "抬头", "en": "Tilt up"}, "group": "timing", "default": 0.6, "min": 0.2, "max": 3},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "看天", "en": "Sky"}, "hint": {"zh-CN": "天上的时间主要在这一段里过", "en": "Most of the time-lapse happens here"}, "group": "timing", "default": 1.6, "min": 0.2, "max": 10},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "低头", "en": "Tilt down"}, "group": "timing", "default": 0.6, "min": 0.2, "max": 3},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "hint": {"zh-CN": "天空滑进滑出的快慢", "en": "How the sky slides in and out"}, "group": "timing", "default": "cubicInOut"},
+    {"key": "sound", "type": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "hint": {"zh-CN": "文字淡入时播放（没有文字时在开头）", "en": "Plays when the text fades in (at the start without text)"}, "group": "sound", "default": "minecraft:block.note_block.chime"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "抬头", "en": "Up"}},
+      {"param": "hold", "label": {"zh-CN": "看天", "en": "Sky"}},
+      {"param": "outDuration", "label": {"zh-CN": "低头", "en": "Down"}}
+    ]
+  },
+  "presets": [
+    {"key": "sunrise", "name": {"zh-CN": "天亮了", "en": "Sunrise"}, "params": {"from": 21000, "to": 2000, "label": ""}},
+    {"key": "nightfall", "name": {"zh-CN": "天黑了", "en": "Nightfall"}, "params": {"from": 9500, "to": 17500, "label": "", "moonPhase": "waxing_crescent"}},
+    {"key": "full-day", "name": {"zh-CN": "整整一天", "en": "A full day"}, "params": {"from": 0, "to": 0, "hold": 3.2, "label": {"zh-CN": "第 2 天", "en": "Day 2"}}},
+    {"key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"labelFont": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}
