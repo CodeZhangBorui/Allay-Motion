@@ -398,6 +398,11 @@
     "noAssetIndex": "No asset index found: this layer has textures only, no sounds or Chinese language file.",
     "missingLocal": "This version is gone ({{dir}}). It may have been moved or uninstalled.",
     "missingDownloaded": "This version is no longer in the download cache.",
+    "vanillaDir": "folder {{dir}}",
+    "sourceUnreadable": "This version’s jar can’t be read (the file is damaged, or another program has it open).",
+    "sourceNotClient": "The jar in this version folder is not a full vanilla client (it has no assets/minecraft). This is common for versions that only install a loader, such as OptiFine. Use a vanilla folder of the same game version instead.",
+    "vanillaProblemUnreadable": "The game’s jar can’t be read, so vanilla assets are not used for now.",
+    "vanillaProblemNotClient": "The added version folders have no full vanilla client, so vanilla assets are not used for now.",
     "compat": {
       "madeFor": "Made for {{version}} (format {{format}})",
       "formatOnly": "Pack format {{format}}",
@@ -432,7 +437,9 @@
       "fetch": "Get version list",
       "refetch": "Refresh version list",
       "fetching": "Getting…",
-      "fetchNote": "“Get version list” connects to piston-meta.mojang.com once to read the version manifest. No game files are downloaded and no personal data is sent. “Download” works like “Download vanilla assets”: it downloads that version’s client jar and common sounds from Mojang’s official servers."
+      "fetchNote": "“Get version list” connects to piston-meta.mojang.com once to read the version manifest. No game files are downloaded and no personal data is sent. “Download” works like “Download vanilla assets”: it downloads that version’s client jar and common sounds from Mojang’s official servers.",
+      "gameVersion": "Minecraft {{version}}",
+      "notClient": "The jar in this folder is not a full vanilla client (no assets/minecraft), so it can’t be added. Use a vanilla folder of the same game version instead."
     },
     "localPacks": {
       "button": "Minecraft resource packs on this computer…",
