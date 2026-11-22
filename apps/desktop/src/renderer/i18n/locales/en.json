@@ -276,7 +276,7 @@
       "checking": "Checking that the cut frame is fully covered…",
       "ok": "The cut frame ({{frame}}) is fully covered.",
       "warn": "At the cut frame ({{frame}}) the picture isn’t fully covered, so the seam will show.",
-      "overlay": "Overlay templates have no cut point."
+      "overlay": "This template has no cut point (overlays and titles don’t), so there is nothing to check."
     },
     "start": "Export",
     "cancel": "Cancel",
@@ -1197,7 +1197,7 @@
       },
       "templates": {
         "title": "Template library",
-        "body": "All your templates live here. A template is a ready-made transition or overlay animation, such as “Block wipe”.\nClick a card to switch to that template; hover over it to see it move. “Mine” holds the templates you saved yourself."
+        "body": "All your templates live here. A template is a ready-made transition, overlay or title animation, such as “Block wipe”. Filter by category and group above, or search.\nClick a card to switch to that template; hover over it to see it move. “Mine” holds the templates you saved yourself."
       },
       "templateVsPreset": {
         "title": "Templates vs. presets",
@@ -1221,7 +1221,7 @@
       },
       "export": {
         "title": "Export",
-        "body": "Click here when you’re done. The small arrow on the right lets you pick a format directly, such as video with a transparent background.\nDrop the exported file into your video editor and use it as a transition or overlay."
+        "body": "Click here when you’re done. The small arrow on the right lets you pick a format directly, such as video with a transparent background.\nDrop the exported file into your video editor and use it as a transition, overlay or title."
       },
       "help": {
         "title": "Come back any time",
