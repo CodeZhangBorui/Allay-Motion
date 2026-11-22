@@ -1,0 +1,74 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.chunk-rise",
+  "version": "1.0.0",
+  "name": { "zh-CN": "区块升起", "en": "Chunk rise" },
+  "description": {
+    "zh-CN": "俯视的一片地形一个区块一个区块地从下面升起来拼满画面；退出时再一块块沉下去。",
+    "en": "A bird's-eye patch of terrain rises from below one chunk at a time until it fills the frame, then sinks away chunk by chunk."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "terrain"],
+  "groups": [
+    { "key": "terrain", "label": { "zh-CN": "地形", "en": "Terrain" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "palette",
+      "type": "enum",
+      "label": { "zh-CN": "生物群系", "en": "Biome" },
+      "hint": { "zh-CN": "地形用哪一组方块", "en": "Which set of blocks the terrain is made of" },
+      "group": "terrain",
+      "default": "plains",
+      "options": [
+        { "value": "plains", "label": { "zh-CN": "平原", "en": "Plains" } },
+        { "value": "desert", "label": { "zh-CN": "沙漠", "en": "Desert" } },
+        { "value": "snowy", "label": { "zh-CN": "雪原", "en": "Snowy plains" } },
+        { "value": "nether", "label": { "zh-CN": "下界", "en": "Nether" } },
+        { "value": "end", "label": { "zh-CN": "末地", "en": "The End" } }
+      ]
+    },
+    { "key": "relief", "type": "number", "label": { "zh-CN": "起伏", "en": "Relief" }, "hint": { "zh-CN": "地面高低起伏的幅度；0 是平地", "en": "How hilly the ground is; 0 is flat" }, "group": "terrain", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "chunkSize", "type": "integer", "label": { "zh-CN": "区块大小", "en": "Chunk size" }, "hint": { "zh-CN": "一组几 × 几柱一起升起；游戏里的区块是 16 × 16", "en": "How many columns square rise together; a chunk in the game is 16 × 16" }, "group": "terrain", "default": 8, "min": 4, "max": 16, "ui": "slider" },
+    { "key": "tilt", "type": "number", "label": { "zh-CN": "俯角", "en": "Tilt" }, "hint": { "zh-CN": "镜头往下看的角度；90° 是正上方往下看", "en": "How steeply the camera looks down; 90° is straight down" }, "group": "terrain", "default": 55, "min": 40, "max": 90, "step": 1, "unit": "°" },
+    {
+      "key": "order",
+      "type": "enum",
+      "label": { "zh-CN": "升起顺序", "en": "Order" },
+      "group": "motion",
+      "default": "nearFirst",
+      "ui": "pattern",
+      "options": [
+        { "value": "nearFirst", "label": { "zh-CN": "由近到远", "en": "Near to far" }, "pattern": [1, 1, 1, 1, 0.67, 0.67, 0.67, 0.67, 0.33, 0.33, 0.33, 0.33, 0, 0, 0, 0] },
+        { "value": "centerOut", "label": { "zh-CN": "中心扩散", "en": "Center out" }, "pattern": [1, 0.62, 0.62, 1, 0.62, 0, 0, 0.62, 0.62, 0, 0, 0.62, 1, 0.62, 0.62, 1] },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.47, 0.93, 0.13, 0.67, 0.27, 0.8, 0.53, 0.07, 0.87, 0.33, 1, 0.4, 0.6, 0.2, 0.73, 0] }
+      ]
+    },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 1.2, "min": 0.5, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.12, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.9, "min": 0.4, "max": 3 },
+    { "key": "riseSound", "type": "sound", "label": { "zh-CN": "升起音效", "en": "Rise sound" }, "hint": { "zh-CN": "区块落定时", "en": "When a chunk settles" }, "group": "sound", "default": "minecraft:block.gravel.place" },
+    { "key": "sinkSound", "type": "sound", "label": { "zh-CN": "沉下音效", "en": "Sink sound" }, "group": "sound", "default": "minecraft:block.gravel.break" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "terrain", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    { "key": "vanilla-chunks", "name": { "zh-CN": "游戏的区块大小（16 × 16）", "en": "Game-size chunks (16 × 16)" }, "params": { "chunkSize": 16, "inDuration": 1.4 } },
+    { "key": "desert", "name": { "zh-CN": "沙漠", "en": "Desert" }, "params": { "palette": "desert", "relief": 0.35, "order": "centerOut", "riseSound": "minecraft:block.sand.place", "sinkSound": "minecraft:block.sand.break" } },
+    { "key": "snowy", "name": { "zh-CN": "雪原", "en": "Snowy plains" }, "params": { "palette": "snowy", "relief": 0.4, "riseSound": "minecraft:block.snow.place", "sinkSound": "minecraft:block.snow.break" } },
+    { "key": "nether", "name": { "zh-CN": "下界", "en": "Nether" }, "params": { "palette": "nether", "relief": 0.7, "order": "random", "chunkSize": 8, "riseSound": "minecraft:block.stone.place", "sinkSound": "minecraft:block.stone.break" } },
+    { "key": "end", "name": { "zh-CN": "末地", "en": "The End" }, "params": { "palette": "end", "relief": 0.25, "tilt": 72, "order": "centerOut", "riseSound": "minecraft:block.stone.place", "sinkSound": "minecraft:block.stone.break" } }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

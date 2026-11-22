@@ -1,0 +1,105 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.vine-overgrow",
+  "version": "1.0.0",
+  "name": { "zh-CN": "藤蔓蔓生", "en": "Overgrowth" },
+  "description": {
+    "zh-CN": "藤蔓从画面上沿垂下来，树叶一层层长满盖住画面；退出时树叶随机枯掉、飘落。",
+    "en": "Vines drop from the top edge and leaves grow in layer by layer until the frame is covered; on the way out the leaves decay and drift down."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "nature"],
+  "groups": [
+    { "key": "plants", "label": { "zh-CN": "植物", "en": "Plants" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "leaves",
+      "type": "enum",
+      "label": { "zh-CN": "树叶", "en": "Leaves" },
+      "hint": { "zh-CN": "苍白橡树树叶要 1.21.4 起的原版素材", "en": "Pale oak leaves need vanilla assets from 1.21.4 on" },
+      "group": "plants",
+      "default": "oak",
+      "options": [
+        { "value": "oak", "label": { "zh-CN": "橡树树叶", "en": "Oak leaves" } },
+        { "value": "spruce", "label": { "zh-CN": "云杉树叶", "en": "Spruce leaves" } },
+        { "value": "birch", "label": { "zh-CN": "白桦树叶", "en": "Birch leaves" } },
+        { "value": "jungle", "label": { "zh-CN": "丛林树叶", "en": "Jungle leaves" } },
+        { "value": "acacia", "label": { "zh-CN": "金合欢树叶", "en": "Acacia leaves" } },
+        { "value": "dark_oak", "label": { "zh-CN": "深色橡树树叶", "en": "Dark oak leaves" } },
+        { "value": "mangrove", "label": { "zh-CN": "红树树叶", "en": "Mangrove leaves" } },
+        { "value": "cherry", "label": { "zh-CN": "樱花树叶", "en": "Cherry leaves" } },
+        { "value": "azalea", "label": { "zh-CN": "杜鹃树叶", "en": "Azalea leaves" } },
+        { "value": "flowering_azalea", "label": { "zh-CN": "盛开的杜鹃树叶", "en": "Flowering azalea leaves" } },
+        { "value": "pale_oak", "label": { "zh-CN": "苍白橡树树叶", "en": "Pale oak leaves" } }
+      ]
+    },
+    {
+      "key": "tint",
+      "type": "color",
+      "label": { "zh-CN": "树叶颜色", "en": "Leaf color" },
+      "hint": { "zh-CN": "树叶和藤蔓乘的颜色。保持默认值时按树叶的种类取游戏里的颜色（云杉、白桦另有颜色，樱花、杜鹃、苍白橡树不着色）", "en": "Color multiplied onto leaves and vines. While left at the default each leaf type uses its in-game color (spruce and birch have their own; cherry, azalea and pale oak are not tinted)" },
+      "group": "plants",
+      "default": "#77AB2F"
+    },
+    { "key": "cols", "type": "integer", "label": { "zh-CN": "列数", "en": "Columns" }, "hint": { "zh-CN": "画面横向铺几格树叶", "en": "Leaf blocks across the frame" }, "group": "plants", "default": 11, "min": 6, "max": 24, "ui": "slider" },
+    { "key": "layers", "type": "integer", "label": { "zh-CN": "层数", "en": "Layers" }, "hint": { "zh-CN": "树叶叠几层；最里层总是铺满", "en": "How many layers of leaves; the innermost layer always covers everything" }, "group": "plants", "default": 3, "min": 1, "max": 3 },
+    { "key": "vines", "type": "integer", "label": { "zh-CN": "藤蔓", "en": "Vines" }, "hint": { "zh-CN": "垂下几条藤蔓；树叶先从藤蔓周围长出来", "en": "How many vines drop in; leaves start growing around them" }, "group": "plants", "default": 7, "min": 0, "max": 16, "ui": "slider" },
+    {
+      "key": "fallItem",
+      "type": "enum",
+      "label": { "zh-CN": "飘落物", "en": "Falling" },
+      "hint": { "zh-CN": "树叶枯掉时飘下来的东西。落叶粒子要 1.21.5 起的原版素材，更早的版本用树叶贴图的碎片代替；樱花树叶总是飘花瓣", "en": "What drifts down when leaves decay. Leaf particles need vanilla assets from 1.21.5 on; older versions use bits of the leaf texture instead. Cherry leaves always drop petals" },
+      "group": "motion",
+      "default": "leaves",
+      "options": [
+        { "value": "leaves", "label": { "zh-CN": "落叶", "en": "Leaves" } },
+        { "value": "petals", "label": { "zh-CN": "花瓣", "en": "Petals" } },
+        { "value": "apples", "label": { "zh-CN": "苹果", "en": "Apples" } },
+        { "value": "none", "label": { "zh-CN": "无", "en": "None" } }
+      ]
+    },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 1.1, "min": 0.4, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.15, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 1, "min": 0.4, "max": 3 },
+    { "key": "vineSound", "type": "sound", "label": { "zh-CN": "藤蔓音效", "en": "Vine sound" }, "group": "sound", "default": "minecraft:block.vine.place" },
+    { "key": "growSound", "type": "sound", "label": { "zh-CN": "长出音效", "en": "Grow sound" }, "group": "sound", "default": "minecraft:block.grass.place" },
+    { "key": "decaySound", "type": "sound", "label": { "zh-CN": "枯落音效", "en": "Decay sound" }, "group": "sound", "default": "minecraft:block.grass.break" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "motion", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    {
+      "key": "cherry-grove",
+      "name": { "zh-CN": "樱花林", "en": "Cherry grove" },
+      "params": { "leaves": "cherry", "fallItem": "petals", "vines": 0, "growSound": "minecraft:block.cherry_leaves.place", "decaySound": "minecraft:block.cherry_leaves.break" }
+    },
+    {
+      "key": "jungle",
+      "name": { "zh-CN": "丛林（藤蔓多）", "en": "Jungle (lots of vines)" },
+      "params": { "leaves": "jungle", "vines": 14, "cols": 13 }
+    },
+    {
+      "key": "azalea",
+      "name": { "zh-CN": "盛开的杜鹃", "en": "Flowering azalea" },
+      "params": { "leaves": "flowering_azalea", "vines": 4, "fallItem": "petals" }
+    },
+    {
+      "key": "orchard",
+      "name": { "zh-CN": "果园（掉苹果）", "en": "Orchard (dropping apples)" },
+      "params": { "leaves": "oak", "fallItem": "apples", "vines": 3 }
+    }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

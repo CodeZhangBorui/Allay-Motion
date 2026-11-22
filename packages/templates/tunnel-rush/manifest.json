@@ -1,0 +1,71 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.tunnel-rush",
+  "version": "1.0.0",
+  "name": { "zh-CN": "矿道穿梭", "en": "Tunnel rush" },
+  "description": {
+    "zh-CN": "镜头钻进方块围成的矿道，沿着铁轨越冲越快，尽头的墙迎面撞上铺满画面；退出时撞穿那面墙冲出去。",
+    "en": "The camera dives into a mine tunnel and races along the rails, faster and faster, until the end wall slams into view; then it smashes through and bursts out."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "mining"],
+  "groups": [
+    { "key": "tunnel", "label": { "zh-CN": "矿道", "en": "Tunnel" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "blocks",
+      "type": "blockList",
+      "label": { "zh-CN": "墙的方块", "en": "Wall blocks" },
+      "hint": { "zh-CN": "矿道四壁和尽头那面墙用的方块，按权重随机", "en": "Blocks for the tunnel walls and the end wall, picked at random by weight" },
+      "group": "tunnel",
+      "default": [
+        { "id": "minecraft:stone", "weight": 8 },
+        { "id": "minecraft:andesite", "weight": 2 },
+        { "id": "minecraft:cobblestone", "weight": 1 },
+        { "id": "minecraft:gravel", "weight": 1 }
+      ],
+      "max": 4
+    },
+    { "key": "ores", "type": "number", "label": { "zh-CN": "矿石", "en": "Ores" }, "hint": { "zh-CN": "四壁上换成矿石的比例（煤最多，钻石、绿宝石很少）；尽头那面墙不放矿石", "en": "Share of wall blocks replaced by ores (mostly coal, rarely diamond or emerald); the end wall has none" }, "group": "tunnel", "default": 0.08, "min": 0, "max": 0.3, "step": 0.01, "ui": "slider" },
+    { "key": "size", "type": "integer", "label": { "zh-CN": "宽高", "en": "Size" }, "hint": { "zh-CN": "矿道里面有几格宽、几格高", "en": "Inside width and height of the tunnel, in blocks" }, "group": "tunnel", "default": 3, "min": 2, "max": 5 },
+    { "key": "torches", "type": "integer", "label": { "zh-CN": "火把间隔", "en": "Torch spacing" }, "hint": { "zh-CN": "每隔几格一个火把（左右墙交替）；0 是不放火把，整条矿道均匀地亮", "en": "A torch every this many blocks, alternating walls; 0 means no torches and an evenly lit tunnel" }, "group": "tunnel", "default": 6, "min": 0, "max": 12 },
+    { "key": "speed", "type": "number", "label": { "zh-CN": "速度", "en": "Speed" }, "hint": { "zh-CN": "在矿道里大约每秒冲多少格；越快矿道越长", "en": "Roughly how many blocks per second inside the tunnel; faster means a longer tunnel" }, "group": "motion", "default": 30, "min": 10, "max": 60, "step": 1, "unit": "blocks/s" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 1.2, "min": 0.5, "max": 3 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.1, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.5, "min": 0.25, "max": 2 },
+    { "key": "rideSound", "type": "sound", "label": { "zh-CN": "矿车音效", "en": "Minecart sound" }, "hint": { "zh-CN": "冲进矿道时放一次（矿车滚动的声音）", "en": "Plays once when entering the tunnel (a rolling minecart)" }, "group": "sound", "default": "minecraft:entity.minecart.riding" },
+    { "key": "smashSound", "type": "sound", "label": { "zh-CN": "撞穿音效", "en": "Smash sound" }, "group": "sound", "default": "minecraft:block.stone.break" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.6, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "tunnel", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    {
+      "key": "deepslate",
+      "name": { "zh-CN": "深板岩矿道", "en": "Deepslate mine" },
+      "params": { "blocks": [{ "id": "minecraft:deepslate", "weight": 6 }, { "id": "minecraft:cobbled_deepslate", "weight": 2 }, { "id": "minecraft:tuff", "weight": 1 }], "ores": 0.12, "torches": 5 }
+    },
+    {
+      "key": "nether",
+      "name": { "zh-CN": "下界通道", "en": "Nether passage" },
+      "params": { "blocks": [{ "id": "minecraft:netherrack", "weight": 6 }, { "id": "minecraft:blackstone", "weight": 1 }, { "id": "minecraft:basalt", "weight": 1 }], "ores": 0, "torches": 0, "size": 4, "smashSound": "minecraft:block.stone.break" }
+    },
+    {
+      "key": "sprint",
+      "name": { "zh-CN": "短促冲刺", "en": "Short sprint" },
+      "params": { "speed": 45, "inDuration": 0.8, "hold": 0.05, "outDuration": 0.35, "size": 2 }
+    }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}

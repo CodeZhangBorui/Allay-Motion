@@ -1,0 +1,91 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.door-shut",
+  "version": "1.0.0",
+  "name": { "zh-CN": "关门", "en": "Door shut" },
+  "description": {
+    "zh-CN": "两扇放大的门从镜头两侧绕门轴合上、撞上门框盖住画面，停留后被推开。",
+    "en": "A pair of giant doors swings shut on their hinges from both sides of the lens to cover the frame, then is pushed open again."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "door"],
+  "groups": [
+    { "key": "door", "label": { "zh-CN": "门", "en": "Door" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    {
+      "key": "door",
+      "type": "enum",
+      "label": { "zh-CN": "门", "en": "Door" },
+      "hint": { "zh-CN": "铜门要 1.21 起、苍白橡木门要 1.21.4 起的原版素材", "en": "The copper door needs vanilla assets from 1.21 on, the pale oak door from 1.21.4 on" },
+      "group": "door",
+      "default": "oak",
+      "options": [
+        { "value": "oak", "label": { "zh-CN": "橡木门", "en": "Oak door" } },
+        { "value": "spruce", "label": { "zh-CN": "云杉木门", "en": "Spruce door" } },
+        { "value": "birch", "label": { "zh-CN": "白桦木门", "en": "Birch door" } },
+        { "value": "jungle", "label": { "zh-CN": "丛林木门", "en": "Jungle door" } },
+        { "value": "acacia", "label": { "zh-CN": "金合欢木门", "en": "Acacia door" } },
+        { "value": "dark_oak", "label": { "zh-CN": "深色橡木门", "en": "Dark oak door" } },
+        { "value": "mangrove", "label": { "zh-CN": "红树木门", "en": "Mangrove door" } },
+        { "value": "cherry", "label": { "zh-CN": "樱花木门", "en": "Cherry door" } },
+        { "value": "bamboo", "label": { "zh-CN": "竹门", "en": "Bamboo door" } },
+        { "value": "crimson", "label": { "zh-CN": "绯红木门", "en": "Crimson door" } },
+        { "value": "warped", "label": { "zh-CN": "诡异木门", "en": "Warped door" } },
+        { "value": "pale_oak", "label": { "zh-CN": "苍白橡木门", "en": "Pale oak door" } },
+        { "value": "iron", "label": { "zh-CN": "铁门", "en": "Iron door" } },
+        { "value": "copper", "label": { "zh-CN": "铜门", "en": "Copper door" } }
+      ]
+    },
+    {
+      "key": "layout",
+      "type": "enum",
+      "label": { "zh-CN": "开法", "en": "Layout" },
+      "hint": { "zh-CN": "自动：横屏、方屏对开，竖屏单开（竖屏对开时门不够高，会叠两行）", "en": "Auto: double doors in landscape and square, a single door in portrait (double doors in portrait are stacked in two rows)" },
+      "group": "door",
+      "default": "auto",
+      "options": [
+        { "value": "auto", "label": { "zh-CN": "自动", "en": "Auto" } },
+        { "value": "double", "label": { "zh-CN": "对开", "en": "Double" } },
+        { "value": "single", "label": { "zh-CN": "单开", "en": "Single" } }
+      ]
+    },
+    {
+      "key": "backing",
+      "type": "color",
+      "label": { "zh-CN": "门后的颜色", "en": "Behind the door" },
+      "hint": { "zh-CN": "从门窗的镂空处透出来的颜色（门后垫的一层），剪辑点因此不透明", "en": "Color seen through the door's window cut-outs (a backing layer), which keeps the cut fully opaque" },
+      "group": "door",
+      "default": "#17130F"
+    },
+    { "key": "perspective", "type": "number", "label": { "zh-CN": "透视", "en": "Perspective" }, "hint": { "zh-CN": "相机的垂直视角；越大门转动时越有纵深。横屏、方屏单开时门比画面还宽，会自动收小（16:9 最大约 31°），免得门转过来扫过镜头", "en": "Vertical field of view; larger angles give the swing more depth. A single door in landscape or square output is wider than the frame, so the angle is capped (about 31° at 16:9) to keep the swinging door from passing through the camera" }, "group": "motion", "default": 35, "min": 15, "max": 60, "step": 1, "unit": "°" },
+    { "key": "bounce", "type": "number", "label": { "zh-CN": "回弹", "en": "Bounce" }, "hint": { "zh-CN": "撞上门框后弹开的幅度", "en": "How far the doors bounce back after slamming" }, "group": "motion", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "easing", "type": "easing", "label": { "zh-CN": "关门缓动", "en": "Closing easing" }, "hint": { "zh-CN": "默认越关越快，最后撞上", "en": "By default the doors speed up and slam" }, "group": "motion", "default": "quadIn" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.6, "min": 0.2, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.2, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.55, "min": 0.2, "max": 2 },
+    { "key": "closeSound", "type": "sound", "label": { "zh-CN": "关门音效", "en": "Close sound" }, "hint": { "zh-CN": "保持木门的默认音效时，按门的种类换成游戏里那种门的声音", "en": "While left at the wooden default it switches to the sound of the chosen door" }, "group": "sound", "default": "minecraft:block.wooden_door.close" },
+    { "key": "openSound", "type": "sound", "label": { "zh-CN": "开门音效", "en": "Open sound" }, "hint": { "zh-CN": "保持木门的默认音效时，按门的种类换成游戏里那种门的声音", "en": "While left at the wooden default it switches to the sound of the chosen door" }, "group": "sound", "default": "minecraft:block.wooden_door.open" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.8, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    { "key": "iron", "name": { "zh-CN": "铁门", "en": "Iron door" }, "params": { "door": "iron", "closeSound": "minecraft:block.iron_door.close", "openSound": "minecraft:block.iron_door.open", "bounce": 0.2 } },
+    { "key": "cherry", "name": { "zh-CN": "樱花木门", "en": "Cherry door" }, "params": { "door": "cherry", "closeSound": "minecraft:block.cherry_wood_door.close", "openSound": "minecraft:block.cherry_wood_door.open" } },
+    { "key": "crimson", "name": { "zh-CN": "绯红木门", "en": "Crimson door" }, "params": { "door": "crimson", "backing": "#1C0A0C", "closeSound": "minecraft:block.nether_wood_door.close", "openSound": "minecraft:block.nether_wood_door.open" } },
+    { "key": "bamboo", "name": { "zh-CN": "竹门", "en": "Bamboo door" }, "params": { "door": "bamboo", "closeSound": "minecraft:block.bamboo_wood_door.close", "openSound": "minecraft:block.bamboo_wood_door.open" } },
+    { "key": "copper", "name": { "zh-CN": "铜门（1.21 起）", "en": "Copper door (1.21+)" }, "params": { "door": "copper", "closeSound": "minecraft:block.copper_door.close", "openSound": "minecraft:block.copper_door.open", "bounce": 0.3 } },
+    { "key": "single-slow", "name": { "zh-CN": "单扇慢关", "en": "Single door, slow" }, "params": { "layout": "single", "inDuration": 1.1, "hold": 0.3, "outDuration": 0.9, "perspective": 45 } }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
