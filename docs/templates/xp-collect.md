@@ -16,7 +16,7 @@
 - 球的颜色照游戏的公式循环：绿恒为满，红在 0–1、蓝在 0–0.2 之间按正弦变化，一个循环约 0.63 秒；每个球从不同的相位开始。球的大小按每个球分到的经验值在 11 种里选。
 - `levelPop` 打开时，数字变化后 0.2 秒里从 1.4 倍缩回原大。游戏里没有这个动作，默认关。
 - 退出：整体在 `outDuration` 里线性淡出。
-- 界面宽度小于 190 时整体缩小到正好放下。16:9、9:16、1:1 在默认的 `guiScale` 5 下都不用缩。
+- 界面宽度小于 190 时整体缩小到正好放下。默认的 `guiScale` 6 下 16:9 不用缩；9:16、1:1（宽 1080，界面只有 180 宽）缩到正好放下。
 - 首末帧全透明：时间窗首尾各让出一帧（`_lib/timing.ts` 的 `overlayWindows`）。
 
 ## 2. 参数表
@@ -35,11 +35,13 @@
 | `levelColor` | color | `#80FF20` | 色板 `chat` |
 | `levelFont` | font | `embedded:default`（普通模式），黑色描边、无阴影 | — |
 | `levelPop` | boolean | false | — |
-| `guiScale` | number | 5 | 1–8 |
+| `guiScale` | number | 6 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.25 / 3 / 0.25 | 0.05–3 / 0.5–24 / 0.05–3 |
 | `pickupSound` | sound | `minecraft:entity.experience_orb.pickup` | 每个球到达时播放，最多 12 声 |
 | `levelupSound` | sound | `minecraft:entity.player.levelup` | 每次升级时播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 6（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，等级数字在 5 时太小（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 自带预设：升到 30 级、大丰收（连升 5 级、30 个球）、小额拾取（不升级）、击杀掉落（从画面中央飞来）、从 0 级升到 1 级（数字出现）。
 
