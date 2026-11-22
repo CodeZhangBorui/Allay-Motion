@@ -70,7 +70,15 @@ export interface TemplateEntry {
   baseMissing: boolean;
   /** 安装时试运行留下的警告（内置模板为空） */
   trialWarnings: TrialWarning[];
+  /**
+   * 模板内容的哈希（十六进制，manifest.json、template.js、assets/** 的 SHA-256 取前 16 位）。派生模板的把基模板的也算进去。
+   * id 和版本不变、内容变了（应用更新了内置模板、开发模式里改了用户模板）时它会变：模板库的封面缓存按它作废
+   */
+  contentHash: string;
 }
+
+/** contentHash 的格式（渲染进程拿它拼缓存键前再核对一次） */
+export const CONTENT_HASH_RE = /^[0-9a-f]{16}$/;
 
 /** templates.read 的结果：装载需要的一切 */
 export interface TemplateBundle {

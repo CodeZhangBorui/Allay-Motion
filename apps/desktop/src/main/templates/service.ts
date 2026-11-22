@@ -6,7 +6,7 @@
 //
 // 安装分两段：stage（第 1–3 步，解压到 templates/.staging/<uuid>/）→ 渲染进程试运行（第 4 步）→ commit（第 6 步，改名就位）。
 // 渲染进程交来的只有暂存 ID 和试运行的警告，路径都由主进程决定（1.6 第 6 条）。
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -40,6 +40,7 @@ import {
 } from '../../shared/templates';
 import type { Logger } from '../logger';
 import { writeJsonAtomic } from '../settings-store';
+import { hashTemplateDir, hashTemplateFiles } from './dev-watcher';
 import { PackageError, readPackage } from './package-reader';
 import { writeZip } from './zip-writer';
 
@@ -53,6 +54,8 @@ interface Stored {
   files: Map<string, Uint8Array> | null;
   dir: string | null;
   trialWarnings: TrialWarning[];
+  /** 自己的内容哈希（hashTemplateFiles / hashTemplateDir，完整的 64 位十六进制） */
+  hash: string;
 }
 
 interface Staged {
@@ -205,7 +208,16 @@ export class TemplateService {
         await writeFile(target, data);
       }
       this.staged.set(stagingId, { dir, manifest, code: pkg.code, expires: this.now() + STAGING_TTL_MS, ruleDiagnostics: pkg.ruleDiagnostics });
-      const entry: TemplateEntry = { id: manifest.id, version: manifest.version, source: 'user', kind: manifest.extends ? 'derived' : 'script', manifest, baseMissing: false, trialWarnings: [] };
+      const entry: TemplateEntry = {
+        id: manifest.id,
+        version: manifest.version,
+        source: 'user',
+        kind: manifest.extends ? 'derived' : 'script',
+        manifest,
+        baseMissing: false,
+        trialWarnings: [],
+        contentHash: hashTemplateFiles(pkg.files).slice(0, 16),
+      };
       return {
         ok: true,
         stagingId,
@@ -242,7 +254,7 @@ export class TemplateService {
         trialWarnings: warnings,
         ...(st.ruleDiagnostics.length > 0 ? { ruleDiagnostics: st.ruleDiagnostics } : {}),
       });
-      const stored: Stored = { source: 'user', manifest: st.manifest, files: null, dir, trialWarnings: warnings };
+      const stored: Stored = { source: 'user', manifest: st.manifest, files: null, dir, trialWarnings: warnings, hash: await userHash(dir, st.manifest) };
       this.templates.set(key(id, version), stored);
       this.opts.log.info('templates', 'installed', { id, version, warnings });
       return { ok: true, entry: this.entryOf(stored) };
@@ -341,7 +353,7 @@ export class TemplateService {
         await writeJsonAtomic(join(dir, 'manifest.json'), raw);
       });
       await writeJsonAtomic(this.metaFile(id, '1.0.0'), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [] });
-      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
+      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [], hash: await userHash(dir, parsed.manifest) };
       this.templates.set(key(id, '1.0.0'), stored);
       return { ok: true, entry: this.entryOf(stored) };
     });
@@ -383,7 +395,7 @@ export class TemplateService {
         await writeJsonAtomic(join(dir, 'manifest.json'), manifestJson);
       });
       await writeJsonAtomic(this.metaFile(target.id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [], copiedFrom: source });
-      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
+      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [], hash: await userHash(dir, parsed.manifest) };
       this.templates.set(key(target.id, version), stored);
       this.opts.log.info('templates', 'copied built-in template', { from: source, id: target.id });
       return { ok: true, entry: this.entryOf(stored) };
@@ -414,7 +426,7 @@ export class TemplateService {
         }
       });
       await writeJsonAtomic(this.metaFile(id, version), { formatVersion: 1, installedAt: new Date(this.now()).toISOString(), trialWarnings: [], createdFrom: 'animation' });
-      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [] };
+      const stored: Stored = { source: 'user', manifest: parsed.manifest, files: null, dir, trialWarnings: [], hash: await userHash(dir, parsed.manifest) };
       this.templates.set(key(id, version), stored);
       this.opts.log.info('templates', 'created template from animation', { id });
       return { ok: true, entry: this.entryOf(stored) };
@@ -429,9 +441,12 @@ export class TemplateService {
     return this.serial(async () => {
       const existing = this.templates.get(key(id, version));
       if (existing && existing.source !== 'user') return null;
-      this.templates.delete(key(id, version));
+      // 先读好新的再换上：读的时候（要读全部文件算内容哈希）旧的条目一直在，别处查这个模板不会扑空
       const stored = await this.loadUserVersion(id, version);
-      if (!stored) return null;
+      if (!stored) {
+        this.templates.delete(key(id, version));
+        return null;
+      }
       this.templates.set(key(id, version), stored);
       return this.entryOf(stored);
     });
@@ -472,7 +487,15 @@ export class TemplateService {
       manifest: m,
       baseMissing: m.extends ? this.resolve(m) === null : false,
       trialWarnings: s.trialWarnings,
+      contentHash: this.contentHash(s),
     };
+  }
+
+  /** 条目里的 contentHash：派生模板的画面还取决于基模板（参数定义、代码），把基模板的哈希也算进去 */
+  private contentHash(s: Stored): string {
+    const base = s.manifest.extends ? this.resolveBase(s.manifest) : null;
+    const full = base ? createHash('sha256').update(`${s.hash}:${base.hash}`).digest('hex') : s.hash;
+    return full.slice(0, 16);
   }
 
   /** extends 指向的模板：满足版本范围的最高版本（可能本身是派生模板） */
@@ -511,7 +534,7 @@ export class TemplateService {
     for (const name of names.filter((n) => n.endsWith('.allaytpl')).sort()) {
       try {
         const pkg = await readPackage(join(this.opts.builtinDir, name), { builtin: true, appVersion: this.opts.appVersion });
-        this.templates.set(key(pkg.manifest.id, pkg.manifest.version), { source: 'builtin', manifest: pkg.manifest, files: pkg.files, dir: null, trialWarnings: [] });
+        this.templates.set(key(pkg.manifest.id, pkg.manifest.version), { source: 'builtin', manifest: pkg.manifest, files: pkg.files, dir: null, trialWarnings: [], hash: hashTemplateFiles(pkg.files) });
       } catch (error) {
         this.opts.log.error('templates', 'built-in template rejected', { name, error: error instanceof Error ? error.message : String(error) });
       }
@@ -541,7 +564,7 @@ export class TemplateService {
       const m = parsed.manifest;
       if (m.id !== id || m.version !== version) throw new Error('manifest id/version does not match its folder');
       if (!m.extends && !existsSync(join(dir, 'template.js'))) throw new Error('template.js is missing');
-      if (this.templates.has(key(id, version))) throw new Error('shadows a built-in template');
+      if (this.templates.get(key(id, version))?.source === 'builtin') throw new Error('shadows a built-in template');
       let trialWarnings: TrialWarning[] = [];
       try {
         const meta = MetaSchema.parse(JSON.parse(await readFile(this.metaFile(id, version), 'utf8')));
@@ -549,12 +572,17 @@ export class TemplateService {
       } catch {
         // 元数据丢了不影响装载
       }
-      return { source: 'user', manifest: m, files: null, dir, trialWarnings };
+      return { source: 'user', manifest: m, files: null, dir, trialWarnings, hash: await userHash(dir, m) };
     } catch (error) {
       this.opts.log.warn('templates', 'skipped installed template', { id, version, error: error instanceof Error ? error.message : String(error) });
       return null;
     }
   }
+}
+
+/** 用户模板文件夹的内容哈希；文件夹读不到时退回 manifest 本身的哈希（不会让条目缺这个字段） */
+async function userHash(dir: string, manifest: TemplateManifest): Promise<string> {
+  return (await hashTemplateDir(dir)) ?? hashTemplateFiles([['manifest.json', new TextEncoder().encode(JSON.stringify(manifest))]]);
 }
 
 /** 读目录里的一个相对路径（正斜杠分隔，已确认安全）；不是普通文件时返回 null */

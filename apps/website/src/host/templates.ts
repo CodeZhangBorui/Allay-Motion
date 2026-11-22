@@ -9,6 +9,21 @@ interface Builtin {
   code: string;
 }
 
+/**
+ * 条目的 contentHash（16 位十六进制）。桌面版主进程用包内容的 SHA-256；网页里没有同步的 SHA-256，这里用两路 32 位 FNV-1a
+ * 拼成 64 位（只用来区分内容、让封面缓存作废，不需要密码学强度；按码元算，几十 KB 的代码也只要几十微秒）
+ */
+function contentHash(text: string): string {
+  let a = 0x811c9dc5;
+  let b = 0x9dc5811c;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x01000193) ^ (b >>> 15);
+  }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
+
 function load(): Builtin[] {
   const out: Builtin[] = [];
   for (const raw of builtin) {
@@ -17,7 +32,7 @@ function load(): Builtin[] {
     if (!parsed.ok) throw new Error(`invalid built-in manifest: ${parsed.issues.map((i) => i.message).join('; ')}`);
     const manifest = parsed.manifest;
     out.push({
-      entry: { id: manifest.id, version: manifest.version, source: 'builtin', kind: 'script', manifest, baseMissing: false, trialWarnings: [] },
+      entry: { id: manifest.id, version: manifest.version, source: 'builtin', kind: 'script', manifest, baseMissing: false, trialWarnings: [], contentHash: contentHash(`${JSON.stringify(raw.manifest)}\u0000${raw.code}`) },
       code: raw.code,
     });
   }
