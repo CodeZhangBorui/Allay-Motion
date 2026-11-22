@@ -44,11 +44,14 @@ void main() {
       // 圆（也是旗帜图案缺失时的退回画法）；望远镜缺失时画方框
       float aa = max(fwidth(p.x), 1e-3) / uScale;
       if (uShader > 0.5 && uShader < 1.5) {
-        vec2 q = abs(p / uScale);
+        // 形状坐标和有贴图时一样是视野贴图的像素（256 × 256，半边 128）：方形的洞，外圈 1/8 宽（16 像素）是框，
+        // 框里面（半边 112）透空，和贴图的镜片一样大
+        vec2 q = abs(p / uScale) / 128.0;
         float d = max(q.x, q.y);
-        float hole = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, d);
-        // 框：外圈 1/8 宽，颜色比填充亮一点
-        float frame = smoothstep(0.875 - aa, 0.875 + aa, d) * hole;
+        float ab = aa / 128.0;
+        float hole = 1.0 - smoothstep(1.0 - ab, 1.0 + ab, d);
+        // 框：颜色比填充亮一点
+        float frame = smoothstep(0.875 - ab, 0.875 + ab, d) * hole;
         col = mix(col, pm(uFill + vec3(0.06), uFillA), frame);
         col *= 1.0 - (hole - frame);
       } else {
