@@ -30,7 +30,7 @@
 | `sound` | sound | 无 | 每条字幕出现时播放 |
 | `volume` | number | 0.8 | 0–1 |
 
-自带预设：游戏原始时长（一条 3 秒）、洞穴里、身边爆炸、获得经验并升级（带 `minecraft:entity.experience_orb.pickup`）、自编字幕（左下）。预设里的文字只有中文。
+自带预设：游戏原始时长（一条 3 秒）、洞穴里、身边爆炸、获得经验并升级（带 `minecraft:entity.experience_orb.pickup`）、自编字幕（左下）。预设里的文字分中英文，套用时按界面语言取（`docs/04-templates.md` 4.7）；英文的字幕照游戏语言文件的原文（26.2 的 `en_us.json`：Chest opens、Zombie groans、Skeleton rattles、Footsteps、Arrow fired、Player hurts、Creeper hisses、Explosion、Experience gained、Player dings），“自编字幕”是自己写的。
 
 默认的 `hold` 是 5 秒：五条字幕全部出现，前三条在停留阶段里到时间消失，后两条由整体淡出收尾。
 

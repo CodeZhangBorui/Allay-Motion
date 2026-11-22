@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { overlayWindows, progress } from '../../packages/templates/_lib/src/timing';
 import { fitUnit, GRAY_STEPS, grayAt, grayHex, halfWidth, MAX_LINES, parseCaption, rowRect, sampleCues, stepAt, stepGray, visibleAt } from '../../packages/templates/sound-subtitles/src/layout';
-import { defaultParams, parseManifest, sameValue, sanitizeParams, type ParamValue } from '../../packages/template-sdk/src/index';
+import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams } from '../../packages/template-sdk/src/index';
 
 const manifest = (() => {
   const r = parseManifest(JSON.parse(readFileSync(join(import.meta.dirname, '../../packages/templates/sound-subtitles/manifest.json'), 'utf8')));
@@ -40,9 +40,13 @@ describe('T-TPL-C055 声音字幕', () => {
 
   it('T-TPL-C055-2 每个自带预设都能载入：值经过清洗后不变', () => {
     expect(manifest.presets?.length).toBeGreaterThanOrEqual(3);
-    for (const preset of manifest.presets ?? []) {
-      const applied = sanitizeParams(defs, { ...defaultParams(defs), ...preset.params });
-      for (const [k, v] of Object.entries(preset.params)) expect(sameValue(applied[k], v as ParamValue), `${preset.key}.${k}`).toBe(true);
+    for (const [preset, locale] of (manifest.presets ?? []).flatMap((p) => (['zh-CN', 'en'] as const).map((l) => [p, l] as const))) {
+      // 预设里的文字分中英文：按界面语言取成普通文字再套用（和应用一样）；英文下不该剩中文
+      const applied = applyPreset(defs, preset, { locale });
+      for (const [k, v] of Object.entries(localizePresetParams(defs, preset.params, locale))) {
+        expect(sameValue(applied[k], v), `${preset.key}.${k} (${locale})`).toBe(true);
+        if (locale === 'en' && typeof v === 'string') expect(v, `${preset.key}.${k}`).not.toMatch(/[\u3400-\u9fff]/);
+      }
       const total = (applied.inDuration as number) + (applied.hold as number) + (applied.outDuration as number);
       expect(total).toBeGreaterThanOrEqual(0.1);
       expect(total).toBeLessThanOrEqual(30);

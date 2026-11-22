@@ -40,11 +40,11 @@
     ]
   },
   "presets": [
-    { "key": "game-lifetime", "name": { "zh-CN": "游戏原始时长（一条 3 秒）", "en": "Game lifetime (one line, 3 s)" }, "params": { "lines": "箱子：开启", "lifetime": 3, "inDuration": 0.2, "hold": 2.7, "outDuration": 0.2 } },
-    { "key": "cave", "name": { "zh-CN": "洞穴里", "en": "In a cave" }, "params": { "lines": "僵尸：低吼 <\n骷髅：咯咯声 >\n脚步声\n箭：被射出 >\n玩家：受伤", "interval": 0.7, "hold": 4.6 } },
-    { "key": "explosion", "name": { "zh-CN": "身边爆炸", "en": "Explosion nearby" }, "params": { "lines": "苦力怕：嘶~ <\n爆炸 <\n玩家：受伤", "interval": 1.5, "hold": 4.6 } },
-    { "key": "level-up", "name": { "zh-CN": "获得经验并升级", "en": "Experience and level up" }, "params": { "lines": "获得经验\n玩家：升级", "interval": 0.6, "hold": 3, "sound": "minecraft:entity.experience_orb.pickup" } },
-    { "key": "custom-caption", "name": { "zh-CN": "自编字幕（左下）", "en": "Custom captions (lower left)" }, "params": { "lines": "主播：倒吸一口凉气\n队友：憋笑 >\n键盘：噼里啪啦", "interval": 1, "side": "left", "hold": 4.2 } },
+    { "key": "game-lifetime", "name": { "zh-CN": "游戏原始时长（一条 3 秒）", "en": "Game lifetime (one line, 3 s)" }, "params": { "lines": { "zh-CN": "箱子：开启", "en": "Chest opens" }, "lifetime": 3, "inDuration": 0.2, "hold": 2.7, "outDuration": 0.2 } },
+    { "key": "cave", "name": { "zh-CN": "洞穴里", "en": "In a cave" }, "params": { "lines": { "zh-CN": "僵尸：低吼 <\n骷髅：咯咯声 >\n脚步声\n箭：被射出 >\n玩家：受伤", "en": "Zombie groans <\nSkeleton rattles >\nFootsteps\nArrow fired >\nPlayer hurts" }, "interval": 0.7, "hold": 4.6 } },
+    { "key": "explosion", "name": { "zh-CN": "身边爆炸", "en": "Explosion nearby" }, "params": { "lines": { "zh-CN": "苦力怕：嘶~ <\n爆炸 <\n玩家：受伤", "en": "Creeper hisses <\nExplosion <\nPlayer hurts" }, "interval": 1.5, "hold": 4.6 } },
+    { "key": "level-up", "name": { "zh-CN": "获得经验并升级", "en": "Experience and level up" }, "params": { "lines": { "zh-CN": "获得经验\n玩家：升级", "en": "Experience gained\nPlayer dings" }, "interval": 0.6, "hold": 3, "sound": "minecraft:entity.experience_orb.pickup" } },
+    { "key": "custom-caption", "name": { "zh-CN": "自编字幕（左下）", "en": "Custom captions (lower left)" }, "params": { "lines": { "zh-CN": "主播：倒吸一口凉气\n队友：憋笑 >\n键盘：噼里啪啦", "en": "Streamer gasps\nTeammate stifles a laugh >\nKeyboard clatters" }, "interval": 1, "side": "left", "hold": 4.2 } },
     { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"font": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": false, "outline": null}} }
   ],
   "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
