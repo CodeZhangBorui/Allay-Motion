@@ -8,6 +8,7 @@ import { boxGeometry } from '../../packages/templates/_lib/src/block-box';
 import { createDebris, debrisPosition, type DebrisParticle } from '../../packages/templates/_lib/src/block-debris';
 import { createTiles, MAX_TILE_TEXTURES } from '../../packages/templates/_lib/src/block-tiles';
 import { blockList, cuePosition, groupByKind, jittered, orderValues, ORDER_PATTERNS, sampleCueIndices, wallGrid } from '../../packages/templates/_lib/src/block-kit';
+import { sampleIndices } from '../../packages/templates/_lib/src/cues';
 import { arrangeCells as arrangeWipe, bandEntry as bandWipe } from '../../packages/templates/block-wipe/src/arrangement';
 import { arrangeCells as arrangeFall } from '../../packages/templates/block-fall/src/arrangement';
 import type { SetupContext } from '../../packages/template-sdk/src/index';
@@ -121,6 +122,10 @@ describe('T-TPL-LIB-B4 音效抽样和声源位置', () => {
     expect(sampleCueIndices([5])).toEqual([0]);
     expect(sampleCueIndices([])).toEqual([]);
     expect(sampleCueIndices(times, 4)).toHaveLength(4);
+    // 抽样规则就是 cues.ts 的：按时刻排好的 cue 抽到的序号和 sampleIndices 一样
+    const sorted = Array.from({ length: 50 }, (_, i) => i * 0.1);
+    expect(sampleCueIndices(sorted)).toEqual(sampleIndices(50));
+    expect(sampleCueIndices(sorted, 1)).toEqual(sampleIndices(50, 1));
   });
   it('舞台半宽当 8 格，听者在画面前 6 格', () => {
     expect(cuePosition(960, 0, 1920)).toEqual({ x: 8, y: 0, z: -6 });

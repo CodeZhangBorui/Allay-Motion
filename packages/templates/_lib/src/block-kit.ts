@@ -2,6 +2,7 @@
 // 顺序图案、按方块种类分组的实例、音效 cue 的抽样和声源位置。
 // 只用 ctx 给的东西；纯函数部分不依赖 ctx，验收测试直接导入（tests/unit/T-TPL-LIB.block.test.ts）。
 import type { BlockInstances, ParamValue, SetupContext } from '@allay/template-sdk';
+import { MAX_CUES, sampleIndices } from './cues';
 
 type Object3D = InstanceType<SetupContext['THREE']['Object3D']>;
 
@@ -107,15 +108,12 @@ export function jittered(u: Float64Array, jitter: number, random: () => number):
 }
 
 /**
- * 一种声音最多放 max 个 cue（docs/template-catalog.md 第 2 节“声音”）：按时刻排序后均匀抽样，返回被选中的序号。
- * 同 block-wipe：k = min(max, n) 个，第 j 个取排序后第 round(j × (n − 1) / (k − 1)) 个。
+ * 一种声音最多放 max 个 cue（docs/template-catalog.md 第 2 节“声音”），返回被选中的序号。
+ * 方块的 cue 是按格子的序号排的、不是按时刻，所以先按时刻排序，再照 cues.ts 的 sampleIndices 均匀抽样。
  */
-export function sampleCueIndices(times: ArrayLike<number>, max = 12): number[] {
+export function sampleCueIndices(times: ArrayLike<number>, max = MAX_CUES): number[] {
   const order = Array.from({ length: times.length }, (_, i) => i).sort((a, b) => times[a]! - times[b]! || a - b);
-  const k = Math.min(max, order.length);
-  const out: number[] = [];
-  for (let j = 0; j < k; j++) out.push(order[k === 1 ? 0 : Math.round((j * (order.length - 1)) / (k - 1))]!);
-  return out;
+  return sampleIndices(order.length, max).map((j) => order[j]!);
 }
 
 /**
