@@ -1,0 +1,85 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.liquid-flood",
+  "version": "1.0.0",
+  "name": {"zh-CN": "液体淹没", "en": "Liquid Flood"},
+  "description": {
+    "zh-CN": "水（或岩浆）带着起伏的水面从下往上涨满画面，越往下越深越暗，气泡往上冒；退出时水位退下去，或者继续流走。",
+    "en": "Water (or lava) rises with a rippling surface until the screen is under, darker with depth, with bubbles floating up; on the way out the level drops again or the water flows on."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "water", "liquid"],
+  "groups": [
+    {"key": "liquid", "label": {"zh-CN": "液体", "en": "Liquid"}},
+    {"key": "motion", "label": {"zh-CN": "涨落", "en": "Motion"}},
+    {"key": "timing", "label": {"zh-CN": "时间", "en": "Timing"}},
+    {"key": "sound", "label": {"zh-CN": "音效", "en": "Sound"}, "collapsed": true}
+  ],
+  "params": [
+    {
+      "key": "liquid",
+      "type": "enum",
+      "label": {"zh-CN": "液体", "en": "Liquid"},
+      "group": "liquid",
+      "default": "water",
+      "options": [
+        {"value": "water", "label": {"zh-CN": "水", "en": "Water"}},
+        {"value": "lava", "label": {"zh-CN": "岩浆", "en": "Lava"}}
+      ]
+    },
+    {"key": "waterColor", "type": "color", "label": {"zh-CN": "水色", "en": "Water color"}, "hint": {"zh-CN": "水的贴图是灰度的，乘上生物群系的水色；默认是平原的 #3F76E4", "en": "The water texture is grayscale and tinted by the biome water color; plains use #3F76E4"}, "group": "liquid", "default": "#3F76E4", "visibleWhen": {"key": "liquid", "equals": "water"}},
+    {"key": "depthColor", "type": "color", "label": {"zh-CN": "深处的颜色", "en": "Depth color"}, "hint": {"zh-CN": "越往下越接近这个颜色", "en": "The water fades toward this color with depth"}, "group": "liquid", "default": "#0B1F57", "visibleWhen": {"key": "liquid", "equals": "water"}},
+    {"key": "blockSize", "type": "number", "label": {"zh-CN": "方块大小", "en": "Block size"}, "hint": {"zh-CN": "一格水的贴图的边长；水面按它的像素走成台阶", "en": "Size of one water texture tile; the surface steps along its pixels"}, "group": "liquid", "default": 120, "min": 40, "max": 360, "step": 1, "unit": "px", "ui": "slider"},
+    {"key": "waveHeight", "type": "number", "label": {"zh-CN": "波浪高度", "en": "Wave height"}, "group": "liquid", "default": 0.45, "min": 0, "max": 1, "step": 0.01, "ui": "slider"},
+    {"key": "bubbles", "type": "integer", "label": {"zh-CN": "气泡", "en": "Bubbles"}, "hint": {"zh-CN": "气泡的数量；岩浆时是蹦出液面的火点（只在从下面涨上来时有）", "en": "Number of bubbles; with lava, sparks popping out of the surface (only when it rises from the bottom)"}, "group": "liquid", "default": 45, "min": 0, "max": 160, "ui": "slider"},
+    {"key": "seed", "type": "seed", "label": {"zh-CN": "随机种子", "en": "Seed"}, "group": "liquid", "default": 1},
+    {
+      "key": "source",
+      "type": "enum",
+      "label": {"zh-CN": "从哪边来", "en": "Comes from"},
+      "hint": {"zh-CN": "从下面是静水涨上来；从上面、两侧是流动的水灌进来", "en": "From the bottom, still water rises; from the top or the sides, flowing water pours in"},
+      "group": "motion",
+      "default": "bottom",
+      "ui": "pattern",
+      "options": [
+        {"value": "bottom", "label": {"zh-CN": "下面", "en": "Bottom"}, "pattern": [1, 1, 1, 1, 0.67, 0.67, 0.67, 0.67, 0.33, 0.33, 0.33, 0.33, 0, 0, 0, 0]},
+        {"value": "top", "label": {"zh-CN": "上面", "en": "Top"}, "pattern": [0, 0, 0, 0, 0.33, 0.33, 0.33, 0.33, 0.67, 0.67, 0.67, 0.67, 1, 1, 1, 1]},
+        {"value": "left", "label": {"zh-CN": "左边", "en": "Left"}, "pattern": [0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1, 0, 0.33, 0.67, 1]},
+        {"value": "right", "label": {"zh-CN": "右边", "en": "Right"}, "pattern": [1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0, 1, 0.67, 0.33, 0]}
+      ]
+    },
+    {
+      "key": "outMode",
+      "type": "enum",
+      "label": {"zh-CN": "退出方式", "en": "Out"},
+      "group": "motion",
+      "default": "drain",
+      "options": [
+        {"value": "drain", "label": {"zh-CN": "水位退回去", "en": "Drain back"}},
+        {"value": "through", "label": {"zh-CN": "继续流走", "en": "Flow on"}}
+      ]
+    },
+    {"key": "inDuration", "type": "duration", "label": {"zh-CN": "涨", "en": "Rise"}, "group": "timing", "default": 0.9, "min": 0.2, "max": 4},
+    {"key": "hold", "type": "duration", "label": {"zh-CN": "停留", "en": "Hold"}, "group": "timing", "default": 0.2, "min": 0, "max": 3},
+    {"key": "outDuration", "type": "duration", "label": {"zh-CN": "退", "en": "Drain"}, "group": "timing", "default": 0.8, "min": 0.2, "max": 4},
+    {"key": "easing", "type": "easing", "label": {"zh-CN": "缓动", "en": "Easing"}, "group": "timing", "default": "quadInOut"},
+    {"key": "fillSound", "type": "sound", "label": {"zh-CN": "涨水音效", "en": "Fill sound"}, "hint": {"zh-CN": "开始涨时播放。保持默认时岩浆自动换成倒岩浆桶的声音", "en": "Plays when it starts to rise. Left at the default, lava uses the lava bucket sound"}, "group": "sound", "default": "minecraft:item.bucket.empty"},
+    {"key": "drainSound", "type": "sound", "label": {"zh-CN": "退水音效", "en": "Drain sound"}, "hint": {"zh-CN": "开始退时播放。保持默认时岩浆自动换成装岩浆的声音", "en": "Plays when it starts to drain. Left at the default, lava uses the lava bucket sound"}, "group": "sound", "default": "minecraft:item.bucket.fill"},
+    {"key": "volume", "type": "number", "label": {"zh-CN": "音量", "en": "Volume"}, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider"}
+  ],
+  "timeline": {
+    "segments": [
+      {"param": "inDuration", "label": {"zh-CN": "涨", "en": "Rise"}},
+      {"param": "hold", "label": {"zh-CN": "停留", "en": "Hold"}},
+      {"param": "outDuration", "label": {"zh-CN": "退", "en": "Drain"}}
+    ]
+  },
+  "presets": [
+    {"key": "lava", "name": {"zh-CN": "岩浆", "en": "Lava"}, "params": {"liquid": "lava", "waveHeight": 0.25, "inDuration": 1.1, "outDuration": 1}},
+    {"key": "swamp", "name": {"zh-CN": "沼泽水色", "en": "Swamp water"}, "params": {"waterColor": "#617B64", "depthColor": "#232317"}},
+    {"key": "warm-ocean", "name": {"zh-CN": "暖水海洋", "en": "Warm ocean"}, "params": {"waterColor": "#43D5EE", "depthColor": "#041F33", "bubbles": 70}},
+    {"key": "pour-in", "name": {"zh-CN": "从侧面灌进来、继续流走", "en": "Pour in from the side, flow on"}, "params": {"source": "left", "outMode": "through", "waveHeight": 0.7}}
+  ],
+  "defaultOutput": {"width": 1920, "height": 1080, "fps": 60}
+}
