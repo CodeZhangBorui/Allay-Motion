@@ -33,7 +33,7 @@ import { pathToFileURL } from 'node:url';
 import type { ElectronApplication, Page } from '@playwright/test';
 import { findBdfGlyph, parseUnifontOtf, vanillaLayerId, VersionIdSchema, type UnihexTables } from '../packages/assets/src/index';
 import { frameCount } from '../packages/engine/src/frames';
-import { localize, type ParamValues, type TemplateManifest } from '../packages/template-sdk/src/index';
+import { localize, localizePresetParams, type ParamValues, type TemplateManifest } from '../packages/template-sdk/src/index';
 import { EMBEDDED_UNIFONT_FILE } from '../apps/desktop/src/main/resources/fonts';
 import { listVersions } from '../apps/desktop/src/main/resources/vanilla';
 import type { ReviewFrames } from '../apps/desktop/src/renderer/test-hooks';
@@ -82,6 +82,8 @@ export interface ReviewOptions {
   /** 模板目录名；空表示全部 */
   templates: string[];
   presets: boolean;
+  /** 另截一张封面（320 × 180、默认参数，取法和模板库的封面相同） */
+  cover: boolean;
   /** null 表示默认的时刻（DEFAULT_SHOTS，有剪辑点时加上剪辑点） */
   shots: ShotSpec[] | null;
   aspects: Aspect[];
@@ -93,7 +95,7 @@ export class UsageError extends Error {
 }
 
 const VALUE_OPTIONS = new Set(['--game', '--version', '--out', '--at', '--aspect', '--lang']);
-const FLAG_OPTIONS = new Set(['--no-assets', '--mirror', '--presets', '--help', '-h']);
+const FLAG_OPTIONS = new Set(['--no-assets', '--mirror', '--presets', '--cover', '--help', '-h']);
 
 export function usage(): string {
   return [
@@ -109,6 +111,7 @@ export function usage(): string {
     '其他：',
     '  --out <目录>        输出目录（默认 docs/review/templates/out/<版本目录名或 no-assets>/）',
     '  --presets           除默认参数外，每个自带预设也截一组',
+    '  --cover             另截一张封面：320 × 180、默认参数，取法和模板库的封面相同（剪辑点；没有剪辑点时是前 4 秒的中间一帧）',
     '  --at <时刻,…>       50%、1.5s（或 1.5）、f30（帧号）、cut（剪辑点）、first / last（首末帧附近）',
     '                      默认 first,20%,40%,60%,80%,last，模板有剪辑点时再加 cut',
     '  --aspect <画幅,…>   16:9、9:16、1:1 或 all（默认 16:9）',
@@ -166,7 +169,7 @@ export function parseArgs(argv: readonly string[]): ReviewOptions {
     throw new UsageError('要么给 --game 和 --version（接本机游戏的某个版本），要么给 --no-assets');
   }
   const out = values.get('--out');
-  return { help, source, mirror: flags.has('--mirror'), out: out === undefined ? null : resolve(out), templates, presets: flags.has('--presets'), shots, aspects, lang };
+  return { help, source, mirror: flags.has('--mirror'), out: out === undefined ? null : resolve(out), templates, presets: flags.has('--presets'), cover: flags.has('--cover'), shots, aspects, lang };
 }
 
 export function parseAspects(text: string): Aspect[] {
@@ -223,6 +226,16 @@ export interface Shot {
   index: number;
   /** 这一帧的时刻：index / fps，不超过时长 */
   t: number;
+}
+
+/** 模板库的封面（apps/desktop/src/renderer/features/gallery/covers.ts）：320 × 180、30 fps，最多看前 4 秒 */
+export const COVER = { width: 320, height: 180, fps: 30, maxFrames: 120 } as const;
+
+/** 封面是哪一刻：剪辑点所在的那一帧；没有剪辑点时，前 4 秒（不足 4 秒就是整段）里的中间一帧。和 covers.ts 的取法相同 */
+export function coverTime(duration: number, cutTime: number | null): number {
+  const total = Math.min(COVER.maxFrames, frameCount(duration, COVER.fps));
+  const index = cutTime === null ? Math.floor(total / 2) : Math.min(total - 1, Math.round(cutTime * COVER.fps));
+  return index / COVER.fps;
 }
 
 /**
@@ -518,10 +531,10 @@ export interface ParamSet {
   params: Record<string, unknown>;
 }
 
-/** 默认参数，加上（--presets 时）每个自带预设 */
-export function paramSetsOf(manifest: Pick<TemplateManifest, 'presets'>, withPresets: boolean, lang: Lang): ParamSet[] {
+/** 默认参数，加上（--presets 时）每个自带预设；预设里写成双语的文字按界面语言取（和应用套用预设时一样） */
+export function paramSetsOf(manifest: Pick<TemplateManifest, 'presets' | 'params'>, withPresets: boolean, lang: Lang): ParamSet[] {
   const sets: ParamSet[] = [{ key: 'default', name: lang === 'zh-CN' ? '默认参数' : 'Defaults', params: {} }];
-  if (withPresets) for (const p of manifest.presets ?? []) sets.push({ key: `preset-${p.key}`, name: localize(p.name, lang), params: { ...p.params } });
+  if (withPresets) for (const p of manifest.presets ?? []) sets.push({ key: `preset-${p.key}`, name: localize(p.name, lang), params: localizePresetParams(manifest.params ?? [], p.params, lang) });
   return sets;
 }
 
@@ -922,6 +935,8 @@ export interface ReportTemplate {
   capturedAt: string;
   runs: RunRecord[];
   sheets: { aspect: Aspect; contact: string | null; detail: string | null; detailScale: number | null }[];
+  /** --cover 时的封面：320 × 180、默认参数、coverTime 那一刻；截不到时 file 为 null、error 写原因 */
+  cover?: { file: string | null; t: number | null; coverage: number | null; error: string | null };
 }
 
 export type ReportSource =
@@ -1035,6 +1050,7 @@ export function renderIndex(report: ReportFile): string {
     '.warn{color:#ffcf66}.err{color:#ff7a7a}.dim{color:#9a9a9a}.sheet{max-width:100%;display:block;margin:8px 0}',
     '.frames td.f{padding:4px}.frames img{width:240px;display:block;background:repeating-conic-gradient(#6f6f6f 0 25%,#7a7a7a 0 50%) 0 0/16px 16px}',
     '.cap{font-size:12px;color:#aaa}details{margin:2px 0}summary{cursor:pointer}ul{margin:4px 0;padding-left:20px}',
+    '.covers{display:flex;flex-wrap:wrap;gap:12px}.covers figure{margin:0}.covers img{display:block;background:repeating-conic-gradient(#6f6f6f 0 25%,#7a7a7a 0 50%) 0 0/8px 8px}.covers img.x2{width:640px;image-rendering:pixelated}',
     '</style></head><body>',
     `<h1>模板评审截图 · ${esc(report.label)}</h1>`,
     '<p class="warn">这里的图含原版贴图和字体的派生图像：只在本机看，不提交、不外传。</p>',
@@ -1054,6 +1070,15 @@ export function renderIndex(report: ReportFile): string {
     );
   }
   out.push('</table>');
+  const covers = report.templates.filter((t) => t.cover);
+  if (covers.length > 0) {
+    out.push('<h2>封面</h2><p class="dim">模板库里看到的封面：320 × 180、默认参数，剪辑点（没有剪辑点时前 4 秒的中间一帧）。左边是原大，右边放大 2 倍。</p><div class="covers">');
+    for (const t of covers) {
+      const c = t.cover!;
+      out.push(c.file ? `<figure><img src="${href(c.file)}" alt="${esc(t.name)} 封面"><figcaption class="cap">${esc(t.name)} · ${c.t?.toFixed(2) ?? '—'} 秒${c.coverage === 0 ? ' · 全透明' : ''}</figcaption></figure><figure><img class="x2" src="${href(c.file)}" alt="${esc(t.name)} 封面（放大）"></figure>` : `<figure><figcaption class="err">${esc(t.name)} 封面没截到：${esc(c.error ?? '')}</figcaption></figure>`);
+    }
+    out.push('</div>');
+  }
   if (sum.missing.size > 0) {
     out.push('<details open><summary>资源栈里没有、模板要过的贴图 ID（可选贴图缺失时引擎不记警告；按“新路径 → 旧路径”试的，缺了新路径而取到旧路径是正常的）</summary><ul>');
     for (const [id, who] of [...sum.missing.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) out.push(`<li><code>${esc(id)}</code> <span class="dim">${esc(who.join('、'))}</span></li>`);
@@ -1263,6 +1288,26 @@ async function captureRun(page: Page, opts: ReviewOptions, entry: { id: string; 
   return { run, cells };
 }
 
+/** 封面：默认参数，按 coverTime 取那一刻，渲染成 320 × 180（和模板库的封面同一条静帧路径、同样的尺寸） */
+async function captureCover(page: Page, entry: { id: string; version: string } | undefined, outDir: string, name: string): Promise<NonNullable<ReportTemplate['cover']>> {
+  const miss = (error: string, t: number | null = null) => ({ file: null, t, coverage: null, error });
+  if (!entry) return miss('应用里没有这个模板');
+  const selected = await page.evaluate(([id, version]) => window.__allayTest!.selectTemplate(id, version, {}), [entry.id, entry.version] as const);
+  if (!selected) return miss('选不中这个模板');
+  const preview = await waitPreview(page);
+  if (preview.status !== 'ready') return miss(`预览没有装载成功（${preview.status}${preview.message ? ` ${preview.message}` : ''}）`);
+  const transport = await page.evaluate(() => window.__allayTest!.transport());
+  const t = coverTime(transport.duration, transport.cutTime);
+  const res: ReviewFrames = await page.evaluate(([times, edge]) => window.__allayTest!.reviewFrames(times, edge), [[t], COVER.width] as [number[], number]);
+  const frame = res.frames[0];
+  if (res.error || !frame) return miss(res.error?.message ?? '没有渲染出帧', t);
+  const file = `${name}/cover.png`;
+  mkdirSync(join(outDir, name), { recursive: true });
+  const bytes = Buffer.from(frame.pngBase64, 'base64');
+  writeFileSync(join(outDir, file), bytes);
+  return { file, t, coverage: Math.round(alphaStats(decodePng(bytes)).coverage * 1e6) / 1e6, error: null };
+}
+
 /** 一个模板、一种画幅的联络图和细节图 */
 function writeSheets(outDir: string, tpl: ReportTemplate, aspect: Aspect, captured: readonly Captured[], text: TextRenderer, label: string): ReportTemplate['sheets'][number] {
   const { width, height, slug } = ASPECTS[aspect];
@@ -1450,20 +1495,47 @@ export async function main(argv: readonly string[]): Promise<number> {
       writeFileSync(join(outDir, 'index.html'), renderIndex(merged));
     };
     const total = dirs.reduce((n, d) => n + paramSetsOf(readTemplateManifest(d), opts.presets, opts.lang).length, 0) * opts.aspects.length;
+    const templateOf = (dir: string): ReportTemplate => {
+      const name = basename(dir);
+      let tpl = done.get(name);
+      if (!tpl) {
+        // 这个模板上一次的输出整个换掉
+        rmSync(join(outDir, name), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+        const manifest = readTemplateManifest(dir);
+        tpl = { name, id: manifest.id, version: manifest.version, title: localize(manifest.name, opts.lang), capturedAt: new Date().toISOString(), runs: [], sheets: [] };
+        done.set(name, tpl);
+      }
+      return tpl;
+    };
+    const entryOf = (dir: string) => {
+      const manifest = readTemplateManifest(dir);
+      return entries.find((e) => e.id === manifest.id && e.version === manifest.version);
+    };
+    if (opts.cover) {
+      // 模板库的封面总是 16:9，不随工程的画幅变
+      await setAspect(page, '16:9');
+      const cells: SheetRow['cells'] = [];
+      for (const dir of dirs) {
+        const tpl = templateOf(dir);
+        sink = [];
+        tpl.cover = await captureCover(page, entryOf(dir), outDir, tpl.name);
+        if (tpl.cover.error) failed++;
+        cells.push(tpl.cover.file ? { image: decodePng(readFileSync(join(outDir, tpl.cover.file))), caption: `${tpl.name} · ${tpl.cover.t?.toFixed(2)}s` } : null);
+        console.log(`${TAG} 封面 ${tpl.name}：${tpl.cover.file ? `${tpl.cover.t?.toFixed(2)} 秒` : `没截到（${tpl.cover.error}）`}`);
+      }
+      const rows: SheetRow[] = [];
+      for (let i = 0; i < cells.length; i += 4) rows.push({ label: [], cells: cells.slice(i, i + 4) });
+      writeFileSync(join(outDir, 'covers.png'), encodePng(composeSheet(`封面 · ${label} · ${COVER.width}×${COVER.height}`, COVER.width, COVER.height, rows, text)));
+      writeReport();
+    }
     let n = 0;
     for (const aspect of opts.aspects) {
       await setAspect(page, aspect);
       for (const dir of dirs) {
         const name = basename(dir);
         const manifest = readTemplateManifest(dir);
-        const entry = entries.find((e) => e.id === manifest.id && e.version === manifest.version);
-        let tpl = done.get(name);
-        if (!tpl) {
-          // 这个模板上一次的输出整个换掉
-          rmSync(join(outDir, name), { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-          tpl = { name, id: manifest.id, version: manifest.version, title: localize(manifest.name, opts.lang), capturedAt: new Date().toISOString(), runs: [], sheets: [] };
-          done.set(name, tpl);
-        }
+        const entry = entryOf(dir);
+        const tpl = templateOf(dir);
         if (!entry) {
           failed++;
           console.error(`${TAG} 应用里没有 ${manifest.id}@${manifest.version}（构建了却没装上？看应用日志）`);

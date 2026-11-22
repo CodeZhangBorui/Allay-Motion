@@ -15,6 +15,8 @@ import {
   checkVersion,
   CHECKER,
   compareBuild,
+  COVER,
+  coverTime,
   composeSheet,
   contactScale,
   crop,
@@ -94,12 +96,12 @@ describe('T-REV 评审截图工具', () => {
     const o = parseArgs(['--game', 'G:/mc', '--version', '26.2', 'boss-bar', 'hud-status', 'boss-bar']);
     expect(o.source).toEqual({ kind: 'local', gameDir: resolve('G:/mc'), versionDir: '26.2' });
     expect(o.templates).toEqual(['boss-bar', 'hud-status']);
-    expect([o.aspects, o.lang, o.presets, o.shots, o.out, o.mirror, o.help]).toEqual([['16:9'], 'zh-CN', false, null, null, false, false]);
+    expect([o.aspects, o.lang, o.presets, o.cover, o.shots, o.out, o.mirror, o.help]).toEqual([['16:9'], 'zh-CN', false, false, null, null, false, false]);
 
     // pnpm 会把 -- 原样传进来；= 写法；版本目录名可以带空格
-    const p = parseArgs(['--', '--game=G:/mc', '--version=1.20.1-Fabric 0.19.3', '--mirror', '--presets', '--aspect', 'all', '--lang', 'en', '--at', '10%,cut,1.5s,f3,2', '--out', 'x']);
+    const p = parseArgs(['--', '--game=G:/mc', '--version=1.20.1-Fabric 0.19.3', '--mirror', '--presets', '--cover', '--aspect', 'all', '--lang', 'en', '--at', '10%,cut,1.5s,f3,2', '--out', 'x']);
     expect(p.source).toEqual({ kind: 'local', gameDir: resolve('G:/mc'), versionDir: '1.20.1-Fabric 0.19.3' });
-    expect([p.aspects, p.lang, p.mirror, p.presets, p.out]).toEqual([['16:9', '9:16', '1:1'], 'en', true, true, resolve('x')]);
+    expect([p.aspects, p.lang, p.mirror, p.presets, p.cover, p.out]).toEqual([['16:9', '9:16', '1:1'], 'en', true, true, true, resolve('x')]);
     expect(p.shots).toEqual([{ kind: 'fraction', value: 0.1 }, { kind: 'cut' }, { kind: 'seconds', value: 1.5 }, { kind: 'frame', value: 3 }, { kind: 'seconds', value: 2 }]);
     expect(parseArgs(['--no-assets', '--aspect', '9x16,1:1,9:16']).aspects).toEqual(['9:16', '1:1']);
     expect(parseArgs(['--no-assets']).source).toEqual({ kind: 'none' });
@@ -304,12 +306,17 @@ describe('T-REV 评审截图工具', () => {
   });
 
   test('T-REV-11 参数组与报告：默认参数加自带预设；合并时这次截了的模板整条换掉，来源或语言不同就拒绝；汇总缺的贴图', () => {
-    const manifest: Pick<TemplateManifest, 'presets'> = { presets: [{ key: 'raid', name: { 'zh-CN': '袭击', en: 'Raid' }, params: { color: 'red' } }] };
+    const manifest: Pick<TemplateManifest, 'presets' | 'params'> = {
+      params: [{ key: 'names', type: 'text', label: 'Names', default: { 'zh-CN': '末影龙', en: 'Ender Dragon' } }],
+      presets: [{ key: 'raid', name: { 'zh-CN': '袭击', en: 'Raid' }, params: { color: 'red', names: { 'zh-CN': '袭击', en: 'Raid' } } }],
+    };
     expect(paramSetsOf(manifest, false, 'zh-CN')).toEqual([{ key: 'default', name: '默认参数', params: {} }]);
+    // 预设里双语的文字按界面语言取成普通字符串（和应用套用预设时一样），其余参数原样
     expect(paramSetsOf(manifest, true, 'en')).toEqual([
       { key: 'default', name: 'Defaults', params: {} },
-      { key: 'preset-raid', name: 'Raid', params: { color: 'red' } },
+      { key: 'preset-raid', name: 'Raid', params: { color: 'red', names: 'Raid' } },
     ]);
+    expect(paramSetsOf(manifest, true, 'zh-CN')[1]!.params).toEqual({ color: 'red', names: '袭击' });
     expect(paramSetsOf({}, true, 'zh-CN')).toHaveLength(1);
 
     const merged = mergeReport(report([tpl('boss-bar', 'old'), tpl('chat-message', 'old')]), report([tpl('boss-bar', 'new'), tpl('aaa', 'new')]));
@@ -348,6 +355,18 @@ describe('T-REV 评审截图工具', () => {
     expect(html).not.toContain('<b>栏');
     expect(html).toContain('minecraft:gui/sprites/hud/air_empty');
     expect(html).toContain('missing(minecraft:font/unifont.zip)');
+  });
+
+  test('T-REV-14 封面的取法和模板库相同：剪辑点那一帧；没有剪辑点时前 4 秒（不足就是整段）的中间一帧，30 fps', () => {
+    // 叠加层 4.5 秒：30 fps 下 136 帧，只看前 120 帧，第 60 帧 → 2 秒（不是整段的中点 2.25 秒）
+    expect(coverTime(4.5, null)).toBe(2);
+    // 3 秒：91 帧，第 45 帧 → 1.5 秒
+    expect(coverTime(3, null)).toBe(1.5);
+    // 转场：剪辑点 0.75 秒 → 第 round(22.5) = 23 帧
+    expect(coverTime(1.5, 0.75)).toBeCloseTo(23 / 30, 9);
+    // 剪辑点超出前 4 秒时钳到第 119 帧
+    expect(coverTime(10, 6)).toBeCloseTo(119 / 30, 9);
+    expect(COVER).toEqual({ width: 320, height: 180, fps: 30, maxFrames: 120 });
   });
 
   test('T-REV-13 标注用随应用分发的 Unifont 写：中文比拉丁字母宽，太长的从后面截掉、加省略号', () => {
