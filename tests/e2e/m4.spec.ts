@@ -44,7 +44,8 @@ async function start(ui: Record<string, unknown> = {}, extraEnv: Record<string, 
 /** 模板库的封面生成完（杂务 Worker 和主线程上的 PNG 编码不再和测试抢时间，模板库的加载编排也结束了） */
 async function coversReady(page: Page): Promise<void> {
   await expect(page.locator('[data-testid="template-list"] img').first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId('gallery-loader')).toHaveAttribute('data-allay-loader-phase', 'idle');
+  // 第一屏和上下各一屏的封面都做完，加载编排才结束；排在最前面的模板（第 3、4 批的方块类）比原来的重，机器忙时超过默认的 5 秒
+  await expect(page.getByTestId('gallery-loader')).toHaveAttribute('data-allay-loader-phase', 'idle', { timeout: 30_000 });
 }
 
 async function stop(ctx: Ctx): Promise<void> {
