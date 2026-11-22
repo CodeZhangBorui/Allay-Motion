@@ -159,27 +159,42 @@ const harness = {
   builtins: () => Object.fromEntries(Object.entries(builtins).map(([id, b]) => [id, b.manifest])),
 
   /**
-   * 渲染目标稳定性探针（docs/decisions.md“Intel 核显上渲染目标偶发被写坏”）：在一个 Worker 里跑裸 WebGL2 的最小复现，
-   * 同一个静止场景反复渲染，看读回的整帧是不是每次都一样。distinct > 1 说明这块显卡（驱动）会写坏渲染目标。
+   * 渲染目标稳定性探针（docs/decisions.md“Intel 核显上渲染目标偶发被写坏”）：几个 Worker 同时跑裸 WebGL2 的最小复现，
+   * 同一个静止场景反复渲染，看读回的整帧是不是每次都一样。任何一个 Worker 的 distinct > 1 说明这块显卡（驱动）会写坏渲染目标。
+   * 默认两个 Worker 并行：实测核显上单个 Worker 偶尔整整 1.5 秒一帧都不坏（另一个同时跑的 89 ms 就看到了）。
    */
-  async rtProbe(options: { budgetMs?: number; stopAfter?: number } = {}) {
+  async rtProbe(options: { budgetMs?: number; stopAfter?: number; workers?: number } = {}) {
     const url = URL.createObjectURL(
       new Blob(
         [`${rtProbeSource}\nself.onmessage = (e) => { try { self.postMessage({ ok: true, r: self.allayRtProbe(e.data) }); } catch (err) { self.postMessage({ ok: false, error: String((err && err.stack) || err) }); } };`],
         { type: 'text/javascript' },
       ),
     );
-    const worker = new Worker(url);
-    try {
-      const res = await new Promise<{ ok: boolean; r?: RtProbeResult; error?: string }>((resolve) => {
-        worker.onmessage = (e: MessageEvent<{ ok: boolean; r?: RtProbeResult; error?: string }>) => resolve(e.data);
-        worker.onerror = (e) => resolve({ ok: false, error: e.message });
-        worker.postMessage(options);
+    const one = () =>
+      new Promise<RtProbeResult>((resolve, reject) => {
+        const worker = new Worker(url);
+        const done = (res: { ok: boolean; r?: RtProbeResult; error?: string }) => {
+          worker.terminate();
+          if (res.ok && res.r) resolve(res.r);
+          else reject(new Error(`rt probe failed: ${res.error ?? 'no result'}`));
+        };
+        worker.onmessage = (e: MessageEvent<{ ok: boolean; r?: RtProbeResult; error?: string }>) => done(e.data);
+        worker.onerror = (e) => done({ ok: false, error: e.message });
+        worker.postMessage({ budgetMs: options.budgetMs, stopAfter: options.stopAfter });
       });
-      if (!res.ok || !res.r) throw new Error(`rt probe failed: ${res.error ?? 'no result'}`);
-      return res.r;
+    try {
+      const results = await Promise.all(Array.from({ length: Math.max(1, options.workers ?? 2) }, one));
+      const unstable = results.find((r) => r.distinct > 1);
+      return {
+        ...(unstable ?? results[0]!),
+        frames: results.reduce((n, r) => n + r.frames, 0),
+        bad: results.reduce((n, r) => n + r.bad, 0),
+        distinct: Math.max(...results.map((r) => r.distinct)),
+        ms: Math.max(...results.map((r) => r.ms)),
+        errors: results.flatMap((r) => r.errors),
+        workers: results.map((r) => ({ frames: r.frames, bad: r.bad, distinct: r.distinct, ms: r.ms })),
+      };
     } finally {
-      worker.terminate();
       URL.revokeObjectURL(url);
     }
   },

@@ -1,6 +1,6 @@
 // 渲染目标稳定性探针在测试里的用法（docs/decisions.md“Intel 核显上渲染目标偶发被写坏”）。
 //
-// 每个 spec 的 beforeAll 跑一次（约 1.5 秒）：测试页在 Worker 里用裸 WebGL2 反复渲染一个静止的小场景
+// 每个 spec 的 beforeAll 跑一次（约 1.5 秒）：测试页在两个并行的 Worker 里用裸 WebGL2 反复渲染一个静止的小场景
 // （docs/reference/intel-igpu-rt-corruption/rt-probe.js，不经过引擎），读回的整帧应当每次都一样。
 // - 出现两种以上的结果：这块显卡（驱动）会写坏渲染目标。这台机器上逐字节的判定（T-ENG-1 一类）带理由跳过，
 //   探针的结果（多少帧里几帧不一致、渲染器、驱动版本、样例像素）打进测试输出；其余判定照常。
@@ -37,6 +37,7 @@ export async function probeRenderTargets(app: ElectronApplication, page: Page, b
   const sample = r.events[0]?.sample;
   const where = sample ? `，例如第 ${r.events[0]!.frame} 帧 (${sample.x}, ${sample.y}) 应为 ${sample.expected.join('.')}、实为 ${sample.got.join('.')}` : '';
   const stable = r.distinct <= 1;
-  const summary = `渲染目标探针：${r.renderer}，驱动 ${driver}：${r.frames} 帧里 ${r.bad} 帧不一致（${r.distinct} 种结果，${r.ms} ms）${where}`;
+  const each = r.workers.map((w) => `${w.bad}/${w.frames}`).join('、');
+  const summary = `渲染目标探针：${r.renderer}，驱动 ${driver}：${r.workers.length} 个 Worker 并行，${r.frames} 帧里 ${r.bad} 帧不一致（各 ${each}，最多 ${r.distinct} 种结果，${r.ms} ms）${where}`;
   return { stable, summary: stable ? summary : `${summary}。这台机器的显卡驱动会写坏渲染目标，逐字节判定跳过（docs/decisions.md）` };
 }
