@@ -1,0 +1,84 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.block-punch",
+  "version": "1.0.0",
+  "name": { "zh-CN": "方块冲镜", "en": "Block punch" },
+  "description": {
+    "zh-CN": "一个方块从远处翻滚着飞来，撞上镜头时一个面正好铺满画面，晃几下之后从镜头旁边掠过去。",
+    "en": "A block tumbles in from the distance and slams into the lens with one face filling the frame, shudders, then whips past the camera."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "impact"],
+  "groups": [
+    { "key": "block", "label": { "zh-CN": "方块", "en": "Block" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "block", "type": "block", "label": { "zh-CN": "方块", "en": "Block" }, "group": "block", "default": "minecraft:grass_block" },
+    {
+      "key": "face",
+      "type": "enum",
+      "label": { "zh-CN": "撞上的面", "en": "Face" },
+      "hint": { "zh-CN": "撞上镜头时朝向画面的是哪一面", "en": "Which face ends up flat against the lens" },
+      "group": "block",
+      "default": "side",
+      "options": [
+        { "value": "side", "label": { "zh-CN": "侧面", "en": "Side" } },
+        { "value": "top", "label": { "zh-CN": "顶面", "en": "Top" } },
+        { "value": "bottom", "label": { "zh-CN": "底面", "en": "Bottom" } }
+      ]
+    },
+    {
+      "key": "framing",
+      "type": "enum",
+      "label": { "zh-CN": "取景", "en": "Framing" },
+      "hint": { "zh-CN": "面比画面高时露出面的哪一部分；靠上能看到草方块侧面上沿的草", "en": "Which part of the face stays in frame when it is taller than the frame; Top keeps the grass edge of a grass block's side" },
+      "group": "block",
+      "default": "top",
+      "options": [
+        { "value": "top", "label": { "zh-CN": "靠上", "en": "Top" } },
+        { "value": "center", "label": { "zh-CN": "居中", "en": "Center" } },
+        { "value": "bottom", "label": { "zh-CN": "靠下", "en": "Bottom" } }
+      ]
+    },
+    { "key": "approach", "type": "angle", "label": { "zh-CN": "飞来的方向", "en": "Comes from" }, "hint": { "zh-CN": "方块从画面的哪一边飞进来：0° 右、90° 上、180° 左、270° 下；飞走时接着这个势头往对面去", "en": "Side of the frame the block flies in from: 0° right, 90° top, 180° left, 270° bottom; it leaves toward the opposite side" }, "group": "motion", "default": 195, "snap": 15 },
+    { "key": "spin", "type": "integer", "label": { "zh-CN": "翻滚圈数", "en": "Tumbles" }, "hint": { "zh-CN": "飞来的路上翻几整圈；撞上时正好转回面朝镜头", "en": "Full turns on the way in; it always lands face-on" }, "group": "motion", "default": 1, "min": 0, "max": 4 },
+    { "key": "impactShake", "type": "number", "label": { "zh-CN": "撞击晃动", "en": "Impact shudder" }, "hint": { "zh-CN": "撞上之后方块自己晃动的幅度", "en": "How much the block shudders after the hit" }, "group": "motion", "default": 0.5, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "easing", "type": "easing", "label": { "zh-CN": "飞来缓动", "en": "Approach easing" }, "hint": { "zh-CN": "默认越飞越快，最后一下撞上", "en": "By default it speeds up and slams in at the end" }, "group": "motion", "default": "quadIn" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 0.55, "min": 0.2, "max": 2 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.12, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.45, "min": 0.15, "max": 2 },
+    { "key": "whooshSound", "type": "sound", "label": { "zh-CN": "飞来音效", "en": "Approach sound" }, "group": "sound", "default": "minecraft:entity.player.attack.sweep" },
+    { "key": "impactSound", "type": "sound", "label": { "zh-CN": "撞击音效", "en": "Impact sound" }, "group": "sound", "default": "minecraft:block.grass.place" },
+    { "key": "exitSound", "type": "sound", "label": { "zh-CN": "飞走音效", "en": "Exit sound" }, "group": "sound", "default": "minecraft:entity.player.attack.sweep" },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider" }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    {
+      "key": "tnt",
+      "name": { "zh-CN": "TNT 直冲", "en": "TNT head-on" },
+      "params": { "block": "minecraft:tnt", "framing": "center", "approach": 270, "spin": 2, "impactShake": 0.8, "impactSound": "minecraft:block.grass.place" }
+    },
+    {
+      "key": "diamond-block",
+      "name": { "zh-CN": "钻石块（从右边砸来）", "en": "Diamond block from the right" },
+      "params": { "block": "minecraft:diamond_block", "framing": "center", "approach": 15, "spin": 1, "impactSound": "minecraft:block.metal.place" }
+    },
+    {
+      "key": "crafting-table",
+      "name": { "zh-CN": "工作台顶面", "en": "Crafting table top" },
+      "params": { "block": "minecraft:crafting_table", "face": "top", "framing": "center", "approach": 135, "spin": 1, "impactSound": "minecraft:block.wood.place" }
+    }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
