@@ -76,6 +76,15 @@ async function rendererRules(): Promise<{ software: boolean; gpu: string }> {
   return { software, gpu };
 }
 
+/**
+ * 测试自身的时限按这一份选中的模板数算，每个模板一份预算，不少于原来的数。原来按 6 个模板写死（显卡 600 秒、1800 秒，
+ * 软件渲染一小时）；38 个模板分 4 份时 CI 的软件渲染上每份 9–10 个，T-TPL-3、T-TPL-4 都撞了一小时（docs/decisions.md“v0.3.0 的发版准备”）。
+ * 预算：显卡上 T-TPL-3 每个 100 秒、T-TPL-4 每个 300 秒（原来的数除以 6）；软件渲染两条都是每个 900 秒（一小时除以 6 再放宽一半）
+ */
+function perTemplateTimeout(base: number, perTemplate: number): number {
+  return Math.max(base, Object.keys(builtins).length * perTemplate);
+}
+
 /** 剪辑点没盖满时把位置打进日志（CI 上看是边缘还是内部，docs/decisions.md M8） */
 function reportCut(where: string, width: number, height: number, cut: { min: number; below: number; samples: [number, number, number][] } | null | undefined): void {
   if (!cut || cut.min >= 255) return;
@@ -85,7 +94,7 @@ function reportCut(where: string, width: number, height: number, cut: { min: num
 test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通过 T-ENG-1，首末帧全透明，剪辑点完全不透明', async () => {
   const rules = await rendererRules();
   // WARP 上同样的工作量慢二三十倍
-  test.setTimeout(rules.software ? 3_600_000 : 600_000);
+  test.setTimeout(rules.software ? perTemplateTimeout(3_600_000, 900_000) : perTemplateTimeout(600_000, 100_000));
   test.info().annotations.push({ type: 'renderer', description: rules.gpu }, { type: 'rt-probe', description: rt.summary });
   // 分片时这一份可以是空的（模板比份数少），但内置模板本身不能一个都没有
   expect(builtinCount).toBeGreaterThan(0);
@@ -119,7 +128,7 @@ test('T-TPL-3 每个内置模板、三种画幅、默认参数：无警告，通
 
 test('T-TPL-4 每个内置模板 50 组随机合法参数：不抛错，三条断言仍成立，duration 在规定范围内', async () => {
   const rules = await rendererRules();
-  test.setTimeout(rules.software ? 3_600_000 : 1_800_000);
+  test.setTimeout(rules.software ? perTemplateTimeout(3_600_000, 900_000) : perTemplateTimeout(1_800_000, 300_000));
   test.info().annotations.push({ type: 'renderer', description: rules.gpu }, { type: 'rt-probe', description: rt.summary });
   for (const [id, manifest] of Object.entries(builtins)) {
     const sets = randomParamSets(manifest.params ?? [], 50, 20261113);
