@@ -198,7 +198,7 @@ export async function detectMinecraft(env: CandidateEnv, lastChosen: string | nu
 
 /**
  * 打开原版层。jar 里只收录 assets/ 下的文件；资源索引里的对象映射成 `assets/<键>` 的虚拟路径，
- * 这样 sounds.json 和 .ogg 与资源包里的路径写法一致。jar 打不开时抛错，调用方静默退回内置层。
+ * 这样 sounds.json 和 .ogg 与资源包里的路径写法一致。同一路径两处都有时以索引为准。jar 打不开时抛错，调用方静默退回内置层。
  */
 export interface VanillaLayerOptions {
   /**
@@ -263,24 +263,29 @@ export async function openVanillaLayer(install: VanillaInstall, options: Vanilla
       enabled: true,
       ...(resourceFormat ? { packFormat: resourceFormat.major } : {}),
       vanilla: { versionId: install.versionId, gameVersion, releaseTime: install.releaseTime, type: install.type ?? null, resourceFormat, gameDir: install.gameDir, hasAssetIndex: objects.size > 0 },
-      revision: `${install.versionId}:${jarStat.size}:${Math.round(jarStat.mtimeMs)}:${Math.round(indexMtime)}`,
+      // 末尾是读取规则的标记：2026-11-22 起两边都有的路径改取索引，同样的文件读出来的内容变了，
+      // 换了标记资源栈的 stamp 跟着变一次，按旧规则生成的缩略图（主菜单全景图是 1×1 占位）随之失效
+      revision: `${install.versionId}:${jarStat.size}:${Math.round(jarStat.mtimeMs)}:${Math.round(indexMtime)}:index-first`,
       warnings,
       has: (path) => (path.startsWith('assets/') && jar.has(path)) || objects.has(path),
       list: (prefix) => all.filter((p) => p.startsWith(prefix)),
+      // 同一路径 jar 和资源索引里都有时以索引为准（docs/03-assets.md 3.4）：1.20.1 到 26.3 都只有 8 个这样的路径，
+      // jar 里那一份全是占位（主菜单全景图是 1×1、font/include/unifont.json 是空的提供器列表），游戏显示的是索引里的。
+      // 索引里的对象不在本机（下载缓存没取回）时退回 jar 里的那一份
       read: async (path) => {
-        if (jar.has(path)) return jar.read(path);
         const obj = objects.get(path);
-        if (!obj) return null;
-        let st = await stat(obj.file).catch(() => null);
-        if (!st && options.fetchObject) {
-          await options.fetchObject(obj.hash, obj.size);
-          st = await stat(obj.file).catch(() => null);
+        if (obj) {
+          let st = await stat(obj.file).catch(() => null);
+          if (!st && options.fetchObject) {
+            await options.fetchObject(obj.hash, obj.size);
+            st = await stat(obj.file).catch(() => null);
+          }
+          if (st?.isFile() && st.size <= MAX_ENTRY_BYTES) return new Uint8Array(await readFile(obj.file));
         }
-        if (!st || !st.isFile() || st.size > MAX_ENTRY_BYTES) return null;
-        return new Uint8Array(await readFile(obj.file));
+        return path.startsWith('assets/') && jar.has(path) ? jar.read(path) : null;
       },
+      // 和 read 同一个顺序：索引里有的，对象不在本机就是“还没取回”，jar 里有占位也一样
       remoteObject: async (path) => {
-        if (jar.has(path)) return null;
         const obj = objects.get(path);
         if (!obj) return null;
         const st = await stat(obj.file).catch(() => null);
