@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "id": "allay.builtin.portal-gate",
+  "version": "1.0.0",
+  "name": { "zh-CN": "传送门穿越", "en": "Portal gate" },
+  "description": {
+    "zh-CN": "黑曜石一块块垒成门框，点火，下界传送门亮起，镜头被吸进去铺满画面；退出时像穿过去一样碎开散向四周。",
+    "en": "Obsidian is stacked into a frame, lit, and the Nether portal glows as the camera is pulled in until it fills the frame; on the way out it breaks apart as if passing through."
+  },
+  "license": "MIT",
+  "category": "transition",
+  "tags": ["blocks", "portal"],
+  "groups": [
+    { "key": "portal", "label": { "zh-CN": "传送门", "en": "Portal" } },
+    { "key": "motion", "label": { "zh-CN": "动画", "en": "Motion" } },
+    { "key": "timing", "label": { "zh-CN": "时间", "en": "Timing" } },
+    { "key": "sound", "label": { "zh-CN": "音效", "en": "Sound" }, "collapsed": true }
+  ],
+  "params": [
+    { "key": "frame", "type": "block", "label": { "zh-CN": "门框方块", "en": "Frame block" }, "group": "portal", "default": "minecraft:obsidian" },
+    { "key": "portalTint", "type": "color", "label": { "zh-CN": "传送门染色", "en": "Portal tint" }, "hint": { "zh-CN": "乘在传送门贴图上的颜色；白色是游戏里原来的样子", "en": "Color multiplied onto the portal texture; white keeps the in-game look" }, "group": "portal", "default": "#FFFFFF" },
+    { "key": "backing", "type": "color", "label": { "zh-CN": "传送门后面", "en": "Behind the portal" }, "hint": { "zh-CN": "传送门是半透明的，后面垫一层这个颜色，剪辑点因此不透明", "en": "The portal is see-through; this color sits behind it so the cut stays fully opaque" }, "group": "portal", "default": "#22083D" },
+    {
+      "key": "buildOrder",
+      "type": "enum",
+      "label": { "zh-CN": "搭建顺序", "en": "Build order" },
+      "group": "motion",
+      "default": "bottomUp",
+      "ui": "pattern",
+      "options": [
+        { "value": "bottomUp", "label": { "zh-CN": "先底后柱再封顶", "en": "Base, pillars, top" }, "pattern": [1, 0.93, 0.93, 1, 0.55, 0, 0, 0.6, 0.45, 0, 0, 0.5, 0, 0.1, 0.2, 0.3] },
+        { "value": "clockwise", "label": { "zh-CN": "绕一圈", "en": "Around the frame" }, "pattern": [0.3, 0.4, 0.5, 0.6, 0.2, 0, 0, 0.7, 0.1, 0, 0, 0.8, 0, 1, 0.95, 0.9] },
+        { "value": "random", "label": { "zh-CN": "随机", "en": "Random" }, "pattern": [0.5, 0.2, 0.9, 0.1, 0.7, 0, 0, 0.4, 0.3, 0, 0, 0.8, 1, 0.6, 0.15, 0.35] }
+      ]
+    },
+    { "key": "igniteAt", "type": "number", "label": { "zh-CN": "点火时刻", "en": "Light at" }, "hint": { "zh-CN": "点火在进入阶段里的位置；之前搭门框，之后推镜头", "en": "Where in the In phase the portal is lit; the frame is built before it and the camera pushes in after" }, "group": "motion", "default": 0.55, "min": 0.3, "max": 0.8, "step": 0.01, "ui": "slider" },
+    { "key": "inDuration", "type": "duration", "label": { "zh-CN": "进入", "en": "In" }, "group": "timing", "default": 1.6, "min": 0.6, "max": 4 },
+    { "key": "hold", "type": "duration", "label": { "zh-CN": "停留", "en": "Hold" }, "group": "timing", "default": 0.15, "min": 0, "max": 2 },
+    { "key": "outDuration", "type": "duration", "label": { "zh-CN": "退出", "en": "Out" }, "group": "timing", "default": 0.6, "min": 0.25, "max": 2 },
+    { "key": "placeSound", "type": "sound", "label": { "zh-CN": "放置音效", "en": "Place sound" }, "group": "sound", "default": "minecraft:block.stone.place" },
+    { "key": "igniteSound", "type": "sound", "label": { "zh-CN": "点火音效", "en": "Light sound" }, "group": "sound", "default": "minecraft:item.flintandsteel.use" },
+    { "key": "portalSound", "type": "sound", "label": { "zh-CN": "传送门音效", "en": "Portal sound" }, "hint": { "zh-CN": "开始被吸进去时（游戏里站进传送门时的声音）", "en": "When the camera starts getting pulled in (the sound of standing in a portal)" }, "group": "sound", "default": "minecraft:block.portal.trigger" },
+    { "key": "travelSound", "type": "sound", "label": { "zh-CN": "穿越音效", "en": "Travel sound" }, "hint": { "zh-CN": "穿过去时放一次；默认不放（传送门音效还在响），游戏里传送完成的声音是 block.portal.travel", "en": "Plays once when passing through; off by default since the portal sound is still playing. The in-game arrival sound is block.portal.travel" }, "group": "sound", "default": null },
+    { "key": "volume", "type": "number", "label": { "zh-CN": "音量", "en": "Volume" }, "group": "sound", "default": 0.7, "min": 0, "max": 1, "step": 0.01, "ui": "slider" },
+    { "key": "seed", "type": "seed", "label": { "zh-CN": "随机种子", "en": "Seed" }, "group": "motion", "default": 1 }
+  ],
+  "timeline": {
+    "segments": [
+      { "param": "inDuration", "label": { "zh-CN": "进入", "en": "In" } },
+      { "param": "hold", "label": { "zh-CN": "停留", "en": "Hold" } },
+      { "param": "outDuration", "label": { "zh-CN": "退出", "en": "Out" } }
+    ]
+  },
+  "presets": [
+    { "key": "quick", "name": { "zh-CN": "快速穿越", "en": "Quick jump" }, "params": { "inDuration": 0.9, "hold": 0.08, "outDuration": 0.45, "igniteAt": 0.5 } },
+    { "key": "crying", "name": { "zh-CN": "哭泣的黑曜石", "en": "Crying obsidian" }, "params": { "frame": "minecraft:crying_obsidian", "buildOrder": "clockwise" } },
+    { "key": "arrival", "name": { "zh-CN": "带传送完成的声音", "en": "With the arrival sound" }, "params": { "travelSound": "minecraft:block.portal.travel", "outDuration": 0.8 } }
+  ],
+  "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
+}
