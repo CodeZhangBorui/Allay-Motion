@@ -41,7 +41,7 @@ export const DEFAULT_LAYOUT = {
   right: { size: 320, collapsed: false },
 } as const satisfies Record<'left' | 'right', PanelState>;
 
-export const LayoutSchema = z.strictObject({
+export const LayoutSchema = z.object({
   left: PanelStateSchema.catch({ ...DEFAULT_LAYOUT.left }),
   right: PanelStateSchema.catch({ ...DEFAULT_LAYOUT.right }),
 });
@@ -94,7 +94,7 @@ export function defaultEditorPrefs(): EditorPrefs {
   };
 }
 
-export const EditorPrefsSchema = z.strictObject({
+export const EditorPrefsSchema = z.object({
   background: z.enum(PREVIEW_BACKGROUNDS).catch('checker'),
   solidColor: HexColorSchema.catch('#00B140'),
   guides: z.boolean().catch(false),
@@ -118,8 +118,11 @@ export const OptionalModulesSchema = z
 /** 自定义快捷键（6.11）：坏掉的条目各自回到默认，不连累其他设置 */
 const ShortcutOverridesFileSchema = z.unknown().transform((raw): ShortcutOverrides => sanitizeShortcutOverrides(raw));
 
-/** 渲染进程可见、可改的部分 */
-export const UiSettingsSchema = z.strictObject({
+/**
+ * 渲染进程可见、可改的部分。读文件用：每个字段单独兜底，不认识的键忽略（新版本写的文件给旧版本读时，
+ * 不至于因为一个新键整节退回默认值、重新弹出引导、把关掉的自动更新打开）。渲染进程发来的修改另有严格的 UiSettingsPatchSchema
+ */
+export const UiSettingsSchema = z.object({
   theme: ThemeSchema.catch('dark'),
   language: LanguagePrefSchema.catch('system'),
   reducedMotion: ReducedMotionPrefSchema.catch('system'),
@@ -292,9 +295,10 @@ export function readResourceSettings(raw: unknown, notes: string[] = []): Resour
 }
 
 /** 导出的应用级设置（M7），只有主进程读写：上次选的输出文件夹、H.264 探测结果的缓存（5.3） */
-export const ExportAppSettingsSchema = z.strictObject({
-  folder: z.string().min(1).max(1000).nullable(),
-  h264: H264ProbeSchema.nullable(),
+export const ExportAppSettingsSchema = z.object({
+  folder: z.string().min(1).max(1000).nullable().catch(null),
+  /** 探测结果的缓存坏了重新探测就是，不连累输出文件夹 */
+  h264: H264ProbeSchema.nullable().catch(null),
 });
 export type ExportAppSettings = z.infer<typeof ExportAppSettingsSchema>;
 export function defaultExportAppSettings(): ExportAppSettings {
@@ -305,7 +309,7 @@ export function defaultExportAppSettings(): ExportAppSettings {
  * 工程的应用级设置（6.11），只有主进程读写：新工程“保存”“另存为”时对话框默认打开的文件夹。
  * 文件夹只来自主进程的文件夹对话框（1.6 第 6 条）。
  */
-export const ProjectAppSettingsSchema = z.strictObject({
+export const ProjectAppSettingsSchema = z.object({
   folder: z.string().min(1).max(1000).nullable(),
 });
 export type ProjectAppSettings = z.infer<typeof ProjectAppSettingsSchema>;
