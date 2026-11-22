@@ -22,6 +22,7 @@
       "all": "全部",
       "transition": "转场",
       "overlay": "叠加",
+      "title": "标题",
       "mine": "我的"
     },
     "categories": {
@@ -39,7 +40,33 @@
     "remove": "删除模板",
     "tabsLabel": "模板库",
     "searchToggle": "搜索模板",
-    "presetsEmpty": "当前模板还没有预设。可以在属性面板的“预设”里保存。"
+    "presetsEmpty": "当前模板还没有预设。可以在属性面板的“预设”里保存。",
+    "groups": {
+      "blocks": "方块",
+      "items": "物品与实体",
+      "ui": "原版界面",
+      "particles": "粒子与天气",
+      "text": "文字与字幕",
+      "channel": "频道包装",
+      "shader": "像素与着色器",
+      "seasonal": "节日与主题",
+      "other": "其他"
+    },
+    "groupAll": "全部分组",
+    "groupLabel": "按分组筛选",
+    "total": "{{count}} 个模板",
+    "totalOne": "1 个模板",
+    "results": "{{count}} 个结果",
+    "resultsOne": "1 个结果",
+    "noResultsElsewhere": "当前的类别和分组之外还有 {{count}} 个结果。",
+    "showEverywhere": "在全部模板里看",
+    "noResultsHint": "可以搜模板的中文名、英文名、说明、分组名或 id。",
+    "filteredEmpty": "“{{category}}”里没有“{{group}}”的模板。",
+    "showAllGroups": "显示全部分组",
+    "rendering": "正在生成封面…",
+    "coverFailed": "封面没能生成：{{reason}}",
+    "detail": "{{category}} · {{group}}",
+    "listLabel": "模板列表"
   },
   "templates": {
     "installed": "模板已安装。",

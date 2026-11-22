@@ -22,6 +22,7 @@
       "all": "All",
       "transition": "Transitions",
       "overlay": "Overlays",
+      "title": "Titles",
       "mine": "Mine"
     },
     "categories": {
@@ -39,7 +40,33 @@
     "remove": "Delete template",
     "tabsLabel": "Library",
     "searchToggle": "Search templates",
-    "presetsEmpty": "This template has no presets yet. Save one from “Presets” in the properties panel."
+    "presetsEmpty": "This template has no presets yet. Save one from “Presets” in the properties panel.",
+    "groups": {
+      "blocks": "Blocks",
+      "items": "Items & entities",
+      "ui": "Game UI",
+      "particles": "Particles & weather",
+      "text": "Text & captions",
+      "channel": "Channel branding",
+      "shader": "Pixel & shader",
+      "seasonal": "Seasonal",
+      "other": "Other"
+    },
+    "groupAll": "All groups",
+    "groupLabel": "Filter by group",
+    "total": "{{count}} templates",
+    "totalOne": "1 template",
+    "results": "{{count}} results",
+    "resultsOne": "1 result",
+    "noResultsElsewhere": "{{count}} more outside the current category and group.",
+    "showEverywhere": "Search all templates",
+    "noResultsHint": "Search by Chinese or English name, description, group name or id.",
+    "filteredEmpty": "No “{{group}}” templates in “{{category}}”.",
+    "showAllGroups": "Show all groups",
+    "rendering": "Rendering covers…",
+    "coverFailed": "The cover could not be rendered: {{reason}}",
+    "detail": "{{category}} · {{group}}",
+    "listLabel": "Template list"
   },
   "templates": {
     "installed": "Template installed.",
