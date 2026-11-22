@@ -2,6 +2,7 @@
 // 着色器本身（编译、画面）由各模板的引擎测试 T-TPL-3、4、5 覆盖。
 import { describe, expect, it } from 'vitest';
 import { framesPerStep, frameStep, GLSL_COMMON, outputPixel, shaderSeed, stepStart, VERTEX } from '../../packages/templates/_lib/src/shader-kit';
+import { fitLife } from '../../packages/templates/_lib/src/shader-particles';
 
 describe('T-TPL-LIB shader', () => {
   it('T-TPL-LIB-S1 按帧对齐的步：同一帧的所有子帧（离帧时刻不到半帧）落在同一步里，换步在两帧正中间', () => {
@@ -38,5 +39,21 @@ describe('T-TPL-LIB shader', () => {
     expect(VERTEX).toContain('vPos');
     // 不用 GLSL 的保留字当变量名（half、short 在 GLSL ES 里是保留的）
     expect(GLSL_COMMON).not.toMatch(/\b(half|short|long|double)\b\s+\w+\s*=/);
+  });
+
+  it('T-TPL-LIB-S4 粒子的寿命收进时间窗：出生不早于开始，死亡不晚于结束，寿命至少 minLife（时间窗更短时是整个时间窗）', () => {
+    const [first, last] = [0.1, 2.4];
+    for (let i = 0; i < 400; i++) {
+      // 出生从时间窗前 0.5 秒到后 0.5 秒，寿命 0–1.5 秒
+      const birth = first - 0.5 + ((i * 0.6180339887) % 1) * (last - first + 1);
+      const life = ((i * 0.4142135623) % 1) * 1.5;
+      const f = fitLife(birth, life, first, last);
+      expect(f.birth).toBeGreaterThanOrEqual(first);
+      expect(f.birth + f.life).toBeLessThanOrEqual(last + 1e-12);
+      expect(f.life).toBeGreaterThanOrEqual(0.05 - 1e-12);
+      // 本来就在时间窗里的不动
+      if (birth >= first && birth + Math.max(life, 0.05) <= last) expect(f).toEqual({ birth, life: Math.max(life, 0.05) });
+    }
+    expect(fitLife(5, 1, 0, 0.02)).toEqual({ birth: 0, life: 0.02 });
   });
 });
