@@ -385,7 +385,8 @@ test.describe('启动画面（7.5 第 1 项、7.6 C）', () => {
           return { url: w.webContents.getURL(), contextIsolation: p?.contextIsolation, sandbox: p?.sandbox, nodeIntegration: p?.nodeIntegration, webSecurity: p?.webSecurity, webviewTag: p?.webviewTag, nodeIntegrationInWorker: p?.nodeIntegrationInWorker, nodeIntegrationInSubFrames: p?.nodeIntegrationInSubFrames };
         }),
       );
-      await splash.waitForLoadState('domcontentloaded');
+      // 样式表是外链的：domcontentloaded 时它可能还没套上（机器忙时 .sprite 的背景读出来是 none），等到 load
+      await splash.waitForLoadState('load');
       const facts = await splash.evaluate(async () => ({
         wordmark: document.querySelector('.wordmark')?.textContent ?? null,
         disclaimer: document.querySelector('[data-testid="splash-disclaimer"]')?.textContent ?? null,
