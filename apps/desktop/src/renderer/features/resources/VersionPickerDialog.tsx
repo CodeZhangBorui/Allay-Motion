@@ -3,7 +3,7 @@ import { Button } from '@allay/ui/components/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@allay/ui/components/dialog';
 import { Badge, Input, ToggleGroup, ToggleGroupItem } from '@allay/ui/components/misc';
 import { ICON } from '@allay/ui/lib/icons';
-import { CheckCircle, CloudArrowDown, GameController, HardDrives, MagnifyingGlass } from '@phosphor-icons/react';
+import { CheckCircle, CloudArrowDown, GameController, HardDrives, MagnifyingGlass, Warning } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { VersionCatalog, VersionEntry, VersionKind } from '../../../shared/resources';
@@ -59,7 +59,7 @@ export function VersionPickerDialog({ open, onOpenChange }: { open: boolean; onO
         // Mojang 清单里已经下载过的版本只列在“已下载”里
         if (src === 'remote' && known.has(e.versionId)) continue;
         if (src === 'downloaded') known.add(e.versionId);
-        if (!matchesVersionQuery(q, e.versionId, e.gameDir, t(`resources.versions.sources.${src}`))) continue;
+        if (!matchesVersionQuery(q, e.versionId, e.gameVersion, e.gameDir, t(`resources.versions.sources.${src}`))) continue;
         out.push({ source: src, entry: e });
       }
     };
@@ -87,6 +87,9 @@ export function VersionPickerDialog({ open, onOpenChange }: { open: boolean; onO
       row.source === 'local' ? { kind: 'local', gameDir: row.entry.gameDir ?? '', versionId: row.entry.versionId } : { kind: 'downloaded', versionId: row.entry.versionId },
     );
     useResourceStore.getState().replace(state);
+    // 加不进来的（jar 不完整或打不开）资源栈不变：重新取一次列表，把原因标在那一行上
+    const next = await window.allay.resources.versions().catch(() => null);
+    if (next) setCatalog(next);
   };
 
   const running = download?.status === 'running';
@@ -128,20 +131,34 @@ export function VersionPickerDialog({ open, onOpenChange }: { open: boolean; onO
                 <SrcIcon size={ICON.md} className="shrink-0 text-fg-subtle" aria-label={t(`resources.versions.sources.${row.source}`)} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="num truncate text-sm">{e.versionId}</span>
+                    {/* 本机的是目录名（模组版本、整合包的名字原样显示），真实的游戏版本另外标出来 */}
+                    <span className="num truncate text-sm" title={e.versionId}>
+                      {e.versionId}
+                    </span>
+                    {e.gameVersion && (
+                      <Badge className="shrink-0" data-testid="version-game">
+                        {t('resources.versions.gameVersion', { version: e.gameVersion })}
+                      </Badge>
+                    )}
                     {e.type !== 'release' && <Badge className="shrink-0">{t(`resources.versions.types.${e.type satisfies VersionKind}`)}</Badge>}
                     {latest && <Badge className="shrink-0">{t('resources.versions.latest')}</Badge>}
                   </div>
                   <p className="truncate text-xs text-fg-subtle" title={e.gameDir}>
                     {[dateText(e.releaseTime, i18n.language), row.source === 'local' ? e.gameDir : t(`resources.versions.sources.${row.source}`)].filter(Boolean).join(' · ')}
                   </p>
+                  {e.problem && (
+                    <p className="flex items-start gap-1 text-xs leading-relaxed text-warning" data-testid="version-jar-problem" data-problem={e.problem}>
+                      <Warning size={ICON.sm} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      {t(e.problem === 'not-client' ? 'resources.versions.notClient' : 'resources.versions.unreadable')}
+                    </p>
+                  )}
                 </div>
                 {e.layerId ? (
                   <span className="inline-flex shrink-0 items-center gap-1 text-xs text-fg-muted" data-testid="version-added">
                     <CheckCircle size={ICON.sm} />
                     {t('resources.versions.added')}
                   </span>
-                ) : (
+                ) : e.problem ? null : (
                   <Button size="sm" variant="secondary" disabled={running} data-testid="version-add" onClick={() => void add(row)}>
                     {t(row.source === 'remote' ? 'resources.versions.download' : 'resources.versions.add')}
                   </Button>

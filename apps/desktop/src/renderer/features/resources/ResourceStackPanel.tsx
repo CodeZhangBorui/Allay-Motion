@@ -49,7 +49,9 @@ export function ResourceStackPanel() {
     let warning: string | undefined = layer.legacyFormat ? t('resources.legacy') : layer.warnings.length > 0 ? t('resources.skipped', { count: layer.warnings.length }) : undefined;
     if (layer.kind === 'vanilla') {
       const where = layer.source === 'downloaded' ? t('resources.vanillaDownloaded') : layer.gameDir ? t('resources.vanillaLocalAt', { dir: layer.gameDir }) : t('resources.vanillaLocal');
-      sub = layer.resourceFormat ? `${where} · ${t('resources.format', { format: layer.resourceFormat })}` : where;
+      // 层名是真实的游戏版本；模组版本、整合包的目录名和它不同，写在描述里
+      const folder = layer.source === 'local' && layer.versionId && layer.versionId !== layer.name ? t('resources.vanillaDir', { dir: layer.versionId }) : null;
+      sub = [folder, where, layer.resourceFormat ? t('resources.format', { format: layer.resourceFormat }) : null].filter(Boolean).join(' · ');
       if (!warning && layer.hasAssetIndex === false) warning = t('resources.noAssetIndex');
     } else {
       const compat = compatText(t, layer, baseVersion);
@@ -107,10 +109,18 @@ export function ResourceStackPanel() {
             <li key={m.id} data-testid="vanilla-missing-source" data-layer-id={m.id} className="flex items-center gap-2 py-1.5 pr-1 pl-6">
               <Warning size={ICON.md} className="shrink-0 text-warning" aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{t('resources.vanillaName', { version: m.versionId })}</p>
-                <p className="truncate text-xs text-warning" title={m.gameDir}>
-                  {t(m.kind === 'local' ? 'resources.missingLocal' : 'resources.missingDownloaded', { dir: m.gameDir ?? '' })}
+                <p className="truncate text-sm" title={m.versionId}>
+                  {t('resources.vanillaName', { version: m.versionId })}
                 </p>
+                {m.problem === 'missing' ? (
+                  <p className="truncate text-xs text-warning" title={m.gameDir}>
+                    {t(m.kind === 'local' ? 'resources.missingLocal' : 'resources.missingDownloaded', { dir: m.gameDir ?? '' })}
+                  </p>
+                ) : (
+                  <p className="text-xs leading-relaxed text-warning" title={m.gameDir} data-problem={m.problem}>
+                    {t(m.problem === 'not-client' ? 'resources.sourceNotClient' : 'resources.sourceUnreadable')}
+                  </p>
+                )}
               </div>
               <Button variant="ghost" size="icon-sm" aria-label={t('resources.remove', { name: m.versionId })} onClick={() => replace(window.allay.resources.removeLayer(m.id))}>
                 <Trash size={ICON.md} />
@@ -123,7 +133,13 @@ export function ResourceStackPanel() {
       {state.vanilla.problem && (
         <p role="status" className="flex items-start gap-1 text-xs text-warning">
           <Warning size={ICON.sm} className="mt-0.5 shrink-0" aria-hidden="true" />
-          {t('resources.vanillaProblem')}
+          {t(
+            state.vanilla.problem === 'not-client'
+              ? 'resources.vanillaProblemNotClient'
+              : state.vanilla.problem === 'jar-unreadable'
+                ? 'resources.vanillaProblemUnreadable'
+                : 'resources.vanillaProblem',
+          )}
         </p>
       )}
       {!hasVanilla && (

@@ -25,7 +25,7 @@ export function VanillaSourceActions() {
       {vanilla.local && vanilla.consent !== true && (
         <Button variant="secondary" className="self-start" data-testid="vanilla-use-local" onClick={() => void setVanilla({ consent: true, enabled: true })}>
           <GameController size={ICON.sm} />
-          {t('resources.useLocal', { version: vanilla.local.versionId })}
+          {t('resources.useLocal', { version: vanilla.local.gameVersion ?? vanilla.local.versionId })}
         </Button>
       )}
       {!stopped && (

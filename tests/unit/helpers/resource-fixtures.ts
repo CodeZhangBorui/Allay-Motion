@@ -106,11 +106,16 @@ export function packMcmeta(description: string, packFormat = 46): string {
 export const tex = (name: string) => `assets/minecraft/textures/block/${name}.png`;
 
 export interface FakeVersion {
+  /** versions/ 下的目录名（也是版本 JSON 和 jar 的文件名） */
   id: string;
   type: 'release' | 'snapshot' | 'old_beta';
   releaseTime: string;
   jar: boolean;
   assetIndex?: string;
+  /** 版本 JSON 里另外写的字段（clientVersion、inheritsFrom 这些） */
+  json?: Record<string, unknown>;
+  /** jar 根目录的 version.json 写的版本号（不给时没有这个文件） */
+  jarVersion?: string;
 }
 
 /** 假 .minecraft：versions/<id>/<id>.json(+jar)、assets/indexes、assets/objects。jar 里是纯色假贴图 */
@@ -123,12 +128,14 @@ export function makeFakeMinecraft(root: string, versions: readonly FakeVersion[]
         type: v.type,
         releaseTime: v.releaseTime,
         ...(v.assetIndex ? { assetIndex: { id: v.assetIndex, sha1: '0'.repeat(40), size: 1, url: 'https://example.invalid/' } } : {}),
+        ...v.json,
       }),
     });
     if (v.jar) {
       writeZip(join(dir, `${v.id}.jar`), [
         { name: 'META-INF/MANIFEST.MF', data: 'Manifest-Version: 1.0\n' },
         { name: 'net/fake/Main.class', data: 'not a class' },
+        ...(v.jarVersion ? [{ name: 'version.json', data: JSON.stringify({ id: v.jarVersion, name: v.jarVersion, pack_version: { resource: 15, data: 15 } }) }] : []),
         { name: tex('stone'), data: solidPng(jarColor), method: 'deflate' },
         { name: 'assets/minecraft/textures/item/diamond.png', data: solidPng(jarColor) },
       ]);

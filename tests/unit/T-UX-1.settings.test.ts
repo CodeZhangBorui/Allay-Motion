@@ -61,6 +61,35 @@ describe('T-UX-1 设置：引导标记、自定义快捷键、默认文件夹', 
     expect(broken?.ui.theme).toBe('light');
   });
 
+  it('新版本写的设置文件给旧版本读：不认识的键只是忽略，不会整节退回默认、重新弹出引导、把关掉的自动更新打开', () => {
+    const s = migrateSettingsFile({
+      formatVersion: 1,
+      ui: {
+        theme: 'light',
+        onboardingCompleted: true,
+        tourCompleted: true,
+        shortcuts: { loop: 'Ctrl+Shift+L' },
+        updates: { mode: 'off', source: 'gitcode', skipVersion: null, channel: 'beta' },
+        layout: { left: { size: 300, collapsed: true }, right: { size: 320, collapsed: false }, bottom: { size: 200, collapsed: false } },
+        editor: { background: 'solid', recent: { color: ['#123456'], block: [], item: [], texture: [] }, futurePref: 1 },
+        futureFlag: true,
+      },
+      export: { folder: 'D:/out', h264: { encoder: 42 } },
+      editor: { kind: 'zed', program: 'C:/Tools/code.exe' },
+      project: { folder: 'D:/projects', recent: [] },
+    });
+    expect(s).not.toBeNull();
+    expect([s!.ui.theme, s!.ui.onboardingCompleted, s!.ui.tourCompleted]).toEqual(['light', true, true]);
+    expect(s!.ui.shortcuts).toEqual({ loop: 'Ctrl+Shift+L' });
+    expect(s!.ui.updates).toEqual({ mode: 'off', source: 'gitcode', skipVersion: null });
+    expect(s!.ui.layout.left).toEqual({ size: 300, collapsed: true });
+    expect([s!.ui.editor.background, s!.ui.editor.recent.color]).toEqual(['solid', ['#123456']]);
+    expect('futureFlag' in s!.ui).toBe(false);
+    expect(s!.export).toEqual({ folder: 'D:/out', h264: null });
+    expect(s!.editor).toEqual({ kind: 'builtin', program: 'C:/Tools/code.exe' });
+    expect(s!.project).toEqual({ folder: 'D:/projects' });
+  });
+
   it('工程文件夹坏了只回退这一项', () => {
     const s = migrateSettingsFile({ formatVersion: 1, ui: { theme: 'light' }, project: { folder: 7 } });
     expect(s?.project).toEqual({ folder: null });

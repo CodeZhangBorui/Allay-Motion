@@ -42,6 +42,28 @@ export interface ZipArchive {
   close(): void;
 }
 
+/**
+ * 压缩包里有没有以 prefix 开头的文件条目：按中央目录的顺序读，读到第一个就停，不建索引、不读内容。
+ * 只用来认 jar 是不是完整的原版客户端（一个原版 jar 有三万来个条目，openZip 整个扫一遍要好几秒）；
+ * 真正读取时仍然经 openZip 做全部校验。文件本身不是 zip、中央目录坏了时抛 ZipRejectedError
+ */
+export async function zipHasPrefix(file: string, prefix: string): Promise<boolean> {
+  let zip: ZipFile;
+  try {
+    zip = await yauzl.openPromise(file, { autoClose: false, lazyEntries: true, decodeStrings: true, validateEntrySizes: true, strictFileNames: true });
+  } catch (err) {
+    throw new ZipRejectedError(`不是有效的 zip：${(err as Error).message}`);
+  }
+  try {
+    for await (const entry of zip.eachEntry()) if (!entry.fileName.endsWith('/') && entry.fileName.startsWith(prefix)) return true;
+    return false;
+  } catch (err) {
+    throw new ZipRejectedError(`压缩包被拒绝：${(err as Error).message}`);
+  } finally {
+    zip.close();
+  }
+}
+
 /** 打开并校验压缩包。名字不安全时整个拒绝；文件本身不是 zip 时抛 ZipRejectedError */
 export async function openZip(file: string, options: ZipIndexOptions = {}): Promise<ZipArchive> {
   const maxBytes = options.maxEntryBytes ?? MAX_ENTRY_BYTES;

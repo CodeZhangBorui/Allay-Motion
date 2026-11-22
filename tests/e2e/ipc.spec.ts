@@ -135,7 +135,25 @@ const MALFORMED: Record<string, unknown[][]> = {
   'resources.versions': [[1]],
   // 合法的 fetchRemoteVersions、downloadVanillaVersion 会联网，这里只有畸形参数
   'resources.fetchRemoteVersions': [[1], ['https://evil.example/manifest.json']],
-  'resources.addVanillaSource': [[], [null], [{ kind: 'local', versionId: '1.21' }], [{ kind: 'downloaded', versionId: '../x' }], [{ kind: 'remote', versionId: '1.21' }], [{ kind: 'downloaded', versionId: '1.21' }, 'x']],
+  'resources.addVanillaSource': [
+    [],
+    [null],
+    [{ kind: 'local', versionId: '1.21' }],
+    [{ kind: 'downloaded', versionId: '../x' }],
+    [{ kind: 'remote', versionId: '1.21' }],
+    [{ kind: 'downloaded', versionId: '1.21' }, 'x'],
+    // 本机来源的目录名可以带空格、括号、中文，但必须是 versions/ 的一个直接子目录名
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: '../x' }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: 'a/b' }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: '..\\..\\Windows' }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: '..' }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: '' }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: 'x'.repeat(256) }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: '1.20.1\u0000.jar' }],
+    [{ kind: 'local', gameDir: 'C:\\Games\\.minecraft', versionId: 42 }],
+    // 下载的来源只能是 Mojang 的版本号
+    [{ kind: 'downloaded', versionId: '1.20.1-Fabric 0.19.3' }],
+  ],
   'resources.downloadVanillaVersion': [[], [42], ['../../x'], ['1.21 beta'], ['x'.repeat(100)]],
   'resources.localPacks': [[1]],
   'resources.addLocalPack': [[], [42], [null], ['x'.repeat(40_000)]],

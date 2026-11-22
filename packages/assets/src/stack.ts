@@ -174,17 +174,57 @@ export type PackSource = z.infer<typeof PackSourceSchema>;
 /** 版本号要用作目录名：只含字母数字、点、下划线、连字符（与 download.ts 的 SafeId 一致） */
 export const VersionIdSchema = z.string().min(1).max(64).regex(/^[\w.-]+$/).refine((s) => s !== '.' && s !== '..');
 
-/** 一个原版来源：本机某个游戏目录里的某个版本，或下载缓存里的某个版本 */
+/** 版本目录名的长度上限：常见文件系统一段路径的上限 */
+export const MAX_VERSION_DIR_LENGTH = 255;
+
+/**
+ * 本机游戏 versions/ 下的一个版本目录名。PCL、HMCL 等启动器给模组版本、整合包起的名字原样保存
+ * （“1.20.1-Fabric 0.19.3”“1.21.8-Fabric_0.17.3(生电)”、中文名），所以不限字符集，只要求它能当 versions/ 的一个直接子目录：
+ * 非空、不超过 255 个字符、没有路径分隔符和控制字符、不是 . 或 ..。
+ * 目录名只来自主进程自己扫描游戏目录的结果；用之前还要核对它在扫描结果里（ResourceService.findInstall）。
+ */
+export function isVersionDirName(name: string): boolean {
+  if (name.length === 0 || name.length > MAX_VERSION_DIR_LENGTH || name === '.' || name === '..') return false;
+  for (let i = 0; i < name.length; i++) {
+    const c = name.charCodeAt(i);
+    if (c < 0x20 || c === 0x7f || c === 0x2f || c === 0x5c) return false;
+  }
+  return true;
+}
+export const VersionDirSchema = z.string().refine(isVersionDirName, { message: 'not a version directory name' });
+
+/**
+ * 一个原版来源：本机某个游戏目录里的某个版本，或下载缓存里的某个版本。
+ * 本机来源的 versionId 是 versions/ 下的目录名（官方启动器里目录名就是版本号；键名沿用旧设置的 versionId），
+ * 真实的游戏版本另外从 jar 和版本 JSON 里读，不存进设置。下载的来源只能是 Mojang 的版本号。
+ */
 export const VanillaSourceSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('local'), gameDir: z.string().min(1).max(4096), versionId: VersionIdSchema }),
+  z.strictObject({ kind: z.literal('local'), gameDir: z.string().min(1).max(4096), versionId: VersionDirSchema }),
   z.strictObject({ kind: z.literal('downloaded'), versionId: VersionIdSchema }),
 ]);
 export type VanillaSource = z.infer<typeof VanillaSourceSchema>;
 
-/** 原版来源在资源栈里的层 id：同一个来源总是同一个 id */
+/**
+ * 原版来源在资源栈里的层 id：同一个来源总是同一个 id。目录名过得了 VersionIdSchema 的（官方启动器的版本、
+ * 旧设置里的全部条目）照旧把它写进 id，旧的 id 不变；其余目录名（带空格、括号、中文……）写成“~”加它的哈希，
+ * id 里只有安全的字符、长度固定，也不会和前一种撞上（“~”不在 VersionIdSchema 的字符里）。
+ */
 export function vanillaLayerId(source: VanillaSource): string {
-  return source.kind === 'downloaded' ? `vanilla:dl:${source.versionId}` : `vanilla:local:${fnv1a64(source.gameDir).slice(0, 10)}:${source.versionId}`;
+  if (source.kind === 'downloaded') return `vanilla:dl:${source.versionId}`;
+  const dir = source.versionId;
+  return `vanilla:local:${fnv1a64(source.gameDir).slice(0, 10)}:${VersionIdSchema.safeParse(dir).success ? dir : `~${fnv1a64(dir)}`}`;
 }
+
+/** 原版来源最多几条 */
+export const MAX_VANILLA_SOURCES = 64;
+
+/** 设置里的一条原版来源；id 是 vanillaLayerId(source) */
+export const VanillaSourceEntrySchema = z.strictObject({ id: z.string().min(1).max(128), source: VanillaSourceSchema, enabled: z.boolean() });
+export type VanillaSourceEntry = z.infer<typeof VanillaSourceEntrySchema>;
+
+/** 设置里的一个资源包 */
+export const PackEntrySchema = z.strictObject({ id: z.string().min(1), name: z.string(), source: PackSourceSchema, enabled: z.boolean() });
+export type PackEntry = z.infer<typeof PackEntrySchema>;
 
 export const ResourceStackSettingsSchema = z.strictObject({
   vanilla: z.strictObject({
@@ -198,9 +238,9 @@ export const ResourceStackSettingsSchema = z.strictObject({
    * 原版来源，从下往上，可以有多个（2026-11 反馈）。最上面启用的那个是“生效的原版基底”：同名文件它胜出，
    * 资源包格式按它匹配；下面的只补它没有的文件。旧设置没有这个字段，主进程第一次探测后按旧的二选一规则迁移一条。
    */
-  vanillaSources: z.array(z.strictObject({ id: z.string().min(1).max(128), source: VanillaSourceSchema, enabled: z.boolean() })).max(64).default([]),
+  vanillaSources: z.array(VanillaSourceEntrySchema).max(MAX_VANILLA_SOURCES).default([]),
   /** 从下往上 */
-  packs: z.array(z.strictObject({ id: z.string().min(1), name: z.string(), source: PackSourceSchema, enabled: z.boolean() })),
+  packs: z.array(PackEntrySchema),
 });
 export type ResourceStackSettings = z.infer<typeof ResourceStackSettingsSchema>;
 
