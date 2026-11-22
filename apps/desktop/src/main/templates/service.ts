@@ -46,6 +46,8 @@ import { writeZip } from './zip-writer';
 
 /** 暂存的包多久没提交就作废 */
 const STAGING_TTL_MS = 10 * 60 * 1000;
+/** 启动时同时读几个内置模板包 */
+const BUILTIN_READ_CONCURRENCY = 8;
 
 interface Stored {
   source: TemplateSourceKind;
@@ -529,16 +531,28 @@ export class TemplateService {
     return readInside(s.dir!, path);
   }
 
+  /**
+   * 读全部内置模板包。几个包一起读（BUILTIN_READ_CONCURRENCY）：打开 zip、读条目的等待可以重叠，一百个包时快两三倍
+   * （docs/decisions.md“模板库撑到一百个模板”）；读完按文件名的顺序登记，和一个一个读的结果相同
+   */
   private async loadBuiltins(): Promise<void> {
-    const names = await readdir(this.opts.builtinDir).catch(() => [] as string[]);
-    for (const name of names.filter((n) => n.endsWith('.allaytpl')).sort()) {
-      try {
-        const pkg = await readPackage(join(this.opts.builtinDir, name), { builtin: true, appVersion: this.opts.appVersion });
-        this.templates.set(key(pkg.manifest.id, pkg.manifest.version), { source: 'builtin', manifest: pkg.manifest, files: pkg.files, dir: null, trialWarnings: [], hash: hashTemplateFiles(pkg.files) });
-      } catch (error) {
-        this.opts.log.error('templates', 'built-in template rejected', { name, error: error instanceof Error ? error.message : String(error) });
+    const names = (await readdir(this.opts.builtinDir).catch(() => [] as string[])).filter((n) => n.endsWith('.allaytpl')).sort();
+    const read = new Array<Stored | null>(names.length).fill(null);
+    let next = 0;
+    const worker = async () => {
+      while (next < names.length) {
+        const i = next++;
+        const name = names[i]!;
+        try {
+          const pkg = await readPackage(join(this.opts.builtinDir, name), { builtin: true, appVersion: this.opts.appVersion });
+          read[i] = { source: 'builtin', manifest: pkg.manifest, files: pkg.files, dir: null, trialWarnings: [], hash: hashTemplateFiles(pkg.files) };
+        } catch (error) {
+          this.opts.log.error('templates', 'built-in template rejected', { name, error: error instanceof Error ? error.message : String(error) });
+        }
       }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(BUILTIN_READ_CONCURRENCY, names.length) }, worker));
+    for (const s of read) if (s) this.templates.set(key(s.manifest.id, s.manifest.version), s);
     if (this.templates.size === 0) this.opts.log.warn('templates', 'no built-in templates found', { dir: this.opts.builtinDir });
   }
 
