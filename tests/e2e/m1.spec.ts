@@ -107,7 +107,25 @@ test.describe('预览', () => {
   });
 
   test('T-ARC-5 update 死循环：看门狗在时限内终止并重建 Worker，主线程没有 > 100 ms 的卡顿，界面给出“模板无响应”', async () => {
+    // 前面多等封面做完、杂务 Worker 销毁（见下），时限多给一分钟
+    test.setTimeout(test.info().timeout + 60_000);
     const { page } = launched;
+    const engineWorkers = () => page.workers().filter((w) => /engine\.worker/.test(w.url())).length;
+    // 下面数引擎 Worker 时只该有预览的那一个。模板库的封面由杂务 Worker 生成，封面做完、空闲 15 秒后它才销毁
+    // （covers.ts 的 WORKER_IDLE_MS；按需生成封面以前是做完一批立刻销毁）。所以先等第一屏的封面做完、它销毁，
+    // 再装主线程的探针：探针一直占着主线程，装上以后封面会做得很慢；测试中途开始做封面的话，后面就会多数出一个
+    await expect(page.locator('[data-testid="template-list"] img').first()).toBeVisible({ timeout: 30_000 });
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const s = window.__allayTest!.coverStats();
+            return s.queue.length === 0 && s.running === null;
+          }),
+        { timeout: 60_000 },
+      )
+      .toBe(true);
+    await expect.poll(engineWorkers, { timeout: 45_000 }).toBe(1);
     const msg = await messages(page);
     const generation = await page.evaluate(() => window.__allayTest!.workerGeneration());
     // 主线程卡顿，三种量法，全部在页面里、不经过计时器（docs/decisions.md M2b“T-ARC-5 的 1 秒空洞”）：
@@ -171,8 +189,6 @@ test.describe('预览', () => {
         await new Promise((r) => setTimeout(r, 20));
       }
     })();
-    // 模板库的封面由杂务 Worker 生成，生成完就销毁（M4）；等它结束，下面才只数到预览 Worker
-    await expect.poll(() => page.workers().filter((w) => /engine.worker/.test(w.url())).length, { timeout: 30_000 }).toBe(1);
     const started = Date.now();
     await page.evaluate((code) => window.__allayTest!.loadTemplate(code), readFixture('hang-update.js'));
     await waitStatus(page, 'unresponsive', 10_000);
@@ -182,7 +198,7 @@ test.describe('预览', () => {
     await expect(page.getByTestId('preview-error')).toContainText(msg.preview.unresponsive);
     // Worker 已重建（新的一代），而且是空闲的（没有再装载那个模板）
     await expect.poll(() => page.evaluate(() => window.__allayTest!.workerGeneration())).toBe(generation + 1);
-    await expect.poll(() => page.workers().filter((w) => /engine\.worker/.test(w.url())).length).toBe(1);
+    await expect.poll(engineWorkers).toBe(1);
     await page.waitForTimeout(300);
     probing = false;
     await cdpProbe;
