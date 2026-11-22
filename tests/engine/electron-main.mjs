@@ -21,6 +21,9 @@ if (ANGLE_BACKENDS.has(process.env.ALLAY_ENGINE_ANGLE ?? '')) {
   app.commandLine.appendSwitch('use-gl', 'angle');
   app.commandLine.appendSwitch('use-angle', process.env.ALLAY_ENGINE_ANGLE);
 }
+// 双显卡的机器上显式用高性能显卡（和应用里引擎请求的 powerPreference: 'high-performance' 一致），免得换一台机器悄悄落到核显上；
+// ALLAY_ENGINE_GPU=low-power 改用核显，复现核显上的问题（docs/decisions.md“Intel 核显上渲染目标偶发被写坏”）。只有一块显卡时两个开关都不起作用
+app.commandLine.appendSwitch(process.env.ALLAY_ENGINE_GPU === 'low-power' ? 'force_low_power_gpu' : 'force_high_performance_gpu');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'harness', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 app.setPath('userData', join(app.getPath('temp'), `allay-engine-harness-${process.pid}`));
