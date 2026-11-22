@@ -31,7 +31,8 @@
 - 浏览器：用 Chrome 或 Edge 直接打开 `index.html`（`file://` 也行，探针在主线程跑），选好参数后点“运行”。
   双显卡的笔记本要指定显卡：Chromium 的启动参数 `--force_low_power_gpu`（核显）或 `--force_high_performance_gpu`（独显），或者 Windows 设置里的“图形”首选项。
   页面上的“渲染器”一行可以确认实际用的是哪块。
-- 引擎测试宿主：`pnpm test:engine` 每个 spec 开头跑一次探针（1.5 秒），结果打进测试输出（`[engine] 渲染目标探针：…`）。
+- 引擎测试宿主：`pnpm test:engine` 每个 spec 开头跑一次探针（两个 Worker 并行、各 1.5 秒，任何一个看到不一致就算不稳定），结果打进测试输出（`[engine] 渲染目标探针：…`）。
+  只跑一个 Worker 会漏：核显上见过一个 Worker 整整 1.5 秒 0/984 帧，同时跑的另一个 89 ms 就看到了；两个并行时 60 次里 60 次看到。
   测试宿主默认用高性能显卡；`ALLAY_ENGINE_GPU=low-power` 改用核显，`ALLAY_ENGINE_ANGLE=d3d11-warp` 改用 WARP。
 
 ## 实测（2026-11-22，同一台笔记本：Intel 核显 + NVIDIA RTX 5070 笔记本独显，Electron 45.3.1 / ANGLE D3D11）
