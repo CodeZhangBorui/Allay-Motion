@@ -9,6 +9,7 @@ import usesImport from '../../fixtures/templates/uses-import.js?raw';
 import escapeAttempts from '../../fixtures/templates/escape-attempts.js?raw';
 import m2Features from '../../fixtures/templates/m2-features.js?raw';
 import m6bFeatures from '../../fixtures/templates/m6b-features.js?raw';
+import partialCover from '../../fixtures/templates/partial-cover.js?raw';
 // 渲染目标稳定性探针：裸 WebGL2，不经过引擎（docs/reference/intel-igpu-rt-corruption/）
 import rtProbeSource from '../../../docs/reference/intel-igpu-rt-corruption/rt-probe.js?raw';
 import devSyntaxError from '../../fixtures/templates/dev/syntax-error.js?raw';
@@ -45,6 +46,7 @@ const SOURCES = {
   devUpdateThrows: { code: devUpdateThrows, manifest: fixture() },
   devRandomUpdate: { code: devRandomUpdate, manifest: fixture() },
   devOrderDependent: { code: devOrderDependent, manifest: fixture() },
+  partialCover: { code: partialCover, manifest: fixture() },
   m2Features: {
     code: m2Features,
     manifest: fixture([
@@ -619,6 +621,43 @@ const harness = {
     const { host, loaded } = await exportEngine(name, output);
     host.dispose();
     return loaded.warnings;
+  },
+
+  /**
+   * T-ENG-1（反复渲染）：同一个 Worker 里把同一帧渲染 times 次，按 SHA-256 分组。
+   * 和第一次不同的渲染（最多 4 次）报出不同的像素数和前几个像素（x, y, 第一次的 RGBA, 这一次的 RGBA）。
+   */
+  async repeatFrame(name: TemplateKey, output: OutputSettings, quality: FrameQuality, index: number, times: number) {
+    const { host } = await exportEngine(name, output);
+    try {
+      let first: Uint8Array | null = null;
+      let firstHash = '';
+      const counts: Record<string, number> = {};
+      const differing: { n: number; pixels: number; samples: [number, number, number[], number[]][] }[] = [];
+      for (let n = 0; n < times; n++) {
+        const buf = await host.renderFrame(index, quality);
+        const h = await sha256(buf);
+        counts[h] = (counts[h] ?? 0) + 1;
+        if (!first) {
+          first = buf;
+          firstHash = h;
+          continue;
+        }
+        if (h === firstHash || differing.length >= 4) continue;
+        let pixels = 0;
+        const samples: [number, number, number[], number[]][] = [];
+        for (let p = 0; p < buf.length / 4; p++) {
+          const o = p * 4;
+          if (buf[o] === first[o] && buf[o + 1] === first[o + 1] && buf[o + 2] === first[o + 2] && buf[o + 3] === first[o + 3]) continue;
+          pixels++;
+          if (samples.length < 6) samples.push([p % output.width, Math.floor(p / output.width), Array.from(first.subarray(o, o + 4)), Array.from(buf.subarray(o, o + 4))]);
+        }
+        differing.push({ n, pixels, samples });
+      }
+      return { distinct: Object.keys(counts).length, counts: Object.values(counts), differing };
+    } finally {
+      host.dispose();
+    }
   },
 
   /** 一个 Worker 实例重复用：渲染两次同一帧，中间穿插别的帧（2.4 的确定性自检） */

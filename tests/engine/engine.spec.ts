@@ -66,6 +66,14 @@ test('T-ENG-1 同一个 Worker 里穿插渲染别的帧后，同一帧仍逐字�
   expect(r.second).toBe(r.first);
 });
 
+test('T-ENG-1 两张九宫格叠着、上面几行线性过滤的矢量字：16 个子帧，同一帧反复渲染逐字节相同', async () => {
+  // 物品提示框（045）在 T-TPL-4 第 26 组参数下偶发不一致的那种结构（tests/fixtures/templates/partial-cover.js 铺了 88 个），
+  // 135×135、快门角 0（16 个子帧画的是同一个场景）。会写坏渲染目标的驱动上，这里每 40 次大约有 1 次不同（docs/decisions.md）
+  requireStableRenderTargets();
+  const r = await call('repeatFrame', 'partialCover', { width: 135, height: 135, fps: 30 }, { subframes: 16, shutterAngle: 0 }, 1, 40);
+  expect(r.distinct, `renders that differ from the first: ${JSON.stringify(r.differing)}`).toBe(1);
+});
+
 test('T-ENG-2 alpha：50% 白为 (255,255,255,128±1)，不透明红为 (255,0,0,255)，矩形外 alpha 为 0', async () => {
   // 1920×1080 时 1 设计单位 = 1 像素；白矩形中心在 (−400, 0)，红矩形中心在 (400, 0)
   const points: [number, number][] = [
