@@ -43,12 +43,12 @@
     ]
   },
   "presets": [
-    { "key": "game-lifetime", "name": { "zh-CN": "游戏原始时长（10 秒后淡出）", "en": "Game lifetime (fades after 10 s)" }, "params": { "lines": "<Steve> 晚上好", "lifetime": 10, "inDuration": 0.2, "hold": 10, "outDuration": 0.2 } },
-    { "key": "conversation", "name": { "zh-CN": "一段对话", "en": "Conversation" }, "params": { "lines": "<Alex> 有人在吗？\n<Steve> 来了来了\n<Alex> 我在出生点等你\n<Steve> 马上到\n<Alex> 带上镐子", "interval": 1.5, "hold": 8.5 } },
-    { "key": "type-and-send", "name": { "zh-CN": "打字后发出", "en": "Type and send" }, "params": { "lines": "<Steve> 今天来造一座城堡", "typeFirst": true, "typeSpeed": 8, "hold": 5 } },
-    { "key": "announcement", "name": { "zh-CN": "服务器公告", "en": "Server announcement" }, "params": { "lines": "§6[公告] §f服务器将在 5 分钟后重启\n§7请及时回到安全的地方", "interval": 1, "hold": 5 } },
-    { "key": "advancement", "name": { "zh-CN": "进度消息", "en": "Advancement message" }, "params": { "lines": "Steve取得了进度§a[钻石！]", "hold": 4 } },
-    { "key": "join-and-death", "name": { "zh-CN": "加入和死亡消息", "en": "Join and death messages" }, "params": { "lines": "§eAlex加入了游戏\nSteve落地过猛\n<Alex> 哈哈哈", "interval": 1.4, "hold": 6 } },
+    { "key": "game-lifetime", "name": { "zh-CN": "游戏原始时长（10 秒后淡出）", "en": "Game lifetime (fades after 10 s)" }, "params": { "lines": { "zh-CN": "<Steve> 晚上好", "en": "<Steve> Good evening" }, "lifetime": 10, "inDuration": 0.2, "hold": 10, "outDuration": 0.2 } },
+    { "key": "conversation", "name": { "zh-CN": "一段对话", "en": "Conversation" }, "params": { "lines": { "zh-CN": "<Alex> 有人在吗？\n<Steve> 来了来了\n<Alex> 我在出生点等你\n<Steve> 马上到\n<Alex> 带上镐子", "en": "<Alex> Anyone here?\n<Steve> Coming!\n<Alex> I'm waiting at spawn\n<Steve> Almost there\n<Alex> Bring a pickaxe" }, "interval": 1.5, "hold": 8.5 } },
+    { "key": "type-and-send", "name": { "zh-CN": "打字后发出", "en": "Type and send" }, "params": { "lines": { "zh-CN": "<Steve> 今天来造一座城堡", "en": "<Steve> Let's build a castle today" }, "typeFirst": true, "typeSpeed": 8, "hold": 5 } },
+    { "key": "announcement", "name": { "zh-CN": "服务器公告", "en": "Server announcement" }, "params": { "lines": { "zh-CN": "§6[公告] §f服务器将在 5 分钟后重启\n§7请及时回到安全的地方", "en": "§6[Notice] §fThe server restarts in 5 minutes\n§7Please get somewhere safe" }, "interval": 1, "hold": 5 } },
+    { "key": "advancement", "name": { "zh-CN": "进度消息", "en": "Advancement message" }, "params": { "lines": { "zh-CN": "Steve取得了进度§a[钻石！]", "en": "Steve has made the advancement §a[Diamonds!]" }, "hold": 4 } },
+    { "key": "join-and-death", "name": { "zh-CN": "加入和死亡消息", "en": "Join and death messages" }, "params": { "lines": { "zh-CN": "§eAlex加入了游戏\nSteve落地过猛\n<Alex> 哈哈哈", "en": "§eAlex joined the game\nSteve hit the ground too hard\n<Alex> haha" }, "interval": 1.4, "hold": 6 } },
     { "key": "force-unicode", "name": {"zh-CN": "强制 Unicode 字体（游戏里打开“强制使用Unicode字体”后的样子）", "en": "Force Unicode font (as with the game's “Force Unicode Font” option on)"}, "params": {"font": {"family": "embedded:uniform", "bold": false, "italic": false, "underline": false, "strikethrough": false, "shadow": true, "outline": null}} }
   ],
   "defaultOutput": { "width": 1920, "height": 1080, "fps": 60 }
