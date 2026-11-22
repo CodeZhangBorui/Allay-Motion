@@ -11,7 +11,7 @@ import { filledWidth, fitUnit } from '../../packages/templates/_lib/src/bar';
 import { MAX_CUES, sampleCues, sampleIndices } from '../../packages/templates/_lib/src/cues';
 import { fadeInOut } from '../../packages/templates/_lib/src/fade';
 import { anchorTopLeft, fitScale, guiLayout } from '../../packages/templates/_lib/src/gui';
-import { alphaOf, bool, CHAT_COLORS, createGui, firstTexture, fontOf, linesOf, num, parseFormatted, plainText, rgbOf, richText, str, type Quads } from '../../packages/templates/_lib/src/gui-kit';
+import { alphaOf, bool, CHAT_COLORS, createGui, firstTexture, fontOf, linesOf, num, parseFormatted, plainText, rgbOf, richText, spaceWidth, str, type Quads } from '../../packages/templates/_lib/src/gui-kit';
 import { ageAt, ballistic, dragFromTickFriction, dragged, frameAt } from '../../packages/templates/_lib/src/particles';
 import { eased, overlayWindows, progress, transitionWindows } from '../../packages/templates/_lib/src/timing';
 import { bundleTemplate, templateDirs, TEMPLATES_LIB, TEMPLATES_SRC } from '../../scripts/build-templates';
@@ -201,8 +201,11 @@ interface FakeText {
   setOpacity(a: number): void;
 }
 
-/** gui-kit 用到的那部分 ctx：场景、可选贴图（have 里列出的才有）、文字 */
-function fakeCtx(have: readonly string[] = []) {
+/**
+ * gui-kit 用到的那部分 ctx：场景、可选贴图（have 里列出的才有）、文字。假字体：每个字 6 宽、空格 space 宽（缺省 4，同原版字体），
+ * 粗体每个字（空格也一样）多 1；行尾的空格不算宽度（同引擎）
+ */
+function fakeCtx(have: readonly string[] = [], space = 4) {
   const scene = new THREE.Scene();
   const requested: { id: string; optional: boolean }[] = [];
   const texts: FakeText[] = [];
@@ -220,7 +223,7 @@ function fakeCtx(have: readonly string[] = []) {
         const t: FakeText = {
           opts,
           object: new THREE.Object3D(),
-          width: opts.text.replace(/ +$/, '').length * 6 * opts.size,
+          width: [...opts.text.replace(/ +$/, '')].reduce((w, ch) => w + (ch === ' ' ? space : 6) + (typeof opts.font === 'object' && opts.font.bold ? 1 : 0), 0) * opts.size,
           height: 9 * opts.size,
           opacity: 1,
           setOpacity: (a) => void (t.opacity = a),
@@ -378,23 +381,39 @@ describe('T-TPL-LIB-8 界面小工具：多色文字的分段', () => {
     expect([r.width, r.height]).toEqual([60, 18]);
   });
 
-  it('行尾空格按每个 4 个字体像素补上；只有空格的一段不算文字对象的宽度', () => {
+  // 量空格用的两段文字不加进场景，只看加进去的
+  const placed = (f: ReturnType<typeof fakeCtx>, r: { object: unknown }) => f.texts.filter((t) => t.object.parent === r.object);
+
+  it('行尾空格按量出来的空格宽度补上（原版字体是 4 个字体像素）；只有空格的一段不算文字对象的宽度', () => {
     const f = fakeCtx();
     const r = richText(f.ctx, parseFormatted('A  §c  §aB', PLAIN), 1, DEFAULT_FONT, false);
     // 'A  '：6 + 2 × 4；'  '：0 + 2 × 4；'B'：6
-    expect(f.texts.map((t) => t.object.position.x)).toEqual([0, 14, 22]);
+    expect(placed(f, r).map((t) => t.object.position.x)).toEqual([0, 14, 22]);
     expect(r.width).toBe(28);
+    // 同一种字体、大小、粗细只量一次：量了 “x x” 和 “xx” 两段，都不在场景里
+    expect(f.texts.filter((t) => t.object.parent !== r.object).map((t) => t.opts.text)).toEqual(['x x', 'xx']);
   });
 
-  it('粗体段的行尾空格每个 5 个字体像素（粗体的每个字多前进 1，和引擎排一整行粗体字时一样）', () => {
+  it('粗体段的行尾空格按粗体量（原版字体是 5：粗体的每个字多前进 1，和引擎排一整行粗体字时一样）', () => {
     const f = fakeCtx();
-    richText(f.ctx, parseFormatted('§lA §rB', PLAIN), 1, DEFAULT_FONT, false);
-    expect(f.texts.map((t) => t.object.position.x)).toEqual([0, 11]);
+    const r0 = richText(f.ctx, parseFormatted('§lA §rB', PLAIN), 1, DEFAULT_FONT, false);
+    // 'A '（粗体）：7 + 1 × 5
+    expect(placed(f, r0).map((t) => t.object.position.x)).toEqual([0, 12]);
     // 字体参数是粗体时整行都按粗体
     const g = fakeCtx();
     const r = richText(g.ctx, parseFormatted('A  §c  §aB', PLAIN), 1, { family: 'minecraft:default', bold: true }, false);
-    expect(g.texts.map((t) => t.object.position.x)).toEqual([0, 16, 26]);
-    expect(r.width).toBe(32);
+    expect(placed(g, r).map((t) => t.object.position.x)).toEqual([0, 17, 27]);
+    expect(r.width).toBe(34);
+  });
+
+  it('系统字体、用户导入的字体下，空格按那种字体自己的宽度补，不按原版字体的 4', () => {
+    const f = fakeCtx([], 3);
+    const r = richText(f.ctx, parseFormatted('A  §c  §aB', PLAIN), 2, { family: 'system:sans' }, false);
+    // 'A  '：(6 + 2 × 3) × 2；'  '：2 × 3 × 2；'B'：6 × 2
+    expect(placed(f, r).map((t) => t.object.position.x)).toEqual([0, 24, 36]);
+    expect(r.width).toBe(48);
+    expect(spaceWidth(f.ctx, 2, { family: 'system:sans' })).toBe(6);
+    expect(spaceWidth(f.ctx, 2, { family: 'system:sans', bold: true })).toBe(8);
   });
 
   it('字体参数里打开的样式优先，格式码只能再加；阴影按字体参数，它没写时才用 shadow 参数', () => {

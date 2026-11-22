@@ -221,6 +221,31 @@ export const plainText = (line: string): string =>
     .map((s) => s.text)
     .join('');
 
+/** 量过的空格宽度：每次 setup 的 ctx 各一份，同一种字体、大小、粗细只量一次 */
+const spaceWidths = new WeakMap<SetupContext, Map<string, number>>();
+
+/**
+ * 一个空格的前进宽度（设计单位）：用两段不加进场景的文字 “x x” 和 “xx” 的宽度差量出来。原版字体和两种内嵌模式下是
+ * 4 个字体像素（粗体 5，和引擎排一整行粗体字时相同），系统字体、用户导入的字体是字体自己的宽度。
+ * 文字对象的宽度不含行尾空格，拼文字、算版式时用它补上
+ */
+export function spaceWidth(ctx: SetupContext, size: number, font: FontStyle): number {
+  let cache = spaceWidths.get(ctx);
+  if (!cache) {
+    cache = new Map();
+    spaceWidths.set(ctx, cache);
+  }
+  const bold = font.bold === true;
+  const key = `${size}|${font.family}|${bold}`;
+  let w = cache.get(key);
+  if (w === undefined) {
+    const probe = (text: string) => ctx.text.create({ text, size, align: 'left', font: { family: font.family, bold } }).width;
+    w = Math.max(0, probe('x x') - probe('xx'));
+    cache.set(key, w);
+  }
+  return w;
+}
+
 export interface RichText {
   object: Object3D;
   /** 设计单位 */
@@ -251,10 +276,9 @@ export function richText(ctx: SetupContext, segments: readonly Segment[], size: 
     t.object.position.x = x;
     group.add(t.object);
     parts.push(t);
-    // 只有空格的一段宽度也要算：文字对象的宽度不含行尾空格，按空格数补。
-    // 原版字体的空格宽 4；粗体的每个字（空格也一样）多前进 1，和引擎排一整行粗体字时相同
+    // 只有空格的一段宽度也要算：文字对象的宽度不含行尾空格，按空格数补，每个空格的宽度按这一段的字体、粗细量出来
     const trailing = s.text.length - s.text.replace(/ +$/, '').length;
-    x += (s.text.trim() === '' ? 0 : t.width) + trailing * (bold ? 5 : 4) * size;
+    x += (s.text.trim() === '' ? 0 : t.width) + (trailing > 0 ? trailing * spaceWidth(ctx, size, { ...font, bold }) : 0);
     height = Math.max(height, t.height);
   }
   return {
