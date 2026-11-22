@@ -7,7 +7,7 @@ import { LayerIdSchema, VanillaSourceArgSchema } from '../../apps/desktop/src/sh
 import { createLogger } from '../../apps/desktop/src/main/logger';
 import type { VanillaDownloader } from '../../apps/desktop/src/main/resources/download';
 import { ResourceService } from '../../apps/desktop/src/main/resources/service';
-import { findLatestRelease, isClientJar, listVersions, NotClientJarError, openVanillaLayer } from '../../apps/desktop/src/main/resources/vanilla';
+import { checkClientJar, findLatestRelease, isClientJar, listVersions, NotClientJarError, openVanillaLayer } from '../../apps/desktop/src/main/resources/vanilla';
 import { SettingsStore } from '../../apps/desktop/src/main/settings-store';
 import { makeFakeMinecraft, writeZip } from './helpers/resource-fixtures';
 
@@ -269,5 +269,26 @@ describe('T-AST-VD 版本目录', () => {
     ]);
     expect(run.state.vanilla.problem).toBe('missing');
     run.svc.close();
+  });
+
+  it('T-AST-VD-10 jar 打不开（下载了一半、损坏）：和“不完整”分开说；自动挑选跳过，加入时不登记', async () => {
+    const game = join(dir, 'g');
+    makeFakeMinecraft(game, [
+      { id: '1.21.1', type: 'release', releaseTime: '2024-08-08T12:24:45+00:00', jar: true },
+      { id: '1.21.4 半截', type: 'release', releaseTime: '2024-12-03T10:12:57+00:00', jar: false },
+    ]);
+    const broken = join(game, 'versions', '1.21.4 半截', '1.21.4 半截.jar');
+    writeFileSync(broken, 'PK\u0003\u0004 not really a zip');
+    expect(await checkClientJar(broken)).toBe('unreadable');
+    expect(await checkClientJar(join(game, 'versions', '1.21.1', '1.21.1.jar'))).toBe('client');
+    expect((await findLatestRelease(game))?.versionId).toBe('1.21.1');
+    const userData = join(dir, 'userData');
+    seed(userData, { vanilla: { consent: true, enabled: true, dir: game }, vanillaSources: [], packs: [] });
+    const { svc, settings } = await start(userData);
+    const before = settings.resources.vanillaSources;
+    await svc.addVanillaSource({ kind: 'local', gameDir: game, versionId: '1.21.4 半截' });
+    expect(settings.resources.vanillaSources).toEqual(before);
+    expect(svc.versions().local.find((v) => v.versionId === '1.21.4 半截')?.problem).toBe('unreadable');
+    svc.close();
   });
 });

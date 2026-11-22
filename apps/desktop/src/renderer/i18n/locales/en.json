@@ -439,7 +439,8 @@
       "fetching": "Getting…",
       "fetchNote": "“Get version list” connects to piston-meta.mojang.com once to read the version manifest. No game files are downloaded and no personal data is sent. “Download” works like “Download vanilla assets”: it downloads that version’s client jar and common sounds from Mojang’s official servers.",
       "gameVersion": "Minecraft {{version}}",
-      "notClient": "The jar in this folder is not a full vanilla client (no assets/minecraft), so it can’t be added. Use a vanilla folder of the same game version instead."
+      "notClient": "The jar in this folder is not a full vanilla client (no assets/minecraft), so it can’t be added. Use a vanilla folder of the same game version instead.",
+      "unreadable": "The jar in this folder can’t be read (damaged, not fully downloaded, or open in another program), so it can’t be added."
     },
     "localPacks": {
       "button": "Minecraft resource packs on this computer…",

@@ -146,10 +146,10 @@ export function VersionPickerDialog({ open, onOpenChange }: { open: boolean; onO
                   <p className="truncate text-xs text-fg-subtle" title={e.gameDir}>
                     {[dateText(e.releaseTime, i18n.language), row.source === 'local' ? e.gameDir : t(`resources.versions.sources.${row.source}`)].filter(Boolean).join(' · ')}
                   </p>
-                  {e.problem === 'not-client' && (
-                    <p className="flex items-start gap-1 text-xs leading-relaxed text-warning" data-testid="version-not-client">
+                  {e.problem && (
+                    <p className="flex items-start gap-1 text-xs leading-relaxed text-warning" data-testid="version-jar-problem" data-problem={e.problem}>
                       <Warning size={ICON.sm} className="mt-0.5 shrink-0" aria-hidden="true" />
-                      {t('resources.versions.notClient')}
+                      {t(e.problem === 'not-client' ? 'resources.versions.notClient' : 'resources.versions.unreadable')}
                     </p>
                   )}
                 </div>
@@ -158,7 +158,7 @@ export function VersionPickerDialog({ open, onOpenChange }: { open: boolean; onO
                     <CheckCircle size={ICON.sm} />
                     {t('resources.versions.added')}
                   </span>
-                ) : e.problem === 'not-client' ? null : (
+                ) : e.problem ? null : (
                   <Button size="sm" variant="secondary" disabled={running} data-testid="version-add" onClick={() => void add(row)}>
                     {t(row.source === 'remote' ? 'resources.versions.download' : 'resources.versions.add')}
                   </Button>

@@ -138,30 +138,44 @@ export class NotClientJarError extends Error {
   override name = 'NotClientJarError';
 }
 
-/** jar 的检查结果按路径、大小、修改时间缓存（本次运行内）：版本列表要知道哪些已经查出来不能用 */
-const jarChecks = new Map<string, { size: number; mtimeMs: number; client: boolean }>();
+/** 一个版本目录里的 jar：完整的原版客户端、不完整（没有 assets/minecraft/）、打不开（损坏、下载了一半、被占用） */
+export type JarCheck = 'client' | 'not-client' | 'unreadable';
 
-/** 这个 jar 是不是完整的原版客户端（有 assets/minecraft/ 下的文件）。读不了的 jar 也算不是；不抛错 */
-export async function isClientJar(jarPath: string): Promise<boolean> {
+/** jar 的检查结果按路径、大小、修改时间缓存（本次运行内）：版本列表要知道哪些已经查出来不能用 */
+const jarChecks = new Map<string, { size: number; mtimeMs: number; result: JarCheck }>();
+
+async function remember(jarPath: string, result: JarCheck): Promise<void> {
   const st = await stat(jarPath).catch(() => null);
-  if (!st?.isFile()) return false;
-  const cached = jarChecks.get(jarPath);
-  if (cached && cached.size === st.size && cached.mtimeMs === st.mtimeMs) return cached.client;
-  let client: boolean;
-  try {
-    const jar = await openZip(jarPath, { includePrefixes: [CLIENT_ASSETS_PREFIX] });
-    client = jar.paths.size > 0;
-    jar.close();
-  } catch {
-    client = false;
-  }
-  jarChecks.set(jarPath, { size: st.size, mtimeMs: st.mtimeMs, client });
-  return client;
+  if (st?.isFile()) jarChecks.set(jarPath, { size: st.size, mtimeMs: st.mtimeMs, result });
 }
 
-/** 本次运行里已经查出来不是完整客户端的 jar（版本列表上标出来）；没查过的返回 false */
-export function knownNotClientJar(jarPath: string): boolean {
-  return jarChecks.get(jarPath)?.client === false;
+/** 查这个版本目录里的 jar 能不能当原版层用；不抛错 */
+export async function checkClientJar(jarPath: string): Promise<JarCheck> {
+  const st = await stat(jarPath).catch(() => null);
+  if (!st?.isFile()) return 'unreadable';
+  const cached = jarChecks.get(jarPath);
+  if (cached && cached.size === st.size && cached.mtimeMs === st.mtimeMs) return cached.result;
+  let result: JarCheck;
+  try {
+    const jar = await openZip(jarPath, { includePrefixes: [CLIENT_ASSETS_PREFIX] });
+    result = jar.paths.size > 0 ? 'client' : 'not-client';
+    jar.close();
+  } catch {
+    result = 'unreadable';
+  }
+  jarChecks.set(jarPath, { size: st.size, mtimeMs: st.mtimeMs, result });
+  return result;
+}
+
+/** 这个 jar 是不是完整的原版客户端（有 assets/minecraft/ 下的文件）。打不开的也算不是 */
+export async function isClientJar(jarPath: string): Promise<boolean> {
+  return (await checkClientJar(jarPath)) === 'client';
+}
+
+/** 本次运行里已经查出来用不了的 jar（版本列表上标出原因）；没查过、或者能用的返回 null */
+export function knownJarProblem(jarPath: string): Exclude<JarCheck, 'client'> | null {
+  const result = jarChecks.get(jarPath)?.result;
+  return result && result !== 'client' ? result : null;
 }
 
 /**
@@ -207,11 +221,13 @@ export interface VanillaLayerExtras {
 /** jar 不是完整的原版客户端（没有 assets/minecraft/）时抛 NotClientJarError，调用方单独说明这个来源；jar 打不开时抛别的错误 */
 export async function openVanillaLayer(install: VanillaInstall, options: VanillaLayerOptions & { id?: string } = {}): Promise<ClosableLayer & VanillaLayerExtras> {
   // 根目录的 version.json 只用来读版本号和格式号；其余只收录 assets/
-  const jar = await openZip(install.jarPath, { includePrefixes: ['assets/', 'version.json'] });
+  const jar = await openZip(install.jarPath, { includePrefixes: ['assets/', 'version.json'] }).catch(async (error: unknown) => {
+    await remember(install.jarPath, 'unreadable');
+    throw error;
+  });
   try {
     const client = [...jar.paths].some((p) => p.startsWith(CLIENT_ASSETS_PREFIX));
-    const st = await stat(install.jarPath);
-    jarChecks.set(install.jarPath, { size: st.size, mtimeMs: st.mtimeMs, client });
+    await remember(install.jarPath, client ? 'client' : 'not-client');
     if (!client) throw new NotClientJarError(`${install.jarPath} 里没有 ${CLIENT_ASSETS_PREFIX}，不是完整的原版客户端`);
     const objects = new Map<string, { file: string; size: number; hash: string }>();
     const warnings = [...jar.warnings];

@@ -80,8 +80,8 @@ import {
   candidateGameDirs,
   detectMinecraft,
   findLatestRelease,
-  isClientJar,
-  knownNotClientJar,
+  checkClientJar,
+  knownJarProblem,
   listVersions,
   NotClientJarError,
   openVanillaLayer,
@@ -448,15 +448,16 @@ export class ResourceService {
 
   /**
    * 从版本列表里加一个原版来源（本机的或已下载的）；不在探测结果里的不加。
-   * jar 不是完整的原版客户端的也不加：版本列表上这一行会标出来（versions() 的 problem）
+   * jar 不是完整的原版客户端、或者打不开的也不加：版本列表上这一行会标出原因（versions() 的 problem）
    */
   addVanillaSource(arg: VanillaSourceArg): Promise<ResourceState> {
     return this.serial(async () => {
       const source: VanillaSource = arg.kind === 'local' ? { kind: 'local', gameDir: arg.gameDir, versionId: arg.versionId } : { kind: 'downloaded', versionId: arg.versionId };
       const install = this.findInstall(source);
       if (!install) return this.state();
-      if (!(await isClientJar(install.jarPath))) {
-        this.opts.log.warn('resources', 'vanilla jar is not a full client, not added', { jar: install.jarPath });
+      const jar = await checkClientJar(install.jarPath);
+      if (jar !== 'client') {
+        this.opts.log.warn('resources', 'vanilla jar not usable, not added', { jar: install.jarPath, check: jar });
         return this.state();
       }
       await this.putVanillaOnTop(source);
@@ -473,15 +474,18 @@ export class ResourceService {
   /** 版本检索（3.12）：本机、已下载、（取过的话）Mojang 版本清单，各自新的在前。离线 */
   versions(): VersionCatalog {
     const local: VersionEntry[] = this.localVersions
-      .map((v) => ({
-        versionId: v.versionId,
-        ...(v.gameVersion ? { gameVersion: v.gameVersion } : {}),
-        type: versionType(v.type ?? 'release'),
-        releaseTime: v.releaseTime,
-        gameDir: v.gameDir,
-        layerId: this.registered(vanillaLayerId({ kind: 'local', gameDir: v.gameDir, versionId: v.versionId })),
-        ...(knownNotClientJar(v.jarPath) ? { problem: 'not-client' as const } : {}),
-      }))
+      .map((v) => {
+        const problem = knownJarProblem(v.jarPath);
+        return {
+          versionId: v.versionId,
+          ...(v.gameVersion ? { gameVersion: v.gameVersion } : {}),
+          type: versionType(v.type ?? 'release'),
+          releaseTime: v.releaseTime,
+          gameDir: v.gameDir,
+          layerId: this.registered(vanillaLayerId({ kind: 'local', gameDir: v.gameDir, versionId: v.versionId })),
+          ...(problem ? { problem } : {}),
+        };
+      })
       .sort(compareVersionsDesc);
     const downloaded: VersionEntry[] = this.cachedList
       .map((v) => ({ versionId: v.versionId, type: versionType(v.type ?? 'release'), releaseTime: v.releaseTime, layerId: this.registered(vanillaLayerId({ kind: 'downloaded', versionId: v.versionId })) }))

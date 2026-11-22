@@ -92,8 +92,11 @@ export interface VersionEntry {
   gameDir?: string;
   /** 已经在资源栈里（对应的层 id） */
   layerId: string | null;
-  /** 本机的：查过之后知道这个版本目录里的 jar 不是完整的原版客户端（没有 assets/minecraft/），加不进来 */
-  problem?: 'not-client';
+  /**
+   * 本机的：查过之后知道这个版本目录里的 jar 用不了，加不进来：不是完整的原版客户端（not-client，没有 assets/minecraft/），
+   * 或者打不开（unreadable，损坏、下载了一半）
+   */
+  problem?: 'not-client' | 'unreadable';
 }
 
 export interface VersionCatalog {
