@@ -12,6 +12,8 @@ export const HEADER_ALPHA = 0.4;
 export const SCORE_COLOR = '#FF5555';
 /** “滑动”换位用的秒数（游戏里没有这个动画，是这里加的） */
 export const SLIDE_SECONDS = 0.3;
+/** “滑动”时和别的行交叉的行、消失和新增的行淡出、淡入各用的秒数 */
+export const SLIDE_FADE_SECONDS = 0.15;
 /** 原版字体里空格的宽度；名字和分数之间隔着“: ”（冒号加一个空格）的宽度 */
 export const SPACE_W = 4;
 
@@ -98,6 +100,105 @@ export function fitFactor(width: number, height: number, rowCount: number, conte
   // 上半部分：行高 − ⌊行高 / 3⌋ + 标题 10 + 1；下半部分：⌊行高 / 3⌋ + 1。界面高度的一半要装得下较大的那个
   const needH = 2 * (Math.max(rowsH - Math.floor(rowsH / 3) + LINE_H + 1, Math.floor(rowsH / 3)) + 1) + 1;
   return Math.min(1, width / needW, height / needH);
+}
+
+/** 一行在变化里怎么动 */
+export interface Motion {
+  /** 变化前、变化后的行号（0 是最上面）；null 表示那个状态里没有这一行 */
+  from: number | null;
+  to: number | null;
+  /** true：从旧位置滑到新位置；false：先在旧位置淡出，滑动结束后在新位置淡入，滑动时不显示 */
+  slide: boolean;
+}
+
+export interface ChangePlan {
+  mode: 'instant' | 'slide';
+  changeAt: number;
+  /** 按 Row.key 查 */
+  motions: Map<string, Motion>;
+  /** slide 时三段的结束时刻：淡出（有要淡出的行时 SLIDE_FADE_SECONDS，否则不占时间）、滑动、淡入 */
+  outEnd: number;
+  slideEnd: number;
+  inEnd: number;
+}
+
+/**
+ * 两个状态里都有的行（moves 按变化前的行号排好，每项是 [变化前, 变化后] 的行号）里哪些一起滑动：变化后相对顺序也不变的最多的一组。
+ * 这组行一路上彼此不交叉，间距也不会小于一行；一样多时优先选往上走的行，让超过别人的那一行滑上去。返回 moves 的下标
+ */
+export function slidingRows(moves: readonly (readonly [from: number, to: number])[]): Set<number> {
+  const n = moves.length;
+  // 多一行的分量（n + 1）总是大于所有“往上走”的加分之和（≤ n），所以先比行数，再比往上走的有几行
+  const weight = (i: number) => n + 1 + (moves[i]![1] < moves[i]![0] ? 1 : 0);
+  const best: number[] = [];
+  const prev: number[] = [];
+  for (let i = 0; i < n; i++) {
+    best[i] = weight(i);
+    prev[i] = -1;
+    for (let j = 0; j < i; j++) {
+      if (moves[j]![1] < moves[i]![1] && best[j]! + weight(i) > best[i]!) {
+        best[i] = best[j]! + weight(i);
+        prev[i] = j;
+      }
+    }
+  }
+  let end = -1;
+  for (let i = 0; i < n; i++) if (end < 0 || best[i]! > best[end]!) end = i;
+  const out = new Set<number>();
+  for (let i = end; i >= 0; i = prev[i]!) out.add(i);
+  return out;
+}
+
+/**
+ * 变化前后两组行 → 每行怎么动、几段的时刻。instant 时所有行都“滑”（进度在 changeAt 跳变）。
+ * slide 时只有 slidingRows 选中的行滑动；和它们交叉的行、只在一个状态里的行先淡出、后淡入，
+ * 和滑动错开，所以任何时刻显示着的两行都不会叠在一起（docs/templates/scoreboard-sidebar.md 第 1 节）
+ */
+export function planChange(before: readonly Row[], after: readonly Row[], changeAt: number, mode: 'instant' | 'slide'): ChangePlan {
+  const motions = new Map<string, Motion>();
+  const indexIn = (rows: readonly Row[], key: string) => {
+    const i = rows.findIndex((r) => r.key === key);
+    return i < 0 ? null : i;
+  };
+  for (const key of new Set([...before, ...after].map((r) => r.key))) motions.set(key, { from: indexIn(before, key), to: indexIn(after, key), slide: mode === 'instant' });
+  let hasOut = false;
+  let hasIn = false;
+  if (mode === 'slide') {
+    const both = [...motions.values()].filter((m) => m.from !== null && m.to !== null).sort((a, b) => a.from! - b.from!);
+    const sliding = slidingRows(both.map((m) => [m.from!, m.to!] as const));
+    both.forEach((m, i) => (m.slide = sliding.has(i)));
+    for (const m of motions.values()) {
+      if (m.slide) continue;
+      if (m.from !== null) hasOut = true;
+      if (m.to !== null) hasIn = true;
+    }
+  }
+  const outEnd = changeAt + (hasOut ? SLIDE_FADE_SECONDS : 0);
+  const slideEnd = mode === 'slide' ? outEnd + SLIDE_SECONDS : changeAt;
+  return { mode, changeAt, motions, outEnd, slideEnd, inEnd: slideEnd + (hasIn ? SLIDE_FADE_SECONDS : 0) };
+}
+
+/** 时刻 t 滑动的进度（0–1）：面板的高度和滑动的行都按它插值。slide 时淡出那一段结束才开始滑 */
+export const motionProgress = (t: number, plan: ChangePlan): number =>
+  plan.mode === 'instant' ? changeProgress(t, plan.changeAt, 'instant') : changeProgress(t, plan.outEnd, 'slide');
+
+/**
+ * 时刻 t 一段文字（名字或分数）的上边和不透明度系数（0–1，还要乘整体的淡入淡出）。yBefore、yAfter 是它在变化前、变化后的上边；
+ * before、after 是它在变化前、变化后显不显示：同一行前后的文字不同时各有一段，在变化那一刻互换
+ */
+export function pieceAt(t: number, plan: ChangePlan, m: Motion, yBefore: number, yAfter: number, before: boolean, after: boolean): { y: number; fade: number } {
+  const p = motionProgress(t, plan);
+  if (m.slide) {
+    const both = m.from !== null && m.to !== null;
+    // 两个状态里都有的行：文字在变化那一刻互换。instant 下只在一个状态里的行直接出现、消失
+    const fade = both ? (t >= plan.changeAt ? (after ? 1 : 0) : before ? 1 : 0) : before ? 1 - p : p;
+    return { y: yBefore + (yAfter - yBefore) * p, fade };
+  }
+  if (t < plan.slideEnd) {
+    const out = t < plan.changeAt ? 1 : Math.max(0, 1 - (t - plan.changeAt) / SLIDE_FADE_SECONDS);
+    return { y: yBefore, fade: before ? out : 0 };
+  }
+  return { y: yAfter, fade: after ? Math.min(1, (t - plan.slideEnd) / SLIDE_FADE_SECONDS) : 0 };
 }
 
 /** 变化的进度：instant 在 changeAt 那一刻从 0 跳到 1；slide 在之后的 SLIDE_SECONDS 里平滑地走到 1（三次缓入缓出） */

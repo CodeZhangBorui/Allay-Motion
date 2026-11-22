@@ -13,10 +13,14 @@ import {
   LINE_H,
   MAX_ROWS,
   parseRows,
+  pieceAt,
+  planChange,
   rowTop,
   SCORE_COLOR,
   sidebarLayout,
+  SLIDE_FADE_SECONDS,
   SLIDE_SECONDS,
+  slidingRows,
   titleLeft,
 } from '../../packages/templates/scoreboard-sidebar/src/layout';
 import { applyPreset, defaultParams, localizePresetParams, parseManifest, sameValue, sanitizeParams } from '../../packages/template-sdk/src/index';
@@ -195,5 +199,84 @@ describe('T-TPL-C040 记分板', () => {
     expect(a(2)).toBe(1);
     expect(a(0.125)).toBeGreaterThan(0);
     expect(a(0.125)).toBeLessThan(1);
+  });
+
+  it('T-TPL-C040-9 滑动换位时哪些行滑：相对顺序不变的最多的一组，一样多时选往上走的', () => {
+    const sorted = (set: Set<number>) => [...set].sort((a, b) => a - b);
+    // 两行互换：往上走的那行（超过别人的）滑，另一行淡出淡入
+    expect(sorted(slidingRows([[0, 1], [1, 0]]))).toEqual([1]);
+    // 击杀榜：Alex 从第二到第一，Steve 退到第二，其余不动
+    expect(sorted(slidingRows([[0, 1], [1, 0], [2, 2], [3, 3], [4, 4]]))).toEqual([1, 2, 3, 4]);
+    // 一行连超两行：被超过的两行一起往下滑（行多），超过的那行淡出淡入
+    expect(sorted(slidingRows([[0, 1], [1, 2], [2, 0], [3, 3]]))).toEqual([0, 1, 3]);
+    // 顺序没变时全部滑；没有行时是空的
+    expect(slidingRows([[0, 0], [1, 2], [2, 3]]).size).toBe(3);
+    expect(slidingRows([]).size).toBe(0);
+  });
+
+  it('T-TPL-C040-10 滑动换位逐帧：显示着的任意两行间距不小于一行（不叠字），前后两段文字不同时显示，变化前后各行在自己的位置', () => {
+    let seed = 20261122;
+    const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const cases: [string, string][] = [];
+    // 预设里两个滑动的例子，两种语言各一份（排序、换位的行不一样）
+    for (const preset of manifest.presets ?? []) {
+      if (preset.params.reorder !== 'slide') continue;
+      for (const locale of ['zh-CN', 'en']) {
+        const p = localizePresetParams(defs, preset.params, locale);
+        cases.push([String(p.rows), String(p.rowsAfter)]);
+      }
+    }
+    expect(cases.length).toBeGreaterThanOrEqual(4);
+    // 随机的两组行：分数随机，有的行消失、有的行新增、有的行换位
+    const names = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const board = () =>
+      names
+        .filter(() => rnd() < 0.6)
+        .map((k) => `${k} ${Math.floor(rnd() * 10)}`)
+        .join('\n');
+    for (let i = 0; i < 300; i++) cases.push([board(), board()]);
+    const changeAt = 1;
+    for (const [beforeText, afterText] of cases) {
+      const before = parseRows(beforeText);
+      const after = parseRows(afterText);
+      const plan = planChange(before, after, changeAt, 'slide');
+      expect(plan.inEnd - changeAt).toBeLessThanOrEqual(SLIDE_FADE_SECONDS * 2 + SLIDE_SECONDS + 1e-9);
+      const lb = sidebarLayout(480, 270, before.length, 60);
+      const la = sidebarLayout(480, 270, after.length, 60);
+      const ys = (m: { from: number | null; to: number | null }) => {
+        const yb = m.from !== null ? rowTop(lb, m.from) : rowTop(la, m.to!);
+        return [yb, m.to !== null ? rowTop(la, m.to) : yb] as const;
+      };
+      for (let frame = 0; frame <= Math.ceil((plan.inEnd + 0.2) * 60); frame++) {
+        const t = frame / 60;
+        const shown: number[] = [];
+        for (const m of plan.motions.values()) {
+          const [yb, ya] = ys(m);
+          // 一行的文字前后不同时是两段（只在变化前显示的、只在变化后显示的），同一时刻至多一段显示
+          const old = pieceAt(t, plan, m, yb, ya, true, false);
+          const neu = pieceAt(t, plan, m, yb, ya, false, true);
+          expect(old.fade > 0 && neu.fade > 0, `${beforeText} → ${afterText} @${frame}`).toBe(false);
+          const one = pieceAt(t, plan, m, yb, ya, m.from !== null, m.to !== null);
+          if (one.fade > 0) shown.push(one.y);
+          if (t < changeAt && m.from !== null) expect([one.y, one.fade]).toEqual([yb, 1]);
+          if (t >= plan.inEnd && m.to !== null) expect([one.y, one.fade]).toEqual([ya, 1]);
+          if (t >= plan.inEnd && m.to === null) expect(one.fade).toBe(0);
+        }
+        shown.sort((a, b) => a - b);
+        for (let i = 1; i < shown.length; i++) expect(shown[i]! - shown[i - 1]!, `${beforeText} → ${afterText} @${frame}`).toBeGreaterThanOrEqual(LINE_H - 1e-9);
+      }
+    }
+    // 击杀榜：Alex 滑上去，Steve 先淡出、Alex 滑完后在第二行淡入；整段在停留阶段里做完
+    const kill = localizePresetParams(defs, manifest.presets!.find((p) => p.key === 'kill-board')!.params, 'en');
+    const plan = planChange(parseRows(String(kill.rows)), parseRows(String(kill.rowsAfter)), Number(kill.changeAt), 'slide');
+    expect(plan.motions.get('Alex')?.slide).toBe(true);
+    expect(plan.motions.get('Steve')?.slide).toBe(false);
+    expect(plan.inEnd).toBeCloseTo(Number(kill.changeAt) + 0.6);
+    expect(plan.inEnd).toBeLessThan(Number(defaultParams(defs).inDuration) + Number(defaultParams(defs).hold));
+    // instant：所有行都在变化时刻跳到新位置
+    const instant = planChange(parseRows(String(kill.rows)), parseRows(String(kill.rowsAfter)), 2, 'instant');
+    expect([...instant.motions.values()].every((m) => m.slide)).toBe(true);
+    expect(pieceAt(1.99, instant, instant.motions.get('Alex')!, 10, 1, true, true)).toEqual({ y: 10, fade: 1 });
+    expect(pieceAt(2, instant, instant.motions.get('Alex')!, 10, 1, true, true)).toEqual({ y: 1, fade: 1 });
   });
 });

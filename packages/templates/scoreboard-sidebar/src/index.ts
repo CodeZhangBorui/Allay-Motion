@@ -4,16 +4,15 @@ import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/temp
 import { overlayWindows } from '../../_lib/src/timing';
 import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, fontOf, num, parseFormatted, plainText, rgbOf, richText, str, type Segment } from '../../_lib/src/gui-kit';
-import { BODY_ALPHA, changeProgress, contentWidth, fitFactor, HEADER_ALPHA, parseRows, rowTop, SCORE_COLOR, sidebarLayout, SPACE_W, titleLeft, type Row } from './layout';
+import { BODY_ALPHA, contentWidth, fitFactor, HEADER_ALPHA, motionProgress, parseRows, pieceAt, planChange, rowTop, SCORE_COLOR, sidebarLayout, SPACE_W, titleLeft, type Motion } from './layout';
 
 /** 一段会跟着行移动的文字：名字或分数 */
 interface Piece {
   object: InstanceType<SetupContext['THREE']['Object3D']>;
   height: number;
   setOpacity(a: number): void;
-  /** 变化前、变化后所在的行（0 是最上面）；null 表示那个状态里没有这一行 */
-  from: number | null;
-  to: number | null;
+  /** 这一行在变化里怎么动（变化前后的行号、滑动还是淡出淡入） */
+  motion: Motion;
   /** 变化前、变化后是否显示（同一行前后的文字不同时，各有一段，在变化那一刻互换） */
   before: boolean;
   after: boolean;
@@ -41,6 +40,7 @@ const template: TemplateModule = {
     const hasChange = afterText.trim() !== '';
     const rowsAfter = hasChange ? parseRows(afterText) : rowsBefore;
     const changeAt = hasChange ? num(params.changeAt, 1.5) : Number.POSITIVE_INFINITY;
+    const plan = planChange(rowsBefore, rowsAfter, changeAt, mode);
 
     const gui = createGui(ctx, G);
     gui.root.position.set(-stage.width / 2, stage.height / 2, 0);
@@ -49,44 +49,37 @@ const template: TemplateModule = {
     // 文字对象建好后内容不能改：每个不同的名字、每个不同的分数各建一段，变化时切换显示
     const pieces: Piece[] = [];
     const widths: { nameW: number; scoreW: number }[] = [];
-    const indexOf = (rows: readonly Row[], key: string): number | null => {
-      const i = rows.findIndex((r) => r.key === key);
-      return i < 0 ? null : i;
-    };
     const scorePieces: { piece: Piece; width: number }[] = [];
-    const addName = (name: string, from: number | null, to: number | null, before: boolean, after: boolean): number => {
+    const addName = (name: string, motion: Motion, before: boolean, after: boolean): number => {
       const rich = richText(ctx, parseFormatted(name, WHITE), G, rowFont, false);
-      pieces.push({ object: rich.object, height: rich.height, setOpacity: (a) => rich.setOpacity(a), from, to, before, after });
+      pieces.push({ object: rich.object, height: rich.height, setOpacity: (a) => rich.setOpacity(a), motion, before, after });
       gui.put(rich.object, 0, 0, 2);
       return rich.width / G;
     };
-    const addScore = (score: number, from: number | null, to: number | null, before: boolean, after: boolean): number => {
+    const addScore = (score: number, motion: Motion, before: boolean, after: boolean): number => {
       if (!showNumbers) return 0;
       const t = ctx.text.create({ text: String(score), size: G, color: scoreColor, align: 'right', font: rowFont });
-      const piece: Piece = { object: t.object, height: t.height, setOpacity: (a) => t.setOpacity(a), from, to, before, after };
+      const piece: Piece = { object: t.object, height: t.height, setOpacity: (a) => t.setOpacity(a), motion, before, after };
       pieces.push(piece);
       scorePieces.push({ piece, width: t.width / G });
       gui.put(t.object, 0, 0, 2);
       return t.width / G;
     };
-    const keys = [...new Set([...rowsBefore, ...rowsAfter].map((r) => r.key))];
-    for (const key of keys) {
-      const from = indexOf(rowsBefore, key);
-      const to = hasChange ? indexOf(rowsAfter, key) : from;
-      const b = from === null ? null : rowsBefore[from]!;
-      const a = to === null ? null : rowsAfter[to]!;
+    for (const m of plan.motions.values()) {
+      const b = m.from === null ? null : rowsBefore[m.from]!;
+      const a = m.to === null ? null : rowsAfter[m.to]!;
       if (b && a) {
         if (b.name === a.name) {
-          const nameW = addName(b.name, from, to, true, true);
-          if (b.score === a.score) widths.push({ nameW, scoreW: addScore(b.score, from, to, true, true) });
-          else widths.push({ nameW, scoreW: addScore(b.score, from, to, true, false) }, { nameW, scoreW: addScore(a.score, from, to, false, true) });
+          const nameW = addName(b.name, m, true, true);
+          if (b.score === a.score) widths.push({ nameW, scoreW: addScore(b.score, m, true, true) });
+          else widths.push({ nameW, scoreW: addScore(b.score, m, true, false) }, { nameW, scoreW: addScore(a.score, m, false, true) });
         } else {
-          widths.push({ nameW: addName(b.name, from, to, true, false), scoreW: addScore(b.score, from, to, true, false) });
-          widths.push({ nameW: addName(a.name, from, to, false, true), scoreW: addScore(a.score, from, to, false, true) });
+          widths.push({ nameW: addName(b.name, m, true, false), scoreW: addScore(b.score, m, true, false) });
+          widths.push({ nameW: addName(a.name, m, false, true), scoreW: addScore(a.score, m, false, true) });
         }
       } else {
         const r = (b ?? a)!;
-        widths.push({ nameW: addName(r.name, from, to, b !== null, a !== null), scoreW: addScore(r.score, from, to, b !== null, a !== null) });
+        widths.push({ nameW: addName(r.name, m, b !== null, a !== null), scoreW: addScore(r.score, m, b !== null, a !== null) });
       }
     }
 
@@ -128,8 +121,7 @@ const template: TemplateModule = {
       update(t: number) {
         // 整体淡入淡出（游戏里记分板是直接出现的）；_lib 的时间窗首尾各让出一帧
         const a = fadeInOut(t, win);
-        const changed = t >= changeAt;
-        const p = changeProgress(t, changeAt, mode);
+        const p = motionProgress(t, plan);
         const top = lerp(layoutBefore.top, layoutAfter.top, p);
         const bottom = lerp(layoutBefore.bottom, layoutAfter.bottom, p);
 
@@ -153,17 +145,15 @@ const template: TemplateModule = {
           setTop(title.object, title.height, top - 9);
         }
         for (const piece of pieces) {
-          const moving = piece.from !== null && piece.to !== null;
-          // 两个状态里都有的行：文字在变化那一刻互换。只在一个状态里的行：instant 下直接出现、消失，slide 下跟着换位淡入、淡出
-          const shown = moving ? (changed ? piece.after : piece.before) : true;
-          const fade = moving ? 1 : piece.before ? 1 - p : p;
-          const alpha = shown ? a * fade : 0;
+          const { from, to } = piece.motion;
+          // 只在一个状态里的行不移动，待在它自己那个状态的位置上
+          const yBefore = from !== null ? rowTop(layoutBefore, from) : rowTop(layoutAfter, to ?? 0);
+          const yAfter = to !== null ? rowTop(layoutAfter, to) : yBefore;
+          const { y, fade } = pieceAt(t, plan, piece.motion, yBefore, yAfter, piece.before, piece.after);
+          const alpha = a * fade;
           piece.object.visible = alpha > 0;
           piece.setOpacity(alpha);
-          // 只在一个状态里的行不移动，待在它自己那个状态的位置上
-          const yBefore = piece.from !== null ? rowTop(layoutBefore, piece.from) : rowTop(layoutAfter, piece.to ?? 0);
-          const yAfter = piece.to !== null ? rowTop(layoutAfter, piece.to) : yBefore;
-          setTop(piece.object, piece.height, lerp(yBefore, yAfter, p));
+          setTop(piece.object, piece.height, y);
         }
       },
       dispose() {
