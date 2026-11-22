@@ -2,7 +2,8 @@
 // 只用公开的模板接口；布局按界面像素（一个界面像素 = guiScale 个设计单位），数值在 layout.ts。
 import type { SetupContext, TemplateInstance, TemplateModule } from '@allay/template-sdk';
 import { anchorTopLeft, type Anchor } from '../../_lib/src/gui';
-import { overlayWindows, progress } from '../../_lib/src/timing';
+import { overlayWindows } from '../../_lib/src/timing';
+import { fadeInOut } from '../../_lib/src/fade';
 import { bool, createGui, fontOf, num, parseFormatted, richText, str, type Quads, type RichText, type Segment } from '../../_lib/src/gui-kit';
 import {
   CLASSIC_BACKGROUND,
@@ -160,7 +161,7 @@ const template: TemplateModule = {
       cutTime: null,
       update(t: number) {
         // 整体淡入淡出（游戏里提示框是直接出现的）；_lib 的时间窗首尾各让出一帧
-        const a = progress(t, win.in) * (1 - progress(t, win.out));
+        const a = fadeInOut(t, win);
         const off = motion === 'drift' ? driftOffset(t) : motion === 'follow' ? followOffset(t, stops, win.in.start, win.out.end) : { x: 0, y: 0 };
         // 不出画；位置取整到设计单位，停住时文字落在整像素上
         const gx = clamp(restX + off.x, maxX);
