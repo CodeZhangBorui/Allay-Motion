@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { defaultParams, parseManifest, sameValue, sanitizeParams, type ParamDef, type ParamValue } from '../../packages/template-sdk/src/index';
-import { polygonArea } from '../../packages/templates/_lib/src/shader-voronoi';
+import { polygonArea, polygonCentroid, voronoiCells, type Point } from '../../packages/templates/ice-shatter/src/voronoi';
 import { BURST_START, CRACK_END, crackRadius, FREEZE_MARGIN, freezeThreshold, shardDelay, shardMesh, shardProgress, shardSites } from '../../packages/templates/ice-shatter/src/layout';
 
 const manifest = (() => {
@@ -115,5 +115,39 @@ describe('T-TPL-C014 冰封碎裂', () => {
       const [a, b] = key.split('>').map(Number) as [number, number];
       if (!(onBorder(a) && onBorder(b))) expect(edges.has(`${b}>${a}`), key).toBe(true);
     }
+  });
+
+  it('T-TPL-C014-6 泰森多边形：每块包含自己的格点，面积加起来正好是整个矩形，凸、逆时针', () => {
+    const r = prng(7);
+    const sites: Point[] = Array.from({ length: 60 }, () => [r.next() * 1920 - 960, r.next() * 1080 - 540] as const);
+    const cells = voronoiCells(sites, -960, -540, 960, 540);
+    expect(cells).toHaveLength(60);
+    let total = 0;
+    for (const cell of cells) {
+      const a = polygonArea(cell.polygon);
+      expect(a).toBeGreaterThan(0);
+      total += a;
+      // 格点在自己那一块里：每条边的叉积同号（逆时针时都 ≥ 0）
+      const poly = cell.polygon;
+      for (let i = 0; i < poly.length; i++) {
+        const p = poly[i]!;
+        const q = poly[(i + 1) % poly.length]!;
+        const cross = (q[0] - p[0]) * (cell.site[1] - p[1]) - (q[1] - p[1]) * (cell.site[0] - p[0]);
+        expect(cross).toBeGreaterThanOrEqual(-1e-6);
+      }
+      // 块里的点离自己的格点最近
+      const c = polygonCentroid(poly);
+      const own = Math.hypot(c[0] - cell.site[0], c[1] - cell.site[1]);
+      for (const s of sites) expect(Math.hypot(c[0] - s[0], c[1] - s[1])).toBeGreaterThanOrEqual(own - 1e-6);
+    }
+    expect(total).toBeCloseTo(1920 * 1080, 3);
+  });
+
+  it('T-TPL-C014-7 泰森多边形：只有一个格点时是整个矩形；形心和面积的公式', () => {
+    const [only] = voronoiCells([[10, 20]], 0, 0, 100, 50);
+    expect(polygonArea(only!.polygon)).toBeCloseTo(5000, 6);
+    expect(polygonCentroid(only!.polygon)).toEqual([50, 25]);
+    // 退化的多边形取顶点平均
+    expect(polygonCentroid([[0, 0], [2, 0], [4, 0]])).toEqual([2, 0]);
   });
 });

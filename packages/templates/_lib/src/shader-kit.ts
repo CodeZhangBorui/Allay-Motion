@@ -55,7 +55,6 @@ float hashF(uint h) { return float(h >> 8u) * (1.0 / 16777216.0); }
 // 负的整数先挪到正数再转 uint（负数转 uint 在 GLSL ES 里没有规定），坐标范围是 ±2^20 格
 float rand1(int i, uint seed) { return hashF(hashU(uvec2(uint(i + 1048576), seed))); }
 float rand2(ivec2 c, uint seed) { return hashF(hashU(uvec3(uvec2(c + 1048576), seed))); }
-float rand3(ivec3 c, uint seed) { ivec3 k = c + 1048576; return hashF(hashU(uvec3(uint(k.x), uint(k.y) ^ hashU(uint(k.z)), seed))); }
 /** 值噪声，[0, 1]，格点间做三次插值 */
 float vnoise(vec2 p, uint seed) {
   vec2 i = floor(p);
@@ -67,13 +66,6 @@ float vnoise(vec2 p, uint seed) {
   float d = rand2(c + ivec2(0, 1), seed);
   float e = rand2(c + ivec2(1, 1), seed);
   return mix(mix(a, b, u.x), mix(d, e, u.x), u.y);
-}
-/** 一维值噪声，[0, 1] */
-float vnoise1(float x, uint seed) {
-  float i = floor(x);
-  float f = x - i;
-  float u = f * f * (3.0 - 2.0 * f);
-  return mix(rand1(int(i), seed), rand1(int(i) + 1, seed), u);
 }
 /** 四层分形噪声，[0, 1] */
 float fbm(vec2 p, uint seed) {
@@ -110,7 +102,6 @@ mat2 rot2(float a) { float c = cos(a), s = sin(a); return mat2(c, s, -s, c); }
  *
  * tileFrame：按连续坐标 p 平铺当前帧（一格 = p 的一个单位），导数用连续坐标的（textureGrad，docs/decisions.md M6a），
  * 并把格内坐标收进半个纹素，最近邻采样时不会取到相邻那一帧。
- * frameAt：在当前帧里取 0–1 坐标 f 处（f 不平铺，超出时钳到边上）。
  */
 export const GLSL_FRAME = /* glsl */ `
 vec2 frameInset(sampler2D tex, vec2 rep, vec2 f) {
@@ -120,9 +111,6 @@ vec2 frameInset(sampler2D tex, vec2 rep, vec2 f) {
 vec4 tileFrame(sampler2D tex, vec2 off, vec2 rep, vec2 p) {
   vec2 f = frameInset(tex, rep, fract(p));
   return textureGrad(tex, off + f * rep, dFdx(p) * rep, dFdy(p) * rep);
-}
-vec4 frameAt(sampler2D tex, vec2 off, vec2 rep, vec2 f) {
-  return texture2D(tex, off + frameInset(tex, rep, f) * rep);
 }
 /**
  * 平铺的双线性采样（四次 texelFetch 自己插值）：引擎缓存里的贴图放大时是最近邻，不能改它的过滤方式；

@@ -1,6 +1,6 @@
 // 014 冰封碎裂：结冰的先后、裂纹扩散、碎片什么时候飞、碎片的几何（泰森多边形，共用顶点合并成一张不漏缝的网）。
 // 不依赖 ctx 的纯函数，验收测试直接导入。
-import { polygonCentroid, voronoiCells, type Point } from '../../_lib/src/shader-voronoi';
+import { polygonCentroid, voronoiCells, type Point } from './voronoi';
 
 export interface Rng {
   next(): number;
