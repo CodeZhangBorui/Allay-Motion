@@ -25,11 +25,13 @@
 | `titleFont` / `subtitleFont` / `actionbarFont` | font | `embedded:default`（普通模式），带阴影 | — |
 | `textBackground` | boolean | false | — |
 | `backgroundOpacity` | number | 0.5 | 0–1，`textBackground` 打开时显示 |
-| `guiScale` | number | 4 | 1–8 |
+| `guiScale` | number | 5 | 1–8 |
 | `inDuration` / `hold` / `outDuration` | duration | 0.5 / 3.5 / 1 | 0.05–5 / 0.1–20 / 0.05–5 |
 | `actionbarDuration` | duration | 3 | 0.5–30 |
 | `sound` | sound | 无 | 在开头播放 |
 | `volume` | number | 0.8 | 0–1 |
+
+`guiScale` 默认 5（1080p 的游戏窗口在自动缩放下是 4）：模板库 320 × 180 的封面取的是中间一帧，副标题在 4 时只有几个像素高（`docs/template-catalog.md` 第 2 节：叠加层默认的大小要让封面里看得清）。
 
 自带预设：游戏默认时长、第 N 天、维度名、章节标题、只有动作栏提示。预设里的文字分中英文，套用时按界面语言取（`docs/04-templates.md` 4.7）。
 
