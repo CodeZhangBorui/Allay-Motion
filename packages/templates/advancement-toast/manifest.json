@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "category": "overlay",
-  "tags": ["toast", "advancement", "text"],
+  "tags": ["ui", "toast", "advancement", "text"],
   "groups": [
     { "key": "style", "label": { "zh-CN": "样式", "en": "Style" } },
     { "key": "content", "label": { "zh-CN": "内容", "en": "Content" } },

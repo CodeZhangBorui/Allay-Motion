@@ -9,7 +9,7 @@
   },
   "license": "MIT",
   "category": "transition",
-  "tags": ["item", "stinger", "wipe"],
+  "tags": ["items", "item", "stinger", "wipe"],
   "groups": [
     { "key": "item", "label": { "zh-CN": "物品", "en": "Item" } },
     { "key": "band", "label": { "zh-CN": "色带", "en": "Band" } },
