@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { isSafeRelativePath, isVersionDirName, parseJarVersionJson, VersionIdSchema, type PackFormat } from '@allay/assets';
 import { z } from 'zod';
 import type { ClosableLayer } from './layers';
-import { MAX_ENTRY_BYTES, openZip } from './zip';
+import { MAX_ENTRY_BYTES, openZip, zipHasPrefix } from './zip';
 
 export const VANILLA_LAYER_ID = 'vanilla';
 
@@ -157,9 +157,8 @@ export async function checkClientJar(jarPath: string): Promise<JarCheck> {
   if (cached && cached.size === st.size && cached.mtimeMs === st.mtimeMs) return cached.result;
   let result: JarCheck;
   try {
-    const jar = await openZip(jarPath, { includePrefixes: [CLIENT_ASSETS_PREFIX] });
-    result = jar.paths.size > 0 ? 'client' : 'not-client';
-    jar.close();
+    // 读到第一个 assets/minecraft/ 的条目就停：原版 jar 大约在第三千多个，零点几秒；整个扫一遍要好几秒
+    result = (await zipHasPrefix(jarPath, CLIENT_ASSETS_PREFIX)) ? 'client' : 'not-client';
   } catch {
     result = 'unreadable';
   }
