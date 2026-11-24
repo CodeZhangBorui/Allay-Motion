@@ -101,6 +101,9 @@ test('T-WEB-2 交互链路：首屏与分镜切换、1:1 真实桌面编辑器�
   await storyTabs.nth(1).scrollIntoViewIfNeeded();
   await storyTabs.nth(1).click();
   await expect(page.getByTestId('tune-panel')).toBeVisible();
+  await storyTabs.nth(2).click();
+  await chunkChip.click();
+  await expect(chunkChip).toHaveAttribute('aria-pressed', 'true');
 
   // 3. 1:1 真实桌面编辑器试玩台：滚入视口后自动装载桌面渲染进程并就绪，支持上方快捷切模板
   const simWindow = page.getByTestId('sim-window');

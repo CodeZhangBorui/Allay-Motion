@@ -328,7 +328,7 @@ function ScrollStage({ requestPick }: { requestPick?: { id: string; seq: number 
       const inv = 1 - k;
       if (wide && monitor) {
         // 首屏完整显露在折线之上（右上体素悦灵 + 右下完整 3D 斜躺监视器同屏辉映），滚入分镜时弹簧立正
-        monitor.style.transform = `translate3d(${(inv * s.vw * 0.018).toFixed(1)}px, ${(inv * s.vh * 0.115).toFixed(1)}px, 0) rotateX(${(inv * 13.5 + rx).toFixed(2)}deg) rotateY(${(inv * -15.5 + ry).toFixed(2)}deg) rotateZ(${(inv * 2).toFixed(2)}deg) scale(${(0.81 + k * 0.19).toFixed(4)})`;
+        monitor.style.transform = k === 1 ? 'none' : `translate3d(${(inv * s.vw * 0.018).toFixed(1)}px, ${(inv * s.vh * 0.115).toFixed(1)}px, 0) rotateX(${(inv * (13.5 + rx)).toFixed(2)}deg) rotateY(${(inv * (-15.5 + ry)).toFixed(2)}deg) rotateZ(${(inv * 2).toFixed(2)}deg) scale(${(0.81 + k * 0.19).toFixed(4)})`;
       }
     });
     return () => {
@@ -370,6 +370,8 @@ function ScrollStage({ requestPick }: { requestPick?: { id: string; seq: number 
         <div ref={auraRef} className="hero-aura absolute inset-0 transition-opacity duration-700" aria-hidden="true" />
         <div className="hero-horizon" aria-hidden="true" />
         <div className="absolute inset-0 bg-dots fade-mask opacity-55" aria-hidden="true" />
+      </div>
+      <div className="pointer-events-none sticky top-0 z-20 -mt-[100svh] h-[100svh] overflow-hidden" style={{ perspective: '1600px' }}>
         {wide && (
           <div className="pointer-events-auto absolute top-[calc(50%+var(--nav-h)/2)] right-[var(--gutter)] w-[min(51vw,860px)] -translate-y-1/2" style={{ transformStyle: 'preserve-3d' }}>
             <div ref={monitorRef} className="relative will-change-transform" style={{ transformStyle: 'preserve-3d', transformOrigin: '58% 50%' }}>
@@ -382,8 +384,8 @@ function ScrollStage({ requestPick }: { requestPick?: { id: string; seq: number 
 
       <div className="pointer-events-none relative z-10 -mt-[100svh]">
         <section id={SECTION.top} data-tl-clip="intro" data-tl-color="var(--allay)" className="relative flex min-h-[100svh] flex-col">
-          <div className={`wrap pointer-events-auto flex-1 pt-[calc(var(--nav-h)+5.5vh)] ${wide ? 'pb-[10vh]' : 'pb-12'}`}>
-            <div className={wide ? 'max-w-[54vw]' : ''}>
+          <div className={`wrap flex-1 pt-[calc(var(--nav-h)+5.5vh)] ${wide ? 'pb-[10vh]' : 'pb-12'}`}>
+            <div className={wide ? 'max-w-[54vw] [&_a]:pointer-events-auto' : 'pointer-events-auto'}>
               <HeroCopy />
             </div>
           </div>
@@ -411,8 +413,8 @@ function ScrollStage({ requestPick }: { requestPick?: { id: string; seq: number 
             SCENE 01
           </span>
           {!wide && <div className="pointer-events-auto px-[var(--gutter)] pt-6">{viewer}</div>}
-          <div className={`wrap pointer-events-auto relative ${wide ? 'pt-[calc(var(--nav-h)+6vh)]' : 'pt-12'}`}>
-            <div className={wide ? 'max-w-[min(35vw,520px)]' : ''}>
+          <div className={`wrap relative ${wide ? 'pt-[calc(var(--nav-h)+6vh)]' : 'pt-12'}`}>
+            <div className={`pointer-events-auto ${wide ? 'max-w-[min(35vw,520px)]' : ''}`}>
               <p className="t-mono text-fg-subtle">{t('site.story.kicker')}</p>
               <h2 id="story-title" className="t-h2 mt-4 !text-[clamp(34px,3.8vw,64px)]">
                 {t('site.story.title')}
