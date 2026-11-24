@@ -21,7 +21,11 @@ const ROOT = resolve(import.meta.dirname, '..');
 export const WEBSITE_MC_DIR = join(ROOT, 'apps/website/public/mc');
 
 /** 目录以外单独加的文件：悦灵的原版贴图，官网首屏的体素悦灵逐像素取色用（应用烘焙图集用的也是这一张） */
-export const WEBSITE_EXTRA_FILES: readonly string[] = ['assets/minecraft/textures/entity/allay/allay.png'];
+export const WEBSITE_EXTRA_FILES: readonly string[] = [
+  'assets/minecraft/textures/entity/allay/allay.png',
+  'assets/minecraft/textures/block/nether_portal.png',
+  'assets/minecraft/textures/block/nether_portal.png.mcmeta',
+];
 
 export interface McIndex {
   formatVersion: 1;

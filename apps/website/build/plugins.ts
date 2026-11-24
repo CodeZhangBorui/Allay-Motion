@@ -60,34 +60,15 @@ const MC_INDEX = resolve(import.meta.dirname, '../public/mc/index.json');
  * 页面据此决定读真实贴图还是用生成的色块，不用试探着请求（免得静态托管上出现 404）。没有提取时是 null。
  */
 export function websiteMc(): Plugin {
-  const localDir = process.env.LOCALAPPDATA && resolve(process.env.LOCALAPPDATA, 'AllayMotion/website-preview/1.21.1');
-  const localFiles = new Map<string, string>();
   return {
     name: 'allay-website-mc',
-    configureServer(server) {
-      if (!localDir) return;
-      for (const name of ['nether_portal.png', 'nether_portal.png.mcmeta']) {
-        const file = resolve(localDir, name);
-        if (!existsSync(file)) return;
-      }
-      for (const name of ['nether_portal.png', 'nether_portal.png.mcmeta']) {
-        localFiles.set(`assets/minecraft/textures/block/${name}`, resolve(localDir, name));
-      }
-      server.middlewares.use('/mc/', (req, res, next) => {
-        const path = (req.url ?? '').split('?')[0]!.slice(1);
-        const file = localFiles.get(path);
-        if (!file) return next();
-        res.setHeader('Content-Type', path.endsWith('.png') ? 'image/png' : 'application/json');
-        res.end(readFileSync(file));
-      });
-    },
     resolveId: (id) => (id === MC_VIRTUAL ? `\0${MC_VIRTUAL}` : null),
     load(id) {
       if (id !== `\0${MC_VIRTUAL}`) return null;
       if (!existsSync(MC_INDEX)) return 'export default null;';
       this.addWatchFile(MC_INDEX);
       const index = JSON.parse(readFileSync(MC_INDEX, 'utf8')) as { gameVersion: string; files: { path: string }[] };
-      return `export default ${JSON.stringify({ gameVersion: index.gameVersion, files: [...index.files.map((f) => f.path), ...localFiles.keys()] })};`;
+      return `export default ${JSON.stringify({ gameVersion: index.gameVersion, files: index.files.map((f) => f.path) })};`;
     },
   };
 }
