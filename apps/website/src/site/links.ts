@@ -18,10 +18,8 @@ export const DEVELOPERS: readonly Developer[] = [
 /** 页内各节的锚点 */
 export const SECTION = {
   top: 'top',
-  cut: 'cut',
-  try: 'try',
+  workflow: 'workflow',
   templates: 'templates',
   features: 'features',
-  workflow: 'workflow',
   open: 'open-source',
 } as const;
