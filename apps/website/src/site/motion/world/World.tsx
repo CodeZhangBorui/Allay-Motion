@@ -503,8 +503,29 @@ export function World() {
       root.dataset.worldDrag = String(state === 'drag');
     };
     let hoverTimer = 0;
+    let rotation: { pointer: number; x: number; y: number } | null = null;
+    let blockMenu = false;
+    const stopRotation = () => {
+      if (!rotation) return;
+      rotation = null;
+      scene.release();
+      setCursor('none');
+    };
+    const onMenu = (event: MouseEvent) => {
+      if (blockMenu && event.button === 2) event.preventDefault();
+      blockMenu = false;
+    };
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
+      if (rotation && rotation.pointer === e.pointerId) {
+        if (!(e.buttons & 2)) stopRotation();
+        else {
+          scene.rotateGrab(e.clientX - rotation.x, e.clientY - rotation.y);
+          rotation.x = e.clientX;
+          rotation.y = e.clientY;
+        }
+        return;
+      }
       const now = performance.now();
       const last = trailPts[0];
       const dist = last ? Math.hypot(e.clientX - last.x, e.clientY - last.y) : Infinity;
@@ -537,7 +558,7 @@ export function World() {
       if (hoverTimer) return;
       hoverTimer = window.setTimeout(() => {
         hoverTimer = 0;
-        if (press || turn.on) return;
+        if (press || turn.on || rotation) return;
         const bg = isBackground(e);
         const hit = bg ? scene.pickBlock(...ndc(e.clientX, e.clientY)) : null;
         const onBlock = hit !== null;
@@ -549,7 +570,20 @@ export function World() {
       }, 40);
     };
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || !isBackground(e)) return;
+      blockMenu = false;
+      if (!isBackground(e)) return;
+      if (e.button === 2 && e.pointerType === 'mouse') {
+        const id = scene.pickBlock(...ndc(e.clientX, e.clientY));
+        if (id === null) return;
+        blockMenu = true;
+        e.preventDefault();
+        scene.grab(id, ...ndc(e.clientX, e.clientY));
+        scene.rotateGrab(0, 0);
+        rotation = { pointer: e.pointerId, x: e.clientX, y: e.clientY };
+        setCursor('drag');
+        return;
+      }
+      if (e.button !== 0) return;
       if (e.pointerType === 'touch') {
         turn.x = e.clientX;
         turn.y = e.clientY;
@@ -577,6 +611,10 @@ export function World() {
       }
     };
     const onUp = (e: PointerEvent) => {
+      if (rotation?.pointer === e.pointerId) {
+        stopRotation();
+        return;
+      }
       if (e.pointerType === 'touch' && isBackground(e) && Math.hypot(e.clientX - turn.x, e.clientY - turn.y) < 8) shock(e.clientX, e.clientY);
       if (press) {
         const p = press;
@@ -611,6 +649,8 @@ export function World() {
     if (!still) {
       window.addEventListener('pointermove', onMove, { passive: true });
       window.addEventListener('pointerdown', onDown);
+      window.addEventListener('contextmenu', onMenu);
+      window.addEventListener('blur', stopRotation);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
     }
@@ -657,6 +697,8 @@ export function World() {
       tracked.forEach((t) => t?.untrack());
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('contextmenu', onMenu);
+      window.removeEventListener('blur', stopRotation);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       allay3d.sculpture = null;

@@ -5,8 +5,8 @@
 // - 景深：方块分远、中、近三层，远近两层画进半分辨率的离屏缓冲、两遍高斯模糊后合成；
 // - 能玩：指针经过时方块不动（只在能抓的那块上稍微放大一点）；点一下方块把它敲碎（碎块带重力掉下去），几秒后长回来；
 // - 磁吸：按住方块拖动，手里这块是磁铁，紧跟指针、转正到一套固定的网格上，松手后留在那里轻轻浮着。屏幕上和它
-//   （或它那一组里的任何一块）差不多平齐、在它左右几块以内的方块被吸过来：越近越快地朝它飞，途中转正、深度和大小
-//   过渡到和它一致，最后“啪”地贴在它的左面或右面（从哪边来贴哪边，被占了就顺着往外排），棱对棱、角对角；
+//   （或它那一组里的任何一块）横向或纵向对齐的附近方块被吸过来：越近越快地朝它飞，途中转正、深度和大小
+//   过渡到和它一致，最后贴在来向对应的面上（被占了就顺着往外排），棱对棱、角对角；
 //   贴上就和它成了一组，跟手一起走，还能继续吸。用力甩动时甩脱最外面那块，双击一块把它从组里弹出去；
 // - 首屏方块拼成的体素悦灵、剪辑点的 ◆、开源一节的时间线由体素雕塑来画（sculpture.ts），和这里共用渲染器和相机；
 // - 页尾的字标由方块拼成：对齐 DOM 里那段字的位置，走到页尾时方块从四面飞进来拼好，也能推、能敲；
@@ -208,6 +208,7 @@ interface Block {
  * 成员的格子坐标是整数；画的时候每块就是 pos + q·(格子 × u)，边长正好 u，相邻的面严丝合缝。
  */
 interface Grp {
+  rotated?: boolean;
   id: number;
   members: { b: Block; cell: [number, number, number] }[];
   u: number;
@@ -227,6 +228,7 @@ interface Grp {
 interface Pull {
   g: Grp;
   cell: [number, number, number];
+  axis: 0 | 1 | 2;
   step: number;
   pos: THREE.Vector3;
   speed: number;
@@ -290,7 +292,7 @@ const AXES: [number, number, number][] = [
 ];
 const cellKey = (c: readonly number[]) => `${c[0]},${c[1]},${c[2]}`;
 /**
- * 磁吸（都按屏幕上看到的，以手里那块在屏幕上的边长为单位）：竖直方向偏差不超过 band、左右不超过 reach 的方块被吸；
+ * 磁吸（以屏幕上的块宽为单位）：沿吸附轴不超过 reach、垂直于该轴的偏差不超过 band；
  * 吸力（世界里，以格子边长 u 计）刚开始是 accel·u/s²，按出发距离与当前距离之比的平方增大；离目标 snap·u 以内“啪”地贴上
  */
 export const MAGNET = { band: 0.8, reach: 4.5, accel: 3, snap: 0.08 } as const;
@@ -760,6 +762,13 @@ export class World {
     this.drag = { g, grab: b, z, offset: g.pos.clone().sub(p0), ndcX, ndcY, lastFling: 0 };
   }
 
+  rotateGrab(dx: number, dy: number): void {
+    const group = this.drag?.g;
+    if (!group) return;
+    group.rotated = true;
+    group.q.premultiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(dy * 0.009, dx * 0.009, 0, 'YXZ'))).normalize();
+  }
+
   /** 拖动中：指针移到了哪（归一化坐标）、指针速度（px/s，用力甩时甩脱最外面那块） */
   dragTo(ndcX: number, ndcY: number, speed: number): void {
     const d = this.drag;
@@ -883,41 +892,34 @@ export class World {
   }
 
   /**
-   * 磁吸，第一步：找要被吸的方块（只在拖着时算）。按屏幕上看到的：和手里那组任何一块差不多平齐（竖直偏差不超过
-   * band 个块高）、在它左右 reach 个块宽以内的单块方块。目标是那一块左面或右面的格子（从哪边来贴哪边），被占了就顺着往外排。
+   * 磁吸，第一步：找横向或纵向靠近手里那组的单块方块，从哪边来贴哪边，被占了就顺着往外排。
    * 只看当前机位附近、清晰那一层的十几块
    */
   private attract(g: Grp, f: WorldFrame): void {
     const { base, q, u } = g.disp;
     const occupied = new Set(g.members.map((m) => cellKey(m.cell)));
     for (const b of this.blocks) if (b.pull?.g === g) occupied.add(cellKey(b.pull.cell));
-    // 网格的 x 轴在屏幕上朝哪边（转正以后大致朝右）
-    const xSign = new THREE.Vector3(1, 0, 0).applyQuaternion(q).x >= 0 ? 1 : -1;
-    const tanHalf = Math.tan((this.camera.fov * Math.PI) / 360);
-    const ms = g.members.map((m) => {
-      const w = new THREE.Vector3(m.cell[0] * u, m.cell[1] * u, m.cell[2] * u).applyQuaternion(q).add(base);
-      return { m, p: this.toScreen(w, f.vw, f.vh), size: (u * f.vh) / (2 * tanHalf * Math.max(0.5, this.camera.position.distanceTo(w))) };
-    });
+    const inverse = q.clone().invert();
     for (const b of this.blocks) {
       if (b.layer !== 1 || b.brokenAt || b.pull) continue;
       if (b.grp && (b.grp === g || b.grp.members.length > 1)) continue;
       if (Math.abs(b.shown.y - this.camPos.y) > STATION_GAP) continue;
       if (b.shownS < b.size * 0.35) continue;
-      const pb = this.toScreen(b.shown, f.vw, f.vh);
-      if (!pb) continue;
-      let best: { m: Grp['members'][number]; dx: number } | null = null;
-      for (const x of ms) {
-        if (!x.p) continue;
-        const dy = Math.abs(pb.y - x.p.y);
-        const dx = pb.x - x.p.x;
-        if (dy > MAGNET.band * x.size || Math.abs(dx) > MAGNET.reach * x.size || Math.abs(dx) < 0.25 * x.size) continue;
-        if (!best || Math.abs(dx) < Math.abs(best.dx)) best = { m: x.m, dx };
+      if (!this.toScreen(b.shown, f.vw, f.vh)) continue;
+      const local = b.shown.clone().sub(base).applyQuaternion(inverse).divideScalar(u);
+      let best: { m: Grp['members'][number]; axis: 0 | 1 | 2; step: number; distance: number } | null = null;
+      for (const member of g.members) {
+        const dx = local.x - member.cell[0], dy = local.y - member.cell[1], dz = local.z - member.cell[2];
+        const axis = Math.abs(dx) >= Math.max(Math.abs(dy), Math.abs(dz)) ? 0 : Math.abs(dy) >= Math.abs(dz) ? 1 : 2;
+        const along = axis === 0 ? dx : axis === 1 ? dy : dz;
+        const distance = dx * dx + dy * dy + dz * dz;
+        if (distance - along * along > MAGNET.band ** 2 || Math.abs(along) > MAGNET.reach || Math.abs(along) < 0.25) continue;
+        if (!best || distance < best.distance) best = { m: member, axis, step: Math.sign(along), distance };
       }
       if (!best) continue;
-      const step = Math.sign(best.dx) * xSign;
-      const c: [number, number, number] = [best.m.cell[0] + step, best.m.cell[1], best.m.cell[2]];
-      for (let n = 0; n < 12 && occupied.has(cellKey(c)); n++) c[0] += step;
-      if (occupied.has(cellKey(c))) continue;
+      const { axis, step } = best;
+      const c: [number, number, number] = [...best.m.cell];
+      do { c[axis] += step; } while (occupied.has(cellKey(c)));
       occupied.add(cellKey(c));
       // 开始被吸：原来漂着的（或单独一块的组）从它此刻的样子出发
       if (b.grp) {
@@ -925,7 +927,7 @@ export class World {
         b.grp = null;
       }
       const target = new THREE.Vector3(c[0] * u, c[1] * u, c[2] * u).applyQuaternion(q).add(base);
-      b.pull = { g, cell: c, step, pos: b.shown.clone(), speed: 0, q0: b.shownQ.clone(), s0: Math.max(b.shownS, 1e-3), d0: Math.max(target.distanceTo(b.shown), u * 0.5) };
+      b.pull = { g, cell: c, axis, step, pos: b.shown.clone(), speed: 0, q0: b.shownQ.clone(), s0: Math.max(b.shownS, 1e-3), d0: Math.max(target.distanceTo(b.shown), u * 0.5) };
     }
   }
 
@@ -957,7 +959,7 @@ export class World {
       if (stepLen >= d || d < MAGNET.snap * u) {
         // 啪：贴上（这一格要是刚被占了就顺着往外排）
         const occupied = new Set(g.members.map((m) => cellKey(m.cell)));
-        for (let n = 0; n < 12 && occupied.has(cellKey(p.cell)); n++) p.cell[0] += p.step;
+        while (occupied.has(cellKey(p.cell))) p.cell[p.axis] += p.step;
         g.members.push({ b, cell: p.cell });
         b.grp = g;
         b.pull = null;
@@ -1278,7 +1280,7 @@ export class World {
       const prev = d.g.pos.clone();
       d.g.pos.lerp(target, 1 - Math.exp(-dt * 35));
       d.g.vel.copy(d.g.pos).sub(prev).divideScalar(Math.max(dt, 1e-3));
-      d.g.q.slerp(UPRIGHT, 1 - Math.exp(-dt * 8));
+      if (!d.g.rotated) d.g.q.slerp(UPRIGHT, 1 - Math.exp(-dt * 8));
     }
     for (const g of this.grps) {
       const dragged = this.drag?.g === g;
