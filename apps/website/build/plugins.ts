@@ -11,12 +11,15 @@ import { bundleTemplate, readTemplateManifest, templateDirs } from '../../../scr
 const VIRTUAL = 'virtual:allay-builtin-templates';
 const ROOT = resolve(import.meta.dirname, '../../..');
 
-/** 官网固定展示的 5 个精选模板；主程序再加新模板也不会自动同步进官网 */
+/** 官网固定展示的 8 个精选代表性模板（全部具备完整原版像素贴图支持）；主程序后续再加新模板也不会自动同步进官网 */
 export const SHOWCASE_TEMPLATE_IDS = [
   'allay.builtin.block-wipe',
-  'allay.builtin.block-fall',
+  'allay.builtin.portal-gate',
+  'allay.builtin.chunk-rise',
+  'allay.builtin.ice-shatter',
+  'allay.builtin.block-punch',
   'allay.builtin.item-stinger',
-  'allay.builtin.pixel-dissolve',
+  'allay.builtin.item-swarm',
   'allay.builtin.advancement-toast',
 ] as const;
 
