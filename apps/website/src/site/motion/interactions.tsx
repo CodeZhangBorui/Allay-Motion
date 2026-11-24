@@ -1,14 +1,11 @@
-// 进视口时的编排（useReveal）。指针相关的光效、磁吸按钮按 shadcn 的克制风格撤掉了（docs/decisions.md 官网 · 第三版）。
+// 进视口时的轻量化显现：失败即显示，决不因 rAF 不跑或观察器未回调而长期隐藏标题或内容。
 import { useEffect, useRef } from 'react';
-import { getPrefs } from '../prefs';
+import { usePrefs } from '../prefs';
 
-/**
- * 进视口时的编排：给元素打 data-armed / data-shown（CSS .reveal、.reveal-lines 据此做出场）。
- * 失败即显示：挂载时已经在视口里、页面没有在逐帧渲染（后台标签页）、减少动效时，直接是终态；
- * 武装之后有保底计时器，IntersectionObserver 不回调也会在进视口后一秒内显示。
- */
-export function useReveal<T extends HTMLElement>(threshold = 0.2) {
+export function useReveal<T extends HTMLElement>(threshold = 0.15) {
   const ref = useRef<T>(null);
+  const { reducedMotion } = usePrefs();
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -16,7 +13,7 @@ export function useReveal<T extends HTMLElement>(threshold = 0.2) {
       el.dataset.shown = 'true';
     };
     const motionOk = document.documentElement.classList.contains('motion-ok');
-    if (getPrefs().reducedMotion || !motionOk || el.getBoundingClientRect().top < window.innerHeight * 0.92) {
+    if (reducedMotion || !motionOk || el.getBoundingClientRect().top < window.innerHeight * 0.92) {
       show();
       return;
     }
@@ -28,20 +25,16 @@ export function useReveal<T extends HTMLElement>(threshold = 0.2) {
         io.disconnect();
         show();
       },
-      { threshold, rootMargin: '0px 0px -8% 0px' },
+      { threshold, rootMargin: '0px 0px -6% 0px' },
     );
     io.observe(el);
-    const timer = window.setInterval(() => {
-      const r = el.getBoundingClientRect();
-      if (r.top < window.innerHeight && r.bottom > 0) {
-        window.clearInterval(timer);
-        window.setTimeout(show, 900);
-      }
-    }, 1000);
+    // 保底定时器：避免极端情况下观察器未回调导致元素停留在不可见态
+    const fallback = window.setTimeout(show, 2500);
     return () => {
       io.disconnect();
-      window.clearInterval(timer);
+      window.clearTimeout(fallback);
     };
-  }, [threshold]);
+  }, [threshold, reducedMotion]);
+
   return ref;
 }
