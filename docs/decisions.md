@@ -2732,5 +2732,8 @@ PR #5 遗留清单里引擎正确性的两项（主控派发，会话短名 engi
     - **指针跟随径向聚光边框（`.card-spotlight`）+ 3D 悬停微倾**：模板 Bento 与 6 卡特性矩阵通过单层被动委托监听实时更新 `--spot-x / --spot-y` 1px 径向高光与内层柔光；
     - **CSS Scroll-Driven Animations（`animation-timeline: view()`）与 35mm 胶片技术跑马灯**：章节背景挂载原生滚动驱动视差场记水印（`SCENE 01`–`SCENE 04`），模板区底部衔接双排齿孔胶片无限跑马灯（`FilmRibbon`）。
   - **3D 世界软件光栅化自适应与精简验收测试**：`motion/world/` 新增 `software` 档位检测（`SwiftShader` / `Basic Render Driver` / `WARP` / `llvmpipe` 自动降至 `kMax = 2`、`dpr = 1` 并跳过景深模糊），配合 7 条核心冒烟测试（`T-WEB-1` 至 `T-WEB-7`）兼顾视觉表现与 CI 稳定性。
-
-
+- **官网重新依赖桌面版渲染进程（部分撤销 PR #14 的解耦）**：
+  - 为了让试玩台与桌面应用 1:1 一致，`simulator.html` 的入口 `src/simulator/main.ts` 直接挂桌面版渲染进程 `apps/desktop/src/renderer/main.tsx`；`src/host/browser-host.ts` 用浏览器实现替换 `window.allay`，并导入 `apps/desktop/src/shared/*` 的类型和纯函数。落地页的 `i18n.ts` 也借用了桌面版语言文件里的 `export.*`、`gallery.*` 两组文案。`apps/website/package.json` 因此重新声明了 `@allay/desktop: workspace:*`。这个依赖没有代码按包名导入，都是相对路径，它只让 pnpm 的依赖图知道官网依赖桌面端。
+  - PR #14 里“官网不能导入 apps/desktop”的规则相应放宽：落地页和仿真器可以导入渲染进程和 `shared` 的代码，跨窗消息照旧经 `src/host/bridge.ts` 的 zod 校验并核对来源窗口。
+  - 构建边界由 `eslint.config.js` 的 `deps/website` 规则保证：`apps/website/src` 不能依赖 Electron 和 Node，不能导入 `desktop/src/main`（主进程），`desktop/src/preload` 只能导入类型。被导入的渲染进程代码另由 `deps/renderer` 规则约束（同样不碰 Electron、Node、主进程），所以浏览器构建里带不进 Electron 或 Node 的运行时。
+  - 代价：桌面版渲染进程或 `shared` 改动可能连带官网构建失败，需要由 `pnpm test:website`（在 `pnpm check` 里）兜住；精选模板仍固定为 8 个，不随桌面端新增模板膨胀。
