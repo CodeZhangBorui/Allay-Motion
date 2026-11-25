@@ -1,6 +1,5 @@
 // 仿真器的入口（在落地页的 iframe 里）：先装上浏览器版的 window.allay，再启动桌面版渲染进程的真实入口
 // apps/desktop/src/renderer/main.tsx。之后的界面、Zustand 状态、引擎 Worker、模板装载、导出管线全是桌面版的代码。
-import { z } from 'zod';
 import { FromSimulatorSchema, SiteLanguageSchema, SiteThemeSchema, ToSimulatorSchema, readMessage, type FromSimulator } from '../host/bridge';
 import { createBrowserHost, installBrowserHost } from '../host/browser-host';
 import { hostMessages } from '../site/i18n';
@@ -41,8 +40,6 @@ function drawCaptionButtons(): void {
   document.body.appendChild(bar);
 }
 
-const SelectSchema = z.object({ id: z.string(), version: z.string() });
-
 window.addEventListener('message', (event) => {
   if (event.source !== window.parent) return;
   const msg = readMessage(event, ToSimulatorSchema);
@@ -50,11 +47,10 @@ window.addEventListener('message', (event) => {
   if (msg.type === 'settings') {
     host.applySettings({ theme: msg.theme, language: msg.language, reducedMotion: msg.reducedMotion ? 'on' : 'system' });
   } else if (msg.type === 'select') {
-    const ref = SelectSchema.parse(msg);
     autoplay.enabled = true;
     void import('../../../desktop/src/renderer/features/templates/actions').then(async ({ selectTemplate }) => {
       const i18next = (await import('i18next')).default;
-      await selectTemplate(ref.id, ref.version, i18next.language);
+      await selectTemplate(msg.id, msg.version, i18next.language);
     });
   } else if (msg.type === 'visibility') {
     autoplay.visible = msg.visible;

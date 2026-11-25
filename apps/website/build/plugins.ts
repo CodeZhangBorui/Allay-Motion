@@ -1,6 +1,6 @@
 // 官网构建用的 Vite 插件。
 //
-// 1. virtual:allay-builtin-templates：只打包官网精选展示用的固定 5 个内置模板（SHOWCASE_TEMPLATE_IDS），
+// 1. virtual:allay-builtin-templates：只打包官网精选展示用的固定 8 个内置模板（SHOWCASE_TEMPLATE_IDS），
 //    不再随主程序新增模板自动同步、膨胀网站体积；打包函数仍复用 scripts/build-templates.ts 的校验和打包逻辑。
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

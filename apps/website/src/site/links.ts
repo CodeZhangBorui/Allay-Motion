@@ -1,4 +1,4 @@
-// 官网上的外部链接与页面结构常量：不引用 apps/desktop。
+// 官网上的外部链接（只有 GitHub）与页面结构常量。
 export const REPO_URL = 'https://github.com/Mystic-Stars/Allay-Motion';
 export const LICENSE_NAME = 'GPL-3.0';
 

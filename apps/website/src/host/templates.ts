@@ -19,7 +19,7 @@ function contentHash(text: string): string {
     a = Math.imul(a ^ c, 0x01000193);
     b = Math.imul(b ^ c, 0x01000193) ^ (b >>> 15);
   }
-  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16, ).padStart(8, '0');
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
 }
 
 function load(): SiteTemplateBundle[] {
