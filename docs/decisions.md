@@ -1790,6 +1790,10 @@ GitHub 的 Windows 机器没有显卡。Chromium 的 WebGL 走 **WARP**，渲染
   - 用户于 2026-11-14 明确批准提取 `assets/minecraft/textures/entity/allay/allay.png`（原话「我允许」），范围是这一个文件、仅用于官网首屏体素悦灵取色。`pnpm website:mc` 照旧从本机正版 jar 提取（脚本里的 `WEBSITE_EXTRA_FILES`），放在 `apps/website/public/mc/` 下与 jar 内相同的路径，和其余文件同样处理（进分支、`index.json` 记 SHA-256、`ASSETS_PROVENANCE.json` 的 mojang 记录覆盖、`check-provenance` 的范围校验）。现在共 183 个文件、46.0 KB。共享包不引用它，只有官网的宿主层（`motion/world/World.tsx` 经 `host/mc-pack.ts`）读；文件缺失时官网自动退回“首屏不拼体素悦灵”。
   - 用户于 2026-11-14 明确批准使用模型（原话「我允许用模型」）。实际用到的是 `packages/mascot` 里已有的悦灵模型定义（`allay.model.ts` 的长方体、`allay.rig.ts` 的骨架和盒子展开、`allay.motions.ts` 的动作），**未新增文件**；没有从游戏里提取模型文件，也没有反编译或提取游戏的程序代码。
   - 其他实体贴图、模型、音效、字体仍然不取；再需要别的类别先问。
+- **补充（2026-11-24）：下界传送门的动画贴图**。官网精选模板里的“传送门穿越”（`allay.builtin.portal-gate`）读 `minecraft:block/nether_portal`，它不在 `requiredTextures()` 里，官网原先只能用纯色色块代替。
+  - 批准人：维护者 khiqwq（风花叶），出处是 PR #16 的评论（2026-11-24）。他核对过两个文件与 1.21.1 jar 里的原文件 SHA-256 一致，并移除了本机预览用的中间件（bbe9353 加、23b7bf7 删）。
+  - 范围只限两个文件：`assets/minecraft/textures/block/nether_portal.png` 和 `nether_portal.png.mcmeta`，只在官网使用（`apps/website/public/mc/` 下，路径与 jar 相同）。处理方式与悦灵贴图相同：`pnpm website:mc` 经 `WEBSITE_EXTRA_FILES` 从本机正版 jar 提取，`index.json` 记 SHA-256，`ASSETS_PROVENANCE.json` 的 mojang 记录覆盖，`check-provenance` 校验。现在共 185 个文件、54.8 KB。
+  - 桌面应用、`packages/*`、安装包、测试夹具不受影响；其他原版文件照旧不取。
 
 ### 测试与命令
 
