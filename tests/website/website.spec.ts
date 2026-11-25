@@ -202,7 +202,7 @@ test('T-WEB-5 非官方声明逐字醒目、正文不写模板数量、开发者
   }
 });
 
-test('T-WEB-6 窄屏（390px）单行顶栏无横向溢出，自动切换紧凑试玩台，无报错、无外部请求', async () => {
+test('T-WEB-6 窄屏（390px）单行顶栏无横向溢出，自动切换紧凑试玩台、模板卡片能送模板进紧凑预览，无报错、无外部请求', async () => {
   const narrow = await launch(390);
   try {
     const { page } = narrow;
@@ -212,6 +212,13 @@ test('T-WEB-6 窄屏（390px）单行顶栏无横向溢出，自动切换紧凑�
     await chip.click();
     await expect(chip).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('sim-compact')).toBeVisible();
+    // 窄屏没有仿真器窗口：模板卡片的按钮把模板送进紧凑预览，并滚到预览
+    const punchOpen = page.locator('[data-testid="template-card"][data-template="allay.builtin.block-punch"] [data-testid="template-open"]');
+    await punchOpen.scrollIntoViewIfNeeded();
+    await punchOpen.click();
+    const compact = page.getByTestId('compact-viewer');
+    await expect(compact.locator('[data-testid="live-chip"][data-template="allay.builtin.block-punch"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(compact).toBeInViewport();
     await page.getByTestId('site-footer').scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
     expect(narrow.errors).toEqual([]);

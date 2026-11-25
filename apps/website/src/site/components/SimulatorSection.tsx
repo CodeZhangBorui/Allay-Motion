@@ -297,6 +297,36 @@ function SimulatorWindow() {
   );
 }
 
+/**
+ * 窄屏的紧凑试玩台：没有仿真器窗口时，模板卡片的“在仿真器里打开”由这里接住，
+ * 切到该模板并滚到预览（与宽屏的仿真器、PR #14 的首屏 onPreview 行为一致）。
+ */
+function CompactSimulator() {
+  const { t } = useTranslation();
+  const { reducedMotion } = usePrefs();
+  const [request, setRequest] = useState<{ id: string; seq: number } | null>(null);
+
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const { id } = (e as CustomEvent<{ id: string; version: string }>).detail;
+      setRequest((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 }));
+      document.getElementById(SECTION.try)?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    };
+    window.addEventListener(OPEN_TEMPLATE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_TEMPLATE_EVENT, onOpen);
+  }, [reducedMotion]);
+
+  return (
+    <div data-testid="sim-compact">
+      <div className="card mb-4 p-5">
+        <p className="text-[15px] font-semibold">{t('site.sim.compactTitle')}</p>
+        <p className="t-body mt-1">{t('site.sim.compact')}</p>
+      </div>
+      <LiveViewer scrubbable testId="compact-viewer" requestPick={request} />
+    </div>
+  );
+}
+
 export function SimulatorSection() {
   const { t } = useTranslation();
   const wide = useWide();
@@ -316,17 +346,7 @@ export function SimulatorSection() {
         <p className="t-lead max-w-[36em]">{t('site.sim.lead')}</p>
       </div>
       <div className="relative mx-auto mt-10 w-full max-w-[1520px] px-[var(--gutter)] lg:px-6">
-        {wide ? (
-          <SimulatorWindow />
-        ) : (
-          <div data-testid="sim-compact">
-            <div className="card mb-4 p-5">
-              <p className="text-[15px] font-semibold">{t('site.sim.compactTitle')}</p>
-              <p className="t-body mt-1">{t('site.sim.compact')}</p>
-            </div>
-            <LiveViewer scrubbable testId="compact-viewer" />
-          </div>
-        )}
+        {wide ? <SimulatorWindow /> : <CompactSimulator />}
       </div>
     </section>
   );
