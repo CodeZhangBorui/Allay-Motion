@@ -33,7 +33,7 @@
       "完全离线",
       "透明通道直出"
     ],
-    "worldHint": "拨动右上方的体素悦灵，或按住背景方块靠近另一块试试磁吸拼接",
+    "worldHint": "拨动右上方的体素{{mascot}}，或按住背景方块靠近另一块试试磁吸拼接",
     "scrollCue": "向下滚动进入剪辑时间轴",
     "viewerLabel": "实时渲染",
     "starting": "正在启动渲染引擎…",
@@ -115,7 +115,7 @@
     "getDesktop": "获取桌面版",
     "dismiss": "关闭提示",
     "exportDoneTitle": "已完成 {{frames}} 帧逐帧渲染演练",
-    "exportDone": "试玩台已按「{{format}}」跑完渲染与悦灵送达流程。安装桌面版即可调用内置 FFmpeg 直接写出透明通道成片文件。",
+    "exportDone": "试玩台已按「{{format}}」跑完渲染与{{mascot}}送达流程。安装桌面版即可调用内置 FFmpeg 直接写出透明通道成片文件。",
     "keepTrying": "继续试玩"
   },
   "host": {

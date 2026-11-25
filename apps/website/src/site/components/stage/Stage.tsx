@@ -213,7 +213,7 @@ function HeroCopy({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <p className="intro-fade mt-5 hidden items-center gap-2 rounded-lg border border-[var(--site-line)] bg-site-card/65 px-3 py-1.5 text-[12px] text-fg-muted lg:inline-flex" style={{ '--i': 4 } as CSSProperties}>
           <Sparkle size={13} weight="fill" className="shrink-0 text-primary-text" aria-hidden="true" />
-          <span>{t('site.hero.worldHint')}</span>
+          <span>{t('site.hero.worldHint', { mascot: t('brand.mascot') })}</span>
         </p>
       )}
     </div>

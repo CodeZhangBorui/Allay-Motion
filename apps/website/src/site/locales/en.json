@@ -33,7 +33,7 @@
       "100% offline",
       "Alpha channel export"
     ],
-    "worldHint": "Brush through the voxel Allay above, or drag floating blocks near each other to snap them together",
+    "worldHint": "Brush through the voxel {{mascot}} above, or drag floating blocks near each other to snap them together",
     "scrollCue": "Scroll down the timeline",
     "viewerLabel": "Live engine",
     "starting": "Starting render engine…",
@@ -115,7 +115,7 @@
     "getDesktop": "Get desktop app",
     "dismiss": "Dismiss notice",
     "exportDoneTitle": "Rehearsed all {{frames}} frames",
-    "exportDone": "Finished rendering the \"{{format}}\" pass with Allay delivery choreography. Install the desktop app to encode real alpha-channel files via FFmpeg.",
+    "exportDone": "Finished rendering the \"{{format}}\" pass with {{mascot}} delivery choreography. Install the desktop app to encode real alpha-channel files via FFmpeg.",
     "keepTrying": "Keep exploring"
   },
   "host": {

@@ -276,7 +276,7 @@ function SimulatorWindow() {
                 <h3 id="sim-export-title" className="t-h3">
                   {t('site.sim.exportDoneTitle', { frames: notice.frames })}
                 </h3>
-                <p className="t-body mt-2">{t('site.sim.exportDone', { format: presetName(notice.preset) })}</p>
+                <p className="t-body mt-2">{t('site.sim.exportDone', { format: presetName(notice.preset), mascot: t('brand.mascot') })}</p>
                 <div className="mt-5 flex justify-end gap-2">
                   <Button variant="ghost" size="lg" onClick={() => setNotice(null)}>
                     {t('site.sim.keepTrying')}
